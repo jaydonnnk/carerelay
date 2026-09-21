@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CareRelay — Recommendation wireframe</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 18px/1.45 system-ui, sans-serif; color: #111; background: #eee; }
+    main { max-width: 760px; margin: 32px auto; padding: 24px; background: #fff; border: 2px solid #111; }
+    header, section { margin-bottom: 24px; }
+    .eyebrow { font-size: 14px; text-transform: uppercase; letter-spacing: .08em; }
+    .notice { padding: 12px; border: 2px dashed #555; background: #f5f5f5; }
+    .action { padding: 20px; border: 4px solid #111; }
+    h1, h2, p { margin-top: 0; }
+    h1 { font-size: 30px; }
+    h2 { font-size: 24px; }
+    button { min-height: 48px; margin: 6px 8px 6px 0; padding: 10px 16px; border: 2px solid #111; background: #fff; font: inherit; font-weight: 700; }
+    button.primary { background: #111; color: #fff; }
+    .meta { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .meta div { padding: 12px; border: 1px solid #555; }
+    small { display: block; margin-top: 16px; }
+    @media (max-width: 600px) { main { margin: 0; border-width: 0; } .meta { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="eyebrow">Wireframe 1 of 4 · same-day demo path</div>
+    <h1>CareRelay</h1>
+    <div class="notice">Research demonstration. Draft Mandarin is for layout testing and is not clinically reviewed.</div>
+  </header>
+
+  <section class="action" aria-labelledby="recommendation">
+    <div class="eyebrow">Your next step · 下一步</div>
+    <h2 id="recommendation">Get medical help today, before 6:00 PM.</h2>
+    <p lang="zh-Hans">请在今天下午 6 点前寻求医疗帮助。</p>
+    <p><strong>This is not yet arranged.</strong><br><span lang="zh-Hans">这还没有安排好。</span></p>
+    <button class="primary">I understand · 我明白了</button>
+    <button aria-label="Listen to recommendation">▶ Listen · 播放</button>
+  </section>
+
+  <section class="meta" aria-label="Recommendation details">
+    <div><strong>Deadline</strong><br>Today, 6:00 PM</div>
+    <div><strong>Status</strong><br>Action needed · 需要采取行动</div>
+  </section>
+
+  <section>
+    <h2>Choose how to continue</h2>
+    <button>Type · 输入文字</button>
+    <button>🎙 Hold to speak · 按住说话</button>
+    <p>Voice is optional. A transcript will always appear before anything is saved.</p>
+  </section>
+
+  <small>Emergency contrast: a 995 recommendation would appear immediately and would not wait for this flow.</small>
+</main>
+</body>
+</html>

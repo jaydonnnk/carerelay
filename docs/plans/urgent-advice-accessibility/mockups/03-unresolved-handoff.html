@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CareRelay — Unresolved handoff wireframe</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 18px/1.45 system-ui, sans-serif; color: #111; background: #eee; }
+    main { max-width: 760px; margin: 32px auto; padding: 24px; background: #fff; border: 2px solid #111; }
+    .eyebrow { font-size: 14px; text-transform: uppercase; letter-spacing: .08em; }
+    h1, h2, p { margin-top: 0; }
+    h1 { font-size: 30px; }
+    .status { padding: 20px; border: 4px solid #111; margin: 20px 0; }
+    .timeline { list-style: none; padding: 0; }
+    .timeline li { padding: 14px; border-left: 6px solid #111; border-bottom: 1px solid #777; }
+    .timeline li.unresolved { border: 3px solid #111; border-left-width: 10px; margin-top: 10px; }
+    button { min-height: 48px; margin: 6px 8px 6px 0; padding: 10px 16px; border: 2px solid #111; background: #fff; font: inherit; font-weight: 700; }
+    button.primary { background: #111; color: #fff; }
+    @media (max-width: 600px) { main { margin: 0; border-width: 0; } }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Wireframe 3 of 4 · truthful failure</div>
+  <h1>Help is not arranged yet</h1>
+  <p lang="zh-Hans">帮助尚未安排好。</p>
+
+  <section class="status">
+    <h2>Still needs action before 6:00 PM</h2>
+    <p>The original deadline has not changed.</p>
+    <p lang="zh-Hans">原定时间没有改变：今天下午 6 点前。</p>
+  </section>
+
+  <ol class="timeline" aria-label="Action status">
+    <li><strong>Proposed</strong><br>Try the simulated same-day service.</li>
+    <li><strong>Attempted</strong><br>Request sent at 2:14 PM.</li>
+    <li><strong>Failed</strong><br>Simulated service returned “no availability.”</li>
+    <li class="unresolved"><strong>Care evidenced: NO</strong><br>No service has accepted responsibility and no care has been confirmed.</li>
+  </ol>
+
+  <section>
+    <h2>What happens next?</h2>
+    <button class="primary">Show another permitted option</button>
+    <button>Ask caregiver for help · 请求照护者协助</button>
+    <button>Call a human service</button>
+    <p>Sharing with a caregiver requires permission. A caregiver message is not proof that care happened.</p>
+  </section>
+</main>
+</body>
+</html>

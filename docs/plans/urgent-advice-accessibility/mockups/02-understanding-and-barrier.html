@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CareRelay — Understanding and barrier wireframe</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 18px/1.45 system-ui, sans-serif; color: #111; background: #eee; }
+    main { max-width: 760px; margin: 32px auto; padding: 24px; background: #fff; border: 2px solid #111; }
+    section { margin-bottom: 24px; padding: 18px; border: 2px solid #555; }
+    .eyebrow { font-size: 14px; text-transform: uppercase; letter-spacing: .08em; }
+    h1, h2, p { margin-top: 0; }
+    h1 { font-size: 30px; }
+    h2 { font-size: 23px; }
+    button { min-height: 48px; margin: 6px 8px 6px 0; padding: 10px 16px; border: 2px solid #111; background: #fff; font: inherit; font-weight: 700; }
+    button.primary { background: #111; color: #fff; }
+    .transcript { padding: 16px; border-left: 8px solid #111; background: #f5f5f5; }
+    .choice { display: block; width: 100%; text-align: left; }
+    @media (max-width: 600px) { main { margin: 0; border-width: 0; } }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Wireframe 2 of 4 · understanding and feasibility</div>
+  <h1>First, let’s check the plan</h1>
+
+  <section>
+    <h2>Tell us what you need to do and when.</h2>
+    <p lang="zh-Hans">请用自己的话说，您需要做什么，以及什么时候做。</p>
+    <button>🎙 Hold to speak · 按住说话</button>
+    <button>Type instead · 改用文字</button>
+  </section>
+
+  <section>
+    <div class="eyebrow">Draft voice transcript · 语音文字草稿</div>
+    <p class="transcript">“I can wait until tomorrow when my daughter is free.”<br><span lang="zh-Hans">“我可以等到明天女儿有空的时候。”</span></p>
+    <p><strong>That timing does not match the plan.</strong> The reviewed recommendation says today before 6:00 PM.</p>
+    <button class="primary">Correct the transcript · 确认并修改</button>
+    <button>Say it again · 再说一次</button>
+  </section>
+
+  <section>
+    <h2>What could stop you going today?</h2>
+    <p lang="zh-Hans">今天有什么困难会让您无法前往？</p>
+    <button class="choice">I cannot get there · 我无法前往</button>
+    <button class="choice">I cannot find an available service · 找不到可用的服务</button>
+    <button class="choice">I need help from my caregiver · 我需要照护者帮忙</button>
+    <button class="choice">Something else · 其他原因</button>
+  </section>
+</main>
+</body>
+</html>

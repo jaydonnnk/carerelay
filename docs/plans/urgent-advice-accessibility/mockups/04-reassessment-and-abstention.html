@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CareRelay — Reassessment and abstention wireframe</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 18px/1.45 system-ui, sans-serif; color: #111; background: #eee; }
+    main { max-width: 760px; margin: 32px auto; padding: 24px; background: #fff; border: 2px solid #111; }
+    .eyebrow { font-size: 14px; text-transform: uppercase; letter-spacing: .08em; }
+    h1, h2, p { margin-top: 0; }
+    h1 { font-size: 30px; }
+    .message { padding: 16px; border: 2px solid #555; margin: 18px 0; }
+    .stop { padding: 22px; border: 6px double #111; margin: 18px 0; }
+    button { min-height: 48px; margin: 6px 8px 6px 0; padding: 10px 16px; border: 2px solid #111; background: #fff; font: inherit; font-weight: 700; }
+    button.primary { background: #111; color: #fff; }
+    @media (max-width: 600px) { main { margin: 0; border-width: 0; } }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Wireframe 4 of 4 · symptom change</div>
+  <h1>Your situation may have changed</h1>
+
+  <section class="message">
+    <div class="eyebrow">Confirmed voice transcript</div>
+    <p>“I feel much worse and I am suddenly confused.”</p>
+    <p lang="zh-Hans">“我感觉严重多了，而且突然意识不清。”</p>
+  </section>
+
+  <section class="stop">
+    <h2>I cannot safely continue the usual conversation.</h2>
+    <p lang="zh-Hans">我无法安全地继续一般问答。</p>
+    <h2>Call 995 now.</h2>
+    <p lang="zh-Hans">请立即拨打 995。</p>
+    <p>This emergency instruction appears before further teach-back, navigation, or voice interaction.</p>
+    <button class="primary">Call 995</button>
+    <button>▶ Listen · 播放</button>
+  </section>
+
+  <p><strong>Research-demo boundary:</strong> this screen demonstrates the product’s abstention and escalation behaviour. The triggering clinical content requires qualified review before any patient-facing use.</p>
+</main>
+</body>
+</html>

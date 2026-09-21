@@ -1,0 +1,12 @@
+127.0.0.1 - - [21/Sep/2026 13:50:51] "GET /docs/plans/urgent-advice-accessibility/mockups/01-recommendation.html HTTP/1.1" 200 -
+127.0.0.1 - - [21/Sep/2026 13:50:51] code 404, message File not found
+127.0.0.1 - - [21/Sep/2026 13:50:51] "GET /favicon.ico HTTP/1.1" 404 -
+127.0.0.1 - - [21/Sep/2026 13:51:05] "GET /docs/plans/urgent-advice-accessibility/mockups/02-understanding-and-barrier.html HTTP/1.1" 200 -
+127.0.0.1 - - [21/Sep/2026 13:51:13] "GET /docs/plans/urgent-advice-accessibility/mockups/03-unresolved-handoff.html HTTP/1.1" 200 -
+127.0.0.1 - - [21/Sep/2026 13:51:22] "GET /docs/plans/urgent-advice-accessibility/mockups/04-reassessment-and-abstention.html HTTP/1.1" 200 -
+127.0.0.1 - - [21/Sep/2026 13:52:23] "GET /docs/plans/urgent-advice-accessibility/mockups/01-recommendation.html HTTP/1.1" 200 -
+127.0.0.1 - - [21/Sep/2026 13:52:23] "GET /docs/plans/urgent-advice-accessibility/mockups/02-understanding-and-barrier.html HTTP/1.1" 200 -
+127.0.0.1 - - [21/Sep/2026 13:52:23] "GET /docs/plans/urgent-advice-accessibility/mockups/03-unresolved-handoff.html HTTP/1.1" 200 -
+127.0.0.1 - - [21/Sep/2026 13:52:23] "GET /docs/plans/urgent-advice-accessibility/mockups/04-reassessment-and-abstention.html HTTP/1.1" 200 -
+127.0.0.1 - - [21/Sep/2026 13:52:49] "GET /docs/plans/urgent-advice-accessibility/mockups/index.html HTTP/1.1" 200 -
+127.0.0.1 - - [21/Sep/2026 13:59:45] "GET /docs/plans/urgent-advice-accessibility/mockups/01-recommendation.html HTTP/1.1" 304 -
