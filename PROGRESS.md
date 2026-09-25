@@ -9,7 +9,7 @@ Reframe CareRelay around truthful urgent-advice execution, produce a Gate 1 prod
 - [x] Write Software Factory Gate 1 status and product specification.
 - [x] Create plain-HTML Gate 1 wireframes for the core journey.
 - [x] Verify the HTML and document review results.
-- [ ] Obtain explicit Gate 1 approval before architecture or implementation.
+- [x] Obtain explicit Gate 1 approval before architecture or implementation.
 
 ## Independent adversarial review — 2026-09-21
 
@@ -54,4 +54,9 @@ The independent review is recorded in `docs/plans/urgent-advice-accessibility/02
 
 Both mechanisms are now written into `PLAN.md`. The single-ladder state model was replaced with two independent axes, which is a correctness fix, not a preference. A recall hint ladder (H0–H3) was added to PlanBack at the user's request: the prompt escalates so an older user is never stuck at a blank question, but **the level used is always recorded**, because a hint that contains the deadline or action turns a comprehension check into a reading test. Fixture rule added: no asset may name a real healthcare facility.
 
-**Gate status: Gate 1 (Product) is in progress, not approved.** Gates 2–4 pending. No implementation code is authorised. See `docs/plans/urgent-advice-accessibility/00-status.md` for the gate doc map — two supporting notes occupy the `02-` and `03-` filenames that Gates 2 and 3 will need.
+**Gate status: Gate 1 (Product) is APPROVED as of 25 September 2026.** Gates 2–4 pending. Approval of the product specification does not authorise implementation — Gate 2 must still be approved before any code is written. See `docs/plans/urgent-advice-accessibility/00-status.md` for the gate doc map — two supporting notes occupy the `02-` and `03-` filenames that Gates 2 and 3 will need.
+
+## Run log — Gate 1 approval
+
+- 2026-09-25: Added `.gitignore` and committed the Gate 1 reframe (`3900cd0`, 15 files, +1499/−62, no co-author trailer). Fast-forward merged `care-relay-adversarial-review` into `main`; both branches at `3900cd0`.
+- 2026-09-25: **User approved Gate 1.** Recorded in `00-status.md`, with the unresolved risks carried forward explicitly rather than closed. Gate 2 (Architecture) is now the active gate.

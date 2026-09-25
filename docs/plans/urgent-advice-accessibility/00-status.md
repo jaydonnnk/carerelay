@@ -1,6 +1,6 @@
 # Status: CareRelay urgent-advice accessibility
 
-- Gate 1 — Product: **in progress** (not approved)
+- Gate 1 — Product: **APPROVED** (25 September 2026)
 - Gate 2 — Architecture: pending
 - Gate 3 — Program Design: pending
 - Gate 4 — Slice plan: pending
@@ -9,9 +9,34 @@
 
 - [ ] Slice 1 — tracer bullet: pending Gate 4
 
+## Gate 1 approval — 25 September 2026
+
+The user explicitly approved Gate 1 on 25 September 2026. This covers the Gate 1
+scope below: the reframe, PlanBack, the recall hint ladder, the Closure Contract,
+the two-axis state model, the design principles and the five HTML wireframes.
+
+Approval of the product specification does **not** authorise implementation.
+Gates 2–4 remain pending and no code may be written until Gate 2 is approved.
+
+### Carried forward as explicit, unresolved Gate 1 risks
+
+These were surfaced by the adversarial review, accepted rather than resolved, and
+must be treated as live inputs to Gate 2:
+
+- **Mandatory organiser-usage proof is still absent.** Without it the project does
+  not proceed to scoring.
+- **No qualified clinical reviewer and no authorised protocol.** The prototype must
+  remain a labelled research demonstration using scripted fixtures.
+- **The load-bearing assumption is untested:** that a fixed bilingual card does not
+  perform equally well. It should be tested before the mechanisms are built.
+- **Neither mechanism requires WorkBuddy.** WorkBuddy's genuine dependency is the
+  coordinator, the real tool call, its real failure event, and session resume.
+- **Mandarin voice is a gated TRTC spike only.** No account access or clinical
+  accuracy has been demonstrated.
+
 ## Gate 1 scope as of 21 September 2026
 
-Gate 1 was opened with a broader product definition. It has since been narrowed by the independent adversarial review and expanded by two new mechanisms. Both changes live inside Gate 1 and neither is approved yet.
+Gate 1 was opened with a broader product definition. It has since been narrowed by the independent adversarial review and expanded by two new mechanisms. Both changes were approved on 25 September 2026.
 
 | Change | Where |
 |---|---|
