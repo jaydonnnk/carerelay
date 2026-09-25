@@ -39,9 +39,9 @@ CareRelay now helps older adults move from care advice to an honest next step. I
 
 ### PlanBack rules
 
-- The restatement prompt **escalates through four levels** rather than shaming the patient: H0 unaided, H1 structural cue, H2 card shown then hidden, H3 plan shown and confirmed by choosing.
+- The restatement prompt **escalates through four levels** rather than shaming the patient: H0 unaided, H1 structural cue, H2 card shown and hidden **when the patient says so**, H3 plan shown and confirmed by choosing.
 - **The level used is always recorded.** Without it, “she remembered” and “she read it off the screen” are indistinguishable.
-- **H0–H2 never reveal the critical fields** — the action, the deadline, or the owner. H2 re-exposes the card and removes it: that tests retention, not reading.
+- **H0–H2 never reveal the critical fields** — the action, the deadline, or the owner. H2 re-exposes the card and lets the patient hide it **in their own time**: that tests retention, not reading. **No timer.** A five-second rule was rejected on 25 September 2026 as unreadable for older adults and unusable with a screen reader (see `PLAN.md` §5.2.1).
 - **The patient is never trapped.** A persistent “show my plan” control reveals the full card at any time and records a cued outcome.
 - **H3 is an honest result, not a failure.** `not_recalled` routes to the human path and is never dressed up as comprehension.
 - The restatement is compared **field by field by deterministic code**, never graded by a model.

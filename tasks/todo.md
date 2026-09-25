@@ -60,9 +60,9 @@
 - [x] Independent round-2 adversarial review (`gate2-adversarial-review-thorough.md`) — verdict APPROVE WITH CHANGES, three blocking defects.
 - [x] Apply all blocking changes as revision 2: attempt transitions, pinned tool path, external between-subjects baseline, missing endpoints/tables, D9 dropped, degraded states, D11/D12 invariants, expired screen, honest claim restatement.
 - [x] Fix stale mirrors and mockup numbering.
+- [x] **Gate 1 reopened and re-approved (25 Sep):** H2 timer removed (card stays until the patient hides it); expired-screen wording approved and softened.
 - [ ] User review: approve Gate 2 revision 2 or revise per comments.
 - [ ] Run Gate A access spike by 2026-09-26 (spike only, no implementation code).
-- [ ] **User decision required:** the H2 five-second timed hide is an accessibility hazard — reopen Gate 1 or define "until dismissed".
 - [ ] After Gate 2 approval: Gate 3 program design (files, types, call stacks, test plan), including a corrected effort estimate.
 
 ## Review conclusion — round 2

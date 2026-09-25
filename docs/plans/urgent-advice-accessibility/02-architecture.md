@@ -229,14 +229,22 @@ No real healthcare endpoints exist anywhere. Adapter callbacks are local-only. *
 
 `01-product.md` fixes four lines whose third is "Before [deadline]" — wording that presumes a future deadline. After expiry that line is false, and revision 1 had no expired rendering anywhere. **The one state the product exists to report had no approved words.**
 
-Proposed rendering. **This extends an approved Gate 1 artefact, so it needs explicit Gate 1 sign-off — it is not applied silently at Gate 3.**
+**Approved by the user 25 September 2026**, on the condition that the wording is not aggressive. The first draft ("The time to go was [deadline]. It has passed." / "Call [route] now") was rejected as too blunt for a frightened older adult. The rendering below is short, warm and forward-looking: it states the situation plainly, keeps the original deadline visible as fact rather than as a reproach, and puts the next step in the present tense.
 
 | Line | Pre-deadline | Expired |
 |---|---|---|
-| 1 | Help is not arranged. | Help is still not arranged. |
-| 2 | You or *[named person]* must act now. | *[Named person]* did not confirm. |
-| 3 | Before *[deadline]*. | The time to go was *[deadline]*. It has passed. |
-| 4 | If this route fails, call *[approved human route]*. | Call *[approved human route]* now, or 995 if you feel very unwell. |
+| 1 | Help is not arranged. | Help still is not arranged. |
+| 2 | You or *[named person]* must act now. | You can still do this. |
+| 3 | Before *[deadline]*. | It is past *[deadline]*, so please go now. |
+| 4 | If this route fails, call *[approved human route]*. | Call *[approved human route]* — they can help from here. |
+
+**Copy rules for this screen** (so later edits do not drift back):
+
+- **No reproach.** Never "you did not", "you missed", "too late", "failed", or a bare "now" as an imperative.
+- **No alarm.** No red urgency styling on this screen; the emergency path is reached through line 4's route, not through alarm on a missed appointment.
+- **No false comfort.** It still says the help is not arranged. The softness is in the tone, not in the facts.
+- **Line 4 always names a real route** — 995 remains available, but the screen leads with the ordinary care route rather than the emergency number for a non-emergency expiry.
+- **The deadline stays visible.** Removing it would erase the fact the product exists to preserve.
 
 ---
 
@@ -252,7 +260,7 @@ Proposed rendering. **This extends an approved Gate 1 artefact, so it needs expl
 | **Latency & cost** | Measured and recorded during Gate A — Feasibility is a scored dimension that asks for measured latency. The demo path pre-warms the session and sets explicit timeouts |
 | **Degraded states** | **NEW branch:** coordinator unavailable or slow → the flow **stops** at the current question and shows a text fallback, because a coordinator stall on the PlanBack critical path is a demo-ending failure. Adapter timeout → `failed` transition. No permitted route → human path. Deadline passed with no action → expiry event + expired screen |
 | **Model-generated text boundary** | `domain` renders all patient-facing clinical text from policy. **No model-generated text reaches the patient.** Coordinator outputs are structured values only, validated in `domain`. Round-2 surface B item 5 noted revision 1 achieved this only by omission; it is now a stated rule |
-| **Accessibility — two architectural items** | (a) **One-question-at-a-time is enforced by the patient projection**, not by page layout. (b) **The H2 five-second timed hide is an unresolved accessibility hazard** (§11) |
+| **Accessibility — two architectural items** | (a) **One-question-at-a-time is enforced by the patient projection**, not by page layout. (b) **No timers anywhere** — the H2 card stays until the patient hides it (Gate 1 §5.2.1, reopened and re-approved 25 Sep). `dwell_seconds` is recorded for the ledger and never shown to the patient |
 | **Research-participant consent** | Tracked separately from clinical `consents` |
 
 ---
@@ -301,7 +309,7 @@ Revision 1 claimed more rigour than its mechanisms provided. Corrected:
 | §5.8 Restate safety claims | §10 restatement table; simulated label serialised into the projection | §10, §8 |
 | §5.9 Expired screen has no words | Proposed rendering, flagged for Gate 1 sign-off | §7 |
 | §5.10 Stale mirrors, mockup numbering | `DESIGN_PRINCIPLES.md` §12, `03-planback-closure-contract.md`, `tasks/todo.md`, `00-status.md` line 78, mockups 01 and 04 | applied |
-| §5.11 H2 timed hide | **Not resolved here** — flagged as requiring a deliberate Gate 1 reopening | §11 below |
+| §5.11 H2 timed hide | **RESOLVED 25 Sep** — Gate 1 reopened and re-approved: the timer is gone, the card stays until the patient hides it, no timers anywhere in the product (`PLAN.md` §5.2.1) | §8, §10 |
 
 ---
 
@@ -310,7 +318,7 @@ Revision 1 claimed more rigour than its mechanisms provided. Corrected:
 - File layout, type definitions, method signatures → **Gate 3**.
 - Slice order → **Gate 4**. **Requirement carried forward from round 2: Gate 4 must sequence the baseline comparison (Gate B) *before* the Closure Contract build.** Revision 1 pinned the stack (D1) and the comparison design (D6) before the falsifier had run; that is defensible **only** if the kill test is sequenced first. `PLAN.md` §7 currently schedules sessions for 1–7 October, *after* the state machine — the wrong order, to be corrected at Gate 4.
 - **Effort.** Round 2 estimates **90–150 h** for this architecture's build against the 56–89 h it inherited, plus 20–35 h for the baseline. That is **not affordable in 21 days** with Gate 3, Gate 4, recruitment, clinical chasing and submission assets outstanding. **Either the estimate or the scope changes at Gate 3, and this document does not pretend otherwise.** The D9 cut, the MCP reduction and the single adapter are the first tranche.
-- **The H2 five-second timed hide** — a Gate 1 rule with an accessibility hazard (unreadable and un-extendable for a screen-reader or slow reader). **Requires a deliberate Gate 1 reopening or an "until dismissed" rule. Not a Gate 3 decision.**
+- **The H2 accessibility hazard is resolved.** Gate 1 was reopened and re-approved on 25 September 2026: the five-second timer is removed and the plan card stays until the patient hides it. **No timer, countdown or auto-advance exists anywhere in the product.** `dwell_seconds` is recorded for the judge ledger only. See `PLAN.md` §5.2.1.
 - Whether D9 is revived → after Gate A, with a scenario and an estimate.
 
 **Next action regardless of approval:** the **Gate A access spike is due tomorrow, 26 Sep** — credential check, session create/resume across a restart, and **one tool executed through the platform whose failure event is observed to carry an origin signal** (now load-bearing for §3.3). Approval of Gate 2 authorises the spike only, not implementation code.

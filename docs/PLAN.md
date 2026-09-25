@@ -225,18 +225,34 @@ Older users can freeze at a blank “tell me the plan” prompt, so the prompt e
 |---|---|---|
 | **H0** | The question alone: “In your own words — what will you do, and when?” | `recall_unaided` |
 | **H1** | Structural cue only: three labelled slots — **What** · **When** · **Who helps** | `recall_scaffolded` |
-| **H2** | The plan card is shown again for five seconds, then hidden. “Now say it back.” | `recall_cued` |
+| **H2** | The plan card is shown again, and **stays on screen until the patient hides it**. “Now say it back.” | `recall_cued` |
 | **H3** | The plan is shown and the patient confirms it by choosing | `not_recalled` |
 
 Rules:
 
-- **H0–H2 must not display the critical fields.** H2 re-exposes the card and then removes it: that tests retention, not reading.
+- **H0–H2 must not display the critical fields.** H2 re-exposes the card and then removes it: that tests retention, not reading. **The removal is always the patient's own action** — see §5.2.1.
 - **Every outcome records its level.** Without this, “she remembered” and “she read it off the screen” are indistinguishable and the evaluation is worthless.
 - **H3 is an honest result, not a failure.** `not_recalled` routes to the human path and is reported as such. It is never dressed up as comprehension.
 - **The patient is never trapped.** A persistent “show my plan” control reveals the full card at any time, and doing so records a cued outcome.
 - **Tone is warm and unmissable; content is the constraint.** Large type, high contrast, plain words — but no leaking of the deadline, the action or the owner.
 - **Hint content must never name a real healthcare facility.** The demo fixture uses a fictional, clearly-labelled simulated provider. Real institution names are excluded for privacy, reputational and simulation-honesty reasons.
 - **The ladder fades as well as escalates.** Support is withdrawn when competence is demonstrated. See §5.3.
+
+### 5.2.1 H2 — the card stays until the patient hides it
+
+**Amended 25 September 2026, reopening Gate 1.** H2 previously showed the plan card for **five seconds** and then removed it automatically. That is replaced: **the card stays on screen until the patient chooses to hide it.**
+
+**Why the change was forced.** A five-second timer is unreadable for an older adult with reduced processing speed, unusable for a screen-reader user, and un-extendable by anyone. The target population is community-dwelling older adults — the timer penalised exactly the people the product exists for. It also silently converted a comprehension aid into a speed test, which is a dignity problem as well as an accessibility one.
+
+| Rule | |
+|---|---|
+| **The patient controls removal.** A single, large "Hide the plan · 隐藏" control. No timer, no countdown, no auto-dismiss anywhere in the product. |
+| **Dwell time is recorded, not enforced.** `dwell_seconds` is stored on the `restatements` row and is displayed in the judge ledger. It is **never shown to the patient** and never changes what the patient may do next. |
+| **Reading the card still records `recall_cued`.** Removing the timer does not turn H2 into a recall test — the outcome label is unchanged, and the recorded level continues to distinguish recall from reading. |
+| **"Show my plan" always works.** The persistent escape at any level reveals the full card and records a cued outcome. |
+| **Nothing in the product auto-hides, auto-advances or times out.** This is now a stated accessibility rule, not a local fix. |
+
+**Why `dwell_seconds` is kept.** Without it, a five-second glance and a two-minute read produce an identical `recall_cued`, and the evaluation loses the ability to describe what happened. Recording it is evidence-gathering; acting on it would be a timer by another name.
 
 ### 5.3 Adaptive scaffolding — the ladder fades
 

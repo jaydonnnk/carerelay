@@ -9,7 +9,18 @@
 
 - [ ] Slice 1 — tracer bullet: pending Gate 4
 
-## Gate 1 approval — 25 September 2026
+## Gate 1 reopening — 25 September 2026 (approved)
+
+Gate 1 was **deliberately reopened** after its first approval to resolve the H2 accessibility hazard the round-2 adversarial review identified, and to approve the expired-screen wording. Both changes were approved by the user the same day.
+
+| Change | Decision | Files |
+|---|---|---|
+| **H2 no longer has a timer** | The plan card at H2 **stays on screen until the patient hides it**. No countdown, no auto-dismiss, no auto-advance anywhere in the product. `dwell_seconds` is recorded for the judge ledger and never shown to the patient. Rationale: a five-second rule is unreadable for older adults, unusable with a screen reader, and un-extendable — it penalised the exact population the product exists for | `PLAN.md` §5.2 + new §5.2.1, `01-product.md`, `mockups/02` |
+| **Expired-screen wording** | Approved with **softer, human-centred wording**. The first draft ("The time to go was [deadline]. It has passed." / "Call [route] now") was rejected as too blunt. Final rendering plus five copy rules: no reproach, no alarm, no false comfort, a named route, deadline stays visible | `02-architecture.md` §7 |
+
+**Gate 1 remains APPROVED** with these amendments. Both changes were made openly in the documents, not silently at Gate 3.
+
+## Gate 1 approval — 25 September 2026 (original)
 
 The user explicitly approved Gate 1 on 25 September 2026. This covers the Gate 1
 scope below: the reframe, PlanBack, the recall hint ladder, the Closure Contract,
@@ -83,8 +94,8 @@ The skill's canonical gate filenames are reserved for Gates 2–4. Two supportin
 - **No asset may name a real healthcare facility.** The fixture provider is fictional and labelled.
 - No implementation code may be written before Gate 4 approval.
 - Gate 2 draft (`02-architecture.md` revision 2) pins D1–D12: Python+FastAPI default (reversible only before the first domain-code commit), pure domain core, append-only attempt transitions, derived closure with sticky expiry, external between-subjects baseline, deterministic abstention with a closed vocabulary, **D9 dropped**, voice deferred and isolated. **The Gate A access spike is due 26 Sep** with a pre-recorded fallback decision.
-- **Two items need a user decision before Gate 3:**
-  1. The **H2 five-second timed hide** is a Gate 1 rule and an accessibility hazard (unreadable/un-extendable for screen-reader and slow readers). Reopen Gate 1 deliberately, or define "until dismissed".
-  2. The **expired patient screen wording** in `02-architecture.md` §7 extends an approved Gate 1 artefact and needs Gate 1 sign-off.
-- Round-2 review effort estimate: **90–150 h** for this architecture plus 20–35 h baseline — **not affordable in 21 days**. Gate 3 must produce a corrected estimate; either it or the scope changes.
+- **Two items that needed a user decision are now both resolved** (25 Sep):
+  1. The **H2 timed hide is gone.** The plan card stays until the patient hides it; no timers anywhere in the product; `dwell_seconds` recorded for the ledger only. Gate 1 was reopened deliberately and re-approved.
+  2. The **expired patient screen** wording is approved, softened on the user's instruction, with five copy rules in `02-architecture.md` §7.
+- Round-2 review effort estimate: **90–150 h** for this architecture plus 20–35 h baseline. The user has reviewed this and **accepted the estimate as achievable** (25 Sep). Gate 3 still produces a real estimate; the acceptance is not a substitute for one.
 - The repository has commits on `main` and `care-relay-adversarial-review` (both at `9a1f332`); push to origin is blocked on missing GitHub write credentials — user must authenticate or push themselves.

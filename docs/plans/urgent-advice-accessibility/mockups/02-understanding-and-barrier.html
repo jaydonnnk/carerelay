@@ -71,11 +71,12 @@
       <tr><th style="text-align:left; border-bottom:2px solid #111; padding:6px 0;">Level</th><th style="text-align:left; border-bottom:2px solid #111; padding:6px 0;">What the patient sees</th><th style="text-align:left; border-bottom:2px solid #111; padding:6px 0;">Recorded as</th></tr>
       <tr><td style="padding:6px 0;">H0</td><td style="padding:6px 0;">The question alone</td><td style="padding:6px 0;"><code>recall_unaided</code></td></tr>
       <tr><td style="padding:6px 0;"><strong>H1</strong></td><td style="padding:6px 0;">Three labelled slots: What · When · Who helps</td><td style="padding:6px 0;"><code>recall_scaffolded</code></td></tr>
-      <tr><td style="padding:6px 0;">H2</td><td style="padding:6px 0;">Plan card shown 5 seconds, then hidden</td><td style="padding:6px 0;"><code>recall_cued</code></td></tr>
+      <tr><td style="padding:6px 0;">H2</td><td style="padding:6px 0;">Plan card shown again — <strong>stays until the patient hides it</strong></td><td style="padding:6px 0;"><code>recall_cued</code></td></tr>
       <tr><td style="padding:6px 0;">H3</td><td style="padding:6px 0;">Plan shown; patient confirms by choosing</td><td style="padding:6px 0;"><code>not_recalled</code></td></tr>
     </table>
     <ul class="rules">
       <li><strong>H0–H2 must not display the critical fields</strong> — no deadline, no action, no owner. A hint containing the answer turns a comprehension check into a reading test.</li>
+      <li><strong>No timers anywhere.</strong> At H2 the card stays until the patient hides it. Nothing auto-hides, auto-advances or counts down — a five-second rule was rejected as unreadable for older adults and unusable with a screen reader.</li>
       <li><strong>H3 is honest, not failure.</strong> <code>not_recalled</code> routes to a human path and is reported as such.</li>
       <li><strong>Warm tone, hard content limit.</strong> Big type, plain words, no blame — but the answer stays out of the hint.</li>
     </ul>

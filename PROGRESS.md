@@ -70,13 +70,14 @@ Both mechanisms are now written into `PLAN.md`. The single-ladder state model wa
 - [x] **Revision 2**: apply all three blocking defects and the eight secondary blocking changes.
 - [x] Fix stale gate mirrors (`DESIGN_PRINCIPLES.md` §12, `03-planback-closure-contract.md`, `tasks/todo.md`, `PROGRESS.md` Result) and mockup numbering (01, 04).
 - [ ] Obtain explicit Gate 2 approval from the user on revision 2.
+- [x] **Gate 1 reopened and re-approved (25 Sep)** for two amendments: H2's five-second timer removed (card stays until the patient hides it); expired-screen wording approved and softened. Files: `PLAN.md` §5.2/§5.2.1, `01-product.md`, `mockups/02`, `02-architecture.md` §7, `00-status.md`.
+- [x] User accepted the 90–150 h effort estimate as achievable; Gate 3 still produces a real estimate.
 - [ ] Run the Gate A access spike (due 2026-09-26) — credential check, one tool executed through the platform with an observed failure-event origin signal, one session resume. Approval of Gate 2 authorises the spike only, not implementation code.
-- [ ] **User decision flagged:** the H2 five-second timed hide (Gate 1 rule in `PLAN.md` §5.2, `mockups/02`) is an accessibility hazard for screen-reader and slow readers. Reopen Gate 1 deliberately or define "until dismissed". Not a Gate 3 decision.
 
 ### Assumptions and blockers — Gate 2
 
 - Gate A spike remains unrun; the tool-execution path (§3.3) and D8's dependency claim now depend on it.
-- Round-2 review estimates 90–150 h for this architecture against the 56–89 h inherited, plus 20–35 h for the baseline. **Not affordable in 21 days.** Gate 3 must produce a corrected estimate and either the estimate or the scope must change.
+- Round-2 review estimates 90–150 h for this architecture against the 56–89 h inherited, plus 20–35 h for the baseline. The user has **accepted this as achievable** (25 Sep); it remains unverified and Gate 3 must produce a real estimate.
 - Gate 4 must sequence the baseline comparison (Gate B) **before** the Closure Contract build. `PLAN.md` §7 currently schedules it after — wrong order, to be corrected.
 - Stack default (Python 3.13 + FastAPI + SQLite) is reversible only **before the first domain-code commit**; environment check required before Slice 1 (AppControl/venv issue recorded in `AGENTS.md`).
 - D9 (scheduled reassessment) is **dropped**, with the P1 load-bearing cost stated. Not recoverable without Gate A plus a scenario and an estimate.
@@ -86,4 +87,5 @@ Both mechanisms are now written into `PLAN.md`. The single-ladder state model wa
 - 2026-09-25: Drafted `02-architecture.md` revision 1 on branch `gate-2-architecture`; committed `1cb05c8`.
 - 2026-09-25: User supplied an independent round-2 adversarial review (`gate2-adversarial-review-thorough.md`). Verdict APPROVE WITH CHANGES. Three blocking defects found: (1) §4's INSERT-only `attempts` table could not record a state transition, making acknowledgement writes either an illegal UPDATE or a silently-discarded INSERT — a false *negative* completion — and rendering four of seven fault sequences unwritable; (2) the tool-execution path was described five different ways, leaving the platform-failure claim unverifiable; (3) the D6 in-app card arm structurally could not measure the false-completion metric.
 - 2026-09-25: Wrote revision 2 — attempts split into immutable identity + append-only transitions + callbacks with an ordering rule and a transaction boundary; §3.3 pins one normative tool path with a recorded failure-event origin; D6 replaced by an external between-subjects baseline with a pre-registered protocol (§9); added D11 (evidence provenance) and D12 (sticky expiry); added intake/clarification/options/acceptance/escalation endpoints and tables; added §8 non-functional surfaces (deployment, PDPA, logging redaction, degraded states, model-text boundary); added §7 expired-screen rendering flagged for Gate 1 sign-off; §10 restates the safety claims honestly; D9 dropped with its cost stated.
-- 2026-09-25: Fixed stale mirrors and mockup numbering. Not yet committed.
+- 2026-09-25: Fixed stale mirrors and mockup numbering; committed `c01a442`.
+- 2026-09-25: **Gate 1 reopened (user-instructed)** and re-approved. (a) H2's five-second timer replaced by "the card stays until the patient hides it" — no timers anywhere in the product; `dwell_seconds` recorded for the ledger only. New `PLAN.md` §5.2.1 records the rationale and the rules. (b) Expired-screen wording approved and rewritten after the user rejected the first draft as too blunt; five copy rules added so later edits do not drift back to a reproachful tone. User also accepted the 90–150 h estimate.
