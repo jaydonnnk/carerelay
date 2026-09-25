@@ -1,8 +1,12 @@
-# CareRelay — Plan (updated 17 September 2026)
+# CareRelay — Plan (updated 21 September 2026)
 
 Planning document for the **Tencent Cloud "AI CAN DO IT" Hackathon Singapore 2026**, Healthcare Track, **Challenge 1: "AI Grandma Knows Best: Intelligent Self-Triage and Care Navigation"**.
 
-This replaces the 16 September session-transfer version. It consolidates two reviews: an evidence and feasibility audit, and a refactor that prioritises organiser-native capability. Every claim below is labelled:
+This replaces the 16 September session-transfer version. It consolidates two reviews: an evidence and feasibility audit, and a refactor that prioritises organiser-native capability.
+
+**21 September revision:** PlanBack (§5.1) and the Closure Contract (§6.1) are now part of the plan, following the independent adversarial review of 21 September. The single-ladder state model in §6 has been corrected to two independent axes. See `docs/plans/urgent-advice-accessibility/02-adversarial-review.md` and `03-planback-closure-contract.md`.
+
+Every claim below is labelled:
 
 - **[verified]** — supported by the cited source as of 17 September 2026.
 - **[vendor claim]** — documented or advertised by a company; not independently validated.
@@ -45,18 +49,28 @@ Wording conflicts and how this plan resolves them:
 
 ### What is genuinely ours to claim
 
+**One tested contract, not a feature bundle:** the critical action and deadline must survive read-back, retry, restart and failed handoff **without false completion**.
+
 | Claim | Status |
 |---|---|
+| **PlanBack** — a confirmed restatement is compared against the approved plan by **deterministic code**, and a mismatch is repaired field by field | [hypothesis]; donor prior art is aviation read-back/hear-back |
+| **Closure Contract** — an episode cannot be marked resolved without evidence, and no operational retry may move the clinical deadline | [verified as a design principle]; implementation unproven |
 | Checks understanding *and* practical ability separately, and repairs the specific failure | [hypothesis] |
 | Never silently downgrades clinical urgency to resolve an operational problem | [verified as a design principle]; implementation unproven |
 | Separates execution status from evidence status, so “booked” never becomes “cared for” | [verified as a design principle]; FHIR Task is prior art for lifecycles |
 | Exposes an unaccepted or failed handoff instead of reporting success | [hypothesis] |
 | Organiser-native operation (managed runtime, sessions, tools, release configuration) | [verified capability]; account access unproven |
 
+**Honest boundary — what the platform does and does not supply.** PlanBack and the Closure Contract are application logic and do **not** require WorkBuddy. WorkBuddy's genuine contribution is the coordinator, the real tool call, its real failure event, and session resume. We claim the platform as the **execution substrate** — not as the source of the clinical state, the deadline invariant, consent, or the closure rule. This is a provisional Gate C answer, not a pass; native access and a demonstrably central execution loop remain unproved.
+
+See `docs/plans/urgent-advice-accessibility/03-planback-closure-contract.md` for the full specification and feasibility assessment.
+
 ### What we must NOT claim
 
 - “World-first,” “no competitor does this,” or an empty market. [overstated]
 - Clinical validation, improved health outcomes, or avoided admissions. Nothing is validated.
+- **Any cognitive-improvement, cognitive-training, “keep your mind sharp” or dementia-prevention claim.** Meta-analyses of cognitive training find **no far transfer** — training improves the trained task and little else (*Perspectives on Psychological Science*, 2022). The FTC settled with Lumosity for **$2 million in 2016** over exactly this claim. The fading scaffold in §5.3 improves retention of a specific plan; it does not make anyone smarter or slow decline.
+- **Any cognitive screening, risk score, or diagnostic output.** Restatement accuracy is not a cognitive assessment and must never be presented as one.
 - That deterministic rules are safe by themselves. Rules can misapply a misheard fact.
 - That “not diagnosis” removes medical-device considerations. HSA assesses intended purpose and function.
 - That using native features of the platform is itself innovation.
@@ -71,6 +85,14 @@ Wording conflicts and how this plan resolves them:
 5. **Ambition with a demonstrable slice** — a substantial vision plus a small, honest proof of its central mechanism.
 
 These are our internal selection criteria, **not** additional organiser requirements.
+
+**21 September, later:** the criteria above were sharpened into four tests — load-bearing, earliness, theme alignment, ambition — and applied to this plan in `docs/DESIGN_PRINCIPLES.md`.
+
+**That audit finds this plan weak on the internal load-bearing test.** In our constructed nine-surface taxonomy—not an organiser scorecard—two capabilities carry real weight, six are unused and one is build-only. The plan's own words in §2 and §3 concede that PlanBack and the Closure Contract do not require WorkBuddy and that another stack could reproduce the product.
+
+The audit's corrected finding is that **the scope cuts in §7 removed every longitudinal surface**. The organiser's optional examples include *"re-checks every 8 hours"* and *"daily logs for 10 days… compared to baseline"*, so one scheduled reassessment slice is strongly theme-aligned. The brief does not require WorkBuddy scheduling, session persistence or cohort concurrency. Application-owned episode state remains authoritative; WorkBuddy may schedule, invoke and resume it.
+
+Read `DESIGN_PRINCIPLES.md` §8 before treating §6 as settled. Gate C remains open. The proposed repair must be estimated and must not replace Gate B's fixed-baseline kill test.
 
 ---
 
@@ -144,6 +166,7 @@ Categories are occupied. [verified — vendor claims, all accessed 17 September 
 - **Population:** community-dwelling older adults (65+), assisted where desired by a remote family caregiver, English text first.
 - **Scenario:** one narrow, clinician-reviewed complaint pathway. The previous painful-urination example is **provisional**, pending review of which complaint gives credible home-care, primary-care and emergency branches in a frail older adult.
 - **Status:** no clinical reviewer, protocol permission or approved pathway exists yet. This is a gate, not a detail.
+- **Cognitive framing does not change the population.** The adaptive scaffold in §5.3 is a mechanism, not a claim. Moving toward cognitive monitoring or screening would narrow the population to MCI or subjective cognitive decline and materially raise the regulatory stakes; that is explicitly out of scope.
 
 ### North star
 
@@ -167,16 +190,86 @@ One patient, one clinician-reviewed pathway, one caregiver, one simulated servic
 
 1. A fictional older adult describes the problem vaguely.
 2. The system clarifies critical information and presents the reviewed recommendation.
-3. Their own explanation reveals a **timing misunderstanding**.
-4. The system clarifies without turning the interaction into a quiz.
-5. They also report a **practical barrier**.
-6. A permitted tool workflow runs; a simulated service fails.
-7. The session is interrupted and resumed — state continues, and the clinical deadline does **not** restart.
-8. The interface distinguishes **contact attempted**, **acknowledged** and **care evidenced**.
+3. **PlanBack** asks them to say the plan back in their own words.
+4. Their restatement reveals a **timing misunderstanding**.
+5. The system repairs **only the mismatched field**, without turning the interaction into a quiz.
+6. They also report a **practical barrier**.
+7. A permitted tool workflow runs; a **real** organiser tool call fails.
+8. The session is interrupted and resumed — state continues, and the clinical deadline does **not** restart.
+9. The interface distinguishes **contact attempted**, **acknowledged** and **care evidenced**.
+
+**Urgent guidance must appear before teach-back, navigation or caregiver acknowledgement, never after.**
 
 Failure paths that should not be crammed into the live story — unacknowledged handoff, duplicate callback, clock change, consent revocation — are shown in inspectable test evidence.
 
-**Urgent guidance must appear before teach-back, navigation or caregiver acknowledgement, never after.**
+### 5.1 PlanBack — read-back with a deterministic check
+
+The patient restates the plan; **code, not a model, decides whether it matches.**
+
+1. Present the approved plan: action, deadline, next owner, fallback.
+2. Ask for a restatement in the patient's own words.
+3. **If the input was voice, confirm the transcript first.** The transcript is never evaluated before the patient has confirmed or corrected it. *(This corrects a defect in the current wireframe 2, which evaluated a draft transcript directly.)*
+4. Extract the three critical fields: `action`, `deadline`, `next_owner`.
+5. Compare deterministically. `deadline` compares as a **time bucket**, never as prose — “tomorrow” resolves to a date and fails. `action` compares against a **closed vocabulary of action ids**. `next_owner` compares against the named party.
+6. All fields match → record `understanding_confirmed` and continue.
+7. Mismatch → repair **only the differing field**, then ask again. Maximum **2** repair rounds.
+8. Still mismatched → **stop** and route to the approved human/emergency path. Never continue on an unconfirmed plan.
+
+**The model interprets. Code decides.** A model grading comprehension can err in both directions, and a false “you understood” is a safety failure while a false “you did not” is a dignity failure. A boolean over extracted fields is auditable and reproducible in a test.
+
+### 5.2 The recall hint ladder
+
+Older users can freeze at a blank “tell me the plan” prompt, so the prompt escalates rather than shaming the patient. **The level used is recorded**, because a hint that contains the answer turns a comprehension check into a reading test.
+
+| Level | What the patient sees | Recorded outcome |
+|---|---|---|
+| **H0** | The question alone: “In your own words — what will you do, and when?” | `recall_unaided` |
+| **H1** | Structural cue only: three labelled slots — **What** · **When** · **Who helps** | `recall_scaffolded` |
+| **H2** | The plan card is shown again for five seconds, then hidden. “Now say it back.” | `recall_cued` |
+| **H3** | The plan is shown and the patient confirms it by choosing | `not_recalled` |
+
+Rules:
+
+- **H0–H2 must not display the critical fields.** H2 re-exposes the card and then removes it: that tests retention, not reading.
+- **Every outcome records its level.** Without this, “she remembered” and “she read it off the screen” are indistinguishable and the evaluation is worthless.
+- **H3 is an honest result, not a failure.** `not_recalled` routes to the human path and is reported as such. It is never dressed up as comprehension.
+- **The patient is never trapped.** A persistent “show my plan” control reveals the full card at any time, and doing so records a cued outcome.
+- **Tone is warm and unmissable; content is the constraint.** Large type, high contrast, plain words — but no leaking of the deadline, the action or the owner.
+- **Hint content must never name a real healthcare facility.** The demo fixture uses a fictional, clearly-labelled simulated provider. Real institution names are excluded for privacy, reputational and simulation-honesty reasons.
+- **The ladder fades as well as escalates.** Support is withdrawn when competence is demonstrated. See §5.3.
+
+### 5.3 Adaptive scaffolding — the ladder fades
+
+The hint ladder is not only a safety prompt. It is a **scaffold that is withdrawn as competence is demonstrated** — an established technique in cognitive rehabilitation, not a brain-training game.
+
+**Mechanism**
+
+- A new or changed plan starts at **H1** (structured slots), so the patient is never dropped into a blank prompt.
+- A successful **unaided (H0)** restatement lowers the starting support level for the next comparable plan.
+- A failed or cued restatement **restores** support to the previous level.
+- Support changes only on a **trend across episodes**, never on a single round, so one bad day does not produce a visible downgrade.
+- Fading is invisible to the patient. There is no score, no streak and no progress bar.
+
+This is **vanishing cues with errorless learning and spaced retrieval** — techniques carrying Class II–III evidence for teaching specific information to people with memory impairment (*International Psychogeriatrics* literature review). A legitimate, citable mechanism. It is not a claim that anyone becomes smarter.
+
+**What this honestly achieves**
+
+| Claimed | Not claimed |
+|---|---|
+| Better retention of *this specific plan* | Improved general cognition |
+| Reduced dependence on the prompt over time | Prevention or delay of cognitive decline |
+| Lower prompting burden for the caregiver | Any diagnosis, screening or risk score |
+| An interaction that does not shame the patient | A therapeutic or rehabilitative benefit |
+
+**The evidence does not support the stronger version.** Meta-analyses of cognitive training find **no far transfer**; the FTC settled with Lumosity for **$2 million in 2016** over precisely the claim that its games stave off age-related cognitive decline. Decline-prevention or “keep your mind sharp” wording is therefore **prohibited** in the product, the submission, the video and the pitch. See §2.
+
+**Why the fading version is still worth building.** It changes the patient's experience from *being tested* to *being supported*; it reduces prompt dependence rather than creating it; and it gives the caregiver a lower-burden routine. All three are real, testable, and require no cognitive-improvement claim.
+
+**Longitudinal signal — research direction, not a demo claim.** Repeated structured restatement of real-world plans is a candidate early indicator of cognitive change, because it measures the same person on a comparable task over months. This is a **monitoring hypothesis, not a training claim**, and it is **out of scope for the judged slice**: it needs a validated comparison instrument, clinical review, subgroup analysis, and a clear answer to what a false positive does to an anxious 78-year-old. Recorded here so the ambition is not lost, and explicitly **not** presented in the submission.
+
+**Population note.** If the product moves toward cognitive monitoring, the population narrows from community-dwelling 65+ to mild cognitive impairment or subjective cognitive decline — a more clinically serious population with materially higher regulatory and ethical stakes. The demonstration keeps the broader population and treats the cognitive framing as a **mechanism**, not a **claim**.
+
+**Language rule.** “Cognitive rot,” “brain training,” “use it or lose it” and similar framing must never appear in any user-facing text, asset or pitch. Describe what the product does: it helps someone remember their plan, and it stops prompting once they no longer need it.
 
 ---
 
@@ -209,14 +302,52 @@ Labelled simulated healthcare adapters
 
 ### State model
 
-- Urgency and certainty are **separate**; “uncertain” is not a care destination.
-- Understanding, feasibility and willingness are **separate** and can coexist.
-- Execution status and evidence status are **separate**.
-- Phase 1 statuses: `proposed → acknowledged → attempted → unconfirmed | evidenced | failed`.
-- Phase 2 (graded, needs its own safeguards and testing): `externally_verified`.
-- Deadline semantics are explicit: contact initiated, departure, assessment obtained, reassessment due are different obligations.
+Urgency and certainty are **separate**; “uncertain” is not a care destination. Understanding, feasibility and willingness are **separate** and can coexist.
+
+**Execution status and evidence status are two independent axes and never collapse into one ladder.** A single sequence mixes “did the request get through” with “did care happen,” which is precisely how a booking confirmation becomes a false claim of care.
+
+| Axis | Values | Question it answers |
+|---|---|---|
+| **Execution** | `not_started → attempted → acknowledged \| failed \| expired` | Did the request get through, and did anyone accept it? |
+| **Evidence** | `none → self_reported → documented` | Do we have reason to believe care actually happened? |
+
+Closure states:
+
+| Closure | Condition |
+|---|---|
+| `open` | Default. Somebody still must act. |
+| `closed_with_evidence` | Evidence ≥ `documented`, or an explicit human acceptance is recorded |
+| `escalated_to_human` | Handed to a named human path, with the deadline still visible |
+| `expired_unresolved` | Deadline passed with no evidence. A real, reportable state — not a UI failure to update |
+
+`attempted` + evidence `none` is the honest rendering of “we tried and nobody said yes.” It is the core of the product.
+
+Also retained:
+
+- Deadline semantics are explicit: contact initiated, departure, assessment obtained and reassessment due are **different obligations**.
 - Clinical revision is versioned and requires evidence; operational retry never changes it.
 - Missing information is never silently converted into a negative finding.
+
+### 6.1 The Closure Contract — invariants
+
+The Closure Contract is the rule set that makes the two axes hold **under fault**. Each invariant is a test case, not a slogan.
+
+| # | Invariant | Why it matters |
+|---|---|---|
+| **I1** | **Immutable clinical deadline.** `clinical_deadline` is set once at disposition and cannot be changed by operational code. Only a versioned, clinician-backed reassessment may change it. | Retrying a failed booking is not new clinical information. Granting extra time because our request timed out converts an operational problem into a clinical one. |
+| **I2** | **No false completion.** No failed or unacknowledged action may render as resolved — in the UI, the API, or any summary. | This is the product thesis. |
+| **I3** | **Idempotency.** Duplicate callbacks, replayed requests and restarts must not advance state. | Networks retry; users double-tap; restarts replay. |
+| **I4** | **Named owner.** At every moment exactly one party must act — patient, named caregiver, or an explicit human service. “Nobody, and it is unresolved” is a valid and **visible** answer. | “Someone should do something” is the failure we exist to catch. |
+| **I5** | **Missing is not negative.** Absent data never becomes a negative finding. | MedQAbstain: LLMs systematically overcommit under medical uncertainty. |
+
+**Patient-facing rule.** The patient sees four lines and nothing else:
+
+1. Help is not arranged.
+2. You or *[named person]* must act now.
+3. Before *[deadline]*.
+4. If this route fails, call *[approved human route]*.
+
+The two-axis ledger is **judge-facing evidence**, shown in the walkthrough and the failure-inspection view. It is not the patient's screen. Keeping that split is what stops a safety mechanism from reading as audit software.
 
 ### Proposed tech stack
 
@@ -269,6 +400,23 @@ Weights shown are **our planning judgment** of what each ten-point dimension req
 **Highest leverage:** user evidence, clinical scope, and a working organiser integration.  
 **Lowest leverage now:** extra agents, avatars, broad multilingual claims and speculative EHR integration.
 
+### The critical path changed
+
+The **card-versus-PlanBack baseline comparison is a kill test, not a nice-to-have.** The project rests on one untested assumption: that a clear bilingual instruction card plus a direct booking link plus a NurseFirst fallback does **not** perform equally. If it does, PlanBack is cut and the reframe collapses. Run this on a clickable text prototype **before** building voice, booking or caregiver features.
+
+**Effort for the two new mechanisms** (see `03-planback-closure-contract.md` §3):
+
+| Work | Hours |
+|---|---:|
+| PlanBack — extraction, deterministic comparison, bounded repair, constrained input path, tests | 18–30 |
+| Closure Contract — two-axis schema, deadline immutability, closure rules, idempotency, restart recovery | 26–40 |
+| Fault harness — 7 seeded sequences | 12–19 |
+| **Build subtotal** | **56–89** |
+| Baseline comparison — 3–6 dyads, counterbalanced, analysis | 20–35 |
+| **Total** | **76–124** |
+
+**This does not fit the 16 October deadline alongside the current full scope.** Scope must be cut. Candidate cuts, all already deferred in the 21 September review: Mandarin voice, broad respiratory intake, patient-facing ledger detail, caregiver orchestration beyond one channel, and booking integration. None is on the critical path to a scoring submission.
+
 ### Capacity and schedule
 
 Total package: approximately **180–270 person-hours** including contingency, **with clinical review and recruitment secured**. Solo, text-only: **110–160 hours**, with transparently reduced research volume — never weakened safety boundaries.
@@ -310,11 +458,18 @@ Non-negotiable:
 
 **Gate A — Native access (first 48 hours).** Authenticate from the intended host; stream an interaction; invoke a typed tool; observe a tool failure; resume after restart; deny consent; handle a duplicate. Record versions, request IDs, latency and usage. Failure → reconsider platform-led approach; do not disguise build-only usage as equivalent.
 
-**Gate B — Patient advantage (continuous).** Compare against clear instructions and structured checks using identical content and options. Measure misunderstanding, unresolved barriers, repetition burden and false beliefs about whether help is arranged. Failure → simplify the interaction or change direction.
+**Gate B — Patient advantage (continuous).** Compare against clear instructions and structured checks using identical content and options. Measure misunderstanding, unresolved barriers, repetition burden and false beliefs about whether help is arranged. Record the **hint level** for every PlanBack outcome, or the result cannot distinguish recall from reading. Failure → simplify the interaction or change direction.
+
+**Gate B is now the primary kill test**, with pre-registered conditions decided before results are seen:
+
+- PlanBack is cut if the fixed card achieves equal action/deadline recall with lower burden; **or** any critical correct statement is falsely flagged as a mismatch; **or** emergency guidance is delayed by the read-back.
+- The Closure Contract is cut if a failed or unacknowledged action ever renders as resolved; **or** a duplicate callback or restart advances state; **or** an operational retry changes the clinical deadline.
 
 **Gate C — Platform advantage.** State what the native operating model supplies that ordinary model calls plus orchestration would not, including integration effort and failure behaviour. Do not credit the platform for our clinical state, consent or action guarantees. Failure → the design is organiser-dependent in name only.
 
 **Gate D — Clinical and evaluation integrity.** Frozen suite shows zero observed emergency undertriage, unsafe self-care, invented negative findings, false completion claims or critical invariant violations. Note: zero misses in 15 independent emergency examples still implies roughly an 18% one-sided 95% upper miss-rate bound. Passing supports regression claims, not clinical safety.
+
+Seven seeded fault sequences are explicit pass/fail cases, not narrative: timeout, stale availability, duplicate callback, reordered callback, restart mid-episode, clock change, consent revocation. Each asserts the five Closure Contract invariants in §6.1. Any violation blocks further feature work.
 
 ---
 
@@ -346,9 +501,11 @@ Non-negotiable:
 
 ## 11. Scores
 
-No current built-project score is justified: no submission evidence exists and the mandatory usage proof is not established.
+No current built-project score is justified: no submission evidence exists and the mandatory usage proof is not established. If the static artifacts were scored as they stand, the 21 September review's evidence-backed estimate is **39/100** — not 78.
 
-Working target **if** the demonstration and gates are met is a **conditional range of roughly 73–84/100**, with the largest potential gains in AI Interaction, Technical Execution and Feasibility, and the largest uncertainty in Innovation and Impact. This is a planning hypothesis and must not be presented as an official or expected score.
+Working target **if** the demonstration and gates are met is a **conditional range of roughly 73–84/100**, with the largest potential gains in AI Interaction, Technical Execution and Feasibility, and the largest uncertainty in Innovation and Impact. An optimistic ceiling of 83–84 assumes unusually clean execution and does **not** include clinical validation, proven health outcomes or real national-scale integration.
+
+These are planning hypotheses and must not be presented as an official or expected score.
 
 ---
 

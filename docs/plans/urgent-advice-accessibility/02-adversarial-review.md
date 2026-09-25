@@ -61,7 +61,7 @@ The relevant “Luma” is **Luma Health (`lumahealth.io`)**, not an unrelated s
 
 ### Singapore services and simple substitutes
 
-- [NurseFirst](https://www.moh.gov.sg/newsroom/nation-wide-trial-to-refer-non-life-threatening-995-calls-to-the-nursefirst-helpline/) is the hardest local substitute: trained nurses with emergency-physician oversight provide free symptom triage and care guidance daily from 8am–11pm. It beats CareRelay on clinical authority and flexible human interpretation.
+- [NurseFirst](https://www.nhghealth.com.sg/wh/clinical-care-services/nursefirst-helpline) is the hardest local substitute: the current provider page describes free, 24/7 English-language triage by nurses and allows caregivers to call. Older MOH trial pages still say 8am–11pm, so operating hours must be rechecked before submission. It beats CareRelay on clinical authority and flexible human interpretation.
 - [SCDF 995](https://www.scdf.gov.sg/home/about-scdf/emergency-medical-services) provides 24-hour emergency triage and dispatch. It must never be delayed by teach-back or navigation. SMS 70995 already serves registered deaf, hard-of-hearing and speech-impaired users.
 - [HealthHub appointments](https://support.healthhub.sg/hc/en-us/articles/60045617129625-Book-and-Manage-Appointments-Easily) and [caregiver access](https://support.healthhub.sg/hc/en-us/articles/60563023622681-Manage-Your-Loved-Ones-Health-with-Ease) already support booking, rescheduling and authorized caregiver action for public care. These are explicitly non-urgent booking tools.
 - [GPFirst](https://www.moh.gov.sg/seeking-healthcare/getting-medical-help/gpfirst/) already routes mild/non-emergency cases through GPs and onward to ED/UCC when needed.

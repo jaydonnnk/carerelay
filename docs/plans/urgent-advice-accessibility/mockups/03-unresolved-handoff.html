@@ -8,42 +8,74 @@
     * { box-sizing: border-box; }
     body { margin: 0; font: 18px/1.45 system-ui, sans-serif; color: #111; background: #eee; }
     main { max-width: 760px; margin: 32px auto; padding: 24px; background: #fff; border: 2px solid #111; }
+    section { margin-bottom: 24px; padding: 18px; border: 2px solid #555; }
     .eyebrow { font-size: 14px; text-transform: uppercase; letter-spacing: .08em; }
-    h1, h2, p { margin-top: 0; }
+    .notice { padding: 12px; border: 2px dashed #555; background: #f5f5f5; font-size: 16px; }
+    h1, h2, h3, p { margin-top: 0; }
     h1 { font-size: 30px; }
-    .status { padding: 20px; border: 4px solid #111; margin: 20px 0; }
-    .timeline { list-style: none; padding: 0; }
-    .timeline li { padding: 14px; border-left: 6px solid #111; border-bottom: 1px solid #777; }
-    .timeline li.unresolved { border: 3px solid #111; border-left-width: 10px; margin-top: 10px; }
+    h2 { font-size: 23px; }
+    .patient { padding: 24px; border: 5px solid #111; }
+    .patient ol { margin: 0; padding-left: 26px; font-size: 24px; line-height: 1.6; }
+    .patient li { margin-bottom: 10px; }
+    .axes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .axes div { padding: 14px; border: 2px solid #111; }
+    .axes .label { display: block; font-size: 14px; text-transform: uppercase; letter-spacing: .06em; }
+    .axes .value { display: block; margin-top: 6px; font-size: 19px; font-weight: 700; }
+    .trace { font-size: 15px; font-family: ui-monospace, Menlo, monospace; padding: 14px; border: 2px solid #555; background: #f5f5f5; white-space: pre-wrap; }
     button { min-height: 48px; margin: 6px 8px 6px 0; padding: 10px 16px; border: 2px solid #111; background: #fff; font: inherit; font-weight: 700; }
     button.primary { background: #111; color: #fff; }
-    @media (max-width: 600px) { main { margin: 0; border-width: 0; } }
+    .rules { font-size: 15px; }
+    .rules li { margin-bottom: 6px; }
+    @media (max-width: 600px) { main { margin: 0; border-width: 0; } .axes { grid-template-columns: 1fr; } }
   </style>
 </head>
 <body>
 <main>
-  <div class="eyebrow">Wireframe 3 of 4 · truthful failure</div>
+  <div class="eyebrow">Wireframe 3 of 5 · truthful failure</div>
   <h1>Help is not arranged yet</h1>
-  <p lang="zh-Hans">帮助尚未安排好。</p>
+  <div class="notice">Research demonstration. Simulated provider: <strong>Riverwood Community Clinic</strong> (fictional). The “no availability” response is simulated.</div>
 
-  <section class="status">
-    <h2>Still needs action before 6:00 PM</h2>
-    <p>The original deadline has not changed.</p>
-    <p lang="zh-Hans">原定时间没有改变：今天下午 6 点前。</p>
+  <section class="patient">
+    <div class="eyebrow">Patient view — four lines, nothing else</div>
+    <ol>
+      <li><strong>Help is not arranged.</strong></li>
+      <li><strong>You must act now</strong> — or your daughter, Mei-Ling.</li>
+      <li><strong>Before 6:00 PM today.</strong></li>
+      <li>If this route fails, <strong>call 6262 6262</strong>.</li>
+    </ol>
+    <p lang="zh-Hans" style="margin-top:16px;">帮助尚未安排好。请在今天下午 6 点前采取行动。</p>
+    <button class="primary">Show another option · 查看其他选择</button>
+    <button>Ask my daughter · 请求女儿协助</button>
+    <button>Call a person · 联系人工服务</button>
   </section>
 
-  <ol class="timeline" aria-label="Action status">
-    <li><strong>Proposed</strong><br>Try the simulated same-day service.</li>
-    <li><strong>Attempted</strong><br>Request sent at 2:14 PM.</li>
-    <li><strong>Failed</strong><br>Simulated service returned “no availability.”</li>
-    <li class="unresolved"><strong>Care evidenced: NO</strong><br>No service has accepted responsibility and no care has been confirmed.</li>
-  </ol>
+  <section>
+    <div class="eyebrow">Judge-facing evidence — not the patient’s screen</div>
+    <h2>Two independent axes</h2>
+    <div class="axes">
+      <div><span class="label">Execution</span><span class="value">failed</span></div>
+      <div><span class="label">Evidence</span><span class="value">none</span></div>
+    </div>
+    <p style="margin-top:14px;"><strong>Closure state:</strong> <code>open</code> — one named party must still act. The deadline has not moved.</p>
+    <div class="trace">clinical_deadline   = 2026-09-21T18:00   (unchanged)
+policy_version      = v1                    (unchanged)
+attempt[0].route    = clinic-sim-01
+attempt[0].status   = failed                (no availability)
+evidence            = none
+next_owner          = patient
+closure             = open</div>
+    <p><small>The two axes never collapse into one ladder. “Booked” would be execution <code>acknowledged</code> with evidence <code>none</code> — which is not care.</small></p>
+  </section>
 
   <section>
-    <h2>What happens next?</h2>
-    <button class="primary">Show another permitted option</button>
-    <button>Ask caregiver for help · 请求照护者协助</button>
-    <button>Call a human service</button>
+    <div class="eyebrow">What must hold under fault</div>
+    <ul class="rules">
+      <li><strong>I1 Immutable deadline.</strong> The retry did not move 6:00 PM. Only a versioned, clinician-backed reassessment can.</li>
+      <li><strong>I2 No false completion.</strong> A failed request is never rendered as resolved.</li>
+      <li><strong>I3 Idempotency.</strong> A duplicate callback or a restart does not advance state.</li>
+      <li><strong>I4 Named owner.</strong> Exactly one party must act, or the screen says plainly that nobody does.</li>
+      <li><strong>I5 Missing is not negative.</strong> No reply is not a “no.”</li>
+    </ul>
     <p>Sharing with a caregiver requires permission. A caregiver message is not proof that care happened.</p>
   </section>
 </main>

@@ -31,3 +31,25 @@
 - The Mei/Mandarin respiratory story is a convenient feature container, not an evidence-backed best scenario.
 - Cut Mandarin voice, broad respiratory intake and patient-facing ledger detail from the judged slice.
 - Gate 1 remains pending; no implementation is authorised.
+
+## PlanBack and Closure Contract specification
+
+- [x] Define PlanBack precisely: confirmed restatement, deterministic critical-field comparison, bounded repair.
+- [x] Identify the wireframe defect where the draft transcript is evaluated before confirmation.
+- [x] Define the Closure Contract: two independent axes, immutable deadline, five fault invariants, closure rules.
+- [x] Assess feasibility, effort and dependencies for both.
+- [x] Record the honest WorkBuddy dependency boundary.
+- [x] Propose concrete edits to `PLAN.md` without applying them.
+- [x] Add the recall hint ladder (H0–H3) with the level always recorded.
+- [x] Apply PlanBack and the Closure Contract to `PLAN.md`.
+- [x] Update `01-product.md` and the wireframes; validate all HTML.
+- [ ] Obtain Gate 1 (Product) approval.
+- [ ] Run the card-versus-PlanBack baseline comparison before building anything else.
+
+## Four-principle reality check — 2026-09-22
+
+- [x] Inspect the existing design-principles draft, plan pointer, status note and dirty worktree.
+- [x] Re-verify organiser requirements, platform surfaces and current competitors from primary sources.
+- [x] Correct unsupported exclusivity, novelty, effort and platform claims without changing the unapproved Gate 1 scope.
+- [x] Replace the broken inline SVG placeholder with one self-contained HTML audit.
+- [x] Validate the HTML, links and documentary consistency; record the result in `PROGRESS.md`.

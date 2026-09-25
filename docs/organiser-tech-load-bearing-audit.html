@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CareRelay — organiser-tech load-bearing audit</title>
+  <style>
+    :root {
+      --ink: #17201d;
+      --muted: #5f6965;
+      --paper: #f4f1e9;
+      --surface: #fffdf8;
+      --line: #c9cec9;
+      --strong: #0f6e56;
+      --strong-soft: #d7eee6;
+      --warn: #9a4d19;
+      --warn-soft: #f4e2d2;
+      --quiet: #e8e7e1;
+      --black: #111815;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+      font: 16px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    a { color: var(--strong); text-underline-offset: 3px; }
+    main { width: min(1180px, calc(100% - 32px)); margin: 0 auto; padding: 28px 0 64px; }
+    header {
+      display: grid;
+      grid-template-columns: minmax(0, 1.65fr) minmax(260px, .7fr);
+      gap: 28px;
+      align-items: end;
+      padding: 30px 0 26px;
+      border-bottom: 2px solid var(--black);
+    }
+    .kicker, .label {
+      margin: 0 0 8px;
+      color: var(--muted);
+      font: 700 12px/1.3 ui-monospace, SFMono-Regular, Consolas, monospace;
+      letter-spacing: .09em;
+      text-transform: uppercase;
+    }
+    h1 { max-width: 860px; margin: 0; font-size: clamp(38px, 6vw, 76px); line-height: .98; letter-spacing: -.055em; }
+    h2 { margin: 0; font-size: clamp(26px, 3.2vw, 42px); line-height: 1.04; letter-spacing: -.035em; }
+    h3 { margin: 0 0 6px; font-size: 18px; line-height: 1.2; }
+    p { margin: 0; }
+    .meta { padding-left: 18px; border-left: 4px solid var(--strong); }
+    .meta strong { display: block; margin-bottom: 7px; font-size: 19px; line-height: 1.25; }
+    .meta span { color: var(--muted); }
+
+    .verdict {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 24px;
+      margin: 28px 0;
+      padding: 24px;
+      background: var(--black);
+      color: var(--surface);
+    }
+    .verdict .label { color: #a8bbb4; }
+    .verdict p { max-width: 900px; font-size: clamp(20px, 2.2vw, 30px); line-height: 1.25; letter-spacing: -.02em; }
+    .verdict em { color: #a8e0cc; font-style: normal; }
+
+    section { padding: 36px 0; border-bottom: 1px solid var(--line); }
+    .section-head {
+      display: grid;
+      grid-template-columns: 1fr minmax(280px, .85fr);
+      gap: 28px;
+      margin-bottom: 24px;
+      align-items: end;
+    }
+    .section-head > p { color: var(--muted); }
+
+    .principles { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); background: var(--surface); }
+    .principle { min-height: 155px; padding: 18px; border-right: 1px solid var(--line); }
+    .principle:last-child { border-right: 0; }
+    .principle .num { display: block; color: var(--strong); font: 700 22px/1 ui-monospace, SFMono-Regular, Consolas, monospace; }
+    .principle h3 { margin-top: 24px; }
+    .principle p { color: var(--muted); }
+
+    .count-strip { display: grid; grid-template-columns: 2fr 6fr 1fr; margin-bottom: 16px; border: 1px solid var(--line); }
+    .count-strip div { padding: 12px 14px; font-weight: 750; }
+    .count-strip .bearing { background: var(--strong-soft); color: #084938; }
+    .count-strip .unused { background: var(--quiet); color: #555c59; }
+    .count-strip .build { background: var(--warn-soft); color: #69330f; }
+    .audit-list { border-top: 1px solid var(--line); }
+    .audit-row {
+      display: grid;
+      grid-template-columns: minmax(230px, 1fr) minmax(280px, 1.7fr) 132px;
+      gap: 18px;
+      align-items: center;
+      padding: 14px 0;
+      border-bottom: 1px solid var(--line);
+    }
+    .audit-row strong { font-size: 17px; }
+    .audit-row p { color: var(--muted); }
+    .badge { display: inline-block; justify-self: start; padding: 5px 9px; border: 1px solid currentColor; font: 700 12px/1.2 ui-monospace, SFMono-Regular, Consolas, monospace; text-transform: uppercase; letter-spacing: .04em; }
+    .badge.yes { background: var(--strong-soft); color: #084938; }
+    .badge.no { background: var(--quiet); color: #555c59; }
+    .badge.build { background: var(--warn-soft); color: #69330f; }
+    .note { margin-top: 16px; padding: 14px 16px; border-left: 4px solid var(--warn); background: var(--warn-soft); color: #583018; }
+
+    .mapping { display: grid; gap: 12px; }
+    .map-row {
+      display: grid;
+      grid-template-columns: minmax(240px, 1fr) 38px minmax(250px, 1fr) 38px minmax(260px, 1fr);
+      gap: 10px;
+      align-items: stretch;
+    }
+    .map-card { padding: 18px; border: 1px solid var(--line); background: var(--surface); }
+    .map-card p { color: var(--muted); }
+    .map-card.choice { border-color: var(--strong); background: var(--strong-soft); }
+    .map-card.correction { border-color: var(--warn); background: var(--warn-soft); }
+    .arrow { align-self: center; text-align: center; color: var(--muted); font: 700 24px/1 ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+    .market { display: grid; grid-template-columns: 1.05fr 1.05fr 1.4fr; gap: 16px; }
+    .market article { min-height: 220px; padding: 20px; border-top: 6px solid var(--line); background: var(--surface); }
+    .market article.taken { border-color: var(--warn); }
+    .market article.timely { border-color: #737d78; }
+    .market article.hypothesis { border-color: var(--strong); }
+    .market ul, .decision ul { margin: 16px 0 0; padding-left: 20px; }
+    .market li, .decision li { margin: 8px 0; }
+
+    .decision-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .decision { padding: 22px; background: var(--surface); border: 1px solid var(--line); }
+    .decision.keep { border-top: 6px solid var(--strong); }
+    .decision.stop { border-top: 6px solid var(--warn); }
+    .kill-tests { margin-top: 20px; border-top: 1px solid var(--line); }
+    .kill-test { display: grid; grid-template-columns: 54px 1fr; gap: 16px; padding: 14px 0; border-bottom: 1px solid var(--line); }
+    .kill-test b { color: var(--strong); font: 800 18px/1.4 ui-monospace, SFMono-Regular, Consolas, monospace; }
+
+    footer { padding-top: 30px; }
+    footer ol { margin: 14px 0 0; padding-left: 24px; columns: 2; column-gap: 44px; }
+    footer li { margin: 0 0 10px; break-inside: avoid; color: var(--muted); }
+    footer .boundary { margin-top: 24px; padding-top: 18px; border-top: 2px solid var(--black); font-weight: 750; }
+
+    @media (max-width: 880px) {
+      header, .section-head, .verdict, .decision-grid { grid-template-columns: 1fr; }
+      .meta { padding: 14px 0 0; border-left: 0; border-top: 4px solid var(--strong); }
+      .principles { grid-template-columns: 1fr 1fr; }
+      .principle:nth-child(2) { border-right: 0; }
+      .principle:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+      .audit-row { grid-template-columns: 1fr 132px; }
+      .audit-row p { grid-column: 1 / -1; }
+      .map-row { grid-template-columns: 1fr; }
+      .arrow { transform: rotate(90deg); }
+      .market { grid-template-columns: 1fr; }
+      footer ol { columns: 1; }
+    }
+    @media (max-width: 540px) {
+      main { width: min(100% - 20px, 1180px); padding-top: 12px; }
+      h1 { font-size: 42px; }
+      .principles { grid-template-columns: 1fr; }
+      .principle { border-right: 0; border-bottom: 1px solid var(--line); }
+      .principle:last-child { border-bottom: 0; }
+      .count-strip { grid-template-columns: 1fr; }
+      .audit-row { grid-template-columns: 1fr; }
+      .badge { justify-self: start; }
+    }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <p class="kicker">CareRelay · Gate 1 decision aid</p>
+      <h1>Load-bearing is necessary. It is not enough.</h1>
+    </div>
+    <div class="meta">
+      <strong>Reality check · 22 September 2026</strong>
+      <span>Primary-source refresh. Product claims remain unproved. Gate 1 remains open.</span>
+    </div>
+  </header>
+
+  <div class="verdict">
+    <p class="label">Corrected verdict</p>
+    <p>The one-shot scope is <em>platform-light</em>. The broad longitudinal reframe is also <em>market-crowded</em>. The remaining bet is narrower: a monitored episode with measured, fail-closed abstention that beats the fixed local baseline.</p>
+  </div>
+
+  <section aria-labelledby="tests-title">
+    <div class="section-head">
+      <div>
+        <p class="label">Decision frame</p>
+        <h2 id="tests-title">Four tests, none optional</h2>
+      </div>
+      <p>P1 is an internal lens, not an organiser rule. The safe version asks for one genuinely load-bearing axis—not technical exclusivity.</p>
+    </div>
+    <div class="principles">
+      <article class="principle"><span class="num">P1</span><h3>Load-bearing</h3><p>Removing organiser tech should break a central demo behaviour, not just remove a logo.</p></article>
+      <article class="principle"><span class="num">P2</span><h3>Early</h3><p>Do not call follow-up, cohort monitoring or abstention itself new.</p></article>
+      <article class="principle"><span class="num">P3</span><h3>Track-aligned</h3><p>Dynamic reassessment and calibrated refusal are strong fits, not mandated implementations.</p></article>
+      <article class="principle"><span class="num">P4</span><h3>Ambitious</h3><p>Keep the monitored-episode vision; prove one narrow slice before expanding it.</p></article>
+    </div>
+  </section>
+
+  <section aria-labelledby="surface-title">
+    <div class="section-head">
+      <div>
+        <p class="label">Visual 01 · current plan</p>
+        <h2 id="surface-title">Our nine-surface audit</h2>
+      </div>
+      <p>This taxonomy mixes products, Tencent services and derived WorkBuddy capabilities. The count diagnoses our plan; it is not the handbook's scorecard.</p>
+    </div>
+    <div class="count-strip" aria-label="Two load-bearing, six unused, one build-only">
+      <div class="bearing">2 load-bearing</div>
+      <div class="unused">6 unused</div>
+      <div class="build">1 build-only</div>
+    </div>
+    <div class="audit-list">
+      <div class="audit-row"><strong>WorkBuddy managed agent</strong><p>Coordinates interpretation, permitted tools and resume.</p><span class="badge yes">Load-bearing</span></div>
+      <div class="audit-row"><strong>MCP tool call + failure event</strong><p>Supplies a real action attempt and observable failure.</p><span class="badge yes">Load-bearing</span></div>
+      <div class="audit-row"><strong>CodeBuddy</strong><p>Development and test-authoring evidence.</p><span class="badge build">Build only</span></div>
+      <div class="audit-row"><strong>Managed scheduler</strong><p>Documented capability; entitlement and episode integration unproved.</p><span class="badge no">Not used</span></div>
+      <div class="audit-row"><strong>Agent Runtime concurrency</strong><p>Advertised capacity is neither required nor granted to this project.</p><span class="badge no">Not used</span></div>
+      <div class="audit-row"><strong>Session/checkpoint resume</strong><p>Useful execution context, but never the clinical record.</p><span class="badge no">Not used</span></div>
+      <div class="audit-row"><strong>TRTC voice</strong><p>Optional accessibility mode; clinical and accent accuracy untested.</p><span class="badge no">Not used</span></div>
+      <div class="audit-row"><strong>ADP guardrails + HITL</strong><p>Separate service; specific controls and entitlement unverified.</p><span class="badge no">Not used</span></div>
+      <div class="audit-row"><strong>Miora</strong><p>Creative studio, not an eligible healthcare runtime.</p><span class="badge no">Not used</span></div>
+    </div>
+    <p class="note"><strong>Correction:</strong> “2 of 9” cannot be presented as an organiser fact. The handbook requires genuine CodeBuddy or WorkBuddy use and proof; it does not reward product-name counting or exclusivity.</p>
+  </section>
+
+  <section aria-labelledby="mapping-title">
+    <div class="section-head">
+      <div>
+        <p class="label">Visual 02 · challenge alignment</p>
+        <h2 id="mapping-title">What the examples suggest—and do not require</h2>
+      </div>
+      <p>The examples support a longitudinal slice. They do not mandate WorkBuddy scheduling, chat-session state or cohort concurrency.</p>
+    </div>
+    <div class="mapping">
+      <div class="map-row">
+        <article class="map-card"><h3>“Re-checks every 8 hours”</h3><p>Pediatric-fever example</p></article><div class="arrow" aria-hidden="true">→</div>
+        <article class="map-card choice"><h3>Chosen proof</h3><p>One WorkBuddy-scheduled reassessment that invokes an existing episode.</p></article><div class="arrow" aria-hidden="true">→</div>
+        <article class="map-card correction"><h3>Safety boundary</h3><p>Immediate emergency guidance never waits for the scheduler.</p></article>
+      </div>
+      <div class="map-row">
+        <article class="map-card"><h3>“Daily logs for 10 days”</h3><p>COVID-monitoring example</p></article><div class="arrow" aria-hidden="true">→</div>
+        <article class="map-card choice"><h3>Needed capability</h3><p>Persisted observations, provenance and comparison to the episode baseline.</p></article><div class="arrow" aria-hidden="true">→</div>
+        <article class="map-card correction"><h3>Safety boundary</h3><p>Application state is authoritative. A resumed chat is not a clinical record.</p></article>
+      </div>
+      <div class="map-row">
+        <article class="map-card"><h3>“Older adults… caregivers…”</h3><p>Population context</p></article><div class="arrow" aria-hidden="true">→</div>
+        <article class="map-card choice"><h3>Strong alignment</h3><p>Accessible text, caregiver consent and a named owner.</p></article><div class="arrow" aria-hidden="true">→</div>
+        <article class="map-card correction"><h3>Not implied</h3><p>No cohort dashboard or high-concurrency requirement appears in the brief.</p></article>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="market-title">
+    <div class="section-head">
+      <div>
+        <p class="label">Visual 03 · earliness</p>
+        <h2 id="market-title">The category is occupied. The test may still be early.</h2>
+      </div>
+      <p>A bounded search found no exact public match for the full failure contract. That is a hypothesis to test, not evidence of a world first.</p>
+    </div>
+    <div class="market">
+      <article class="taken"><p class="label">Already taken</p><h3>Follow-up and recovery</h3><ul><li>Clearstep: monitoring and Clinical Journeys, 2021</li><li>Infermedica: recurring Follow-up, piloted 2023</li><li>Hippocratic AI and Luma: persistent outreach and recovery</li></ul></article>
+      <article class="timely"><p class="label">Timely, not new</p><h3>Abstention</h3><ul><li>Medical-ML abstention literature predates 2026</li><li>Canvas Dx returns indeterminate/no-result</li><li>MedAbstain and MedQAbstain sharpen 2026 evaluation</li></ul></article>
+      <article class="hypothesis"><p class="label">Unproved gap</p><h3>Measured failure contract</h3><ul><li>Patient-visible reason for refusal</li><li>Immutable original deadline</li><li>Execution separated from evidence</li><li>False closure measured against the fixed local baseline</li></ul></article>
+    </div>
+  </section>
+
+  <section aria-labelledby="decision-title">
+    <div class="section-head">
+      <div>
+        <p class="label">Decision</p>
+        <h2 id="decision-title">Keep the vision. Shrink the proof.</h2>
+      </div>
+      <p>The longitudinal additions are unestimated. Calling them effort-neutral would be false.</p>
+    </div>
+    <div class="decision-grid">
+      <article class="decision keep"><h3>Keep</h3><ul><li>One application-owned multi-day episode</li><li>One real scheduled reassessment/resume path</li><li>Abstention as an explicit recorded outcome</li><li>Closure Contract and immutable deadline</li><li>Fixed card + NurseFirst comparison</li></ul></article>
+      <article class="decision stop"><h3>Do not claim</h3><ul><li>WorkBuddy is technically irreplaceable</li><li>The organiser requires scheduler, sessions or scale</li><li>Cohort monitoring or abstention is new</li><li>A chat session is durable clinical state</li><li>The added scope is effort-neutral</li></ul></article>
+    </div>
+    <div class="kill-tests" aria-label="Kill tests">
+      <div class="kill-test"><b>A</b><p><strong>Native access:</strong> real scheduled invocation, typed tool failure and resume—or stop the WorkBuddy-led claim.</p></div>
+      <div class="kill-test"><b>B</b><p><strong>Patient advantage:</strong> if the fixed card + NurseFirst matches recall, false-closure recognition and burden, cut PlanBack or change direction.</p></div>
+      <div class="kill-test"><b>C</b><p><strong>Platform advantage:</strong> remove WorkBuddy and show exactly which judged behaviour disappears.</p></div>
+      <div class="kill-test"><b>D</b><p><strong>Clinical integrity:</strong> no deployment claim without an authorised protocol and qualified reviewer.</p></div>
+    </div>
+  </section>
+
+  <footer>
+    <p class="label">Primary sources</p>
+    <ol>
+      <li><a href="https://heikesong-global-1256915710.cos.ap-hongkong.myqcloud.com/online_video/27098f4f-7e3b-4e7a-874d-d94ee8ac36ba.pdf">Official hackathon handbook</a></li>
+      <li><a href="https://connection.clearstep.health/clearstep-unveils-smart-care-routing">Clearstep Smart Care Routing, 2021</a></li>
+      <li><a href="https://developer.infermedica.com/documentation/platform-api/interview-types/follow-up/">Infermedica Follow-up documentation</a></li>
+      <li><a href="https://hippocraticai.com/orchestrator-overview/">Hippocratic AI orchestrators</a></li>
+      <li><a href="https://www.lumahealth.io/new-ai-agents-run-patient-outreach-and-book-appointments/">Luma Summer 2026 release</a></li>
+      <li><a href="https://healthlineai.org/product">Healthline AI product</a></li>
+      <li><a href="https://www.nature.com/articles/s41746-020-00367-3">Medical-ML abstention perspective, 2021</a></li>
+      <li><a href="https://aclanthology.org/2026.eacl-long.291/">MedAbstain, EACL 2026</a></li>
+      <li><a href="https://aclanthology.org/2026.acl-long.1365/">MedQAbstain, ACL 2026</a></li>
+      <li><a href="https://www.accessdata.fda.gov/cdrh_docs/pdf24/K243558.pdf">Canvas Dx FDA decision</a></li>
+      <li><a href="https://www.nhghealth.com.sg/wh/clinical-care-services/nursefirst-helpline">Current NurseFirst provider page</a></li>
+    </ol>
+    <p class="boundary">Planning artifact only. No clinical validation, account entitlement, runtime integration, or Gate 1 approval is established.</p>
+  </footer>
+</main>
+</body>
+</html>
