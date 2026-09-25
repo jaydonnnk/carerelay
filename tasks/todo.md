@@ -61,7 +61,7 @@
 - [x] Apply all blocking changes as revision 2: attempt transitions, pinned tool path, external between-subjects baseline, missing endpoints/tables, D9 dropped, degraded states, D11/D12 invariants, expired screen, honest claim restatement.
 - [x] Fix stale mirrors and mockup numbering.
 - [x] **Gate 1 reopened and re-approved (25 Sep):** H2 timer removed (card stays until the patient hides it); expired-screen wording approved and softened.
-- [ ] User review: approve Gate 2 revision 2 or revise per comments.
+- [x] User review: **Gate 2 APPROVED 25 September 2026** (revision 2).
 - [ ] Run Gate A access spike by 2026-09-26 (spike only, no implementation code).
 - [ ] After Gate 2 approval: Gate 3 program design (files, types, call stacks, test plan), including a corrected effort estimate.
 

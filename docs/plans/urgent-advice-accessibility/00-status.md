@@ -1,13 +1,28 @@
 # Status: CareRelay urgent-advice accessibility
 
-- Gate 1 — Product: **APPROVED** (25 September 2026)
-- Gate 2 — Architecture: in progress — **revision 2** written 25 September 2026 after an independent round-2 adversarial review (APPROVE WITH CHANGES); awaiting user approval
+- Gate 1 — Product: **APPROVED** (25 September 2026; reopened and re-amended the same day — see the reopening section below)
+- Gate 2 — Architecture: **APPROVED** (25 September 2026, revision 2)
 - Gate 3 — Program Design: pending
 - Gate 4 — Slice plan: pending
 
 ## Slices
 
 - [ ] Slice 1 — tracer bullet: pending Gate 4
+
+## Gate 2 approval — 25 September 2026
+
+The user approved **Gate 2 (Architecture) revision 2** on 25 September 2026, following an independent round-2 adversarial review whose verdict was APPROVE WITH CHANGES and whose eleven blocking items were all applied or explicitly resolved.
+
+Approval covers: D1–D12, the module and trust boundaries, the pinned tool-execution path (§3.3), the UI API and the three-tool MCP surface, the attempt/transition/callback schema (§4.1), the three flows, D11 evidence provenance and D12 sticky expiry, the non-functional surfaces (§8), the pre-registered baseline study (§9), the amended expired-screen rendering with its copy rules (§7), and the change log (§11).
+
+**Gate 2 approval authorises the Gate A access spike only.** It does **not** authorise implementation code. Gates 3 and 4 remain pending, and no code may be written before Gate 4.
+
+### Carried into Gate 3
+
+- **A real effort estimate.** The round-2 review's 90–150 h (plus 20–35 h for the baseline) is unverified. The user has accepted it as achievable; Gate 3 must still produce its own estimate.
+- **Gate 4 must sequence the baseline comparison (Gate B) before the Closure Contract build.** `PLAN.md` §7 currently schedules the sessions *after* the state machine — wrong order.
+- **The Gate A spike is due 26 September.** If it fails, §3.3's fallback applies and the platform-advantage claim is weakened and stated as weakened.
+- **D9 (scheduled reassessment) is not deliverable.** The P1 load-bearing answer is "execution substrate". `DESIGN_PRINCIPLES.md` §8's "monitored episode that cannot lie" is not delivered and must not be implied in the submission.
 
 ## Gate 1 reopening — 25 September 2026 (approved)
 

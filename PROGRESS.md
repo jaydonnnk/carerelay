@@ -69,10 +69,11 @@ Both mechanisms are now written into `PLAN.md`. The single-ladder state model wa
 - [x] Independent round-2 adversarial review (`gate2-adversarial-review-thorough.md`) — verdict APPROVE WITH CHANGES.
 - [x] **Revision 2**: apply all three blocking defects and the eight secondary blocking changes.
 - [x] Fix stale gate mirrors (`DESIGN_PRINCIPLES.md` §12, `03-planback-closure-contract.md`, `tasks/todo.md`, `PROGRESS.md` Result) and mockup numbering (01, 04).
-- [ ] Obtain explicit Gate 2 approval from the user on revision 2.
+- [x] Obtain explicit Gate 2 approval from the user on revision 2 — **APPROVED 25 September 2026**.
 - [x] **Gate 1 reopened and re-approved (25 Sep)** for two amendments: H2's five-second timer removed (card stays until the patient hides it); expired-screen wording approved and softened. Files: `PLAN.md` §5.2/§5.2.1, `01-product.md`, `mockups/02`, `02-architecture.md` §7, `00-status.md`.
 - [x] User accepted the 90–150 h effort estimate as achievable; Gate 3 still produces a real estimate.
-- [ ] Run the Gate A access spike (due 2026-09-26) — credential check, one tool executed through the platform with an observed failure-event origin signal, one session resume. Approval of Gate 2 authorises the spike only, not implementation code.
+- [ ] Run the Gate A access spike (due 2026-09-26) — credential check, one tool executed through the platform with an observed failure-event origin signal, one session resume. Gate 2 approval authorises the spike only, not implementation code.
+- [ ] Gate 3 — Program Design: files, types and signatures, call stacks, test plan, and a real effort estimate (the 90–150 h is unverified).
 
 ### Assumptions and blockers — Gate 2
 
