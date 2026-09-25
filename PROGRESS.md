@@ -60,3 +60,21 @@ Both mechanisms are now written into `PLAN.md`. The single-ladder state model wa
 
 - 2026-09-25: Added `.gitignore` and committed the Gate 1 reframe (`3900cd0`, 15 files, +1499/−62, no co-author trailer). Fast-forward merged `care-relay-adversarial-review` into `main`; both branches at `3900cd0`.
 - 2026-09-25: **User approved Gate 1.** Recorded in `00-status.md`, with the unresolved risks carried forward explicitly rather than closed. Gate 2 (Architecture) is now the active gate.
+
+## Gate 2 — Architecture (active)
+
+- [x] Re-read all Gate 1 artifacts, PLAN.md, DESIGN_PRINCIPLES.md, research-workarounds.md and project conventions before designing.
+- [x] Write `docs/plans/urgent-advice-accessibility/02-architecture.md` (decisions D1–D10, module boundaries, endpoints, data model, three flows, external surfaces, Gate A spike questions, carried-risk mapping).
+- [x] Update `00-status.md` (Gate 2 in progress; file map; fresh-session notes).
+- [ ] Obtain explicit Gate 2 approval from the user; revise the doc per review comments first.
+- [ ] Run the Gate A access spike (due 2026-09-26) — credential check, one typed tool call, one tool-failure observation, one session resume. Approval of Gate 2 authorises the spike only, not implementation code.
+
+### Assumptions and blockers — Gate 2
+
+- Gate A spike remains unrun; D8/D9 carry a pre-recorded reversal to local simulation if access fails by 26 Sep.
+- Stack default (Python 3.13 + FastAPI + SQLite) is reversible to Node/TypeScript only at the Gate A spike, before slice code exists — consistent with PLAN.md's "pinned after the access spike."
+- The scheduled-reassessment module (D9) is defined but dark; activating it requires Gate A pass plus a Gate 3 estimate, per DESIGN_PRINCIPLES.md §9.
+
+### Run log — Gate 2
+
+- 2026-09-25: Drafted `02-architecture.md` on branch `gate-2-architecture`. Presented summary to user; awaiting "approve Gate 2, or what should change?"

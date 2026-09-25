@@ -1,7 +1,7 @@
 # Status: CareRelay urgent-advice accessibility
 
 - Gate 1 — Product: **APPROVED** (25 September 2026)
-- Gate 2 — Architecture: pending
+- Gate 2 — Architecture: in progress (draft written 25 September 2026, awaiting user review)
 - Gate 3 — Program Design: pending
 - Gate 4 — Slice plan: pending
 
@@ -58,7 +58,7 @@ The skill's canonical gate filenames are reserved for Gates 2–4. Two supportin
 | `01-product.md` | **Gate 1 doc** | problem, success metric, announcement, product rules, screens |
 | `02-adversarial-review.md` | supporting note | independent review, 21 Sep — verdict, competitors, scores, kill dates |
 | `03-planback-closure-contract.md` | supporting note | specification and feasibility for PlanBack and the Closure Contract |
-| `02-architecture.md` | **Gate 2 doc** | not yet written |
+| `02-architecture.md` | **Gate 2 doc** | draft written 25 Sep — decisions D1–D10, endpoints, data, flows, Gate A spike questions; awaiting user approval |
 | `03-program-design.md` | **Gate 3 doc** | not yet written |
 | `04-slices.md` | **Gate 4 doc** | not yet written |
 | `mockups/` | Gate 1 assets | five plain-HTML screens, throwaway by design |
@@ -80,4 +80,5 @@ The skill's canonical gate filenames are reserved for Gates 2–4. Two supportin
 - Provisional persona: Mei, 72, Mandarin-preferring, with remote daughter support. The respiratory-symptom recommendation remains an injected fixture until clinical review.
 - **No asset may name a real healthcare facility.** The fixture provider is fictional and labelled.
 - No implementation code may be written before Gate 4 approval.
-- The repository is initialized but has no commits, and contains documentation only.
+- Gate 2 draft (`02-architecture.md`, 25 Sep) pins D1–D10: Python+FastAPI default (reversible only at the Gate A spike), pure domain core, append-only clinical record, derived closure, baseline arm first-class, abstention deterministic, scheduler module dark until Gate A passes, voice deferred and isolated. **The Gate A access spike is due 26 Sep** with a pre-recorded fallback decision.
+- The repository has commits on `main` and `care-relay-adversarial-review` (both at `9a1f332`); push to origin is blocked on missing GitHub write credentials — user must authenticate or push themselves.

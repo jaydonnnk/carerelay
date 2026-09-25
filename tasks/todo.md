@@ -53,3 +53,10 @@
 - [x] Correct unsupported exclusivity, novelty, effort and platform claims without changing the unapproved Gate 1 scope.
 - [x] Replace the broken inline SVG placeholder with one self-contained HTML audit.
 - [x] Validate the HTML, links and documentary consistency; record the result in `PROGRESS.md`.
+
+## Gate 2 — Architecture (active)
+
+- [x] Write `02-architecture.md`: D1–D10 decisions, module boundaries, endpoints, data, flows, external surfaces, Gate A spike questions.
+- [ ] User review: approve Gate 2 or revise per comments.
+- [ ] Run Gate A access spike by 2026-09-26 (spike only, no implementation code).
+- [ ] After Gate 2 approval: Gate 3 program design (files, types, call stacks, test plan).
