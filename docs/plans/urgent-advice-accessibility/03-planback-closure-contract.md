@@ -1,9 +1,9 @@
 # PlanBack and the Closure Contract — specification and feasibility
 
-Date: **21 September 2026**. Author: Brody. Status: **proposal, not Gate 1 approval.**
+Date: **21 September 2026**. Author: Brody. Status: **specification; the mechanisms were carried into the approved Gate 1 product scope on 25 September 2026.** This document itself is not a gate approval — the authoritative gate state is in `00-status.md`.
 Source: `02-adversarial-review.md` §E ranks both as the top two changes. This document turns them into something buildable and checks whether they actually are.
 
-Nothing here authorises implementation. Gate 1 is still pending.
+Nothing here authorises implementation. Gate 1 (Product) was approved on 25 September 2026; Gate 2 (Architecture) is in progress and no code may be written before Gate 4.
 
 ---
 

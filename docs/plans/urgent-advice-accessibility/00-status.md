@@ -1,7 +1,7 @@
 # Status: CareRelay urgent-advice accessibility
 
 - Gate 1 — Product: **APPROVED** (25 September 2026)
-- Gate 2 — Architecture: in progress (draft written 25 September 2026, awaiting user review)
+- Gate 2 — Architecture: in progress — **revision 2** written 25 September 2026 after an independent round-2 adversarial review (APPROVE WITH CHANGES); awaiting user approval
 - Gate 3 — Program Design: pending
 - Gate 4 — Slice plan: pending
 
@@ -58,7 +58,9 @@ The skill's canonical gate filenames are reserved for Gates 2–4. Two supportin
 | `01-product.md` | **Gate 1 doc** | problem, success metric, announcement, product rules, screens |
 | `02-adversarial-review.md` | supporting note | independent review, 21 Sep — verdict, competitors, scores, kill dates |
 | `03-planback-closure-contract.md` | supporting note | specification and feasibility for PlanBack and the Closure Contract |
-| `02-architecture.md` | **Gate 2 doc** | draft written 25 Sep — decisions D1–D10, endpoints, data, flows, Gate A spike questions; awaiting user approval |
+| `02-architecture.md` | **Gate 2 doc** | **revision 2** (25 Sep) — D1–D12, pinned tool path, attempt-transition schema, external between-subjects baseline, non-functional surfaces, change log; awaiting approval |
+| `gate2-review-prompt-thorough.md` | supporting note | the review prompt handed to the independent reviewer |
+| `gate2-adversarial-review-thorough.md` | supporting note | independent round-2 review — APPROVE WITH CHANGES, three blocking defects |
 | `03-program-design.md` | **Gate 3 doc** | not yet written |
 | `04-slices.md` | **Gate 4 doc** | not yet written |
 | `mockups/` | Gate 1 assets | five plain-HTML screens, throwaway by design |
@@ -75,10 +77,14 @@ The skill's canonical gate filenames are reserved for Gates 2–4. Two supportin
 - **Closure Contract:** execution status and evidence status are two independent axes; the clinical deadline is immutable to operational retries; five invariants are test cases, not slogans.
 - **The load-bearing untested assumption:** that a fixed bilingual card plus a direct booking link plus a NurseFirst fallback does *not* perform equally. This is the primary kill test and must run first.
 - **Honest dependency boundary:** PlanBack and the Closure Contract are application logic and do not require WorkBuddy. WorkBuddy's genuine contribution is the coordinator, the real tool call, its real failure event and session resume.
-- **Open question from `docs/DESIGN_PRINCIPLES.md` (re-verified 22 Sep):** our internal audit—not an organiser scorecard—finds the current scope weak on platform advantage, while current competitors already occupy broad follow-up and cohort monitoring. The narrower proposal is one application-owned multi-day episode, one WorkBuddy scheduled reassessment/resume path, and an explicit measured abstention outcome. It is unestimated, access is unproved, and it must face the fixed-card + NurseFirst baseline. Not approved; Gate 1 remains open.
+- **Open question from `docs/DESIGN_PRINCIPLES.md` (re-verified 22 Sep, resolved 25 Sep):** the P1 load-bearing answer is **"execution substrate"**. The scheduled-reassessment module (D9 in the Gate 2 draft) was dropped after the round-2 adversarial review found it unbuildable as specified — no scenario, no ingress endpoint, no estimate. `DESIGN_PRINCIPLES.md` §8's "monitored episode that cannot lie" is **not** delivered. The submission must state this rather than imply a capability that is switched off.
 - Mandarin and voice are accessibility modes. English text remains the auditable reference until bilingual clinical content is reviewed.
 - Provisional persona: Mei, 72, Mandarin-preferring, with remote daughter support. The respiratory-symptom recommendation remains an injected fixture until clinical review.
 - **No asset may name a real healthcare facility.** The fixture provider is fictional and labelled.
 - No implementation code may be written before Gate 4 approval.
-- Gate 2 draft (`02-architecture.md`, 25 Sep) pins D1–D10: Python+FastAPI default (reversible only at the Gate A spike), pure domain core, append-only clinical record, derived closure, baseline arm first-class, abstention deterministic, scheduler module dark until Gate A passes, voice deferred and isolated. **The Gate A access spike is due 26 Sep** with a pre-recorded fallback decision.
+- Gate 2 draft (`02-architecture.md` revision 2) pins D1–D12: Python+FastAPI default (reversible only before the first domain-code commit), pure domain core, append-only attempt transitions, derived closure with sticky expiry, external between-subjects baseline, deterministic abstention with a closed vocabulary, **D9 dropped**, voice deferred and isolated. **The Gate A access spike is due 26 Sep** with a pre-recorded fallback decision.
+- **Two items need a user decision before Gate 3:**
+  1. The **H2 five-second timed hide** is a Gate 1 rule and an accessibility hazard (unreadable/un-extendable for screen-reader and slow readers). Reopen Gate 1 deliberately, or define "until dismissed".
+  2. The **expired patient screen wording** in `02-architecture.md` §7 extends an approved Gate 1 artefact and needs Gate 1 sign-off.
+- Round-2 review effort estimate: **90–150 h** for this architecture plus 20–35 h baseline — **not affordable in 21 days**. Gate 3 must produce a corrected estimate; either it or the scope changes.
 - The repository has commits on `main` and `care-relay-adversarial-review` (both at `9a1f332`); push to origin is blocked on missing GitHub write credentials — user must authenticate or push themselves.

@@ -46,7 +46,7 @@ Reframe CareRelay around truthful urgent-advice execution, produce a Gate 1 prod
 
 ## Result
 
-Gate 1 product specification, workaround audit, five HTML wireframes and one HTML design-principles audit are complete. Mandarin voice is technically feasible as a gated TRTC spike; no account access or clinical accuracy has been demonstrated. Gate 1 user approval remains pending.
+Gate 1 product specification, workaround audit, five HTML wireframes and one HTML design-principles audit are complete. Mandarin voice is technically feasible as a gated TRTC spike; no account access or clinical accuracy has been demonstrated. **Gate 1 (Product) was approved by the user on 25 September 2026.** Gate 2 (Architecture) is in progress.
 
 The independent review is recorded in `docs/plans/urgent-advice-accessibility/02-adversarial-review.md`. Verdict: REFRAME CareRelay around closed-loop confirmation of urgent advice; make read-back repair the human-facing mechanism and keep truthful unresolved status as supporting safety infrastructure. Current mandatory organiser-usage proof is absent, so the project risks not being scored; the artifact-only evidence estimate is 39/100, realistic implemented target 73/100, optimistic ceiling 83/100. Gate 1 remains pending.
 
@@ -64,17 +64,26 @@ Both mechanisms are now written into `PLAN.md`. The single-ladder state model wa
 ## Gate 2 — Architecture (active)
 
 - [x] Re-read all Gate 1 artifacts, PLAN.md, DESIGN_PRINCIPLES.md, research-workarounds.md and project conventions before designing.
-- [x] Write `docs/plans/urgent-advice-accessibility/02-architecture.md` (decisions D1–D10, module boundaries, endpoints, data model, three flows, external surfaces, Gate A spike questions, carried-risk mapping).
+- [x] Write `docs/plans/urgent-advice-accessibility/02-architecture.md` revision 1 (decisions D1–D10, module boundaries, endpoints, data model, three flows, external surfaces, Gate A spike questions).
 - [x] Update `00-status.md` (Gate 2 in progress; file map; fresh-session notes).
-- [ ] Obtain explicit Gate 2 approval from the user; revise the doc per review comments first.
-- [ ] Run the Gate A access spike (due 2026-09-26) — credential check, one typed tool call, one tool-failure observation, one session resume. Approval of Gate 2 authorises the spike only, not implementation code.
+- [x] Independent round-2 adversarial review (`gate2-adversarial-review-thorough.md`) — verdict APPROVE WITH CHANGES.
+- [x] **Revision 2**: apply all three blocking defects and the eight secondary blocking changes.
+- [x] Fix stale gate mirrors (`DESIGN_PRINCIPLES.md` §12, `03-planback-closure-contract.md`, `tasks/todo.md`, `PROGRESS.md` Result) and mockup numbering (01, 04).
+- [ ] Obtain explicit Gate 2 approval from the user on revision 2.
+- [ ] Run the Gate A access spike (due 2026-09-26) — credential check, one tool executed through the platform with an observed failure-event origin signal, one session resume. Approval of Gate 2 authorises the spike only, not implementation code.
+- [ ] **User decision flagged:** the H2 five-second timed hide (Gate 1 rule in `PLAN.md` §5.2, `mockups/02`) is an accessibility hazard for screen-reader and slow readers. Reopen Gate 1 deliberately or define "until dismissed". Not a Gate 3 decision.
 
 ### Assumptions and blockers — Gate 2
 
-- Gate A spike remains unrun; D8/D9 carry a pre-recorded reversal to local simulation if access fails by 26 Sep.
-- Stack default (Python 3.13 + FastAPI + SQLite) is reversible to Node/TypeScript only at the Gate A spike, before slice code exists — consistent with PLAN.md's "pinned after the access spike."
-- The scheduled-reassessment module (D9) is defined but dark; activating it requires Gate A pass plus a Gate 3 estimate, per DESIGN_PRINCIPLES.md §9.
+- Gate A spike remains unrun; the tool-execution path (§3.3) and D8's dependency claim now depend on it.
+- Round-2 review estimates 90–150 h for this architecture against the 56–89 h inherited, plus 20–35 h for the baseline. **Not affordable in 21 days.** Gate 3 must produce a corrected estimate and either the estimate or the scope must change.
+- Gate 4 must sequence the baseline comparison (Gate B) **before** the Closure Contract build. `PLAN.md` §7 currently schedules it after — wrong order, to be corrected.
+- Stack default (Python 3.13 + FastAPI + SQLite) is reversible only **before the first domain-code commit**; environment check required before Slice 1 (AppControl/venv issue recorded in `AGENTS.md`).
+- D9 (scheduled reassessment) is **dropped**, with the P1 load-bearing cost stated. Not recoverable without Gate A plus a scenario and an estimate.
 
 ### Run log — Gate 2
 
-- 2026-09-25: Drafted `02-architecture.md` on branch `gate-2-architecture`. Presented summary to user; awaiting "approve Gate 2, or what should change?"
+- 2026-09-25: Drafted `02-architecture.md` revision 1 on branch `gate-2-architecture`; committed `1cb05c8`.
+- 2026-09-25: User supplied an independent round-2 adversarial review (`gate2-adversarial-review-thorough.md`). Verdict APPROVE WITH CHANGES. Three blocking defects found: (1) §4's INSERT-only `attempts` table could not record a state transition, making acknowledgement writes either an illegal UPDATE or a silently-discarded INSERT — a false *negative* completion — and rendering four of seven fault sequences unwritable; (2) the tool-execution path was described five different ways, leaving the platform-failure claim unverifiable; (3) the D6 in-app card arm structurally could not measure the false-completion metric.
+- 2026-09-25: Wrote revision 2 — attempts split into immutable identity + append-only transitions + callbacks with an ordering rule and a transaction boundary; §3.3 pins one normative tool path with a recorded failure-event origin; D6 replaced by an external between-subjects baseline with a pre-registered protocol (§9); added D11 (evidence provenance) and D12 (sticky expiry); added intake/clarification/options/acceptance/escalation endpoints and tables; added §8 non-functional surfaces (deployment, PDPA, logging redaction, degraded states, model-text boundary); added §7 expired-screen rendering flagged for Gate 1 sign-off; §10 restates the safety claims honestly; D9 dropped with its cost stated.
+- 2026-09-25: Fixed stale mirrors and mockup numbering. Not yet committed.

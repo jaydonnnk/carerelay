@@ -6,14 +6,14 @@
 - [x] Define Gate 1 problem, success metric, announcement, and screens.
 - [x] Create grayscale HTML wireframes for recommendation, understanding/barrier repair, unresolved handoff, and reassessment/abstention.
 - [x] Validate HTML structure and links.
-- [ ] Ask for Gate 1 approval; do not create implementation code before all four gates are approved.
+- [x] Obtain Gate 1 (Product) approval — granted 25 September 2026.
 
 ## Review
 
 - Gate 1 artifacts render at desktop width and expose all intended headings, controls and bilingual labels.
 - Voice remains optional push-to-talk with visible transcript and text fallback.
 - No implementation or clinical claim was created before Gate approval.
-- Gate 1 approval is pending.
+- **Gate 1 approval was granted on 25 September 2026.** Gate 2 (Architecture) is now active.
 
 ## Independent adversarial review
 
@@ -43,8 +43,8 @@
 - [x] Add the recall hint ladder (H0–H3) with the level always recorded.
 - [x] Apply PlanBack and the Closure Contract to `PLAN.md`.
 - [x] Update `01-product.md` and the wireframes; validate all HTML.
-- [ ] Obtain Gate 1 (Product) approval.
-- [ ] Run the card-versus-PlanBack baseline comparison before building anything else.
+- [x] Obtain Gate 1 (Product) approval — 25 September 2026.
+- [ ] Run the card-versus-PlanBack baseline comparison before building anything else. **Gate 4 must sequence this first** (round-2 review).
 
 ## Four-principle reality check — 2026-09-22
 
@@ -56,7 +56,16 @@
 
 ## Gate 2 — Architecture (active)
 
-- [x] Write `02-architecture.md`: D1–D10 decisions, module boundaries, endpoints, data, flows, external surfaces, Gate A spike questions.
-- [ ] User review: approve Gate 2 or revise per comments.
+- [x] Write `02-architecture.md` revision 1: D1–D10, module boundaries, endpoints, data, flows, external surfaces, Gate A spike questions.
+- [x] Independent round-2 adversarial review (`gate2-adversarial-review-thorough.md`) — verdict APPROVE WITH CHANGES, three blocking defects.
+- [x] Apply all blocking changes as revision 2: attempt transitions, pinned tool path, external between-subjects baseline, missing endpoints/tables, D9 dropped, degraded states, D11/D12 invariants, expired screen, honest claim restatement.
+- [x] Fix stale mirrors and mockup numbering.
+- [ ] User review: approve Gate 2 revision 2 or revise per comments.
 - [ ] Run Gate A access spike by 2026-09-26 (spike only, no implementation code).
-- [ ] After Gate 2 approval: Gate 3 program design (files, types, call stacks, test plan).
+- [ ] **User decision required:** the H2 five-second timed hide is an accessibility hazard — reopen Gate 1 or define "until dismissed".
+- [ ] After Gate 2 approval: Gate 3 program design (files, types, call stacks, test plan), including a corrected effort estimate.
+
+## Review conclusion — round 2
+
+- Revision 1 was not approvable: attempt state was unwritable, the tool path was described five ways, and the baseline arm could not measure the success metric.
+- Revision 2 fixes all three; D9 is cut with its cost stated; the survivor set is PlanBack, the Closure Contract, the fault harness, the four-line screen, the ledger and the baseline comparison.

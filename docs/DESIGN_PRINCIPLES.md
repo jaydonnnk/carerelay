@@ -217,4 +217,5 @@ Items 1–3 restore scope the plan cut. Their effort has not been estimated, so 
 
 - Principles adopted as **internal selection criteria**, not organiser requirements.
 - P1 recorded as a **lens with a minimum of one load-bearing axis**, not as an absolute gate. See §4 for why the literal rule is unsafe.
-- No implementation authorised. Gate 1 remains open and unapproved.
+- No implementation authorised. **Gate 1 (Product) was APPROVED on 25 September 2026.** Gate 2 (Architecture) is in progress; see `docs/plans/urgent-advice-accessibility/00-status.md` for the authoritative gate state.
+- **Superseded by Gate 2 revision 2 (25 September 2026):** §9 item 2 (spike one scheduled reassessment loop) and the "monitored episode" layer in §8 are **not** in the approved architecture. The round-2 adversarial review found D9 unbuildable as specified, and it was dropped. The P1 load-bearing answer is therefore "execution substrate" — coordinator, real tool call, real failure event, session resume. See `02-architecture.md` §6.6.
