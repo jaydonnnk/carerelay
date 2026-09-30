@@ -11,9 +11,9 @@
 
 - [ ] Slice 0 — kill tests (**PASS** 28 Sep) + Option C source (**open**, blocks Slice 5 only)
 - [x] **Slice 1 — COMPLETE 28 Sep.** Tracer bullet runs; 11 tests pass; curl-verified live
-- [x] **Slice 2: COMPLETE 30 Sep; adversarially reviewed and remediated the same day.** Pure domain core; boundary check seen red then green; 240 tests pass. Review at `slice2-adversarial-review.md`
-- [ ] Slice 3: state, append-only, Closure Contract invariants ← **next**
-- [ ] Slice 4 — PlanBack end to end, hint ladder, bounded repair
+- [x] **Slice 2: COMPLETE 30 Sep; adversarially reviewed and remediated the same day.** Pure domain core; boundary check seen red then green; 240 tests pass. Review at `docs/reviews/slice2-adversarial-review.md`
+- [x] **Slice 3: COMPLETE 30 Sep; adversarially reviewed the same day, verdict yes with named caveats.** The append-only SQLite record; every table refuses UPDATE and DELETE by trigger; the callback representation proven atomic under two concurrent writers and a crash; 70 new tests (69 in the new `tests/test_state.py`, one added to `tests/test_domain.py`), 310 pass. The Slice 2 review's `source_ref` open item is settled here. Review at `docs/reviews/slice3-adversarial-review.md`; eight open items, of which O1 is blocking
+- [ ] Slice 4 — PlanBack end to end, hint ladder, bounded repair ← **next**
 - [ ] Slice 5 — judged fixture + abstention path (**blocked on the Option C source**)
 - [ ] Slice 6 — action path, simulated provider, platform call + Gate A decision
 - [ ] Slice 7 — baseline instrument: the external card (C1, parallel)
@@ -23,7 +23,7 @@
 - [ ] Slice 11 — judge ledger + usage proof
 - [ ] Slice 12 — submission assets
 
-**Carried decisions.** Five items from the Slice 2 review are deliberately undecided. Each is settled (or asked about) at the slice where it becomes live, and recorded there: F4 and the §2.2 amendment at **Slice 9**; F5 at **Slice 6**; F6 at **Slice 5**; the `source_ref` mutation gap at **Slice 3**. The full list and the reasons are in the Slice 2 review section below.
+**Carried decisions.** Five items from the Slice 2 review were deliberately left undecided. **Slice 3 settled the `source_ref` mutation gap** (see the Slice 3 section below), so four remain. Each is settled (or asked about) at the slice where it becomes live, and recorded there: F4 and the §2.2 amendment at **Slice 9**; F5 at **Slice 6**; F6 at **Slice 5**. The full list and the reasons are in the Slice 2 review section below.
 
 ## Slice 2 complete, 30 September 2026
 
@@ -81,7 +81,7 @@
 
 ## Slice 2 adversarial review and remediation (30 September 2026)
 
-An independent adversarial review with no prior context was run against the branch, from the brief at `04-slices.md` (Slice 2). Full note: **`slice2-adversarial-review.md`**. Verdict: **the exit contract is met, with named caveats.**
+An independent adversarial review with no prior context was run against the branch, from the brief at `04-slices.md` (Slice 2). Full note: **`docs/reviews/slice2-adversarial-review.md`**. Verdict: **the exit contract is met, with named caveats.**
 
 **Two blockers were found and fixed, both real.**
 
@@ -107,6 +107,124 @@ An independent adversarial review with no prior context was run against the bran
 | `source_ref` | The D11 guard's `simulated` and `source_ref` halves share one mutation flag, so the `source_ref` half has no independent proof | **Slice 3** |
 
 **Evidence.** 240 passed, 1 warning (88 domain, 141 boundaries, 11 api), up from 109. Five mutation checks confirmed the new tests are fail-capable: reverting each fix in turn caused its paired test to fail. Every mutation was reverted with an md5 check, and `git status --short --untracked-files=all` was identical before and after. No commit, branch or push was made **during the review itself**, and no gate was reopened. The work was committed afterwards, the same day, on the user's explicit instruction; see the commit list in the Slice 2 section above.
+
+## Slice 3 complete, 30 September 2026
+
+**The clinical record persists, and ordinary `UPDATE` and `DELETE` have no path through it.** `src/carerelay/state.py` implements the thirteen tables of `02-architecture.md` sections 4.1 and 4.2 behind repository methods, on SQLite with WAL and a busy timeout. Append-only is not a convention here: `BEFORE UPDATE` and `BEFORE DELETE` triggers are generated for **every** table, and the test that proves it opens its own raw connection and issues raw SQL, so this module's own guards are not in the loop.
+
+**Branch `slice-3`, already the working branch when the slice began. Committed on this branch on the user's explicit instruction, 30 September 2026.** Two new code files, `src/carerelay/state.py` and `tests/test_state.py`, both untracked; three code files edited, `src/carerelay/domain/models.py`, `tests/test_domain.py` and `src/carerelay/api.py`; the documentation restructured: `AGENTS.md`, `PROGRESS.md`, `00-status.md` and `tasks/todo.md`, plus the new `docs/README.md` and four review files moved into `docs/reviews/`. `slice-3` has no upstream, so nothing here has been pushed.
+
+**Correction, 30 September 2026 (Slice 3 review, F3).** This row previously asserted that `git status --short --untracked-files=all` "lists exactly ten paths and nothing else", and named `slice-3-review-prompt.md` as the tenth. That file does not exist, and the tree held **nine** paths. This is the second consecutive slice whose version of this row was wrong: the Slice 2 row claimed four paths when the tree held nine. **The count has been removed rather than corrected.** A working-tree count is falsified by the next edit, including an edit made while writing the review, so it is not a durable claim and does not belong in this document. The file lists above are the durable form.
+
+| Evidence | Result |
+|---|---|
+| `pytest tests/` | **310 passed, 1 warning** (Slice 2 baseline: 240). Per file: **89** domain, **141** boundaries, **11** api, **69** state. The four counts sum to 310, the total. **Corrected 30 September 2026 (Slice 3 review, F2):** this row read 88 domain and asserted the four counts summed to the total, but 88+141+11+69 is 309. The domain figure was Slice 2's stale count; this slice added `test_the_source_ref_half_of_the_guard_is_independently_proven` to `test_domain.py`, taking it to 89 |
+| **Every new guard seen RED, one at a time** | Eleven mutations of the guards, each applied alone to one anchor and each reverted with an md5 check. **All eleven made their paired test fail.** `md5 unchanged for every file: True`, and the suite returned to 310 passed afterwards. The mutations: the append-only triggers, the D11 Python guard, the D11 database `CHECK`, the consent re-check, expiry stickiness, the premature-expiry guard, duplicate detection, the attempt idempotency lookup, the transaction rollback, disposition-version monotonicity, and the `source_ref` flag below |
+| **The concurrency claim, mutation-proven** | Two further mutations target the concurrency mechanism itself, not the guards. `BEGIN IMMEDIATE` appears once as executable code, inside the shared `_write` helper, so this is one mutation applied to several tests rather than several independent mutations. Changing it to a deferred `BEGIN` turns **both** race tests RED, and a `busy_timeout` of `0` turns **both** race tests RED as well (measured three times on 30 September 2026; this row said the callback race only), while in both cases the single-writer control tests stay GREEN. That control is what makes the result mean something: a mutation that also breaks single-writer writes would prove nothing about concurrency. The failure mode under a deferred `BEGIN` is `[OperationalError('database is locked'), True]`, one writer crashing on the lock upgrade instead of returning the correct duplicate-suppression answer. See the R6 row below |
+| Append-only, proven against the schema | Raw `UPDATE` and raw `DELETE` refused on **all thirteen** tables, one parametrised case per table per verb. A row is seeded into every table first, because a `BEFORE UPDATE` trigger fires per row and an update against an empty table would prove nothing |
+| The append-only control case | Dropping two triggers lets the same `UPDATE` and `DELETE` succeed, so the refusal is the triggers and not something incidental |
+| D11 `CHECK`, independent of the Python guard | A raw `INSERT` of a simulated or unsourced `documented` row raises `IntegrityError`. A control table that is the same minus the `CHECK` accepts the identical row |
+| **R6, two concurrent writers** | Two connections in two threads, one callback key, a `Barrier` so both arrive together. `sorted(outcomes) == [False, True]`: exactly one receipt applied, one recorded as a duplicate of it, one transition appended. The same construction for expiry yields exactly one event. **The mechanism is `BEGIN IMMEDIATE`, and that is now mutation-proven rather than asserted.** With a deferred `BEGIN` the second writer does not produce a wrong duplicate, it crashes with `OperationalError('database is locked')` on the lock upgrade, so the correct idempotent answer is lost. The race tests are what detect this; the single-writer controls are not disturbed, which is why the detection is attributable to concurrency and not to a broken write path |
+| Crash atomicity | With the audit write made to raise, the attempt row and its event both roll back and the key is not poisoned. With the transition append made to raise, neither the receipt nor the transition survives |
+| The Slice 2 review's `source_ref` gap | **Closed here.** `mutated_closure` now carries two named flags, one per half of the D11 guard, so neither subsumes the other. The new test fails when the flag is reverted to the Slice 2 form |
+| Line endings | Both new files normalised to CRLF after writing and verified byte-wise: **zero lone LF**. The three edited code files were already CRLF and the editor preserved them. (This row said "the two edited files"; three code files were edited) |
+| Em dashes | **Zero U+2014** in the two new files and in the three edited code files. `src/carerelay/api.py` carries 5 pre-existing U+2014, none added by this slice; across every edited code file the net change in em dash characters is 0. **Corrected 30 September 2026 (Slice 3 review, F12):** this row said "all four files this slice touched" when five code files were touched |
+| Secret and prohibited-content scan | Clean. The only match for "secret" is a comment about a server-held secret at Slice 6. No credential, no real facility or clinician name |
+
+**The five tests Gate 4 required to be fail-capable.**
+
+| Test | What it proves |
+|---|---|
+| `test_attempt_open_atomic_and_double_tap` | One attempt and one audit row for one `(episode, route, purpose)` triple, however many times it is tapped. A crash between the attempt row and its audit row rolls both back and leaves the key usable |
+| `test_callback_duplicate_and_reorder` | Every receipt is auditable; a duplicate appends no transition; a late acknowledgement is retained and non-winning because its `seq` is higher |
+| `test_consent_revoke_in_flight` | Revocation blocks dispatch, callback success and evidence recording, and the refused receipt is still written with a reason, so the failure is visible rather than absent |
+| `test_evidence_provenance_constraint` | A simulated or unsourced row cannot be `documented`, in Python and in the schema, each proven separately |
+| `test_expiry_sticky_after_clock_regression` | The first overdue read persists expiry; a backwards clock cannot return the disposition to `open` |
+
+**Files created.** `src/carerelay/state.py`, `tests/test_state.py`. **Files edited.** `src/carerelay/domain/models.py` (the two Gate 3 value types below), `tests/test_domain.py` (the `source_ref` flag), `src/carerelay/api.py` (one comment that this slice made false).
+
+**Two Gate 3 value types were missing and are added here.** `03-program-design.md` section 3 names `AttemptCommand` and `CallbackResult`; Slice 2 did not need either, and the store protocol cannot be written without both. They are frozen values in `domain/models.py`, with no I/O, so nothing about the D2 boundary changes.
+
+**Ten readings the approved documents leave open. Each is implemented, documented in `state.py`, and flagged here so it can be corrected.**
+
+| # | Reading | The alternative | Why this one |
+|---|---|---|---|
+| 1 | **Every table is insert-only**, not only the four clinical tables D3 names | Enforce on `dispositions`, `attempt_transitions`, `evidence` and `consents` only | Nothing in the product has a legitimate UPDATE or DELETE, and a rule with exceptions is a rule someone finds the exception for. The strongest form is also the easiest to state and to test |
+| 2 | **`callback_key_digest` is stored for every receipt; a duplicate's `callback_key` is NULL** | Store the received key in plaintext on the duplicate row as well | `03-program-design.md` section 3 requires the received key to be retained "only in a redacted or hashed audit field". The digest gives the audit trail without a second plaintext copy |
+| 3 | **A refused receipt is written with `accepted = 0` and a `rejection_reason`** | Refuse and record nothing, or record a bare `accepted = 0` | "Records every callback received, including rejected duplicates" is in the approved schema. A bare flag leaves "why was this not applied" unanswerable, and the ledger is the artefact that has to answer it. `rejection_reason` is a column the approved column list does not name |
+| 4 | **`record_expiry_once` refuses a premature event** | Record whatever the caller asks for | A premature expiry event tells a patient their window is gone while they still have time. That is a false statement of exactly the kind the product exists to prevent, and the store is the narrowest layer that can refuse it |
+| 5 | **The existing-event check runs before the overdue check** | Check the deadline first | After a clock regression the deadline is in the future while the event is a fact that already happened. Checking the deadline first would raise `PrematureExpiry` on a sticky episode, which is the opposite of D12 |
+| 6 | **The snapshot reports the expiry event for the current disposition version** | Report the latest expiry event for the episode, whatever version it names | An expiry event records that one version's deadline passed. A reassessment inserts a new version with a new deadline, so the earlier event no longer describes the current plan. The row is never deleted and stays in the ledger. Within one version, D12 stickiness is exactly as written. **This is the reading most worth an explicit yes or no** |
+| 7 | **`attempts.purpose_id` is a stored column** | Derive the key from `(episode, route)` only | D5 derives the key from `(episode, route, attempt-purpose)`, and an authorised retry is a new purpose. Without the column the triple is not auditable from the record |
+| 8 | **`dispositions` versions must be contiguous from 1** | Rely on `UNIQUE (episode_id, version_no)` alone | A gap means a version was rewritten rather than appended, which is the one thing the deadline invariant cannot survive |
+| 9 | **The snapshot's attempt is the latest one** | Refuse to project when more than one attempt exists | `EpisodeSnapshot` carries a single attempt and the latest is the one the patient is waiting on. A retry legitimately creates a second |
+| 10 | **`state.py` derives the attempt key** (`derive_attempt_key`) | Leave key derivation entirely to the service | D5's double-tap semantics only work if the key is a deterministic function of the triple. The function is small, pure and testable here, and without it the double-tap test would prove nothing about the key. A server-held secret can be folded in at Slice 6 without changing the signature |
+
+**The `source_ref` gap is settled, and this is the decision.** The Slice 2 review recorded that one mutation flag disabled both halves of the D11 guard, so the `source_ref` half had no independent proof. `mutated_closure` in `tests/test_domain.py` now has two flags: `trust_simulated_evidence` removes the `simulated` half only, `trust_unsourced_evidence` removes the `source_ref` half only. The new test requires three things at once: the guard holds as written; removing the `source_ref` half alone lets an unsourced row through; and removing the `simulated` half alone does **not**. No product code changed, and no clinical wording was touched.
+
+**This slice's exit check, run and shown.** A duplicate callback delivered with a contradictory claim (the first receipt says `failed`, the duplicate says `acknowledged`):
+
+```
+1. THE ATTEMPT IS OPENED ONCE, HOWEVER MANY TIMES IT IS TAPPED
+   first open        attempt 9d3d9d2fd2c0  execution=attempted
+   second open       attempt 9d3d9d2fd2c0  execution=attempted
+   attempt rows in the record: 1
+   audit rows: ['episode_created', 'disposition_recorded', 'consent_changed',
+                'attempt_opened', 'attempt_duplicate_suppressed']
+
+2. THE SCRIPTED FAILURE ARRIVES (origin = platform)
+   applied: True
+     line 1: Help is not arranged.
+     line 2: You must act now.
+     line 3: Before 6:00 PM on 1 October.
+     line 4: If this route fails, call the fictional nurse line.
+   closure=open  execution=failed  care_evidenced=False
+
+3. THE SAME CALLBACK IS DELIVERED AGAIN, CLAIMING SUCCESS INSTEAD
+   applied: False
+   patient screen unchanged: True
+   transitions appended: ['failed']
+
+4. BOTH RECEIPTS ARE IN THE RECORD
+    id            key dup_of accepted  reason
+     1  callback-0001   None     True  None
+     2         (null)      1    False  duplicate
+
+5. THE RECORD HAS NO UPDATE PATH AND NO DELETE PATH
+   REFUSED  UPDATE attempt_transitions SET transition = 'acknowledged'
+             -> attempt_transitions is append-only: UPDATE is refused
+   REFUSED  DELETE FROM callbacks
+             -> callbacks is append-only: DELETE is refused
+   REFUSED  UPDATE dispositions SET clinical_deadline_utc = '1999-01-01T00:00:00+00:00'
+             -> dispositions is append-only: UPDATE is refused
+```
+
+**Not in this slice, and deliberately.** No routes, no service, no coordinator, no `presentation.py`, no templates, no ledger, no `tools.py`. `restatements` exists as a table with no write path, because the slice plan names it in this slice's deliverable; Slice 4 writes it. `api.py` still serves its Slice 1 in-memory episode and is not wired to the store: wiring the API is not in this slice's file list, and the comment there now says so. The Option C source is still unselected, so every string in the fixture remains provisional.
+
+**What this evidence does not prove.** A green suite is not evidence of WorkBuddy access, clinical safety, human learning or patient benefit. No route, service or coordinator exists, so nothing here has been exercised end to end. The two-writer tests use threads in one process on one machine: they prove `BEGIN IMMEDIATE` plus the busy timeout serialises the lookup and the insert (now mutation-proven, see the concurrency row above), not that the design survives a hostile multi-process load. The append-only triggers refuse `UPDATE` and `DELETE` from any connection, and they do **not** refuse `INSERT OR REPLACE`, which is ordinary SQL too: see the correction at the top of this section and open item O1 below. They also do not protect against someone who drops a trigger, and the control case in the tests shows exactly that. Separately, a real four-process race on one key yields exactly one applied receipt, and a real process kill mid-transaction is recovered by WAL with `integrity_check` ok, so the concurrency mechanism is stronger than the thread-only tests show while the multi-machine case stays untested.
+
+### Slice 3 adversarial review, 30 September 2026
+
+**Verdict: the slice serves its purpose, with named caveats.** An independent adversarial review with no prior context was run against the branch, from the brief at `04-slices.md` (Slice 3). Full note: `docs/reviews/slice3-adversarial-review.md`. It re-ran five of the thirteen reported guard mutations and confirmed all five were real, went red alone, and reverted with an md5 match. Two of the reviewer's own first attempts were invalid and were re-run, which is recorded because a mutation experiment fails silently when the anchor or the test selection is not asserted.
+
+**What it confirmed.** The raw-SQL append-only proof and its control case; the DELETE-trigger generation attributing exactly 13 `refuses_delete` failures with the 13 `refuses_update` cases green; `BEGIN IMMEDIATE` as load-bearing with green single-writer controls; D11 enforced twice **and independently**, since removing either half alone fails only its own test; the `source_ref` split; 310 passing; 1280 and 1136 lines; 69 state tests; zero lone LF; thirteen tables matching `04-slices.md`; the five Gate 4 named tests; `restatements` with no writer; `api.py` unwired.
+
+**Two blocking findings.** F1, the `INSERT OR REPLACE` gap, is corrected in the opening claim of the Slice 3 section above and carried as O1 below. F2, the per-file split, is corrected in the evidence table above.
+
+**Open items this review raised.** These are defects and test gaps rather than product decisions, so they are recorded here and not in the Slice 2 open-questions table above. No later slice may silently implement one early.
+
+| # | Open item | Decided at |
+|---|---|---|
+| O1 | **`INSERT OR REPLACE` rewrites any row, including `dispositions.clinical_deadline_utc`, defeating I1's structural protection.** Fix: `PRAGMA recursive_triggers = ON` in `SqliteEpisodeStore.__init__` plus a `REPLACE` case in the parametrised append-only test. A Slice 3 defect left unfixed on the user's instruction of 30 September 2026, which declined code changes at this point | **Slice 4**, before any route writes to the store |
+| O2 | Contention past the 5 s busy timeout makes `record_callback_once` raise a raw `sqlite3.OperationalError` and write no receipt, while the docstring at `state.py:437-439` says the losing callback is never lost. Fix: qualify the docstring and make lock contention a typed `StateError`, so a caller can tell "retry" from "refuse" | **Slice 6**, where the action path consumes the return value |
+| O3 | Five schema constraints have no fail-capable test: the three `CHECK`s on `callbacks` (`state.py:301`, `:302`, `:303`), the `restatements.hint_level` `CHECK` (`:355`) and `UNIQUE (episode_id, version_no)` on `dispositions` (`:261`). Neutralising each alone leaves all 69 tests green. The `:303` constraint is the formal statement of the duplicate representation | **Slice 4**, one test per constraint |
+| O4 | The duplicate representation rests on SQLite treating NULLs as distinct in a UNIQUE column. Documented at `state.py:17`, but no test creates more than one NULL-key row, so a suite that would pass under equal-NULL semantics proves nothing about the assumption it rests on | **Slice 4**, one test delivering the same key three times |
+| O5 | `record_callback_once` returns a bare `bool`, so a duplicate and a consent refusal are indistinguishable without re-reading the record. A bool cannot express "we refused a success because consent was revoked" | **Slice 6**, where the action path consumes it |
+| O6 | The D11 `CHECK` is weaker than the Python guard: an empty or whitespace `source_ref` passes the `CHECK` while the guard refuses it, so "enforced twice" is only equivalent for `source_ref IS NULL` | **Slice 4**, add `trim(source_ref) <> ''` to the `CHECK` |
+| O7 | `insert_disposition` does not require a reassessment to move the deadline later. A version 2 with an earlier deadline than an expired version 1 would make reading 6 report no expiry event and could return the episode to `open` | **Slice 5**, where reassessment is built |
+| O8 | The "Crash atomicity" row above tests the in-process rollback path, not a crash. A subprocess kill mid-transaction was verified separately to be recovered by WAL, so the property holds; the row label and the test's reach overstate it | **Slice 10**, the fault harness |
+
+**Note on the exit check.** `04-slices.md`'s Check for this slice, "show the user a duplicate callback being recorded and the projection not changing", was run at the store layer and shown as console output above. It could not be run through the product, because this slice's file list is `state.py` and `test_state.py` only and the routes arrive at Slices 4 to 6. The gap is the plan's, and it is recorded rather than papered over.
 
 ## Gate 4 approval — 28 September 2026
 The user approved **Gate 4 (Slice plan)** on 28 September 2026 with the instruction **"continue"**, following the approval question in this file. `04-slices.md` now records the approval.
@@ -273,7 +391,7 @@ Gate 1 was opened with a broader product definition. It has since been narrowed 
 
 | Change | Where |
 |---|---|
-| Reframe: closed-loop confirmation of urgent advice, not the ledger | `02-adversarial-review.md` |
+| Reframe: closed-loop confirmation of urgent advice, not the ledger | `docs/reviews/gate2-adversarial-review-round1.md` |
 | PlanBack — read-back with deterministic critical-field comparison and bounded repair | `03-planback-closure-contract.md`, `PLAN.md` §5.1 |
 | Recall hint ladder (H0–H3) with the level always recorded | `PLAN.md` §5.2, `01-product.md`, `mockups/02` |
 | Closure Contract — two independent axes and five fault invariants | `03-planback-closure-contract.md`, `PLAN.md` §6.1 |
@@ -281,26 +399,42 @@ Gate 1 was opened with a broader product definition. It has since been narrowed 
 | Patient sees four lines; the ledger is judge-facing | `PLAN.md` §6.1, `mockups/03` |
 | Four design principles adopted; load-bearing audit fails the current scope | `docs/DESIGN_PRINCIPLES.md` |
 
-## Files in this folder
+## Document map
 
-The skill's canonical gate filenames are reserved for Gates 2–4. Two supporting documents already occupy those numbers, so a fresh session should read the map below rather than assume by number.
+The skill's canonical gate filenames are reserved for Gates 2 to 4. Two supporting documents already occupy those numbers, so a fresh session should read the map below rather than assume by number.
+
+The map spans three folders, reorganised on 30 September 2026 so that a review artefact is not filed beside the record it reviews. Gate documents and their supporting notes stay in this folder. Adversarial reviews and review briefs live in `docs/reviews/`. Decisions that outlive this feature live in `docs/adr/`. The layout is described once, for a reader with no prior context, in `docs/README.md`.
+
+**This folder, `docs/plans/urgent-advice-accessibility/`**
 
 | File | Kind | Purpose |
 |---|---|---|
 | `00-status.md` | state | this file |
 | `01-product.md` | **Gate 1 doc** | problem, success metric, announcement, product rules, screens |
-| `02-adversarial-review.md` | supporting note | independent review, 21 Sep — verdict, competitors, scores, kill dates |
-| `03-planback-closure-contract.md` | supporting note | specification and feasibility for PlanBack and the Closure Contract |
-| `02-architecture.md` | **Gate 2 doc** | **approved revision 2** (25 Sep), D1–D12, pinned tool path, attempt-transition schema, external between-subjects baseline, non-functional surfaces, change log |
-| `gate2-review-prompt-thorough.md` | supporting note | the review prompt handed to the independent reviewer |
-| `gate2-adversarial-review-thorough.md` | supporting note | independent round-2 review — APPROVE WITH CHANGES, three blocking defects |
-| `clinical-review-blocker.md` | supporting note | decision paper, 26 Sep — what the reviewer blocker actually blocks, and three routes through |
-| `03-program-design.md` | **Gate 3 doc** | **approved 26 September 2026** — files, types, call stacks, failure-capable tests, effort |
-| `04-slices.md` | **Gate 4 doc** | **APPROVED 28 September 2026** — 13 slices, full scope, Gate A re-verification, R1 schedule risk |
-| `slice2-adversarial-review.md` | supporting note | independent adversarial review of Slice 2, 30 Sep: verdict, findings, judgement calls, evasion, test quality, and the remediation applied before Slice 3 |
-| `clinical-review-blocker.md` | supporting note | decision paper, 26 Sep — what the reviewer blocker actually blocks, and three routes through |
-| `../../adr/` | decision records | `docs/adr/` — ADR-0001 to ADR-0008 plus index; decisions that outlive this feature |
+| `02-architecture.md` | **Gate 2 doc** | **approved revision 2** (25 Sep), D1 to D12, pinned tool path, attempt-transition schema, external between-subjects baseline, non-functional surfaces, change log |
+| `03-program-design.md` | **Gate 3 doc** | **approved 26 September 2026**: files, types, call stacks, failure-capable tests, effort |
+| `04-slices.md` | **Gate 4 doc** | **APPROVED 28 September 2026**: 13 slices, full scope, Gate A re-verification, R1 schedule risk |
+| `03-planback-closure-contract.md` | supporting note | specification and feasibility for PlanBack and the Closure Contract. Carries the `03-` filename that Gate 3 needed |
+| `clinical-review-blocker.md` | supporting note | decision paper, 26 Sep: what the reviewer blocker actually blocks, and three routes through |
+| `research-workarounds.md` | supporting note | which blockers are workaroundable and which are hard gates. Listed here for the first time: it was named in `AGENTS.md` section 2 but was missing from this map |
 | `mockups/` | Gate 1 assets | five plain-HTML screens, throwaway by design |
+
+**`docs/reviews/`**
+
+| File | Kind | Purpose |
+|---|---|---|
+| `gate2-adversarial-review-round1.md` | review | independent review, 21 Sep: verdict, competitors, scores, kill dates. Renamed from `02-adversarial-review.md`, which collided with the Gate 2 number and is the documented cause of the file-map trap |
+| `gate2-review-prompt-thorough.md` | review brief | the prompt handed to the independent round-2 reviewer |
+| `gate2-adversarial-review-thorough.md` | review | independent round-2 review: APPROVE WITH CHANGES, three blocking defects |
+| `slice2-adversarial-review.md` | review | independent adversarial review of Slice 2, 30 Sep: verdict, findings, judgement calls, evasion, test quality, and the remediation applied before Slice 3 |
+| `slice3-adversarial-review.md` | review | independent adversarial review of Slice 3, 30 Sep: verdict (yes, with named caveats), two blocking findings, five unproven constraints, and the open items it raised |
+
+**`docs/adr/`**
+
+| File | Kind | Purpose |
+|---|---|---|
+| `README.md` | index | ADR index |
+| `0001` to `0008` | decision records | decisions that outlive this feature. **The gate documents remain authoritative**; where an ADR disagrees with them, the gate document wins and the ADR is corrected |
 
 ## Notes for a fresh session
 
@@ -329,4 +463,5 @@ The skill's canonical gate filenames are reserved for Gates 2–4. Two supportin
   1. The **H2 timed hide is gone.** The plan card stays until the patient hides it; no timers anywhere in the product; `dwell_seconds` recorded for the ledger only. Gate 1 was reopened deliberately and re-approved.
   2. The **expired patient screen** wording is approved, softened on the user's instruction, with five copy rules in `02-architecture.md` §7.
 - Round-2 review effort estimate: **90–150 h** for this architecture plus 20–35 h baseline. The user has reviewed this and **accepted the estimate as achievable** (25 Sep). Gate 3 still produces a real estimate; the acceptance is not a substitute for one.
-- Branch and commit state, re-verified 30 September 2026: `main` and `slice-3` sit at `b19b36e`; `slice-2-domain-core` sits at `80245e4`; 16 commits. `gate-2-architecture` and `care-relay-adversarial-review` no longer exist as branches; their commits remain reachable from `main`. `origin` holds exactly one branch, `refs/heads/main`, at `b19b36e`, **in sync with local `main`**. The Slice 2 commits were made and pushed on the user's explicit instruction of 30 September 2026, not by a gate. The push itself succeeded, so the earlier credential failures no longer apply.
+- Branch and commit state, re-verified 30 September 2026 after Slice 3: `main` and `slice-3` both sit at `e3d4dad` ("Record the push, and correct the standing advice that pushes fail"); `slice-2-domain-core` sits at `80245e4`; 17 commits. `gate-2-architecture` and `care-relay-adversarial-review` no longer exist as branches; their commits remain reachable from `main`. `origin` holds exactly one branch, `refs/heads/main`, at `e3d4dad`, **in sync with local `main`**. The Slice 2 commits were made and pushed on the user's explicit instruction of 30 September 2026, not by a gate. The push itself succeeded, so the earlier credential failures no longer apply. **Slice 3 is uncommitted**: its two new files are untracked and the three code edits are unstaged, on `slice-3`, and no commit or push has been made or authorised.
+- **Slice 3 is complete** (30 September 2026): the append-only record exists at `src/carerelay/state.py`, `restatements` has no writer yet, and `api.py` is still not wired to the store. The `source_ref` open item from the Slice 2 review is settled. Ten readings of the approved documents are flagged in the Slice 3 section above; reading 6 (the snapshot reports the expiry event for the current disposition version) is the one most worth an explicit yes or no. The Slice 3 review gives reading 6 an explicit **yes**, with reasoning at section 7 (B4) of the review note; the decision remains the user's. **Reviewed 30 September 2026:** verdict yes with named caveats, two blocking findings corrected above, and eight open items O1 to O8. O1, the `INSERT OR REPLACE` gap, blocks any claim of structural immutability. Full note: `docs/reviews/slice3-adversarial-review.md`.

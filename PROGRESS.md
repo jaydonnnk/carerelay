@@ -48,7 +48,7 @@ Reframe CareRelay around truthful urgent-advice execution, produce a Gate 1 prod
 
 Gate 1 product specification, workaround audit, five HTML wireframes and one HTML design-principles audit are complete. Mandarin voice is technically feasible as a gated TRTC spike; no account access or clinical accuracy has been demonstrated. **Gate 1 (Product) was approved by the user on 25 September 2026, reopened and re-approved the same day for the timer removal and the expired-screen wording.** **Gate 2 (Architecture) approved 25 September 2026 on revision 2. Gate 3 (Program Design) approved 26 September 2026. Gate 4 (Slice plan) was drafted 28 September 2026 and awaits approval.**
 
-The independent review is recorded in `docs/plans/urgent-advice-accessibility/02-adversarial-review.md`. Verdict: REFRAME CareRelay around closed-loop confirmation of urgent advice; make read-back repair the human-facing mechanism and keep truthful unresolved status as supporting safety infrastructure. Current mandatory organiser-usage proof is absent, so the project risks not being scored; the artifact-only evidence estimate is 39/100, realistic implemented target 73/100, optimistic ceiling 83/100. Gate 1 remains pending.
+The independent review is recorded in `docs/reviews/gate2-adversarial-review-round1.md`. Verdict: REFRAME CareRelay around closed-loop confirmation of urgent advice; make read-back repair the human-facing mechanism and keep truthful unresolved status as supporting safety infrastructure. Current mandatory organiser-usage proof is absent, so the project risks not being scored; the artifact-only evidence estimate is 39/100, realistic implemented target 73/100, optimistic ceiling 83/100. Gate 1 remains pending.
 
 `03-planback-closure-contract.md` specifies the two ranked mechanisms and checks their feasibility. Findings: PlanBack (deterministic critical-field comparison, bounded repair) is high-feasibility, 18–30 h, no external dependency. The Closure Contract (immutable clinical deadline, two independent execution/evidence axes, five fault invariants) is medium-feasibility, 38–59 h. Combined build 56–89 h; with the baseline comparison, 76–124 h. Key honest finding: neither mechanism requires WorkBuddy — they are application logic. WorkBuddy's genuine dependency is the coordinator, the real tool call, its real failure event, and session resume. Both mechanisms carry pre-registered kill tests. The load-bearing assumption (that a fixed bilingual card does not perform equally) remains untested and should be tested first.
 
@@ -139,4 +139,26 @@ Both mechanisms are now written into `PLAN.md`. The single-ladder state model wa
 
 ### Next
 
-**Slice 2 — the pure domain core and its enforcing boundary.** Migrate the K1 corpus and comparator out of `spike/` into `domain/rules.py` under Reading A (the widened signature, ADR-0007), and make `test_domain_import_boundary` fail-capable by showing it red against a deliberate `import socket` before showing it green.
+**Slice 4: PlanBack end to end, with the hint ladder and bounded repair.** `POST /restatements`,
+`/restatements/{rid}/repairs`, `/hint-events`, `/transcript-confirmations`; the coordinator
+extracts raw spans and `domain` resolves and compares (Reading A, pinned there); H0 to H3 recorded,
+H2 stays until the patient hides it, H3 is `not_recalled` and never a pass, two repairs maximum and
+a third routes to the human path (C6).
+
+**Carried into Slice 4 and later:** the Option C source (blocks Slice 5), F5 at Slice 6, F6 at
+Slice 5, F4 and the §2.2 amendment at Slice 9, and Gate A (still unrun, fallback recorded for
+Slice 6). Slice 3 is **committed** on branch `slice-3`.
+
+- 2026-09-30: **Slice 2 complete and adversarially reviewed**; remediated the same day (two
+  blockers, five scanner evasions, a corpus widened against self-serving entries). 240 tests pass.
+- 2026-09-30: **Slice 3 complete.** `src/carerelay/state.py` and `tests/test_state.py`. Thirteen
+  tables on SQLite with WAL and a busy timeout; every table refuses `UPDATE` and `DELETE` by
+  trigger, proven with a separate raw connection and a control case that drops the triggers. The
+  D11 `CHECK` proven independently of the Python guard. R6 proven: two connections in two threads
+  on one callback key produce exactly one applied receipt, one recorded duplicate and one
+  transition, and an injected crash leaves neither a receipt nor a transition. Expiry is sticky
+  across a clock regression and a premature event is refused. **70 new tests; 310 pass.** Eleven
+  mutations, each applied alone, all eleven RED, every file restored with an md5 check. The Slice 2
+  review's `source_ref` gap is closed in `tests/test_domain.py`. Ten readings of the approved
+  documents are flagged in `00-status.md`; reading 6 (the snapshot reports the expiry event for the
+  current disposition version) wants an explicit yes or no.
