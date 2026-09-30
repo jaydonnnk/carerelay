@@ -86,11 +86,15 @@ Authority rules:
   Contract, the two-axis state model, the design principles and the five HTML
   wireframes. It does not authorise implementation, installs, credentials, external
   calls, recruitment or deployment.
-- Branch state: `gate-2-architecture` at `6c65f30` holds the approved Gate 2; `main`
-  and `care-relay-adversarial-review` are at `9a1f332`. `origin` has only
-  `refs/heads/care-relay-adversarial-review` at `2d7ec71`; `main` does not exist on
-  origin. Previous pushes failed on missing GitHub write credentials. Do not
-  retry non-interactively or treat the remote as up to date.
+- Branch state (verified 30 September 2026): `main`, `slice-2-domain-core` and
+  `slice-3` all sit at `80245e4`. `gate-2-architecture` and
+  `care-relay-adversarial-review` no longer exist as branches; their commits remain
+  reachable from `main`. `origin` holds exactly one branch, `refs/heads/main`, at
+  `6e9be4f`, so the remote is **four commits behind**. No gate authorises a commit
+  or a push: the four Slice 2 commits were made on the user's **explicit
+  instruction** of 30 September 2026, and no push has been run because the earlier
+  pushes failed on missing GitHub write credentials. Do not retry non-interactively
+  or treat the remote as up to date.
 - **Next hard dependency: the Gate A access spike, due 2026-09-26.** Approval of
   Gate 2 authorises the spike only (read-only credential checks and one typed tool
   call), not implementation code. The reversal is pre-recorded: if WorkBuddy access

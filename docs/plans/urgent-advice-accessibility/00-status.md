@@ -27,7 +27,7 @@
 
 ## Slice 2 complete, 30 September 2026
 
-**The pure decision layer exists, and constraint C7 is enforced by a check that has been seen to fail.** Branch `slice-2-domain-core`, created from `main` at `6e9be4f` before any edit, per `AGENTS.md` section 6 ("never begin slice work on `main`"). **Nothing is committed:** no gate authorises a commit, and the five new files are untracked.
+**The pure decision layer exists, and constraint C7 is enforced by a check that has been seen to fail.** Branch `slice-2-domain-core`, created from `main` at `6e9be4f` before any edit, per `AGENTS.md` section 6 ("never begin slice work on `main`"). **Committed and merged on the user's explicit instruction, 30 September 2026.** Four coherent commits, then a true fast-forward into `main`: `8e0af1f` the domain core and its unit tests; `df7c751` the C7 boundary check; `cd487c9` this record and the review note; `80245e4` the writing-convention lessons. `main`, `slice-2-domain-core` and the new `slice-3` all sit at `80245e4`. **No push was made**, so `origin/main` remains four commits behind at `6e9be4f`. `AGENTS.md` section 3 records that no gate authorises a commit or push, so this was a user-authorised action rather than a gate authorisation.
 
 | Evidence | Result |
 |---|---|
@@ -106,7 +106,7 @@ An independent adversarial review with no prior context was run against the bran
 | §2.2 | The `closed_with_evidence` and `expired_unresolved` rows of `03-planback-closure-contract.md` section 2.2 overlap on acceptance plus past-deadline and state no order; the implementation puts expiry first. This is the documentary form of the F4 decision | **Slice 9** |
 | `source_ref` | The D11 guard's `simulated` and `source_ref` halves share one mutation flag, so the `source_ref` half has no independent proof | **Slice 3** |
 
-**Evidence.** 240 passed, 1 warning (88 domain, 141 boundaries, 11 api), up from 109. Five mutation checks confirmed the new tests are fail-capable: reverting each fix in turn caused its paired test to fail. Every mutation was reverted with an md5 check, and `git status --short --untracked-files=all` was identical before and after. Nothing was committed, no branch was created, and no gate was reopened.
+**Evidence.** 240 passed, 1 warning (88 domain, 141 boundaries, 11 api), up from 109. Five mutation checks confirmed the new tests are fail-capable: reverting each fix in turn caused its paired test to fail. Every mutation was reverted with an md5 check, and `git status --short --untracked-files=all` was identical before and after. No commit, branch or push was made **during the review itself**, and no gate was reopened. The work was committed afterwards, the same day, on the user's explicit instruction; see the commit list in the Slice 2 section above.
 
 ## Gate 4 approval — 28 September 2026
 The user approved **Gate 4 (Slice plan)** on 28 September 2026 with the instruction **"continue"**, following the approval question in this file. `04-slices.md` now records the approval.
@@ -329,4 +329,4 @@ The skill's canonical gate filenames are reserved for Gates 2–4. Two supportin
   1. The **H2 timed hide is gone.** The plan card stays until the patient hides it; no timers anywhere in the product; `dwell_seconds` recorded for the ledger only. Gate 1 was reopened deliberately and re-approved.
   2. The **expired patient screen** wording is approved, softened on the user's instruction, with five copy rules in `02-architecture.md` §7.
 - Round-2 review effort estimate: **90–150 h** for this architecture plus 20–35 h baseline. The user has reviewed this and **accepted the estimate as achievable** (25 Sep). Gate 3 still produces a real estimate; the acceptance is not a substitute for one.
-- Recovery check on 26 September 2026: current checkout is `gate-2-architecture` at `6c65f30`. Six local commits remain unpushed; GitHub holds only the initial commit. Do not assume the remote has the approved gate work.
+- Branch and commit state, re-verified 30 September 2026: `main`, `slice-2-domain-core` and `slice-3` all sit at `80245e4` (15 commits). `gate-2-architecture` and `care-relay-adversarial-review` no longer exist as branches; their commits remain reachable from `main`. `origin` holds exactly one branch, `refs/heads/main`, at `6e9be4f`, so the remote is **four commits behind**. No push has been run: the earlier pushes failed on missing GitHub write credentials, and the user's 30 September instruction was to commit and merge only. Do not treat the remote as up to date.
