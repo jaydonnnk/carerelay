@@ -26,7 +26,10 @@ app = FastAPI(
     ),
 )
 
-# Slice 1 only: one in-memory episode. Slice 3 replaces this with SQLite.
+# Slice 1 only: one in-memory episode. Slice 3 built the SQLite record at
+# `carerelay.state`, but this route is not wired to it yet: the slice plan gives
+# `state.py` its own slice and leaves the API wiring to the slices that add the
+# routes. Until then this set is the whole of the API's state.
 _OPEN_EPISODES: set[str] = set()
 
 
