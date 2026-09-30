@@ -272,10 +272,27 @@ Rules:
 - Do not create branches, commits, tags or pushes unless the user has authorised
   that Git operation. Never stage everything implicitly. Never add a co-author
   trailer.
-- Before starting a slice, check `git branch --show-current`. If the branch does not
-  match the work being started, create and switch to a descriptively named branch
-  following the existing convention (`gate-2-architecture`,
-  `care-relay-adversarial-review`). Never begin slice work on `main`.
+- **Every slice gets its own branch, created before the first edit of that slice.**
+  Create it from the current tip of `main` and confirm with
+  `git branch --show-current` before touching a file. Two things are absolute:
+  never begin slice work on `main`, and never continue a slice on the previous
+  slice's branch.
+- **Name it `slice-<N>-<slug>`**, two or three words for the slice, as
+  `slice-2-domain-core` does. Keep the name stable for the life of the slice, and
+  record it in the slice's section of `00-status.md`. `slice-3` and `slice-4` predate
+  this rule and carry no slug; they are grandfathered, not the pattern to copy.
+- **The branch is part of the slice's authorised work, not a separate Git
+  authorisation.** The rule above, that no branch is created without the user
+  authorising that operation, is satisfied by the authorisation to implement the
+  slice: Gate 4 authorises implementation slice by slice, and each slice still stops
+  for the user's "continue, or re-steer?". No branch is created for a slice the user
+  has not authorised, and a slice branch is pushed only if the user asks.
+- Work that is not a slice (a gate revision, an adversarial review) takes a
+  descriptive branch by the same rule, as `gate-2-architecture` and
+  `care-relay-adversarial-review` did; never begin it on `main` either. When a slice
+  is complete, fast-forward it into `main` on the user's instruction
+  (`git merge --ff-only`) and leave the branch in place unless the user asks for it
+  to be deleted.
 - Commit in coherent batches, one concern at a time, with messages that name what
   changed and why. One commit covering an entire slice with a message such as
   "implement slice 1" is not acceptable.
