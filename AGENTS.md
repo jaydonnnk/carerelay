@@ -93,17 +93,18 @@ Authority rules:
   holds the Slice 3 work and its remediation in one series of commits (the store's
   command and result types, the append-only record, the documentation restructure,
   the record, the ship corrections, the O1 remediation, and the remediation record),
-  and `main` is fast-forwarded to the same commit. `origin` holds `main` and
-  `slice-3` at that commit. `slice-2-domain-core` sits at `80245e4`.
-  `gate-2-architecture` and `care-relay-adversarial-review` no longer exist as
-  branches; their commits remain reachable from `main`. No gate authorises a commit
-  or a push, so the Slice 1, 2 and 3 commits, the Slice 3 remediation, and the
-  Gate 2, 3 and 4 revision-3 amendment were all made on the user's **explicit
-  instruction** of 30 September 2026. The Slice work is pushed; **the revision-3
-  amendment is committed to `main` and not pushed.** A push succeeds when it is
-  asked for, so the credential failures recorded in `tasks/lessons.md` no longer
-  apply. Commit counts are deliberately not stated here: a count in this file has
-  gone stale twice.
+  and `main` is fast-forwarded to the same commit. `slice-2-domain-core` sits at
+  `80245e4`. `gate-2-architecture` and `care-relay-adversarial-review` no longer
+  exist as branches; their commits remain reachable from `main`. No gate authorises
+  a commit or a push, so the Slice 1, 2 and 3 commits, the Slice 3 remediation, and
+  the Gate 2, 3 and 4 revision-3 amendment were all made on the user's **explicit
+  instruction** of 30 September 2026, as was the push that carried them to
+  `origin`. `origin` holds the branches that hold the work, `main` and `slice-3`,
+  each in sync with its local branch. They do not sit at the same commit: `slice-3`
+  was frozen when its slice closed and `main` has moved on since. A push succeeds
+  when it is asked for, so the credential failures recorded in `tasks/lessons.md`
+  no longer apply. Commit counts and hashes are deliberately not stated here: both
+  have gone stale in this file before.
 - **Next hard dependency: the Gate A access spike, due 2026-09-26.** Approval of
   Gate 2 authorises the spike only (read-only credential checks and one typed tool
   call), not implementation code. The reversal is pre-recorded: if WorkBuddy access

@@ -96,7 +96,7 @@ Both mechanisms are now written into `PLAN.md`. The single-ladder state model wa
 - 2026-09-25: Fixed stale mirrors and mockup numbering; committed `c01a442`.
 - 2026-09-25: **Gate 1 reopened (user-instructed)** and re-approved. (a) H2's five-second timer replaced by "the card stays until the patient hides it" — no timers anywhere in the product; `dwell_seconds` recorded for the ledger only. New `PLAN.md` §5.2.1 records the rationale and the rules. (b) Expired-screen wording approved and rewritten after the user rejected the first draft as too blunt; five copy rules added so later edits do not drift back to a reproachful tone. User also accepted the 90–150 h estimate.
 - 2026-09-25: Committed `77ea5ed` (Gate 1 reopening + mockup numbering + stale mirrors).
-- 2026-09-25: **Gate 2 approved** on revision 2 by the user; committed `6c65f30` with the stale-header fix. `main` is still behind `gate-2-architecture` — the Gate 2 merge has **not** been pushed to `main` yet.
+- 2026-09-25: **Gate 2 approved** on revision 2 by the user; committed `6c65f30` with the stale-header fix. **Corrected 30 September 2026:** this entry said `main` was behind `gate-2-architecture` and that the Gate 2 merge had not been pushed to `main` yet. Both are now meaningless: `gate-2-architecture` no longer exists as a branch, its commits are reachable from `main`, and `main` and `slice-3` are both pushed to `origin`.
 
 ### Run log — Gate 3 (2026-09-26)
 
@@ -194,7 +194,7 @@ remediation.
   named).
 - **Mirrors updated:** `AGENTS.md` sections 3 and 8, `docs/PLAN.md` sections 6, 7 and 10,
   `tasks/todo.md`, `00-status.md`.
-- **Committed to `main` on 30 September 2026, and not pushed.** Gates 2, 3 and 4 were
+- **Committed to `main` and pushed to `origin` on 30 September 2026.** Gates 2, 3 and 4 were
   **re-approved** the same day, so implementation is authorised again. The answer is recorded in
   `00-status.md` and at the end of `04-slices.md`.
 - **No product code was written.** Slice 4 remains next and remains blocked on the same two items as
