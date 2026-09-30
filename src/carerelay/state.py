@@ -3,10 +3,27 @@
 This is the layer the Closure Contract rests on. `02-architecture.md` D3 says the
 clinical record is append-only and D4 says closure is derived, never stored. A
 convention is not an enforcement, so the append-only claim is enforced here by
-`BEFORE UPDATE` and `BEFORE DELETE` triggers on **every** table: the database has
-no update path and no delete path at all. `tests/test_state.py` proves that with
-raw SQL that bypasses this module's Python guards entirely, and proves it fails
-when the triggers are removed.
+`BEFORE UPDATE` and `BEFORE DELETE` triggers on **every** table.
+`tests/test_state.py` proves that with raw SQL that bypasses this module's Python
+guards entirely, and proves it fails when the triggers are removed.
+
+**What that enforcement covers, stated exactly (O1).** Triggers are schema-level,
+but `REPLACE` conflict resolution is not. SQLite fires the implicit `DELETE` that a
+`REPLACE` performs only when the connection has `recursive_triggers` enabled, and
+that pragma is per-connection rather than stored in the database file. The refusal
+is therefore:
+
+* **any connection this module opens**: `UPDATE`, `DELETE` and `INSERT OR REPLACE`
+  are all refused, because `__init__` enables the pragma on every one of them;
+* **any other connection**: `UPDATE` and `DELETE` are refused, and
+  `INSERT OR REPLACE` is refused only if that connection enables the pragma too.
+
+The honest claim is "no update or delete path through this module, and `UPDATE` and
+`DELETE` refused from any connection", not "the database has no update path at
+all". A schema-level guard that would close the remaining case was measured and
+rejected: a `BEFORE INSERT` trigger cannot tell `INSERT OR REPLACE` from the
+harmless idempotent `INSERT OR IGNORE`, so it refuses both. See O1 in
+`00-status.md`.
 
 Five things in this file are load-bearing, and each is a deliberate reading of an
 approved document rather than an accident:
@@ -311,7 +328,8 @@ CREATE TABLE IF NOT EXISTS evidence (
     provenance TEXT NOT NULL,
     source_ref TEXT,
     recorded_at TEXT NOT NULL,
-    CHECK (level <> 'documented' OR (simulated = 0 AND source_ref IS NOT NULL))
+    CHECK (level <> 'documented'
+           OR (simulated = 0 AND source_ref IS NOT NULL AND trim(source_ref) <> ''))
 );
 
 CREATE TABLE IF NOT EXISTS consents (
@@ -382,6 +400,10 @@ def _append_only_ddl() -> str:
     inheriting the rule. A trigger is used rather than a Python guard because the
     claim being made is about the record, not about this module's callers: the
     test that proves it opens its own connection and issues raw SQL.
+
+    The `BEFORE DELETE` half is also what refuses `INSERT OR REPLACE`: a `REPLACE`
+    satisfies its uniqueness conflict by deleting the existing row, and that
+    implicit delete goes through this trigger once `recursive_triggers` is on (O1).
     """
     statements: list[str] = []
     for table in APPEND_ONLY_TABLES:
@@ -435,8 +457,10 @@ class SqliteEpisodeStore:
 
     One instance is one connection. Two instances on one file are the two-writer
     case that R6 is about, and `BEGIN IMMEDIATE` plus the busy timeout is what
-    makes them safe: the second writer waits for the lock rather than failing, so
-    the losing callback is recorded as a duplicate instead of being lost.
+    makes them safe: within the timeout the second writer waits for the lock rather
+    than failing, so the losing callback is recorded as a duplicate instead of being
+    lost. Past the timeout it does fail, loudly, and writes nothing. That boundary
+    is stated here rather than left implied; see `_write` and O2.
     """
 
     def __init__(
@@ -457,6 +481,13 @@ class SqliteEpisodeStore:
         self._conn.row_factory = sqlite3.Row
         self._conn.execute(f"PRAGMA busy_timeout = {int(busy_timeout_ms)}")
         self._conn.execute("PRAGMA foreign_keys = ON")
+        # O1. SQLite runs the implicit DELETE that a `REPLACE` performs only when
+        # this connection has recursive triggers enabled, and it defaults to off.
+        # Without this line `INSERT OR REPLACE` rewrites any row, including
+        # `dispositions.clinical_deadline_utc`. The pragma is per-connection and is
+        # not stored in the file, which is why the module docstring qualifies the
+        # claim rather than making an unconditional one.
+        self._conn.execute("PRAGMA recursive_triggers = ON")
         if self.path != ":memory:":
             # WAL for concurrent readers during a write, and FULL so a crash
             # between the commit and the disk write cannot lose an append.
@@ -487,6 +518,14 @@ class SqliteEpisodeStore:
         callback lookup-then-insert atomic. Under a deferred transaction two
         writers could both read "no such key" and one would fail at COMMIT
         instead of being recorded as a duplicate.
+
+        The wait is bounded, not unconditional. A second writer waits for the lock
+        only for `busy_timeout_ms`; past that SQLite raises a raw
+        `sqlite3.OperationalError: database is locked` and no receipt is written.
+        The failure is loud rather than silent, so no receipt is lost without
+        saying so. Turning it into a typed `StateError`, so a caller can tell
+        "retry" from "refuse", is O2 and belongs at Slice 6, where the action path
+        consumes the result.
         """
         self._conn.execute("BEGIN IMMEDIATE")
         try:
@@ -1004,7 +1043,10 @@ class SqliteEpisodeStore:
         Once here, and once by the `CHECK` constraint in the schema. The two are
         independent on purpose: the test that proves the constraint opens its own
         connection and issues raw SQL, so removing this guard cannot make the
-        constraint test pass.
+        constraint test pass. They are also *equivalent*, which took a fix (O6):
+        a `NULL`, empty or whitespace-only `source_ref` is refused by both, so
+        "enforced twice" is a statement about one rule applied twice rather than
+        two rules that happen to overlap.
         """
         with self._write():
             self._require_granted_consent(episode_id)
@@ -1019,9 +1061,10 @@ class SqliteEpisodeStore:
     def _insert_evidence(
         self, episode_id: str, record: EvidenceRecord, *, now_utc: datetime
     ) -> None:
-        if (
-            record.level is EvidenceLevel.DOCUMENTED
-            and (record.simulated or not record.source_ref)
+        if record.level is EvidenceLevel.DOCUMENTED and (
+            record.simulated
+            or record.source_ref is None
+            or not record.source_ref.strip()
         ):
             raise EvidenceProvenanceViolation(
                 "level='documented' requires a non-simulated row with a source_ref "

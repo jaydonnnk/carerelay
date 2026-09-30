@@ -8,15 +8,20 @@ The five tests Gate 4 named for this slice are here under their approved names:
 * `test_evidence_provenance_constraint`
 * `test_expiry_sticky_after_clock_regression`
 
-Three of the claims in this file are proven against a **separate raw SQLite
+Five of the claims in this file are proven against a **separate raw SQLite
 connection**, not through the module under test, because a guard exercised only
 through its own callers proves nothing about the record:
 
 * the append-only rule is a trigger in the schema, so raw `UPDATE` and `DELETE`
   statements are issued directly, and a control case drops the triggers to show
   the refusal comes from them;
+* `INSERT OR REPLACE` is issued on the store's own connection, because SQLite runs
+  the implicit delete a `REPLACE` performs through the triggers only when the
+  connection enables `recursive_triggers` (O1);
 * the D11 `CHECK` on `evidence` is issued directly, with a control table that is
   the same minus the `CHECK`;
+* the five schema constraints the Slice 3 review found untested are each violated
+  by a row that breaks exactly that constraint (O3);
 * the two-writer callback race uses two real connections in two real threads,
   because a race proved in one connection is not a race.
 
@@ -397,6 +402,226 @@ class TestTheRecordIsAppendOnly:
         finally:
             connection.close()
 
+    @pytest.mark.parametrize("table", state.APPEND_ONLY_TABLES)
+    def test_every_table_refuses_replace(self, append_only_db: Path, table: str) -> None:
+        """O1. The statement that defeated the triggers before the pragma existed.
+
+        `INSERT OR REPLACE` satisfies its uniqueness conflict by deleting the
+        existing row, and SQLite runs that implicit delete through the
+        `BEFORE DELETE` triggers only when the connection has `recursive_triggers`
+        on. The attack is issued on the store's **own** connection rather than a
+        fresh one, so this test goes red if `__init__` stops enabling the pragma. A
+        test that configured its own connection would keep passing while the module
+        lost the setting, which is the defect class this slice was reviewed for.
+        """
+        store = state.SqliteEpisodeStore(append_only_db)
+        try:
+            with pytest.raises(sqlite3.IntegrityError, match="append-only"):
+                store._conn.execute(
+                    f"INSERT OR REPLACE INTO {table} SELECT * FROM {table}"
+                )
+        finally:
+            store.close()
+
+    def test_the_replace_refusal_is_the_pragma_and_the_triggers(self, tmp_path: Path) -> None:
+        """O1's control case, both halves in one place.
+
+        Half one: with SQLite's default `recursive_triggers = 0` the same statement
+        goes through and rewrites the clinical deadline, which is the defect the
+        Slice 3 review found and this project's whole thesis rests against. Half
+        two: with the pragma the store sets, it is refused and the deadline is
+        untouched. Without half one the refusal could come from something
+        incidental; without half two the pragma would be unproven.
+        """
+        attack = (
+            "INSERT OR REPLACE INTO dispositions "
+            "(id, episode_id, version_no, policy_version, action_id, "
+            " clinical_deadline_utc, next_owner_id, fallback_route_id, source, "
+            " created_at) "
+            "SELECT id, episode_id, version_no, policy_version, action_id, "
+            " '1999-01-01T00:00:00+00:00', next_owner_id, fallback_route_id, source, "
+            " created_at FROM dispositions"
+        )
+        read_deadline = (
+            "SELECT clinical_deadline_utc FROM dispositions "
+            "WHERE episode_id = ? AND version_no = 1"
+        )
+
+        open_path = tmp_path / "replace-open.sqlite3"
+        _one_row_per_table(open_path)
+        connection = raw(open_path)
+        try:
+            assert connection.execute("PRAGMA recursive_triggers").fetchone()[0] == 0
+            connection.execute(attack)
+            connection.commit()
+            assert (
+                connection.execute(read_deadline, (EPISODE_ID,)).fetchone()[0]
+                == "1999-01-01T00:00:00+00:00"
+            ), "the REPLACE hole this pragma closes is no longer reproducible"
+        finally:
+            connection.close()
+
+        closed_path = tmp_path / "replace-closed.sqlite3"
+        _one_row_per_table(closed_path)
+        store = state.SqliteEpisodeStore(closed_path)
+        try:
+            assert store._conn.execute("PRAGMA recursive_triggers").fetchone()[0] == 1
+            with pytest.raises(sqlite3.IntegrityError, match="append-only"):
+                store._conn.execute(attack)
+            assert store._conn.execute(read_deadline, (EPISODE_ID,)).fetchone()[0] == (
+                DEADLINE_UTC.isoformat()
+            )
+        finally:
+            store.close()
+
+
+class TestTheSchemaConstraintsHaveFailCapableTests:
+    """O3. Five constraints the review neutralised one at a time, with all 69
+    state tests still green.
+
+    Each test below violates **exactly one** constraint, so disabling that
+    constraint is the only way to turn its test red. That precision is the point
+    for the three `callbacks` CHECKs in particular: they overlap, and a row that
+    violated two of them would keep the suite green when either one was removed.
+    """
+
+    def test_callbacks_refuses_a_refusal_with_no_reason(
+        self, append_only_db: Path
+    ) -> None:
+        """`CHECK (accepted = 1 OR rejection_reason IS NOT NULL)`.
+
+        A receipt that was not applied must carry the reason it was not, because
+        reading 3 of the Slice 3 record rests on "why was this not applied" being
+        answerable from the row alone. The other two `callbacks` CHECKs are
+        satisfied by this row: `accepted = 0` passes
+        `accepted = 0 OR rejection_reason IS NULL`, and a non-null `callback_key`
+        with a null `duplicate_of` passes the duplicate-representation CHECK.
+        """
+        connection = raw(append_only_db)
+        try:
+            with pytest.raises(sqlite3.IntegrityError):
+                connection.execute(
+                    "INSERT INTO callbacks "
+                    "(episode_id, route_id, attempt_id, callback_key, "
+                    " callback_key_digest, duplicate_of, accepted, rejection_reason, "
+                    " origin, result, payload, received_at) "
+                    "VALUES (?, ?, NULL, ?, 'digest', NULL, 0, NULL, 'platform', "
+                    " NULL, '', ?)",
+                    (EPISODE_ID, ROUTE_ID, "cb-o3-no-reason", NOW_UTC.isoformat()),
+                )
+        finally:
+            connection.close()
+
+    def test_callbacks_refuses_a_reason_on_an_accepted_receipt(
+        self, append_only_db: Path
+    ) -> None:
+        """`CHECK (accepted = 0 OR rejection_reason IS NULL)`.
+
+        The converse: a reason cannot be attached to a receipt that was applied.
+        `accepted = 1` satisfies the first CHECK, so only this one can refuse the
+        row.
+        """
+        connection = raw(append_only_db)
+        try:
+            with pytest.raises(sqlite3.IntegrityError):
+                connection.execute(
+                    "INSERT INTO callbacks "
+                    "(episode_id, route_id, attempt_id, callback_key, "
+                    " callback_key_digest, duplicate_of, accepted, rejection_reason, "
+                    " origin, result, payload, received_at) "
+                    "VALUES (?, ?, NULL, ?, 'digest', NULL, 1, 'duplicate', "
+                    " 'platform', NULL, '', ?)",
+                    (EPISODE_ID, ROUTE_ID, "cb-o3-reason", NOW_UTC.isoformat()),
+                )
+        finally:
+            connection.close()
+
+    def test_callbacks_refuses_a_duplicate_that_keeps_its_unique_key(
+        self, append_only_db: Path
+    ) -> None:
+        """`CHECK ((callback_key IS NULL) = (duplicate_of IS NOT NULL))`.
+
+        This is the formal statement of the duplicate representation (R6): the
+        first receipt of a key holds it, and every duplicate holds a null key and
+        points at the first. A row with both set would break the `UNIQUE` lookup
+        that makes a double tap a suppressed duplicate.
+        """
+        connection = raw(append_only_db)
+        try:
+            first_receipt = connection.execute(
+                "SELECT id FROM callbacks ORDER BY id LIMIT 1"
+            ).fetchone()[0]
+            with pytest.raises(sqlite3.IntegrityError):
+                connection.execute(
+                    "INSERT INTO callbacks "
+                    "(episode_id, route_id, attempt_id, callback_key, "
+                    " callback_key_digest, duplicate_of, accepted, rejection_reason, "
+                    " origin, result, payload, received_at) "
+                    "VALUES (?, ?, NULL, ?, 'digest', ?, 0, 'duplicate', 'platform', "
+                    " NULL, '', ?)",
+                    (
+                        EPISODE_ID,
+                        ROUTE_ID,
+                        "cb-o3-both",
+                        first_receipt,
+                        NOW_UTC.isoformat(),
+                    ),
+                )
+        finally:
+            connection.close()
+
+    def test_restatements_refuses_an_unknown_hint_level(self, append_only_db: Path) -> None:
+        """`CHECK (hint_level IN ('H0','H1','H2','H3'))`.
+
+        The hint ladder is closed vocabulary: a level outside H0 to H3 cannot be
+        recorded, so a future writer cannot invent a rung and have it count as a
+        comprehension pass.
+        """
+        connection = raw(append_only_db)
+        try:
+            with pytest.raises(sqlite3.IntegrityError):
+                connection.execute(
+                    "INSERT INTO restatements "
+                    "(id, episode_id, disposition_version, hint_level, input_mode, "
+                    " transcript_confirmed, extracted_json, mismatches, repair_round, "
+                    " outcome, dwell_seconds, created_at) "
+                    "VALUES (?, ?, 1, 'H9', 'text', 1, '{}', '[]', 0, "
+                    " 'recall_unaided', NULL, ?)",
+                    ("restatement-o3", EPISODE_ID, NOW_UTC.isoformat()),
+                )
+        finally:
+            connection.close()
+
+    def test_dispositions_refuses_a_reused_episode_version(self, append_only_db: Path) -> None:
+        """`UNIQUE (episode_id, version_no)`.
+
+        The store refuses a reused version in Python as well
+        (`test_a_version_cannot_be_reinserted`). This is the half that holds
+        against a writer that bypasses the module, and it is the constraint that
+        makes a rewritten version impossible rather than merely discouraged.
+        """
+        connection = raw(append_only_db)
+        try:
+            with pytest.raises(sqlite3.IntegrityError):
+                connection.execute(
+                    "INSERT INTO dispositions "
+                    "(episode_id, version_no, policy_version, action_id, "
+                    " clinical_deadline_utc, next_owner_id, fallback_route_id, "
+                    " source, created_at) "
+                    "VALUES (?, 1, ?, ?, ?, ?, ?, 'reassessment', ?)",
+                    (
+                        EPISODE_ID,
+                        POLICY_VERSION,
+                        ACTION_ID,
+                        DEADLINE_UTC.isoformat(),
+                        NEXT_OWNER_ID,
+                        FALLBACK_ROUTE_ID,
+                        NOW_UTC.isoformat(),
+                    ),
+                )
+        finally:
+            connection.close()
+
 
 # ---------------------------------------------------------------------------
 # Dispositions: the deadline invariant, at the layer that can break it
@@ -610,6 +835,50 @@ class TestCallbackDuplicateAndReorder:
         )
         assert seeded.store.list_transitions(attempt.attempt_id) == before
         assert len(seeded.store.list_callbacks(EPISODE_ID)) == 2
+
+    def test_one_key_delivered_three_times_writes_three_receipts(self, seeded: Seeded) -> None:
+        """O4. The duplicate representation rests on NULL being distinct in UNIQUE.
+
+        Every other duplicate test here delivers a key at most twice, so it creates
+        at most one null-key row and would pass unchanged if SQLite treated nulls as
+        equal, because a single null never conflicts with itself. A double tap plus
+        a provider retry is three deliveries, and that is the case needing two
+        null-key rows to coexist.
+        """
+        attempt = open_attempt(seeded)
+        result = CallbackResult(transition=ExecutionStatus.FAILED)
+        outcomes = [
+            seeded.store.record_callback_once(
+                attempt.attempt_id, "cb-1", result, Origin.PLATFORM, now_utc=NOW_UTC
+            )
+            for _ in range(3)
+        ]
+        assert outcomes == [True, False, False]
+        receipts = seeded.store.list_callbacks(EPISODE_ID)
+        assert len(receipts) == 3
+        first = receipts[0].receipt_id
+        assert [receipt.callback_key for receipt in receipts] == ["cb-1", None, None]
+        assert [receipt.duplicate_of for receipt in receipts] == [None, first, first]
+        assert [receipt.accepted for receipt in receipts] == [True, False, False]
+        assert len(seeded.store.list_transitions(attempt.attempt_id)) == 1
+
+        # The control that makes the above a proof rather than an observation: the
+        # same column refuses a repeated non-null key. So the two null-key rows
+        # coexist because nulls are distinct, not because the constraint is absent.
+        connection = raw(seeded.path)
+        try:
+            with pytest.raises(sqlite3.IntegrityError):
+                connection.execute(
+                    "INSERT INTO callbacks "
+                    "(episode_id, route_id, attempt_id, callback_key, "
+                    " callback_key_digest, duplicate_of, accepted, rejection_reason, "
+                    " origin, result, payload, received_at) "
+                    "VALUES (?, ?, ?, 'cb-1', 'digest', NULL, 0, 'duplicate', "
+                    " 'platform', NULL, '', ?)",
+                    (EPISODE_ID, ROUTE_ID, attempt.attempt_id, NOW_UTC.isoformat()),
+                )
+        finally:
+            connection.close()
 
     def test_the_origin_survives_to_the_transition(self, seeded: Seeded) -> None:
         """A platform failure and a local simulation must be distinguishable."""
@@ -891,9 +1160,64 @@ class TestEvidenceProvenanceConstraint:
                 connection.execute("SELECT COUNT(*) FROM evidence_control").fetchone()[0]
                 == 1
             )
+            # F9. The refusal half belongs in this test as well. Without it the
+            # test only proves the control table accepts the row, and stays green
+            # when the CHECK is deleted, so its own docstring claimed more than it
+            # did.
+            with pytest.raises(sqlite3.IntegrityError):
+                connection.execute(
+                    "INSERT INTO evidence "
+                    "(episode_id, level, simulated, provenance, source_ref, "
+                    " recorded_at) VALUES (?, ?, ?, ?, ?, ?)",
+                    (
+                        EPISODE_ID,
+                        "documented",
+                        1,
+                        "scripted local provider",
+                        "receipt-0002",
+                        NOW_UTC.isoformat(),
+                    ),
+                )
             assert (
                 connection.execute("SELECT COUNT(*) FROM evidence").fetchone()[0] == 0
             )
+        finally:
+            connection.close()
+
+    @pytest.mark.parametrize("blank", ["", "   "])
+    def test_a_blank_source_ref_is_refused_by_both_layers(
+        self, seeded: Seeded, blank: str
+    ) -> None:
+        """O6. An empty or whitespace `source_ref` is not a source.
+
+        Before this fix the `CHECK` accepted both while the Python guard refused
+        `''` only, so "enforced twice" was true for `source_ref IS NULL` and not
+        for the blank forms. A blank reference is exactly what a caller produces
+        when it has nothing to cite, so the hole was reachable by accident rather
+        than only by an attacker.
+        """
+        with pytest.raises(state.EvidenceProvenanceViolation):
+            seeded.store.record_evidence(
+                EPISODE_ID,
+                EvidenceRecord(
+                    level=EvidenceLevel.DOCUMENTED,
+                    simulated=False,
+                    provenance="verbal",
+                    source_ref=blank,
+                ),
+                now_utc=NOW_UTC,
+            )
+        assert seeded.store.list_evidence(EPISODE_ID) == ()
+
+        connection = raw(seeded.path)
+        try:
+            with pytest.raises(sqlite3.IntegrityError):
+                connection.execute(
+                    "INSERT INTO evidence "
+                    "(episode_id, level, simulated, provenance, source_ref, "
+                    " recorded_at) VALUES (?, ?, ?, ?, ?, ?)",
+                    (EPISODE_ID, "documented", 0, "verbal", blank, NOW_UTC.isoformat()),
+                )
         finally:
             connection.close()
 
