@@ -1,0 +1,14 @@
+{
+  "fixture_label": "SIMULATED — RESEARCH DEMONSTRATION. Not clinical advice.",
+  "policy_version": "fixture-provisional-0",
+  "episode_id": "demo-episode-001",
+  "persona": "fictional older adult",
+  "action_id": "attend_same_day_review",
+  "action_text": "Go to the fictional provider's same-day review.",
+  "deadline_display": "6pm today",
+  "next_owner_id": "patient",
+  "next_owner_text": "you",
+  "fallback_route_id": "nurse_line",
+  "fallback_route_text": "the fictional nurse line",
+  "note": "PROVISIONAL placeholder wording. The judged fixture must be sourced verbatim from attributable published guidance (Option C, 03-program-design.md 6.2) before it is shown to any participant. No real healthcare facility is named. Slice 1 hardcodes these values; Slice 2 moves the same shape into domain models."
+}

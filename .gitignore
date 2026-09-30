@@ -4,6 +4,13 @@
 .claude/
 .cursor/
 
+# ---- Git recovery debris (never commit git internals) ----
+# A damaged or preserved .git tree must never be staged. Added 2026-09-30 after
+# an object-store loss: see tasks/lessons.md and .workbuddy-ai/memory/2026-09-30.md.
+.git.SURVIVING-RECORD*/
+.git.broken*/
+recovery-*/
+
 # ---- Secrets & environment ----
 .env
 .env.*

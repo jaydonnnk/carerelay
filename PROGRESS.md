@@ -46,7 +46,7 @@ Reframe CareRelay around truthful urgent-advice execution, produce a Gate 1 prod
 
 ## Result
 
-Gate 1 product specification, workaround audit, five HTML wireframes and one HTML design-principles audit are complete. Mandarin voice is technically feasible as a gated TRTC spike; no account access or clinical accuracy has been demonstrated. **Gate 1 (Product) was approved by the user on 25 September 2026.** Gate 2 (Architecture) is in progress.
+Gate 1 product specification, workaround audit, five HTML wireframes and one HTML design-principles audit are complete. Mandarin voice is technically feasible as a gated TRTC spike; no account access or clinical accuracy has been demonstrated. **Gate 1 (Product) was approved by the user on 25 September 2026, reopened and re-approved the same day for the timer removal and the expired-screen wording.** **Gate 2 (Architecture) approved 25 September 2026 on revision 2. Gate 3 (Program Design) approved 26 September 2026. Gate 4 (Slice plan) was drafted 28 September 2026 and awaits approval.**
 
 The independent review is recorded in `docs/plans/urgent-advice-accessibility/02-adversarial-review.md`. Verdict: REFRAME CareRelay around closed-loop confirmation of urgent advice; make read-back repair the human-facing mechanism and keep truthful unresolved status as supporting safety infrastructure. Current mandatory organiser-usage proof is absent, so the project risks not being scored; the artifact-only evidence estimate is 39/100, realistic implemented target 73/100, optimistic ceiling 83/100. Gate 1 remains pending.
 
@@ -54,7 +54,7 @@ The independent review is recorded in `docs/plans/urgent-advice-accessibility/02
 
 Both mechanisms are now written into `PLAN.md`. The single-ladder state model was replaced with two independent axes, which is a correctness fix, not a preference. A recall hint ladder (H0–H3) was added to PlanBack at the user's request: the prompt escalates so an older user is never stuck at a blank question, but **the level used is always recorded**, because a hint that contains the deadline or action turns a comprehension check into a reading test. Fixture rule added: no asset may name a real healthcare facility.
 
-**Gate status: Gate 1 (Product) is APPROVED as of 25 September 2026.** Gates 2–4 pending. Approval of the product specification does not authorise implementation — Gate 2 must still be approved before any code is written. See `docs/plans/urgent-advice-accessibility/00-status.md` for the gate doc map — two supporting notes occupy the `02-` and `03-` filenames that Gates 2 and 3 will need.
+**Gate status: Gate 1 (Product) APPROVED 25 September 2026** (reopened and re-approved the same day). **Gate 2 (Architecture) APPROVED 25 September 2026** on revision 2. **Gate 3 (Program Design) APPROVED 26 September 2026** with two amendments at approval. Gate 4 (Slice plan) pending. Approval of a gate does not authorise the next one: Gate 2 authorises the Gate A access spike only, and Gate 3 authorises writing the two kill tests and the Gate 4 plan — **no product implementation code until Gate 4 is approved**. See `docs/plans/urgent-advice-accessibility/00-status.md` for the gate doc map — two supporting notes occupy the `02-` and `03-` filenames that Gates 2 and 3 will need.
 
 ## Run log — Gate 1 approval
 
@@ -72,8 +72,13 @@ Both mechanisms are now written into `PLAN.md`. The single-ladder state model wa
 - [x] Obtain explicit Gate 2 approval from the user on revision 2 — **APPROVED 25 September 2026**.
 - [x] **Gate 1 reopened and re-approved (25 Sep)** for two amendments: H2's five-second timer removed (card stays until the patient hides it); expired-screen wording approved and softened. Files: `PLAN.md` §5.2/§5.2.1, `01-product.md`, `mockups/02`, `02-architecture.md` §7, `00-status.md`.
 - [x] User accepted the 90–150 h effort estimate as achievable; Gate 3 still produces a real estimate.
-- [ ] Run the Gate A access spike (due 2026-09-26) — credential check, one tool executed through the platform with an observed failure-event origin signal, one session resume. Gate 2 approval authorises the spike only, not implementation code.
-- [ ] Gate 3 — Program Design: files, types and signatures, call stacks, test plan, and a real effort estimate (the 90–150 h is unverified).
+- [ ] Gate A access spike (due 2026-09-26) — **overdue**. Credential check, one tool executed through the platform with an observed failure-event origin signal, one session resume. Gate 2 approval authorises the spike only, not implementation code.
+- [x] **Gate 3 APPROVED 26 September 2026**, with two amendments made at approval: §6.1 adds the two reviewer-free kill conditions (they run first, before any participant work); §6.2 records the Option A + C decision.
+- [x] **Clinical-review blocker resolved by decision (26 Sep):** user selected **Option A + C** — non-clinical comparator, fixture sourced verbatim from attributable published guidance.
+- [ ] **Gate 2 D6 formally backtracked** — the comparator material loses its clinical content. D6's decision is unchanged; the material and the claim it supports are not.
+- [ ] Write and run the two §6.1 kill tests (`test_planback_known_match_mismatch_uncertain` adversarial corpus; `test_urgent_path_precedes_planback`). **These precede all participant work and need no reviewer.**
+- [ ] Select the Option C source and check licensing + Singapore applicability. **Precedes use.**
+- [ ] Gate 4 — Slice plan. Must sequence the baseline comparison before the Closure Contract build, assign dates and stop conditions, and not remove the Closure Contract tests to make the schedule look green.
 
 ### Assumptions and blockers — Gate 2
 
@@ -90,3 +95,48 @@ Both mechanisms are now written into `PLAN.md`. The single-ladder state model wa
 - 2026-09-25: Wrote revision 2 — attempts split into immutable identity + append-only transitions + callbacks with an ordering rule and a transaction boundary; §3.3 pins one normative tool path with a recorded failure-event origin; D6 replaced by an external between-subjects baseline with a pre-registered protocol (§9); added D11 (evidence provenance) and D12 (sticky expiry); added intake/clarification/options/acceptance/escalation endpoints and tables; added §8 non-functional surfaces (deployment, PDPA, logging redaction, degraded states, model-text boundary); added §7 expired-screen rendering flagged for Gate 1 sign-off; §10 restates the safety claims honestly; D9 dropped with its cost stated.
 - 2026-09-25: Fixed stale mirrors and mockup numbering; committed `c01a442`.
 - 2026-09-25: **Gate 1 reopened (user-instructed)** and re-approved. (a) H2's five-second timer replaced by "the card stays until the patient hides it" — no timers anywhere in the product; `dwell_seconds` recorded for the ledger only. New `PLAN.md` §5.2.1 records the rationale and the rules. (b) Expired-screen wording approved and rewritten after the user rejected the first draft as too blunt; five copy rules added so later edits do not drift back to a reproachful tone. User also accepted the 90–150 h estimate.
+- 2026-09-25: Committed `77ea5ed` (Gate 1 reopening + mockup numbering + stale mirrors).
+- 2026-09-25: **Gate 2 approved** on revision 2 by the user; committed `6c65f30` with the stale-header fix. `main` is still behind `gate-2-architecture` — the Gate 2 merge has **not** been pushed to `main` yet.
+
+### Run log — Gate 3 (2026-09-26)
+
+- 2026-09-26: User asked whether Gate 3 was correct. Audit found the Gate 3 file (`03-program-design.md`) was untracked, its header still read "not approved", and it carried an unresolved clinical-review blocker in §8.3 that made the test plan unstartable for a reason unrelated to the software.
+- 2026-09-26: Wrote `clinical-review-blocker.md` — a decision paper, not a gate. Finding: `CHALLENGE_REQUIREMENTS_JUDGING.md` §8 requires **no** clinical reviewer, so the blocker is self-imposed. Three tiers identified (mechanism / fixture / symptom→disposition); only Tier 3 is blocked and it was already cut from scope. Two of the three PlanBack kill conditions need **zero participants**: `test_planback_known_match_mismatch_uncertain` (does correct read-back get scored correct?) and `test_urgent_path_precedes_planback` (is the urgent route evaluated before the comprehension check?). These are the project's cheapest risk reduction and are now scheduled **before** any participant-facing work.
+- 2026-09-26: Corrected the stale Gate 2 header (`02-architecture.md` now reads APPROVED 25 Sep, revision 2) and recorded the Gate 2 D6 backtrack in `00-status.md`: the comparator loses its clinical content, so D6's *decision* stands but the *material* and the claim it supports do not.
+- 2026-09-26: **User selected Option A + C** for the blocker: (A) a non-clinical comparator, so the baseline comparison is licensed without a reviewer; (C) the fixture is sourced verbatim from attributable published guidance, so the content is traceable rather than invented. Option B (secure one reviewer, 48 h time-box) is not taken now and remains available if a fixture cannot be sourced cleanly.
+- 2026-09-26: **Gate 3 approved** by the user, with two amendments made at approval: §6.1 adds the two reviewer-free kill conditions and their run order; §6.2 is rewritten for Option A + C. Test plan gained `test_urgent_path_precedes_planback` and a K1 corpus clause on `test_planback_known_match_mismatch_uncertain`. §8.3 marked resolved.
+- 2026-09-26: Open items carried forward: the two kill tests are written but **not run**; the Option C source is **not selected**, so licensing and Singapore applicability are unchecked; the Gate A spike is **overdue** (due 25/26 Sep); Gate 4 is not started. Gate 3 approval authorises writing the kill tests and the Gate 4 plan — still no product implementation code.
+
+## Gate 4 — Slice plan (drafted 2026-09-28)
+
+- 2026-09-28: Resumed. Verified from `00-status.md` that **Gate 3 was already APPROVED on 26 September 2026** — the user's "start gate 4" was correct and no earlier gate was redone. Gate 4 is the only gate left.
+- 2026-09-28: **Ran the two §6.1 kill conditions.** `spike/tests/test_kill_conditions.py` under Python 3.13.14: **15 tests, 0 failures**. Includes four `AssertionsHaveTeeth` defect-injection tests (surface-only comparator, always-uncertain comparator, unknown-as-mismatch, and both ordering defects), each confirmed to make its assertion fail. Result: **K1 and K2 both pass.** This is a deterministic-layer spike result with hand-supplied spans, not an implementation result, and it depends on Reading A.
+- 2026-09-28: **Gate A re-verified per the user's instruction.** No `WORKBUDDY_API_KEY` or `WORKBUDDY_AGENT_ID` in the environment, no `.env`, no `workbuddy`/`codebuddy` package installed. Platform path is [unknown]-to-unavailable; Gate A remains overdue.
+- 2026-09-28: **Slice 1's environment check passed.** Isolated venv created at `~/.workbuddy-ai/binaries/python/envs/default`; fastapi, uvicorn, pydantic, pytest and httpx installed and verified importable there. The intermittent AppControl block on stdlib venv creation (recorded in `AGENTS.md`) **did not fire**. Nothing installed into a user-managed environment.
+- 2026-09-28: Wrote `docs/plans/urgent-advice-accessibility/04-slices.md` — **Gate 4 draft, awaiting approval.** Thirteen slices, **full Gate 3 scope** per the user's instruction. Constraint C1 honoured: the external card (Slice 7) completes before the Closure Contract build (Slice 9), with the Gate B kill test (Slice 8) between them. Slice 0 is the kill tests and the Option C source check, front-loaded because it is the largest available risk reduction at the lowest cost.
+- 2026-09-28: Surfaced an ambiguity the Gate 3 contract leaves open and that the spike exposed: **which layer owns canonicalisation** in `compare_plan`. Two readings give materially different K1 results. Recorded as **ADR-0007 (proposed)** and pinned to Reading A in `04-slices.md` §1.1. It amends an approved Gate 3 signature and needs acknowledgment at Gate 4 approval.
+- 2026-09-28: Recorded the **honest schedule arithmetic**: 102–169 h of planned work against 144 h available (solo, 18 days, 8 h/day, no slack). The plan fits only if almost nothing goes wrong. Written up as R1 rather than resolved by cutting scope — no Closure Contract test was removed, per the `03-program-design.md` §7 rule. If any slice overruns its window by more than 50%, the plan says to tell the user and replan rather than absorb the overrun by dropping tests.
+- 2026-09-28: Created **`docs/adr/`** — index plus **ADR-0001 to ADR-0008** covering stack choice, the pure domain core, the append-only record, derived closure, server-generated idempotency keys, the external between-subjects baseline (including its 26 Sep clinical-content backtrack), the canonicalisation question, and the keep-full-scope decision. Populated from the approved gates rather than invented; the gate documents remain authoritative and the index says so.
+- 2026-09-28: Updated `00-status.md` (Gate 4 draft state, the thirteen-slice checklist, Gate A re-verification, the two results already in hand) and `tasks/todo.md`.
+
+### Open at Gate 4 drafting
+
+- ~~**Gate 4 is not approved.**~~ **Approved 28 September 2026** — the user said "continue". Implementation is authorised slice by slice.
+- **The Option C source is not selected** — licensing and Singapore applicability unchecked. Blocks Slice 5 only; Slices 1–2 proceed without it.
+- **Gate A has not run**, and the plan now treats the labelled local-simulation fallback as the default.
+- ~~**ADR-0007 is proposed**~~ **Accepted 28 September 2026** — Reading A: canonicalisation lives in `domain`, and the Gate 3 `compare_plan` signature is amended accordingly.
+- **The schedule does not fit** (R1). The user kept the full scope deliberately; the risk is recorded rather than hidden.
+
+## Slice 1 — tracer bullet (complete 2026-09-28)
+
+- 2026-09-28: **Gate 4 approved** by the user with the instruction "continue". Recorded in `00-status.md` and `04-slices.md`. Two open sub-questions resolved under the recommendation given: ADR-0007 moves to `accepted` (canonicalisation lives in `domain`), and the Option C source stays a scheduling item that blocks Slice 5 only.
+- 2026-09-28: **Slice 1 built.** `pyproject.toml`, `src/carerelay/__init__.py`, `src/carerelay/api.py`, `src/carerelay/demo/fixture.py`, `src/carerelay/static/style.css`, `fixtures/scripted_episode.json`, `tests/test_api.py`. Two routes plus a server-rendered patient page, wired end to end against a hardcoded episode. No database, no domain layer, no coordinator — those are Slices 2 and 3.
+- 2026-09-28: **Proved it runs, not just that the tests pass.** `pytest tests/` → **11 passed**. Then `uvicorn` on `127.0.0.1:8137` and `curl` against health, episode creation, the patient projection and an unknown id (404). The four-line projection and the simulated label were read back from the live server.
+- 2026-09-28: **Defect found by running it — the tests had missed it.** The first live render produced **"You or you must act now."** `PLAN.md` §6.1, `02-architecture.md` §7 and `01-product.md` all render line 2 as "You or *[named person]* must act now.", which is malformed when the owner is the patient. Fixed to "Myself must act now." with an `OWNER_DISPLAY` constant, and a regression test added. **Flagged as a divergence from three approved documents** rather than silently absorbed — the correction belongs in those documents at the next Gate 1 touch, and Slice 9 must implement whichever form they then carry.
+- 2026-09-28: Confirmed C8 holds at Slice 1: no `http-equiv="refresh"`, no `<script>`, no CSS animation, transition or `@keyframes`. Nothing in the product hides itself or advances on a timer.
+- 2026-09-28: Confirmed D11 holds at Slice 1: the simulated label is **inside** the serialized patient projection, not only in page chrome.
+- 2026-09-28: Confirmed `POST /api/episodes` writes **no disposition**, per `02-architecture.md` §3.1. There is a test for it.
+
+### Next
+
+**Slice 2 — the pure domain core and its enforcing boundary.** Migrate the K1 corpus and comparator out of `spike/` into `domain/rules.py` under Reading A (the widened signature, ADR-0007), and make `test_domain_import_boundary` fail-capable by showing it red against a deliberate `import socket` before showing it green.
