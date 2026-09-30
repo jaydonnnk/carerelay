@@ -85,7 +85,7 @@ Both mechanisms are now written into `PLAN.md`. The single-ladder state model wa
 - Gate A spike remains unrun; the tool-execution path (§3.3) and D8's dependency claim now depend on it.
 - Round-2 review estimates 90–150 h for this architecture against the 56–89 h inherited, plus 20–35 h for the baseline. The user has **accepted this as achievable** (25 Sep); it remains unverified and Gate 3 must produce a real estimate.
 - Gate 4 must sequence the baseline comparison (Gate B) **before** the Closure Contract build. `PLAN.md` §7 currently schedules it after — wrong order, to be corrected.
-- Stack default (Python 3.13 + FastAPI + SQLite) is reversible only **before the first domain-code commit**; environment check required before Slice 1 (AppControl/venv issue recorded in `AGENTS.md`).
+- ~~Stack default (Python 3.13 + FastAPI + SQLite) is reversible only **before the first domain-code commit**; environment check required before Slice 1 (AppControl/venv issue recorded in `AGENTS.md`).~~ **Superseded 30 September 2026.** The reversal was decided rather than deferred: the backend stays Python 3.13 + FastAPI + SQLite on **Render**, and the clinical frontend becomes a **Next.js app on Vercel** (`02-architecture.md` revision 3, decision D-1b). The environment check passed on 28 September 2026 and Slices 1 to 3 are committed, so the window this bullet describes has closed.
 - D9 (scheduled reassessment) is **dropped**, with the P1 load-bearing cost stated. Not recoverable without Gate A plus a scenario and an estimate.
 
 ### Run log — Gate 2
@@ -113,7 +113,7 @@ Both mechanisms are now written into `PLAN.md`. The single-ladder state model wa
 - 2026-09-28: **Ran the two §6.1 kill conditions.** `spike/tests/test_kill_conditions.py` under Python 3.13.14: **15 tests, 0 failures**. Includes four `AssertionsHaveTeeth` defect-injection tests (surface-only comparator, always-uncertain comparator, unknown-as-mismatch, and both ordering defects), each confirmed to make its assertion fail. Result: **K1 and K2 both pass.** This is a deterministic-layer spike result with hand-supplied spans, not an implementation result, and it depends on Reading A.
 - 2026-09-28: **Gate A re-verified per the user's instruction.** No `WORKBUDDY_API_KEY` or `WORKBUDDY_AGENT_ID` in the environment, no `.env`, no `workbuddy`/`codebuddy` package installed. Platform path is [unknown]-to-unavailable; Gate A remains overdue.
 - 2026-09-28: **Slice 1's environment check passed.** Isolated venv created at `~/.workbuddy-ai/binaries/python/envs/default`; fastapi, uvicorn, pydantic, pytest and httpx installed and verified importable there. The intermittent AppControl block on stdlib venv creation (recorded in `AGENTS.md`) **did not fire**. Nothing installed into a user-managed environment.
-- 2026-09-28: Wrote `docs/plans/urgent-advice-accessibility/04-slices.md` — **Gate 4 draft, awaiting approval.** Thirteen slices, **full Gate 3 scope** per the user's instruction. Constraint C1 honoured: the external card (Slice 7) completes before the Closure Contract build (Slice 9), with the Gate B kill test (Slice 8) between them. Slice 0 is the kill tests and the Option C source check, front-loaded because it is the largest available risk reduction at the lowest cost.
+- 2026-09-28: Wrote `docs/plans/urgent-advice-accessibility/04-slices.md`: **Gate 4 draft, awaiting approval.** ~~Thirteen slices~~ **Fourteen slices, Slice 0 to Slice 13, as of the 30 September 2026 renumber.** **Full Gate 3 scope** per the user's instruction. Constraint C1 honoured: the external card (old Slice 7, now **Slice 8**) completes before the Closure Contract build (old Slice 9, now **Slice 10**), with the Gate B kill test (old Slice 8, now **Slice 9**) between them. Slice 0 is the kill tests and the Option C source check, front-loaded because it is the largest available risk reduction at the lowest cost.
 - 2026-09-28: Surfaced an ambiguity the Gate 3 contract leaves open and that the spike exposed: **which layer owns canonicalisation** in `compare_plan`. Two readings give materially different K1 results. Recorded as **ADR-0007 (proposed)** and pinned to Reading A in `04-slices.md` §1.1. It amends an approved Gate 3 signature and needs acknowledgment at Gate 4 approval.
 - 2026-09-28: Recorded the **honest schedule arithmetic**: 102–169 h of planned work against 144 h available (solo, 18 days, 8 h/day, no slack). The plan fits only if almost nothing goes wrong. Written up as R1 rather than resolved by cutting scope — no Closure Contract test was removed, per the `03-program-design.md` §7 rule. If any slice overruns its window by more than 50%, the plan says to tell the user and replan rather than absorb the overrun by dropping tests.
 - 2026-09-28: Created **`docs/adr/`** — index plus **ADR-0001 to ADR-0008** covering stack choice, the pure domain core, the append-only record, derived closure, server-generated idempotency keys, the external between-subjects baseline (including its 26 Sep clinical-content backtrack), the canonicalisation question, and the keep-full-scope decision. Populated from the approved gates rather than invented; the gate documents remain authoritative and the index says so.
@@ -132,10 +132,11 @@ Both mechanisms are now written into `PLAN.md`. The single-ladder state model wa
 - 2026-09-28: **Gate 4 approved** by the user with the instruction "continue". Recorded in `00-status.md` and `04-slices.md`. Two open sub-questions resolved under the recommendation given: ADR-0007 moves to `accepted` (canonicalisation lives in `domain`), and the Option C source stays a scheduling item that blocks Slice 5 only.
 - 2026-09-28: **Slice 1 built.** `pyproject.toml`, `src/carerelay/__init__.py`, `src/carerelay/api.py`, `src/carerelay/demo/fixture.py`, `src/carerelay/static/style.css`, `fixtures/scripted_episode.json`, `tests/test_api.py`. Two routes plus a server-rendered patient page, wired end to end against a hardcoded episode. No database, no domain layer, no coordinator — those are Slices 2 and 3.
 - 2026-09-28: **Proved it runs, not just that the tests pass.** `pytest tests/` → **11 passed**. Then `uvicorn` on `127.0.0.1:8137` and `curl` against health, episode creation, the patient projection and an unknown id (404). The four-line projection and the simulated label were read back from the live server.
-- 2026-09-28: **Defect found by running it — the tests had missed it.** The first live render produced **"You or you must act now."** `PLAN.md` §6.1, `02-architecture.md` §7 and `01-product.md` all render line 2 as "You or *[named person]* must act now.", which is malformed when the owner is the patient. Fixed to "Myself must act now." with an `OWNER_DISPLAY` constant, and a regression test added. **Flagged as a divergence from three approved documents** rather than silently absorbed — the correction belongs in those documents at the next Gate 1 touch, and Slice 9 must implement whichever form they then carry.
+- 2026-09-28: **Defect found by running it: the tests had missed it.** The first live render produced **"You or you must act now."** `PLAN.md` §6.1, `02-architecture.md` §7 and `01-product.md` all render line 2 as "You or *[named person]* must act now.", which is malformed when the owner is the patient. Fixed to "Myself must act now." with an `OWNER_DISPLAY` constant, and a regression test added. **Flagged as a divergence from three approved documents** rather than silently absorbed: the correction belongs in those documents at the next Gate 1 touch, and Slice 10 must implement whichever form they then carry.
 - 2026-09-28: Confirmed C8 holds at Slice 1: no `http-equiv="refresh"`, no `<script>`, no CSS animation, transition or `@keyframes`. Nothing in the product hides itself or advances on a timer.
 - 2026-09-28: Confirmed D11 holds at Slice 1: the simulated label is **inside** the serialized patient projection, not only in page chrome.
 - 2026-09-28: Confirmed `POST /api/episodes` writes **no disposition**, per `02-architecture.md` §3.1. There is a test for it.
+- 2026-09-30: **Corrected.** The line 2 wording recorded above was itself malformed. `demo/fixture.py` now carries `SELF_OWNER_SENTENCE = "You must act now."`, mirroring `domain.rules.patient_lines` for a self owner (Slice 2 owns this rule) and agreeing with `fixtures/scripted_episode.json`, whose `next_owner_id` is `patient`. `OWNER_DISPLAY` is gone. Verified by running the app: line 2 renders "You must act now." on the live page, and all 332 tests pass.
 
 ### Next
 
@@ -146,9 +147,11 @@ H2 stays until the patient hides it, H3 is `not_recalled` and never a pass, two 
 a third routes to the human path (C6).
 
 **Carried into Slice 4 and later:** the Option C source (blocks Slice 5), F5 at Slice 6, F6 at
-Slice 5, F4 and the §2.2 amendment at Slice 9, and Gate A (still unrun, fallback recorded for
+Slice 5, F4 and the §2.2 amendment at Slice 10 (Slice 9 before the 30 September 2026
+renumber), and Gate A (still unrun, fallback recorded for
 Slice 6). From the Slice 3 review: O2's typed lock error and O5 at Slice 6, O7 at Slice 5, O8 at
-Slice 10. O1, O3, O4 and O6 were closed by the remediation below and O2's docstring half with them.
+Slice 11 (Slice 10 before the renumber). O1, O3, O4 and O6 were closed by the remediation below
+and O2's docstring half with them.
 Slice 3 is **committed** on branch `slice-3` and fast-forwarded into `main`, as is the
 remediation.
 
@@ -177,3 +180,22 @@ remediation.
   md5 check. A schema-level `BEFORE INSERT` guard was measured and rejected because it also refuses
   the harmless `INSERT OR IGNORE`. **Committed on `slice-3` and fast-forwarded into `main`**, in two
   commits: the code, then the record.
+
+## Gate reopening: 2026-09-30
+
+- 2026-09-30: **Gates 2, 3 and 4 reopened on the user's instruction**, to encode Decisions D-A to D-D
+  and hosting Decision D-1b, and **re-approved the same day**. **Operational record only:**
+  `00-status.md` is the authority for gate state; this entry summarises it and does not replace it.
+- **Amended:** `02-architecture.md` (D1, D8, new D13, section 6, section 8 four rows, sections 11 and
+  12), `03-program-design.md` (section 1, section 2 file list, section 3 closing line), `04-slices.md`
+  (renumbered to fourteen slices, one merge, one required slice, one conditional slice, effort
+  recomputed, cut order updated, usage proof moved to Slice 4, templates drift resolved), and
+  `adp-and-deployment-impact.md` (the five errors corrected, plus two imprecise claims the review
+  named).
+- **Mirrors updated:** `AGENTS.md` sections 3 and 8, `docs/PLAN.md` sections 6, 7 and 10,
+  `tasks/todo.md`, `00-status.md`.
+- **Committed to `main` on 30 September 2026, and not pushed.** Gates 2, 3 and 4 were
+  **re-approved** the same day, so implementation is authorised again. The answer is recorded in
+  `00-status.md` and at the end of `04-slices.md`.
+- **No product code was written.** Slice 4 remains next and remains blocked on the same two items as
+  before: the Option C source for Slice 5, and Gate A for Slice 6.

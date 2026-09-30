@@ -78,11 +78,13 @@ Authority rules:
 
 ## 3. Current state, gates and authorization
 
-- **2026-09-30 current authority:** Gates 1 (Product), 2 (Architecture), 3
-  (Program Design) and 4 (Slice Plan) are all APPROVED. Slices 1, 2 and 3 are
-  complete; Slice 4 is next. Gate 4 approval authorises implementation code slice
-  by slice, in the planned order, and nothing else. **Each slice stops for the
-  user's "continue, or re-steer?" before the next one begins.**
+- **2026-09-30 current authority, revised 30 September 2026:** Gate 1 (Product),
+  Gate 2 (Architecture, revision 3), Gate 3 (Program Design) and Gate 4 (Slice
+  Plan) are **all APPROVED**. Gates 2, 3 and 4 were reopened on 30 September 2026
+  to encode Decisions D-A to D-D and hosting Decision D-1b, and were **re-approved
+  the same day**. `00-status.md` records both the reopen and the re-approval.
+  Slices 1, 2 and 3 are complete; Slice 4 is next and may begin. **Each slice stops
+  for the user's "continue, or re-steer?" before the next one begins.**
 - Gate 1 approval covers the reframe, PlanBack, the recall hint ladder, the Closure
   Contract, the two-axis state model, the design principles and the five HTML
   wireframes. It does not authorise implementation, installs, credentials, external
@@ -95,26 +97,36 @@ Authority rules:
   `slice-3` at that commit. `slice-2-domain-core` sits at `80245e4`.
   `gate-2-architecture` and `care-relay-adversarial-review` no longer exist as
   branches; their commits remain reachable from `main`. No gate authorises a commit
-  or a push, so the Slice 1, 2 and 3 commits and the Slice 3 remediation were made
-  and pushed on the user's **explicit instruction** of 30 September 2026. The push
-  succeeds when it is asked for, so the credential failures recorded in
-  `tasks/lessons.md` no longer apply. Commit counts are deliberately not stated here:
-  a count in this file has gone stale twice.
+  or a push, so the Slice 1, 2 and 3 commits, the Slice 3 remediation, and the
+  Gate 2, 3 and 4 revision-3 amendment were all made on the user's **explicit
+  instruction** of 30 September 2026. The Slice work is pushed; **the revision-3
+  amendment is committed to `main` and not pushed.** A push succeeds when it is
+  asked for, so the credential failures recorded in `tasks/lessons.md` no longer
+  apply. Commit counts are deliberately not stated here: a count in this file has
+  gone stale twice.
 - **Next hard dependency: the Gate A access spike, due 2026-09-26.** Approval of
   Gate 2 authorises the spike only (read-only credential checks and one typed tool
   call), not implementation code. The reversal is pre-recorded: if WorkBuddy access
   fails, fall back to labelled local simulation, carry the mandatory usage proof
   through genuine CodeBuddy development history, and weaken the platform-advantage
   claim accordingly.
-- The stack default is Python 3.13 + FastAPI + SQLite with a server-rendered plain
-  HTML and vanilla JS interface. The Node/TypeScript reversal decision must be
-  made before the first domain-code commit, with an environment check before Slice 1.
+- **Stack (revised 30 September 2026).** Backend: Python 3.13 + FastAPI + SQLite
+  (WAL, busy timeout) on **Render** (Docker, paid plan, mounted persistent disk),
+  with the SQLite path supplied by `APP_DATABASE_URL`. Frontend: a **Next.js
+  clinical frontend on Vercel** calling the Render API as JSON. **The Node and
+  Next.js reversal decision is made**, recorded here and dated: Slices 1 to 3 had
+  already shipped, so the original "before the first domain-code commit" trigger
+  could not be met, and the decision is taken on the user's explicit instruction
+  of 30 September 2026. **Auth is a precondition of the public deployment**: a
+  shared bearer token on every `/api` route and on `/ledger`, CORS locked to the
+  Vercel origin. `02-architecture.md` D1, D13 and section 8 carry the detail.
 - The scheduled-reassessment module (D9) was dropped at Gate 2. Under deadline
   pressure, cut TRTC voice before anything beyond one caregiver channel.
-- Gate 2 authorises only the scoped Gate A access spike. No gate authorises
-  installs, credential changes, other external service calls, engaging a clinical
-  reviewer, participant recruitment, deployment, publication, submission assets,
-  or any commit or push.
+- **The public deployment, the public endpoint and the ADP surfaces are
+  authorised by no gate yet.** Re-approval of Gates 2, 3 and 4 is what authorises
+  them. Until then no gate authorises installs, credential changes, other external
+  service calls, engaging a clinical reviewer, participant recruitment, the public
+  deployment, publication, submission assets, or any commit or push.
 
 Carried-forward unresolved Gate 1 risks. These were accepted rather than resolved
 and remain live inputs to Gate 3:
@@ -404,6 +416,20 @@ watching, or when a gate run is long enough that context will be compacted.
   regulatory status. PDPA obligations cover purpose, consent or legal basis,
   protection, retention limits and overseas transfer; deployment region and
   processor arrangements are **[unknown]**.
+- **ADP (added 30 September 2026).** ADP is a published agent surface, additive to
+  WorkBuddy and never a replacement for it. Its documented capabilities are
+  orchestration, knowledge base, workflow and guardrails. **Tool execution is a
+  [vendor claim]** (`CHALLENGE_REQUIREMENTS_JUDGING.md` section 7); **the MCP tool,
+  the platform-originated failure event and session resume are [unknown]**, and the
+  ADP guide documents none of them. ADP may occupy the **interpretation step only**:
+  never the execution path, never the rendering path. The ADP AppKey is a secret:
+  names only, never a value, never committed, never in a screenshot.
+- **The public deployment (added 30 September 2026).** The product is publicly
+  deployed on Render with a Next.js frontend on Vercel, behind a shared bearer
+  token. **The deployment region and the processor arrangements are [unknown] and
+  must be recorded** under PDPA before submission. The append-only record's
+  persistence depends on a mounted disk, which is a paid feature and a recurring
+  cost, not a default.
 - The baseline is a first-class external artefact, not an in-app arm. Gate B uses a
   between-subjects comparison against a concise bilingual action card with identical
   clinical wording, identical legitimate options and a direct booking link. CareRelay

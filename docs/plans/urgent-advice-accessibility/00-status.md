@@ -1,29 +1,62 @@
 # Status: CareRelay urgent-advice accessibility
 
-- Gate 1 — Product: **APPROVED** (25 September 2026; reopened and re-amended the same day — see the reopening section below)
-- Gate 2 — Architecture: **APPROVED** (25 September 2026, revision 2)
-- Gate 3: Program Design, **APPROVED** (26 September 2026)
-- Gate 4 — Slice plan: **APPROVED** (28 September 2026)
+- Gate 1: Product, **APPROVED** (25 September 2026; reopened and re-amended the same day, see the reopening section below)
+- Gate 2: Architecture, **APPROVED** (revision 3 re-approved 30 September 2026; revision 2 was approved 25 September 2026)
+- Gate 3: Program Design, **APPROVED** (re-approved 30 September 2026; first approved 26 September 2026)
+- Gate 4: Slice plan, **APPROVED** (re-approved 30 September 2026; first approved 28 September 2026)
+
+**All three reopened gates were re-approved on 30 September 2026.** Implementation is authorised again, slice by slice, in the order `04-slices.md` gives.
+
+## Gate reopening: 30 September 2026
+
+**Gates 2, 3 and 4 were reopened on the user's instruction of 30 September 2026**, to encode four decisions and one hosting choice. Editing an approved gate document reopens that gate (`AGENTS.md` section 5), so this is a reopen rather than a tidy-up.
+
+| # | Decision | Label |
+|---|---|---|
+| **D-A** | An ADP-based project goes hand in hand with using WorkBuddy. ADP is **additive**, never a replacement for the WorkBuddy execution substrate | `[verified]` as a user decision |
+| **D-B** | The ADP Experience URL **counts as the "project link"** bonus | `[verified]` as a user decision |
+| **D-C** | A **production link on Vercel** is also required, in addition to the ADP Experience URL | `[verified]` as a user decision |
+| **D-D** | Every other recommendation in `docs/reviews/adp-hosting-stack-review.md` is accepted | `[verified]` as a user decision |
+| **D-1b** | **Vercel hosts the clinical screens themselves**, as a Next.js app calling the Render API | `[verified]` as a user decision |
+
+**What D-A does not mean.** It does not authorise ADP on the execution path. The ADP guide does not document ADP tool execution, platform-originated failure events or session resume (`[verified]` as absence). Per `CHALLENGE_REQUIREMENTS_JUDGING.md` section 7, ADP tool-calling is a `[vendor claim]`; the MCP tool, the failure-event origin and session resume are `[unknown]`. The WorkBuddy execution-substrate claim in `02-architecture.md` section 3.3 stays intact.
+
+**Why D-1b reopens Gate 3 as well.** Moving the clinical screens to Next.js changes the Gate 3 file list and falsifies its statement that no public auth flow is implied. Option D-1a would have left Gate 3 closed. The cost of D-1b is recorded in `02-architecture.md` section 12 and in `04-slices.md` section 5.
+
+| Gate | Amended document | What changed |
+|---|---|---|
+| 2 | `02-architecture.md` revision 3 | D1 replaced, D8 amended, D13 added, section 6 env var names, section 8 four rows, sections 11 and 12 |
+| 3 | `03-program-design.md` | Section 1 stack bullet, section 2 file list, section 3 closing line |
+| 4 | `04-slices.md` | Renumbered to fourteen slices, one merge, one required slice added, one conditional slice added, effort recomputed, cut order updated, usage proof moved forward, templates drift resolved |
+
+**Committed to `main` on 30 September 2026, and not pushed.** The re-approval question at the end of `04-slices.md` was answered yes on 30 September 2026; the answer and its limits are recorded in the re-approval subsection below.
+
+### Gate re-approval: 30 September 2026
+
+**The user answered the re-approval question with "Yep they look good go ahead and commit the changes to main".** Gate 2 revision 3, Gate 3 and Gate 4 are therefore **APPROVED**, and implementation is authorised again slice by slice in the order `04-slices.md` gives.
+
+**The authorisation limits are unchanged from the original approvals.** No installs beyond the declared test dependencies, no credentials, no recruitment, no deployment, no external calls beyond those the plan names, and no push. The restructure in `04-slices.md` is approved as the plan of record, including Slice 7 (public deployment and auth) and the conditional Slice 13.
 
 ## Slices
 
-**Gate 4 is approved. Slices proceed one at a time, each ending with a "continue, or re-steer?" check.** Slice state below is the only authority.
+**Gate 4 is re-approved as of 30 September 2026, so implementation is authorised slice by slice.** Slices proceed one at a time, each ending with a "continue, or re-steer?" check. **Slice 4 is next and may begin.** Slice state below is the only authority.
 
 - [ ] Slice 0 — kill tests (**PASS** 28 Sep) + Option C source (**open**, blocks Slice 5 only)
 - [x] **Slice 1 — COMPLETE 28 Sep.** Tracer bullet runs; 11 tests pass; curl-verified live
 - [x] **Slice 2: COMPLETE 30 Sep; adversarially reviewed and remediated the same day.** Pure domain core; boundary check seen red then green; 240 tests pass. Review at `docs/reviews/slice2-adversarial-review.md`
 - [x] **Slice 3: COMPLETE 30 Sep; adversarially reviewed the same day, verdict yes with named caveats.** The append-only SQLite record; every table refuses UPDATE and DELETE by trigger; the callback representation proven atomic under two concurrent writers and a crash; 70 new tests (69 in the new `tests/test_state.py`, one added to `tests/test_domain.py`), 310 pass, **332 after the remediation of 30 Sep**. The Slice 2 review's `source_ref` open item is settled here. Review at `docs/reviews/slice3-adversarial-review.md`; eight open items, of which the blocking one and three others were closed by the remediation recorded in the Slice 3 remediation section below
-- [ ] Slice 4 — PlanBack end to end, hint ladder, bounded repair ← **next**
-- [ ] Slice 5 — judged fixture + abstention path (**blocked on the Option C source**)
-- [ ] Slice 6 — action path, simulated provider, platform call + Gate A decision
-- [ ] Slice 7 — baseline instrument: the external card (C1, parallel)
-- [ ] Slice 8 — Gate B: run the comparison (**kill test**)
-- [ ] Slice 9 — Closure Contract in full (starts only after the kill test)
-- [ ] Slice 10 — fault harness + seven sequences
-- [ ] Slice 11 — judge ledger + usage proof
-- [ ] Slice 12 — submission assets
+- [ ] Slice 4: PlanBack end to end, hint ladder, bounded repair. **The usage-proof capture starts here.** ← **next**
+- [ ] Slice 5: judged fixture + abstention path (**blocked on the Option C source**)
+- [ ] Slice 6: action path, simulated provider, platform call + Gate A decision
+- [ ] **Slice 7: public deployment, the Next.js clinical frontend and auth (NEW 30 Sep, was not in the approved plan)**
+- [ ] Slice 8: baseline instrument, the external card (C1, parallel). **Was Slice 7**
+- [ ] Slice 9: Gate B, run the comparison (**kill test**). **Was Slice 8**
+- [ ] Slice 10: Closure Contract in full (starts only after the kill test). **Was Slice 9**
+- [ ] Slice 11: fault harness + seven sequences. **Was Slice 10**
+- [ ] Slice 12: judge ledger, submission assets and the usage proof (**merge of old Slices 11 and 12**; must land before 16 October)
+- [ ] **Slice 13: ADP interpretation surface (NEW, CONDITIONAL; Gate 2 gated, default do not run)**
 
-**Carried decisions.** Five items from the Slice 2 review were deliberately left undecided. **Slice 3 settled the `source_ref` mutation gap** (see the Slice 3 section below), so four remain. Each is settled (or asked about) at the slice where it becomes live, and recorded there: F4 and the §2.2 amendment at **Slice 9**; F5 at **Slice 6**; F6 at **Slice 5**. The full list and the reasons are in the Slice 2 review section below.
+**Carried decisions.** Five items from the Slice 2 review were deliberately left undecided. **Slice 3 settled the `source_ref` mutation gap** (see the Slice 3 section below), so four remain. Each is settled (or asked about) at the slice where it becomes live, and recorded there: F4 and the §2.2 amendment at **Slice 10** (Slice 9 before the 30 September 2026 renumber); F5 at **Slice 6**; F6 at **Slice 5**. The full list and the reasons are in the Slice 2 review section below.
 
 ## Slice 2 complete, 30 September 2026
 
@@ -67,15 +100,15 @@
 | # | Reading | The alternative | Why this one |
 |---|---|---|---|
 | 1 | **Closure precedence: expiry outranks a recorded human acceptance.** The approved condition for `closed_with_evidence` is "evidence >= documented **or** an explicit human acceptance is recorded", and a human acceptance is not evidence that care happened. Once the deadline has passed with no evidence, the state is `expired_unresolved` | Put acceptance above expiry, so an accepted handoff stays `closed_with_evidence` past the deadline | The other order lets a scripted acceptance report a resolved episode whose deadline passed with nothing to show for it. That is invariant I2, and it is the product thesis. **This is the one reading most worth an explicit yes or no** |
-| 2 | **Line 2 is composed by owner.** "You must act now." when the owner is the patient; the approved "You or [named person] must act now." otherwise | Reproduce the approved literal, which yields the malformed "You or you must act now." that Slice 1 found by inspection | Carries the Slice 1 divergence forward instead of reintroducing the defect. The Slice 1 note still stands: Slice 9 implements whichever form the documents then carry |
-| 3 | **`patient_lines` refuses for `closed_with_evidence`.** It raises `NoApprovedPatientWording` | Render the unresolved four lines | No approved rendering exists for a resolved episode. Rendering "Help is not arranged." over an episode where care is evidenced is a false statement to the patient. Slice 9 owns the Closure Contract rendering |
+| 2 | **Line 2 is composed by owner.** "You must act now." when the owner is the patient; the approved "You or [named person] must act now." otherwise | Reproduce the approved literal, which yields the malformed "You or you must act now." that Slice 1 found by inspection | Carries the Slice 1 divergence forward instead of reintroducing the defect. The Slice 1 note still stands: Slice 10 implements whichever form the documents then carry |
+| 3 | **`patient_lines` refuses for `closed_with_evidence`.** It raises `NoApprovedPatientWording` | Render the unresolved four lines | No approved rendering exists for a resolved episode. Rendering "Help is not arranged." over an episode where care is evidenced is a false statement to the patient. Slice 10 owns the Closure Contract rendering |
 | 4 | **Execution axis completion.** `expired` is set on axis A when an attempt recorded no terminal outcome and the deadline has passed. A recorded `acknowledged`, `failed` or `superseded` outcome is never overwritten, and an episode with no attempt stays `not_started` | Leave `expired` unwired | Contract section 2.2 lists `expired` as an axis value. Left unwired it was unreachable vocabulary, and "we tried and nobody said yes, and the deadline has gone" had no rendering on axis A at all. Found by the post-slice cleanup scan, not by the tests |
 
 **Two defects the post-slice cleanup scan found in this slice's own code, both fixed.** `models.DisplayZone` was defined and never used: removed, along with its now-unused `tzinfo` import. `ExecutionStatus.EXPIRED` was unreachable: reading 4 above wires it, with three tests (the attempt-with-no-outcome case, the recorded-terminal case, and the no-attempt case) each covering a distinct guard.
 
 **The em dash question is settled by measurement, and the original claim was wrong.** The source contains **no** em dash character at all: line 4 of the expired rendering is written as the escape `\u2014`, so the rendered string reproduces the approved copy verbatim while the file stays clean of U+2014. `AGENTS.md` section 6 is therefore not breached and no approved clinical wording has drifted. Verified byte-wise across all five new files: zero U+2014. The first version of this entry said "one em dash is used", which overstated the problem.
 
-**Not in this slice, and deliberately.** No database (Slice 3). No routes, no service, no coordinator. No `presentation.py` or `templates/` (the plan-versus-code drift recorded earlier today is untouched: `04-slices.md` still names `src/carerelay/templates/patient.html`, which does not exist, and `jinja2` is still imported nowhere). The Option C source is still unselected, so every alias table and every corpus entry here is **provisional** and nothing may be shown to a participant.
+**Not in this slice, and deliberately.** No database (Slice 3). No routes, no service, no coordinator. No `presentation.py` or `templates/` (the plan-versus-code drift recorded earlier today is ~~untouched~~ **closed by decision later the same day; see the Gate reopening section at the top of this file**. `04-slices.md` ~~still names~~ **no longer names** `src/carerelay/templates/patient.html`, which does not exist, and `jinja2` is ~~still imported nowhere~~ **to be removed from `pyproject.toml`**). The Option C source is still unselected, so every alias table and every corpus entry here is **provisional** and nothing may be shown to a participant.
 
 **What this evidence does not prove.** A passing static check is not evidence of WorkBuddy access, clinical safety, human learning or patient benefit. K1 remains a deterministic-layer result and depends on Reading A (ADR-0007, risk R5). The 88 domain tests exercise the pure layer only: the model's own extraction is not reachable offline.
 
@@ -100,10 +133,10 @@ An independent adversarial review with no prior context was run against the bran
 
 | # | Open question | Decided at |
 |---|---|---|
-| F4 | `closed_with_evidence` is reachable both from real evidence and from a recorded human acceptance with no evidence, and `patient_lines` raises for both. The acceptance case is a normal product state (`POST /acceptances`) with no patient rendering at all. Slice 9 must render it, and must render the two cases separately | **Slice 9** |
-| F5 | `simulated = not care_evidenced` conflates "this episode is a simulation" with "care is not evidenced". The code implements the D11 rule as written, so the meaning is a decision, not a defect | **Slice 6**, visible in the ledger at **Slice 11** |
-| F6 | `action_owner_id` ignores `escalation_id` and `human_acceptance_id`, so I4's "explicit human service" owner is inexpressible | **Slice 5**, re-checked at **Slice 9** |
-| §2.2 | The `closed_with_evidence` and `expired_unresolved` rows of `03-planback-closure-contract.md` section 2.2 overlap on acceptance plus past-deadline and state no order; the implementation puts expiry first. This is the documentary form of the F4 decision | **Slice 9** |
+| F4 | `closed_with_evidence` is reachable both from real evidence and from a recorded human acceptance with no evidence, and `patient_lines` raises for both. The acceptance case is a normal product state (`POST /acceptances`) with no patient rendering at all. Slice 10 must render it, and must render the two cases separately | **Slice 10** |
+| F5 | `simulated = not care_evidenced` conflates "this episode is a simulation" with "care is not evidenced". The code implements the D11 rule as written, so the meaning is a decision, not a defect | **Slice 6**, visible in the ledger at **Slice 12** |
+| F6 | `action_owner_id` ignores `escalation_id` and `human_acceptance_id`, so I4's "explicit human service" owner is inexpressible | **Slice 5**, re-checked at **Slice 10** |
+| §2.2 | The `closed_with_evidence` and `expired_unresolved` rows of `03-planback-closure-contract.md` section 2.2 overlap on acceptance plus past-deadline and state no order; the implementation puts expiry first. This is the documentary form of the F4 decision | **Slice 10** |
 | `source_ref` | The D11 guard's `simulated` and `source_ref` halves share one mutation flag, so the `source_ref` half has no independent proof | **Slice 3** |
 
 **Evidence.** 240 passed, 1 warning (88 domain, 141 boundaries, 11 api), up from 109. Five mutation checks confirmed the new tests are fail-capable: reverting each fix in turn caused its paired test to fail. Every mutation was reverted with an md5 check, and `git status --short --untracked-files=all` was identical before and after. No commit, branch or push was made **during the review itself**, and no gate was reopened. The work was committed afterwards, the same day, on the user's explicit instruction; see the commit list in the Slice 2 section above.
@@ -228,7 +261,7 @@ An independent adversarial review with no prior context was run against the bran
 | O5 | `record_callback_once` returns a bare `bool`, so a duplicate and a consent refusal are indistinguishable without re-reading the record. A bool cannot express "we refused a success because consent was revoked" | **Slice 6**, where the action path consumes it. Untouched here: it is a return-surface decision, not a defect to patch |
 | O6 | The D11 `CHECK` is weaker than the Python guard: an empty or whitespace `source_ref` passes the `CHECK` while the guard refuses it, so "enforced twice" is only equivalent for `source_ref IS NULL` | **CLOSED 30 September 2026.** `trim(source_ref) <> ''` added to the `CHECK`, and the guard widened from `not source_ref` to `not source_ref.strip()`, so the two are equivalent for blank as well as null |
 | O7 | `insert_disposition` does not require a reassessment to move the deadline later. A version 2 with an earlier deadline than an expired version 1 would make reading 6 report no expiry event and could return the episode to `open` | **Slice 5**, where reassessment is built. Untouched here: there is no reassessment path to constrain yet |
-| O8 | The "Crash atomicity" row above tests the in-process rollback path, not a crash. A subprocess kill mid-transaction was verified separately to be recovered by WAL, so the property holds; the row label and the test's reach overstate it | **Slice 10**, the fault harness. Untouched here: a subprocess-kill test belongs with the rest of the fault work |
+| O8 | The "Crash atomicity" row above tests the in-process rollback path, not a crash. A subprocess kill mid-transaction was verified separately to be recovered by WAL, so the property holds; the row label and the test's reach overstate it | **Slice 11**, the fault harness (Slice 10 before the 30 September 2026 renumber). Untouched here: a subprocess-kill test belongs with the rest of the fault work |
 
 **Note on the exit check.** `04-slices.md`'s Check for this slice, "show the user a duplicate callback being recorded and the projection not changing", was run at the store layer and shown as console output above. It could not be run through the product, because this slice's file list is `state.py` and `test_state.py` only and the routes arrive at Slices 4 to 6. The gap is the plan's, and it is recorded rather than papered over.
 
@@ -249,11 +282,12 @@ An independent adversarial review with no prior context was run against the bran
 
 **Evidence.** 332 passed, 1 warning, split **89** domain, **141** boundaries, **11** api, **91** state; the four counts sum to 332. Eight mutations, each applied alone to an anchor asserted to occur exactly once, each reverted with an md5 match, and each turning exactly its own test red: the pragma (14 red, the thirteen tables plus the control), each of the five constraints (1 red each), the `trim` clause (2 red, one per blank form), and the `callbacks` UNIQUE on `callback_key` (1 red). The suite returned to 332 afterwards. Both edited files are CRLF with zero lone LF and zero U+2014.
 
-**Still open, and deliberately untouched.** O5 (the `bool` return) and O7 (the reassessment deadline ordering) are product decisions for Slices 6 and 5. O8 (the crash-atomicity label) belongs with the Slice 10 fault harness. F4's typed lock error is the half of O2 above. None of these is a false claim left standing.
+**Still open, and deliberately untouched.** O5 (the `bool` return) and O7 (the reassessment deadline ordering) are product decisions for Slices 6 and 5. O8 (the crash-atomicity label) belongs with the **Slice 11** fault harness (Slice 10 before the 30 September 2026 renumber). F4's typed lock error is the half of O2 above. None of these is a false claim left standing.
 
 **Committed on `slice-3` and fast-forwarded into `main`**, in two commits: the code, then this record. `origin` holds `main` and `slice-3` at the same commit. No hash is cited here on purpose: a hash in this file goes stale on the next push, and that correction has already been needed twice.
 
 ## Gate 4 approval — 28 September 2026
+**Reopened and re-approved on 30 September 2026. See the reopening and re-approval sections at the top of this file.**
 The user approved **Gate 4 (Slice plan)** on 28 September 2026 with the instruction **"continue"**, following the approval question in this file. `04-slices.md` now records the approval.
 
 **Approval authorises implementation code, slice by slice, in the planned order.** It does **not** authorise installs beyond the declared test dependencies, credentials, recruitment, external calls, deployment, or a push. Each slice still stops for the user's "continue, or re-steer?" before the next begins.
@@ -281,9 +315,9 @@ The user approved **Gate 4 (Slice plan)** on 28 September 2026 with the instruct
 
 **Defect found and fixed during this slice — a real one.** The first live render produced **"You or you must act now."** on line 2. `PLAN.md` §6.1, `02-architecture.md` §7 and `01-product.md` all render line 2 as "You or *[named person]* must act now."; with a patient owner that sentence is malformed. **The test suite did not catch it — inspection of the running app did**, which is exactly why Gate 4's standing rule is "run it and show the result" rather than "the tests pass".
 
-- **Fix applied:** line 2 now reads "Myself must act now.", with `OWNER_DISPLAY` as a named-owner constant.
+- **Fix applied:** line 2 read "Myself must act now.", with `OWNER_DISPLAY` as a named-owner constant. **Corrected 30 September 2026:** that wording was still malformed, and Slice 2 superseded the constant. `demo/fixture.py` now carries `SELF_OWNER_SENTENCE = "You must act now."`, mirroring `domain.rules.patient_lines` for a self owner and agreeing with `fixtures/scripted_episode.json`, whose `next_owner_id` is `patient`.
 - **Regression test added:** `test_line_two_does_not_render_a_doubled_owner`.
-- **Flagged, not silently absorbed:** this **diverges from three approved documents.** The correction belongs in those documents at the next Gate 1 touch. Slice 9 must implement whichever form they then carry — the Slice 1 literal is not the authority.
+- **Flagged, not silently absorbed:** this **diverges from three approved documents.** The correction belongs in those documents at the next Gate 1 touch. **Slice 10** (Slice 9 before the 30 September 2026 renumber) must implement whichever form they then carry. The Slice 1 literal is not the authority.
 
 **Files created:** `pyproject.toml`, `src/carerelay/__init__.py`, `src/carerelay/api.py`, `src/carerelay/demo/fixture.py`, `src/carerelay/demo/__init__.py`, `src/carerelay/static/style.css`, `fixtures/scripted_episode.json`, `tests/test_api.py`.
 
@@ -291,7 +325,7 @@ The user approved **Gate 4 (Slice plan)** on 28 September 2026 with the instruct
 
 ## Gate 4 draft — 28 September 2026
 
-`04-slices.md` is written and **awaiting explicit approval**. Drafting it authorises no code. Thirteen slices, full Gate 3 scope, with constraint C1 satisfied: the external card (Slice 7) completes before the Closure Contract build (Slice 9).
+`04-slices.md` is written and **awaiting explicit approval**. Drafting it authorises no code. ~~Thirteen slices~~ **Fourteen slices as of the 30 September 2026 renumber**, full Gate 3 scope, with constraint C1 satisfied: the external card (old Slice 7, now **Slice 8**) completes before the Closure Contract build (old Slice 9, now **Slice 10**).
 
 **User instructions at drafting (28 September 2026):**
 
@@ -321,6 +355,7 @@ The user approved **Gate 4 (Slice plan)** on 28 September 2026 with the instruct
 
 
 ## Gate 3 approval — 26 September 2026
+**Reopened and re-approved on 30 September 2026, because Decision D-1b moved the clinical screens to Next.js and changed this gate's file list. See the reopening and re-approval sections at the top of this file.**
 
 The user approved **Gate 3 (Program Design)** on 26 September 2026, on the same day it was drafted, with two amendments made at approval.
 
@@ -362,6 +397,7 @@ Approval covers: the planned file footprint, the type and method contracts, the 
 The `02-architecture.md` header previously read "Not approved". Fixed 26 September 2026 — it now records the Gate 2 approval and points to this file for authority.
 
 ## Gate 2 approval — 25 September 2026
+**Reopened and re-approved on 30 September 2026. Revision 2 was approved on this date; revision 3 is the current approved revision. See the reopening and re-approval sections at the top of this file.**
 
 The user approved **Gate 2 (Architecture) revision 2** on 25 September 2026, following an independent round-2 adversarial review whose verdict was APPROVE WITH CHANGES and whose eleven blocking items were all applied or explicitly resolved.
 
@@ -438,12 +474,13 @@ The map spans three folders, reorganised on 30 September 2026 so that a review a
 |---|---|---|
 | `00-status.md` | state | this file |
 | `01-product.md` | **Gate 1 doc** | problem, success metric, announcement, product rules, screens |
-| `02-architecture.md` | **Gate 2 doc** | **approved revision 2** (25 Sep), D1 to D12, pinned tool path, attempt-transition schema, external between-subjects baseline, non-functional surfaces, change log |
-| `03-program-design.md` | **Gate 3 doc** | **approved 26 September 2026**: files, types, call stacks, failure-capable tests, effort |
-| `04-slices.md` | **Gate 4 doc** | **APPROVED 28 September 2026**: 13 slices, full scope, Gate A re-verification, R1 schedule risk |
+| `02-architecture.md` | **Gate 2 doc** | **revision 3, APPROVED 30 Sep 2026.** Revision 2 was approved 25 Sep. D1 to D13, pinned tool path, attempt-transition schema, external between-subjects baseline, non-functional surfaces, change log |
+| `03-program-design.md` | **Gate 3 doc** | **APPROVED 30 Sep 2026.** First approved 26 Sep. Files, types, call stacks, failure-capable tests, effort |
+| `04-slices.md` | **Gate 4 doc** | **APPROVED 30 Sep 2026.** First approved 28 Sep. **14 slices, Slice 0 to Slice 13**, full scope, Gate A re-verification, R1 schedule risk |
 | `03-planback-closure-contract.md` | supporting note | specification and feasibility for PlanBack and the Closure Contract. Carries the `03-` filename that Gate 3 needed |
 | `clinical-review-blocker.md` | supporting note | decision paper, 26 Sep: what the reviewer blocker actually blocks, and three routes through |
 | `research-workarounds.md` | supporting note | which blockers are workaroundable and which are hard gates. Listed here for the first time: it was named in `AGENTS.md` section 2 but was missing from this map |
+| `adp-and-deployment-impact.md` | supporting note | DRAFT, 30 Sep: what the ADP hackathon guide changes, where ADP collides with the §8 model-generated-text boundary and the D8 execution-substrate claim, and the Vercel/Render deployment assessment. Authorises nothing |
 | `mockups/` | Gate 1 assets | five plain-HTML screens, throwaway by design |
 
 **`docs/reviews/`**
@@ -455,6 +492,7 @@ The map spans three folders, reorganised on 30 September 2026 so that a review a
 | `gate2-adversarial-review-thorough.md` | review | independent round-2 review: APPROVE WITH CHANGES, three blocking defects |
 | `slice2-adversarial-review.md` | review | independent adversarial review of Slice 2, 30 Sep: verdict, findings, judgement calls, evasion, test quality, and the remediation applied before Slice 3 |
 | `slice3-adversarial-review.md` | review | independent adversarial review of Slice 3, 30 Sep: verdict (yes, with named caveats), two blocking findings, five unproven constraints, and the open items it raised |
+| `adp-hosting-stack-review-prompt.md` | review brief | the prompt for an independent reviewer, 30 Sep: the ADP guide, the Vercel/Render request and the laeria reference, against the slice plan. **Not yet run.** Records the author's positions as claims to attack and lists three claims the author already reversed |
 
 **`docs/adr/`**
 
@@ -479,13 +517,13 @@ The map spans three folders, reorganised on 30 September 2026 so that a review a
 - Mandarin and voice are accessibility modes. English text remains the auditable reference until bilingual clinical content is reviewed.
 - Provisional persona: Mei, 72, Mandarin-preferring, with remote daughter support. The respiratory-symptom recommendation remains an injected fixture until clinical review.
 - **No asset may name a real healthcare facility.** The fixture provider is fictional and labelled.
-- No implementation code may be written before Gate 4 approval. **Gate 4 was approved 28 September 2026; implementation is now authorised slice by slice.**
-- **Gate 4 approved 28 Sep** with the instruction "continue". Full scope was kept on the user's explicit instruction; the schedule risk is recorded as R1 in `04-slices.md`, not resolved by cutting. Constraint C1 is honoured: the external card (Slice 7) completes before the Closure Contract build (Slice 9), with the Gate B kill test (Slice 8) between them.
+- No implementation code may be written before Gate 4 approval. **Gate 4 was approved 28 September 2026, reopened on 30 September 2026 and re-approved the same day, so implementation is authorised again slice by slice.**
+- **Gate 4 approved 28 Sep, reopened and re-approved 30 September 2026** (see the reopening and re-approval sections at the top of this file). Full scope was kept on the user's explicit instruction; the schedule risk is recorded as R1 in `04-slices.md`, not resolved by cutting. Constraint C1 is honoured: the external card (old Slice 7, now **Slice 8**) completes before the Closure Contract build (old Slice 9, now **Slice 10**), with the Gate B kill test (old Slice 8, now **Slice 9**) between them.
 - **ADR-0007 accepted 28 Sep** — canonicalisation lives in `domain` (Reading A). The Gate 3 `compare_plan` signature is amended, and `ExtractedPlan` carries both the raw span and `uncertain_fields`.
 - **Gate A has still not run** and is now more than a day overdue. Re-verified 28 Sep: no credentials, no `.env`, no SDK package. Plan for the labelled `local-sim` fallback; take the platform path only if access appears.
 - **K1 and K2 pass** (spike, 15/15). Deterministic layer only, and dependent on Reading A (ADR-0007).
 - **ADR-0007 is proposed, not accepted** — it amends the approved Gate 3 `compare_plan` signature. Needs acknowledgment at Gate 4 approval or an explicit instruction to keep the original signature and accept a weaker K1 claim.
-- Gate 2 draft (`02-architecture.md` revision 2) pins D1–D12: Python+FastAPI default (reversible only before the first domain-code commit), pure domain core, append-only attempt transitions, derived closure with sticky expiry, external between-subjects baseline, deterministic abstention with a closed vocabulary, **D9 dropped**, voice deferred and isolated. **The Gate A access spike is due 26 Sep** with a pre-recorded fallback decision.
+- Gate 2 draft (`02-architecture.md` revision 2) pins D1–D12: Python+FastAPI default (reversible only before the first domain-code commit), pure domain core, append-only attempt transitions, derived closure with sticky expiry, external between-subjects baseline, deterministic abstention with a closed vocabulary, **D9 dropped**, voice deferred and isolated. **The Gate A access spike is due 26 Sep** with a pre-recorded fallback decision. **Superseded 30 September 2026:** revision 3 replaces D1 and adds D13, and the "reversible only before the first domain-code commit" clause no longer applies because the reversal was taken (a Next.js frontend on Vercel, the backend on Render). See the reopening section at the top of this file.
 - **Two items that needed a user decision are now both resolved** (25 Sep):
   1. The **H2 timed hide is gone.** The plan card stays until the patient hides it; no timers anywhere in the product; `dwell_seconds` recorded for the ledger only. Gate 1 was reopened deliberately and re-approved.
   2. The **expired patient screen** wording is approved, softened on the user's instruction, with five copy rules in `02-architecture.md` §7.

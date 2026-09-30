@@ -30,7 +30,7 @@
 - Reframe around PlanBack plus a narrow Closure Contract; do not lead with the ledger.
 - The Mei/Mandarin respiratory story is a convenient feature container, not an evidence-backed best scenario.
 - Cut Mandarin voice, broad respiratory intake and patient-facing ledger detail from the judged slice.
-- Gate 1 and Gate 2 were approved on 25 September 2026; Gates 3 and 4 remain unapproved, so no implementation is authorised.
+- Gate 1, Gate 2 (revision 3), Gate 3 and Gate 4 were all approved by 30 September 2026, so implementation is authorised slice by slice, and each slice still stops for the user's "continue, or re-steer?"
 
 ## PlanBack and Closure Contract specification
 
@@ -80,7 +80,7 @@
 - [x] **Slice 2 complete**: pure domain core plus an enforcing import boundary; boundary check seen red then green; 240 tests pass after the adversarial review and remediation (30 Sep). Review: `docs/reviews/slice2-adversarial-review.md`
 - [x] **Slice 2 adversarial review + remediation** (30 Sep). Verdict: exit contract met with named caveats. Two blockers fixed (a stale deadline rendered to the patient, and a false CRLF claim in `00-status.md`); the boundary scanner's five evasions closed; `project_attempt` now validates every row; the K1 corpus widened with independently-chosen phrasings.
 - [x] **Slice 3 complete** (30 Sep): the append-only SQLite record. Thirteen tables, every one refusing UPDATE and DELETE by trigger; the D11 `CHECK` proven independently of the Python guard; the callback representation proven atomic under two concurrent writers and under an injected crash; the `source_ref` mutation gap from the Slice 2 review closed. 69 new tests, 310 pass. Eleven mutations each seen RED and each reverted with an md5 check.
-- [x] **Slice 3 remediation** (30 Sep, same day): the review's blocking finding and four more closed before Slice 4 began. `PRAGMA recursive_triggers = ON`, so `INSERT OR REPLACE` is refused on every connection this module opens; five fail-capable tests for the previously untested constraints; the NULL-distinctness assumption proven with its own control; `trim(source_ref) <> ''` added to the D11 `CHECK` and the Python guard widened to match. 22 new tests, 332 pass, eight mutations each RED on exactly its own test. **Committed on `slice-3` and merged into `main`.** O5 at Slice 6, O7 at Slice 5, O8 at Slice 10, O2's typed lock error at Slice 6.
+- [x] **Slice 3 remediation** (30 Sep, same day): the review's blocking finding and four more closed before Slice 4 began. `PRAGMA recursive_triggers = ON`, so `INSERT OR REPLACE` is refused on every connection this module opens; five fail-capable tests for the previously untested constraints; the NULL-distinctness assumption proven with its own control; `trim(source_ref) <> ''` added to the D11 `CHECK` and the Python guard widened to match. 22 new tests, 332 pass, eight mutations each RED on exactly its own test. **Committed on `slice-3` and merged into `main`.** O5 at Slice 6, O7 at Slice 5, O8 at Slice 11, O2's typed lock error at Slice 6.
 
 ### Open from the Slice 2 review: deferred to the slice where each becomes live
 
@@ -88,31 +88,32 @@
 
 | # | Open item | Decided at | Why that slice |
 |---|---|---|---|
-| F4 | **`closed_with_evidence` must render twice over.** It is reachable from real evidence *and* from a recorded human acceptance with no evidence (`care_evidenced = False`). `patient_lines` raises for both today, so the acceptance path that `POST /acceptances` produces has no patient rendering at all. The two cases are not the same fact and must not share a rendering | **Slice 9** | Slice 9 owns the Closure Contract rendering: `derive_closure` complete, `POST /acceptances`, and the four-line unresolved/expired renderings. The acceptance endpoint does not exist before it |
-| F5 | **Decide what `simulated` means.** It is currently `not care_evidenced`, conflating "this episode is a simulation" with "care is not evidenced". The code implements the D11 rule as written, so this is a semantics decision, not a bug fix | **Slice 6**, made visible at **Slice 11** | Slice 6 introduces the simulated provider and the `simulated: true` label; Slice 11 shows the simulated label in the judge ledger. Ask the user at Slice 6, before the label is written anywhere a judge will read |
-| F6 | **Decide the owner after an escalation.** `action_owner_id` ignores `escalation_id`, so an escalated episode still names the patient. I4 allows "an explicit human service" as the acting party, and the projection cannot express it | **Slice 5**, re-checked at **Slice 9** | Slice 5 records escalations (`POST /escalations`); Slice 9 is where the owner is rendered. Decide when the escalation is first recorded |
-| §2.2 | **Amend `03-planback-closure-contract.md` section 2.2.** The `closed_with_evidence` row ("evidence >= documented, **or** an explicit human acceptance is recorded") and the `expired_unresolved` row ("deadline passed with no evidence") overlap on acceptance plus past-deadline. The document states no order; the implementation puts expiry first, for I2 and because the other order is unrenderable | **Slice 9** | The amendment is the documented form of whatever F4 decides. It is a document edit, not code, and it should follow the Slice 9 rendering decision so the two stay consistent |
+| F4 | **`closed_with_evidence` must render twice over.** It is reachable from real evidence *and* from a recorded human acceptance with no evidence (`care_evidenced = False`). `patient_lines` raises for both today, so the acceptance path that `POST /acceptances` produces has no patient rendering at all. The two cases are not the same fact and must not share a rendering | **Slice 10** | Slice 10 owns the Closure Contract rendering: `derive_closure` complete, `POST /acceptances`, and the four-line unresolved/expired renderings. The acceptance endpoint does not exist before it |
+| F5 | **Decide what `simulated` means.** It is currently `not care_evidenced`, conflating "this episode is a simulation" with "care is not evidenced". The code implements the D11 rule as written, so this is a semantics decision, not a bug fix | **Slice 6**, made visible at **Slice 12** | Slice 6 introduces the simulated provider and the `simulated: true` label; Slice 12 shows the simulated label in the judge ledger. Ask the user at Slice 6, before the label is written anywhere a judge will read |
+| F6 | **Decide the owner after an escalation.** `action_owner_id` ignores `escalation_id`, so an escalated episode still names the patient. I4 allows "an explicit human service" as the acting party, and the projection cannot express it | **Slice 5**, re-checked at **Slice 10** | Slice 5 records escalations (`POST /escalations`); Slice 10 is where the owner is rendered. Decide when the escalation is first recorded |
+| §2.2 | **Amend `03-planback-closure-contract.md` section 2.2.** The `closed_with_evidence` row ("evidence >= documented, **or** an explicit human acceptance is recorded") and the `expired_unresolved` row ("deadline passed with no evidence") overlap on acceptance plus past-deadline. The document states no order; the implementation puts expiry first, for I2 and because the other order is unrenderable | **Slice 10** | The amendment is the documented form of whatever F4 decides. It is a document edit, not code, and it should follow the Slice 10 rendering decision so the two stay consistent |
 | `source_ref` | ~~**Record the `source_ref` mutation gap.**~~ **SETTLED at Slice 3, 30 Sep.** `mutated_closure` now carries two named flags, one per half of the D11 guard, and a test requires each half to be independently provable. The new test fails when the flag is reverted to the Slice 2 form. No product code changed | ~~Slice 3~~ done | Closed where the constraint it proves was written |
 
 Reminder: the `00-status.md` section for the slice that resolves an item must state the decision and its reason, so a fresh session can see it was made deliberately and not overlooked.
 
-## Gate 4 — slice plan (APPROVED 2026-09-28)
+## Gate 4: slice plan (APPROVED 2026-09-28; reopened and **RE-APPROVED 2026-09-30**)
 
-Thirteen slices, full Gate 3 scope, in `docs/plans/urgent-advice-accessibility/04-slices.md`.
+**Fourteen slices, Slice 0 to Slice 13**, full Gate 3 scope, in `docs/plans/urgent-advice-accessibility/04-slices.md`. **Renumbered 30 September 2026:** old Slice 7 became 8, old 8 became 9, old 9 became 10, old 10 became 11, and old Slices 11 and 12 merged into Slice 12. **Slice 7 is new** (public deployment, Next.js frontend, auth) and **Slice 13 is new and conditional** (ADP interpretation surface, default do not run). **Gates 2, 3 and 4 are APPROVED in `00-status.md` as of 30 September 2026.**
 
-- [ ] Slice 0 — kill tests (**PASS** 28 Sep) + Option C source (**open**)
-- [x] **Slice 1 — tracer bullet: episode to four lines, hardcoded** (28 Sep)
+- [ ] Slice 0: kill tests (**PASS** 28 Sep) + Option C source (**open**)
+- [x] **Slice 1: tracer bullet, episode to four lines, hardcoded** (28 Sep)
 - [x] **Slice 2: pure domain core + enforcing import boundary** (30 Sep; adversarially reviewed and remediated the same day)
 - [x] **Slice 3: append-only state + Closure Contract invariants** (30 Sep; 69 new tests, 310 pass at completion, 332 after the remediation the same day)
-- [ ] Slice 4 — PlanBack end to end, hint ladder, bounded repair ← **next**
-- [ ] Slice 5 — judged fixture + abstention path (blocked on the Option C source)
-- [ ] Slice 6 — action path, simulated provider, platform call + Gate A decision
-- [ ] Slice 7 — baseline instrument: the external card (C1, parallel)
-- [ ] Slice 8 — Gate B: run the comparison (**kill test**)
-- [ ] Slice 9 — Closure Contract in full (starts only after the kill test)
-- [ ] Slice 10 — fault harness + seven sequences
-- [ ] Slice 11 — judge ledger + usage proof
-- [ ] Slice 12 — submission assets
+- [ ] Slice 4: PlanBack end to end, hint ladder, bounded repair. **The usage-proof capture starts here.** ← **next**
+- [ ] Slice 5: judged fixture + abstention path (blocked on the Option C source)
+- [ ] Slice 6: action path, simulated provider, platform call + Gate A decision
+- [ ] **Slice 7: public deployment, the Next.js clinical frontend and auth (NEW 30 Sep)**
+- [ ] Slice 8: baseline instrument, the external card (C1, parallel)
+- [ ] Slice 9: Gate B, run the comparison (**kill test**)
+- [ ] Slice 10: Closure Contract in full (starts only after the kill test)
+- [ ] Slice 11: fault harness + seven sequences
+- [ ] Slice 12: judge ledger, submission assets and the usage proof (merge of old 11 and 12; must land before 16 Oct)
+- [ ] **Slice 13: ADP interpretation surface (CONDITIONAL, Gate 2 gated, default do not run)**
 
 ### Standing constraints for every slice
 
@@ -126,13 +127,15 @@ Thirteen slices, full Gate 3 scope, in `docs/plans/urgent-advice-accessibility/0
 
 | # | Risk | Where |
 |---|---|---|
-| R1 | **Schedule does not fit** — 102–169 h against 144 h available, solo, 18 days | `04-slices.md` §5, §6 |
+| R1 | **Schedule does not fit:** **122–203 h** against 128 h available, solo, 16 days, after Decision D-1b added 20–34 h | `04-slices.md` §5, §6 |
 | R2 | **Gate A never passes** — platform path unproven, spike overdue | `04-slices.md` §6, Slice 6 |
-| R3 | **Recruitment fails** — no dyads means no Gate B | `04-slices.md` §6, Slice 7–8 |
+| R3 | **Recruitment fails:** no dyads means no Gate B | `04-slices.md` §6, Slices 8 and 9 |
 | R4 | **Option C source cannot be cleared** | `04-slices.md` §6, Slice 0/5 |
 | R5 | **Reading B is the real contract** — K1 weakens | `04-slices.md` §1.1, ADR-0007 |
 | R6 | ~~**Callback atomicity fails** — duplicates lost~~ **Resolved at Slice 3, 30 Sep.** `BEGIN IMMEDIATE` plus the busy timeout serialises the lookup and the insert; two connections in two threads on one key yield one applied receipt and one recorded duplicate. Gate 2 was not backtracked | `04-slices.md` §6, Slice 3 |
 | R7 | **Effort estimate is wrong** — 90–150 h unverified | `04-slices.md` §6 |
+| R8 | **The public deployment breaks the append-only record:** WAL on a mounted disk, or an ephemeral path | `04-slices.md` §6, Slice 7 |
+| R9 | **A public surface becomes a clinical claim:** a published agent answers clinical questions with no reviewer | `04-slices.md` §6, Slices 7 and 13 |
 
 ## Review conclusion — round 2
 

@@ -374,10 +374,10 @@ The two-axis ledger is **judge-facing evidence**, shown in the walkthrough and t
 - **CodeBuddy** — development and test authoring, producing the genuine usage evidence. Not the clinical authority, and not a substitute for runtime centrality.
 
 **Application**
-- **Backend:** single small service (Python FastAPI or Node/TypeScript) owning policy versions, episode state, deadlines, consent, permissions and the action ledger. Kept deliberately separate from the coordinator.
-- **Frontend:** accessible text-first web UI — large text, strong contrast, keyboard and screen-reader support, one question at a time, persistent action card, easy correction.
-- **Data:** SQLite or PostgreSQL behind a repository layer; explicit contract for deadlines and consent.
-- **Adapters:** one simulated clinic/booking adapter and one simulated caregiver channel, both labelled. No real NHG, NTU, HealthHub or booking integration exists or is claimed.
+- **Backend (revised 30 September 2026):** one small Python 3.13 + FastAPI service owning policy versions, episode state, deadlines, consent, permissions and the action ledger, deployed on **Render** in Docker on a **paid plan with a mounted persistent disk**; the SQLite path comes from `APP_DATABASE_URL`. Kept deliberately separate from the coordinator.
+- **Frontend (revised 30 September 2026):** a **Next.js clinical frontend on Vercel** calling the Render API as JSON: accessible text-first, large text, strong contrast, keyboard and screen-reader support, one question at a time, persistent action card, easy correction. The earlier server-rendered plain-HTML and vanilla-JS interface is retired (Decision D-1b). **A shared bearer token now protects every `/api` route and `/ledger`**, because the deployment is public.
+- **Data:** SQLite behind a repository layer on the mounted volume; explicit contract for deadlines and consent. **Not** PostgreSQL: moving the store would rewrite `state.py` and its trigger-enforced append-only guarantees, which 91 tests currently prove.
+- **Adapters:** one simulated clinic/booking adapter, labelled. No real NHG, NTU, HealthHub or booking integration exists or is claimed.
 
 **Evaluation**
 - Frozen clinician-reviewed case suite with a fixed random seed; development and evaluation cases kept separate.
@@ -389,7 +389,8 @@ The two-axis ledger is **judge-facing evidence**, shown in the walkthrough and t
 **Optional, only with measured need**
 - **TRTC speech** — for the target population if typing is a demonstrated barrier; text confirmation and text-only fallback required.
 - **Miora** — visual explanations and interface assets if comprehension measurably improves.
-- **ADP / Agent Runtime** — only to supply a capability that is actually missing.
+- **ADP (revised 30 September 2026):** a **published agent surface**, additive to WorkBuddy and never a replacement for the execution substrate (Decision D-A). It may occupy the **interpretation step only**: never the execution path, never the rendering path. Tool execution is a `[vendor claim]`; the MCP tool, the platform-originated failure event and session resume are `[unknown]`. A conditional slice, default do not run. See `02-architecture.md` D8 and `04-slices.md` Slice 13.
+- **Agent Runtime:** only to supply a capability that is actually missing.
 
 **Deliberately excluded**
 - Multi-agent proliferation, a clinician authoring platform, real EHR integration, avatar/voice-first design, broad language coverage before native review, autonomous clinical decisions.
@@ -432,6 +433,8 @@ The **card-versus-PlanBack baseline comparison is a kill test, not a nice-to-hav
 | **Total** | **76–124** |
 
 **This does not fit the 16 October deadline alongside the current full scope.** Scope must be cut. Candidate cuts, all already deferred in the 21 September review: Mandarin voice, broad respiratory intake, patient-facing ledger detail, caregiver orchestration beyond one channel, and booking integration. None is on the critical path to a scoring submission.
+
+**Deployment and hosting effort (added 30 September 2026).** The public deployment, the Next.js clinical frontend and auth add **20 to 34 hours [hypothesis]**, and they sit on the critical path to a public link rather than beside it. That takes the plan-level total recorded in `04-slices.md` section 5 from 102–169 hours to **122–203 hours**, against 128 hours available at 8 h/day across the 16 days from 30 September to 16 October. **The lower bound only fits with zero slack, and the upper bound does not fit at all.** The honest consequence is that the study (Slices 8 and 9, 20 to 34 hours) is the first cut if no dyad is recruited by about 5 October.
 
 ### Capacity and schedule
 
@@ -492,21 +495,22 @@ Seven seeded fault sequences are explicit pass/fail cases, not narrative: timeou
 ## 10. Submission readiness
 
 **Required or treat as required**
+- [ ] **Genuine CodeBuddy/WorkBuddy development history, and at least three development-chat screenshots (redacted). This is the scoring blocker, and it moves to the top of this list: capture starts at Slice 4, not on the last day.** `.gitignore` excludes `.codebuddy/` and `.workbuddy-ai/`, so it cannot be reconstructed later
 - [ ] Confirm team eligibility, registration and healthcare-specific criteria
 - [ ] Declare Challenge 1 at presentation start
 - [ ] Project title
-- [ ] Blurb **under ten words** (candidate: “Understand care advice. Find a feasible next step.”)
+- [ ] Blurb **under ten words** (candidate: "Understand care advice. Find a feasible next step.")
 - [ ] Description: users, pain-point evidence, architecture, prompt role, bounded impact
-- [ ] Genuine CodeBuddy/WorkBuddy development history
-- [ ] At least three development-chat screenshots (redacted)
 - [ ] True 16:9 cover image
 - [ ] Complete GitHub source
 - [ ] Live walkthrough
 - [ ] Architecture and trust-boundary diagram with trade-offs
+- [ ] **The production link (Decision D-C): the Render backend and the Vercel clinical frontend, behind the shared bearer token**
+- [ ] **The ADP Experience URL (Decision D-B), with the agent constrained to refuse clinical advice and its knowledge base limited to the non-clinical fixture**
 
 **Optional**
 - [ ] 5–8-minute video (overview, core agent features, honest build reflection)
-- [ ] Live demo link
+- [ ] ~~Live demo link~~ **now taken as a required item above**: Decisions D-B and D-C reversed the earlier local-only choice on 30 September 2026
 
 **Supporting evidence**
 - [ ] Protocol provenance and review boundaries
