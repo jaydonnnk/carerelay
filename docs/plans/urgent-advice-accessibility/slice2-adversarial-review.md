@@ -180,6 +180,6 @@ while building an earlier one.
 **Suite after remediation: 240 passed, 1 warning** (88 domain, 141 boundaries, 11
 api). Five mutation checks confirmed the new tests are fail-capable **[verified]**.
 No commit, branch or push was made **during the review itself**, and no gate was
-reopened. The work was committed afterwards, the same day, on the user's explicit
-instruction; the four commits and the resulting branch state are recorded in
+reopened. The work was committed and pushed afterwards, the same day, on the user's
+explicit instruction; the commit range and the resulting branch state are recorded in
 `00-status.md`.
