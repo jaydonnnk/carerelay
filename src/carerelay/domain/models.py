@@ -241,6 +241,26 @@ class AttemptSnapshot:
 
 
 @dataclass(frozen=True)
+class AttemptCommand:
+    """A request to open one attempt, before the store assigns anything.
+
+    `purpose_id` is part of the identity because D5 derives the idempotency key
+    from `(episode, route, attempt-purpose)`. A new purpose id is an explicit
+    authorised retry; a double tap reuses the same triple and therefore the same
+    key.
+
+    `consent_version` is stamped here and re-checked at record time, so an
+    attempt opened under a consent that is later revoked cannot be recorded as
+    a success (`03-program-design.md` section 3).
+    """
+
+    episode_id: str
+    route_id: str
+    purpose_id: str
+    consent_version: int
+
+
+@dataclass(frozen=True)
 class EvidenceRecord:
     """One row of `evidence`.
 
@@ -253,6 +273,22 @@ class EvidenceRecord:
     simulated: bool
     provenance: str
     source_ref: str | None
+
+
+@dataclass(frozen=True)
+class CallbackResult:
+    """What one callback asserts about one attempt.
+
+    `transition` is the terminal execution outcome the callback claims, or
+    `None` when the callback carries evidence only. A value outside
+    `TERMINAL_TRANSITIONS` is refused by the store rather than folded into
+    `attempted`, because a corrupt row must not be able to look like an attempt
+    still in flight (`02-architecture.md` section 4.1).
+    """
+
+    transition: ExecutionStatus | None = None
+    evidence: EvidenceRecord | None = None
+    payload: str = ""
 
 
 @dataclass(frozen=True)

@@ -1151,6 +1151,7 @@ def mutated_closure(
     *,
     ignore_expiry_event: bool = False,
     trust_simulated_evidence: bool = False,
+    trust_unsourced_evidence: bool = False,
     failed_counts_as_closed: bool = False,
 ):
     """`derive_closure` with one named guard disabled at a time.
@@ -1158,6 +1159,13 @@ def mutated_closure(
     `AGENTS.md` section 6 requires that each guard branch be mutated
     independently and produce one real failure. A fault two checks can both
     catch is proof of neither, so each guard is disabled alone.
+
+    The D11 guard has two halves, and they are mutated separately. One flag that
+    removed both (the Slice 2 form of this function) left the `source_ref` half
+    with no independent proof, which the Slice 2 review recorded as an open
+    finding and assigned to Slice 3. `trust_simulated_evidence` removes the
+    `simulated` half only; `trust_unsourced_evidence` removes the `source_ref`
+    half only. Each therefore still has to satisfy the other.
     """
     disposition_value = snapshot.disposition
     execution = (
@@ -1169,7 +1177,13 @@ def mutated_closure(
     if trust_simulated_evidence:
         evidence = EvidenceLevel.NONE
         for record in snapshot.evidence:
-            if record.level is EvidenceLevel.DOCUMENTED:
+            if record.level is EvidenceLevel.DOCUMENTED and record.source_ref:
+                evidence = EvidenceLevel.DOCUMENTED
+                break
+    elif trust_unsourced_evidence:
+        evidence = EvidenceLevel.NONE
+        for record in snapshot.evidence:
+            if record.level is EvidenceLevel.DOCUMENTED and not record.simulated:
                 evidence = EvidenceLevel.DOCUMENTED
                 break
     else:
@@ -1233,6 +1247,42 @@ class TestClosureGuardsAreIndependentlyProven:
                 snapshot, SCENARIO_NOW_UTC, trust_simulated_evidence=True
             ).care_evidenced
             is True
+        )
+
+    def test_the_source_ref_half_of_the_guard_is_independently_proven(self) -> None:
+        """The `source_ref` half of D11, with its own mutation and its own flag.
+
+        Slice 2's single `trust_simulated_evidence` flag removed both halves at
+        once, so `test_an_unsourced_documented_row_cannot_close_care` and
+        `test_a_simulated_documented_row_cannot_close_care` shared one mutation
+        and neither was proven on its own. Slice 3 closed that.
+
+        Three assertions, and all three are needed: the guard holds as written;
+        removing the `source_ref` half alone lets an unsourced row through; and
+        removing the `simulated` half alone does **not** let an unsourced row
+        through, so the two flags are not the same mutation wearing two names.
+        """
+        unsourced = empty_snapshot(evidence=(DOCUMENTED_UNSOURCED,))
+        assert rules.derive_closure(unsourced, SCENARIO_NOW_UTC).care_evidenced is False
+        assert (
+            mutated_closure(
+                unsourced, SCENARIO_NOW_UTC, trust_unsourced_evidence=True
+            ).care_evidenced
+            is True
+        )
+        assert (
+            mutated_closure(
+                unsourced, SCENARIO_NOW_UTC, trust_simulated_evidence=True
+            ).care_evidenced
+            is False
+        )
+
+        simulated = empty_snapshot(evidence=(DOCUMENTED_SIMULATED,))
+        assert (
+            mutated_closure(
+                simulated, SCENARIO_NOW_UTC, trust_unsourced_evidence=True
+            ).care_evidenced
+            is False
         )
 
     def test_treating_a_failed_attempt_as_closed_is_caught(self) -> None:
