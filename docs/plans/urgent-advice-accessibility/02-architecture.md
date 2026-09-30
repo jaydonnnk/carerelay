@@ -2,7 +2,7 @@
 
 **Gate 2 — APPROVED 25 September 2026 (revision 2).** Approval authorises the Gate A access spike only; it does **not** authorise implementation code. Gates 3 and 4 remain open, and no code may be written before Gate 4. Authority for the gate state is `00-status.md`.
 
-**Revision 2 incorporated the independent adversarial review at `gate2-adversarial-review-thorough.md` (verdict: APPROVE WITH CHANGES).** Every blocking change in that review's §5 was applied or explicitly resolved. §11 is the change log.
+**Revision 2 incorporated the independent adversarial review at `docs/reviews/gate2-adversarial-review-thorough.md` (verdict: APPROVE WITH CHANGES).** Every blocking change in that review's §5 was applied or explicitly resolved. §11 is the change log.
 
 Read first: `00-status.md`, `01-product.md` (approved), `PLAN.md` §5–§6, `DESIGN_PRINCIPLES.md`, `03-planback-closure-contract.md`, `research-workarounds.md`.
 

@@ -102,7 +102,7 @@ false-completion half is where the reframe's whole claim lives.
 Two secondary validity problems in the same decision: (a) "counterbalanced dyads" (D6) means
 within-subject cross-over on the same fixture, and comprehension carry-over from PlanBack to the
 card arm is severe and unaddressed; (b) serving the card inside the same accessible app chrome
-erases the card's real advantage (lowest burden, `02-adversarial-review.md` §D), which is precisely
+erases the card's real advantage (lowest burden, `gate2-adversarial-review-round1.md` §D), which is precisely
 the advantage the kill test is supposed to measure.
 
 Failure scenario: the study runs, both arms show 0/6 false completion, the headline is "no
@@ -558,14 +558,14 @@ and D4's removal of the "resolved" write path are better than this review's tone
 marked Agree in the decision table and neither needed a paragraph. I also checked whether I was
 absorbing the author's framing: the three headline findings are all internal-contradiction or
 measurement-validity findings that the document's own sections supply, not inherited from
-`02-adversarial-review.md` or `DESIGN_PRINCIPLES.md`.
+`gate2-adversarial-review-round1.md` or `DESIGN_PRINCIPLES.md`.
 
 ---
 
 ## 10. Confidence statement
 
 **Verified against files (read in full):** every citation above to `02-architecture.md`,
-`01-product.md`, `00-status.md`, `03-planback-closure-contract.md`, `02-adversarial-review.md`,
+`01-product.md`, `00-status.md`, `03-planback-closure-contract.md`, `gate2-adversarial-review-round1.md`,
 `research-workarounds.md`, `DESIGN_PRINCIPLES.md`, `PLAN.md`, `CHALLENGE_REQUIREMENTS_JUDGING.md`,
 `ADDITIONAL_CHALLENGE_INFO.md`, `PROGRESS.md`, `tasks/todo.md`, `tasks/lessons.md`, `AGENTS.md`, the
 five mockups and `mockups/index.html`. Git state verified by direct command: branch

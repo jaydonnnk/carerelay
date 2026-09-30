@@ -1,7 +1,7 @@
 # PlanBack and the Closure Contract — specification and feasibility
 
 Date: **21 September 2026**. Author: Brody. Status: **specification; the mechanisms were carried into the approved Gate 1 product scope on 25 September 2026.** This document itself is not a gate approval — the authoritative gate state is in `00-status.md`.
-Source: `02-adversarial-review.md` §E ranks both as the top two changes. This document turns them into something buildable and checks whether they actually are.
+Source: `docs/reviews/gate2-adversarial-review-round1.md` §E ranks both as the top two changes. This document turns them into something buildable and checks whether they actually are.
 
 Nothing here authorises implementation. Gate 1 (Product) was approved on 25 September 2026; Gate 2 (Architecture) is in progress and no code may be written before Gate 4.
 
@@ -28,7 +28,7 @@ Neither needs exotic technology. Both are **ordinary engineering with unusual di
 
 ### 1.2 Where it comes from
 
-Aviation read-back / hear-back. A controller issues a clearance, the pilot reads it back, the controller verifies the readback before the aircraft moves. `02-adversarial-review.md` §C names this as the donor mechanism. It is **prior art**, openly documented by the FAA. It is not our invention, and we must not present it as one. What may be ours is the *clinically constrained, patient-visible* version and a measured advantage.
+Aviation read-back / hear-back. A controller issues a clearance, the pilot reads it back, the controller verifies the readback before the aircraft moves. `docs/reviews/gate2-adversarial-review-round1.md` §C names this as the donor mechanism. It is **prior art**, openly documented by the FAA. It is not our invention, and we must not present it as one. What may be ours is the *clinically constrained, patient-visible* version and a measured advantage.
 
 ### 1.3 The loop
 
@@ -188,7 +188,7 @@ episode.attempts.append(Attempt(route_id=r, idempotency_key=k, status="attempted
 
 ### 2.5 What the patient sees
 
-The review is blunt that the full ladder is emotionally cold (`02-adversarial-review.md` §"Emotional verdict"). The patient UI shows **four lines and nothing else**:
+The review is blunt that the full ladder is emotionally cold (`docs/reviews/gate2-adversarial-review-round1.md` §"Emotional verdict"). The patient UI shows **four lines and nothing else**:
 
 1. Help is not arranged.
 2. You or [named person] must act now.
@@ -235,7 +235,7 @@ The build-only portion (excluding the baseline) is **56–89 hours**, which brac
 
 ### 3.4 The kill tests
 
-Adopt these verbatim, from `02-adversarial-review.md` §C, as **pre-registered** decision rules. Write them down now, before seeing results, so the result cannot be rationalised afterwards.
+Adopt these verbatim, from `docs/reviews/gate2-adversarial-review-round1.md` §C, as **pre-registered** decision rules. Write them down now, before seeing results, so the result cannot be rationalised afterwards.
 
 | Mechanism | Killed if |
 |---|---|
@@ -310,7 +310,7 @@ Ordered by risk-first and by what kills the project soonest. Each step is indepe
 | 6 | Judge-facing ledger view + trust-boundary diagram | 6–10 | — | — |
 | 7 | Submission assets | 8–14 | — | — |
 
-**Cut now, not later:** Mandarin voice, broad respiratory intake, patient-facing ledger detail, caregiver orchestration beyond one channel, booking integration. Every one of these is deferred in `02-adversarial-review.md` §E and none of them is on the critical path to a scoring submission.
+**Cut now, not later:** Mandarin voice, broad respiratory intake, patient-facing ledger detail, caregiver orchestration beyond one channel, booking integration. Every one of these is deferred in `docs/reviews/gate2-adversarial-review-round1.md` §E and none of them is on the critical path to a scoring submission.
 
 **The 26 September decision point.** If step 4 has not produced a working end-to-end tracer, cut everything except steps 1–2 and submit the narrow comparison. A small honest result beats a large unbuilt claim.
 

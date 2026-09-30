@@ -78,22 +78,25 @@ Authority rules:
 
 ## 3. Current state, gates and authorization
 
-- **2026-09-25 current authority:** Gates 1 (Product) and 2 (Architecture) are
-  APPROVED. Gate 3 (Program Design) and Gate 4 (Slice Plan) are pending, and no
-  slices exist. Gate 2 approval authorises the Gate A access spike only.
-  **No implementation code may be written before Gate 4 approval.**
+- **2026-09-30 current authority:** Gates 1 (Product), 2 (Architecture), 3
+  (Program Design) and 4 (Slice Plan) are all APPROVED. Slices 1, 2 and 3 are
+  complete; Slice 4 is next. Gate 4 approval authorises implementation code slice
+  by slice, in the planned order, and nothing else. **Each slice stops for the
+  user's "continue, or re-steer?" before the next one begins.**
 - Gate 1 approval covers the reframe, PlanBack, the recall hint ladder, the Closure
   Contract, the two-axis state model, the design principles and the five HTML
   wireframes. It does not authorise implementation, installs, credentials, external
   calls, recruitment or deployment.
-- Branch state (verified 30 September 2026): `main` and `slice-3` sit at `b19b36e`;
-  `slice-2-domain-core` sits at `80245e4`. `gate-2-architecture` and
-  `care-relay-adversarial-review` no longer exist as branches; their commits remain
-  reachable from `main`. `origin` holds exactly one branch, `refs/heads/main`, at
-  `b19b36e`, in sync with local `main`. No gate authorises a commit or a push: these
-  commits were made and pushed on the user's **explicit instruction** of 30 September
-  2026. The push succeeded, so the credential failures recorded in `tasks/lessons.md`
-  no longer apply.
+- Branch state (verified 30 September 2026, after Slice 3): `main` and `slice-3`
+  both sit at `e3d4dad`; `slice-2-domain-core` sits at `80245e4`.
+  `gate-2-architecture` and `care-relay-adversarial-review` no longer exist as
+  branches; their commits remain reachable from `main`. `origin` holds exactly one
+  branch, `refs/heads/main`, at `e3d4dad`, in sync with local `main`. No gate
+  authorises a commit or a push: the Slice 1 and 2 commits were made and pushed on
+  the user's **explicit instruction** of 30 September 2026. The push succeeded, so
+  the credential failures recorded in `tasks/lessons.md` no longer apply. **Slice 3
+  is uncommitted**: two untracked files (`src/carerelay/state.py`,
+  `tests/test_state.py`) and two unstaged edits, on `slice-3`.
 - **Next hard dependency: the Gate A access spike, due 2026-09-26.** Approval of
   Gate 2 authorises the spike only (read-only credential checks and one typed tool
   call), not implementation code. The reversal is pre-recorded: if WorkBuddy access

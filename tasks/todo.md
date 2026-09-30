@@ -57,7 +57,7 @@
 ## Gate 2: Architecture (approved); Gate 3: Program Design (in progress)
 
 - [x] Write `02-architecture.md` revision 1: D1–D10, module boundaries, endpoints, data, flows, external surfaces, Gate A spike questions.
-- [x] Independent round-2 adversarial review (`gate2-adversarial-review-thorough.md`) — verdict APPROVE WITH CHANGES, three blocking defects.
+- [x] Independent round-2 adversarial review (`docs/reviews/gate2-adversarial-review-thorough.md`) — verdict APPROVE WITH CHANGES, three blocking defects.
 - [x] Apply all blocking changes as revision 2: attempt transitions, pinned tool path, external between-subjects baseline, missing endpoints/tables, D9 dropped, degraded states, D11/D12 invariants, expired screen, honest claim restatement.
 - [x] Fix stale mirrors and mockup numbering.
 - [x] **Gate 1 reopened and re-approved (25 Sep):** H2 timer removed (card stays until the patient hides it); expired-screen wording approved and softened.
@@ -77,8 +77,9 @@
 - [x] Resolve ADR-0007 (canonicalisation layer) at Gate 4 approval — **Reading A accepted**, ADR now `accepted`.
 - [x] **Slice 1 complete** — tracer bullet runs; 11 tests pass; curl-verified live; documented defect found and fixed.
 - [ ] Select the Option C source; check licensing and Singapore applicability. **Precedes Slice 5.**
-- [x] **Slice 2 complete**: pure domain core plus an enforcing import boundary; boundary check seen red then green; 240 tests pass after the adversarial review and remediation (30 Sep). Review: `docs/plans/urgent-advice-accessibility/slice2-adversarial-review.md`
+- [x] **Slice 2 complete**: pure domain core plus an enforcing import boundary; boundary check seen red then green; 240 tests pass after the adversarial review and remediation (30 Sep). Review: `docs/reviews/slice2-adversarial-review.md`
 - [x] **Slice 2 adversarial review + remediation** (30 Sep). Verdict: exit contract met with named caveats. Two blockers fixed (a stale deadline rendered to the patient, and a false CRLF claim in `00-status.md`); the boundary scanner's five evasions closed; `project_attempt` now validates every row; the K1 corpus widened with independently-chosen phrasings.
+- [x] **Slice 3 complete** (30 Sep): the append-only SQLite record. Thirteen tables, every one refusing UPDATE and DELETE by trigger; the D11 `CHECK` proven independently of the Python guard; the callback representation proven atomic under two concurrent writers and under an injected crash; the `source_ref` mutation gap from the Slice 2 review closed. 69 new tests, 310 pass. Eleven mutations each seen RED and each reverted with an md5 check.
 
 ### Open from the Slice 2 review: deferred to the slice where each becomes live
 
@@ -90,7 +91,7 @@
 | F5 | **Decide what `simulated` means.** It is currently `not care_evidenced`, conflating "this episode is a simulation" with "care is not evidenced". The code implements the D11 rule as written, so this is a semantics decision, not a bug fix | **Slice 6**, made visible at **Slice 11** | Slice 6 introduces the simulated provider and the `simulated: true` label; Slice 11 shows the simulated label in the judge ledger. Ask the user at Slice 6, before the label is written anywhere a judge will read |
 | F6 | **Decide the owner after an escalation.** `action_owner_id` ignores `escalation_id`, so an escalated episode still names the patient. I4 allows "an explicit human service" as the acting party, and the projection cannot express it | **Slice 5**, re-checked at **Slice 9** | Slice 5 records escalations (`POST /escalations`); Slice 9 is where the owner is rendered. Decide when the escalation is first recorded |
 | §2.2 | **Amend `03-planback-closure-contract.md` section 2.2.** The `closed_with_evidence` row ("evidence >= documented, **or** an explicit human acceptance is recorded") and the `expired_unresolved` row ("deadline passed with no evidence") overlap on acceptance plus past-deadline. The document states no order; the implementation puts expiry first, for I2 and because the other order is unrenderable | **Slice 9** | The amendment is the documented form of whatever F4 decides. It is a document edit, not code, and it should follow the Slice 9 rendering decision so the two stay consistent |
-| `source_ref` | **Record the `source_ref` mutation gap.** The D11 guard's `simulated` and `source_ref` halves share one mutation flag, so the `source_ref` half has no independent proof. One extra named flag closes it | **Slice 3** | Slice 3 writes the `evidence` table and its D11 `CHECK`; the mutation flag belongs with the constraint it proves |
+| `source_ref` | ~~**Record the `source_ref` mutation gap.**~~ **SETTLED at Slice 3, 30 Sep.** `mutated_closure` now carries two named flags, one per half of the D11 guard, and a test requires each half to be independently provable. The new test fails when the flag is reverted to the Slice 2 form. No product code changed | ~~Slice 3~~ done | Closed where the constraint it proves was written |
 
 Reminder: the `00-status.md` section for the slice that resolves an item must state the decision and its reason, so a fresh session can see it was made deliberately and not overlooked.
 
@@ -101,8 +102,8 @@ Thirteen slices, full Gate 3 scope, in `docs/plans/urgent-advice-accessibility/0
 - [ ] Slice 0 — kill tests (**PASS** 28 Sep) + Option C source (**open**)
 - [x] **Slice 1 — tracer bullet: episode to four lines, hardcoded** (28 Sep)
 - [x] **Slice 2: pure domain core + enforcing import boundary** (30 Sep; adversarially reviewed and remediated the same day)
-- [ ] Slice 3: state, append-only, Closure Contract invariants ← **next**
-- [ ] Slice 4 — PlanBack end to end, hint ladder, bounded repair
+- [x] **Slice 3: append-only state + Closure Contract invariants** (30 Sep; 69 new tests, 310 pass)
+- [ ] Slice 4 — PlanBack end to end, hint ladder, bounded repair ← **next**
 - [ ] Slice 5 — judged fixture + abstention path (blocked on the Option C source)
 - [ ] Slice 6 — action path, simulated provider, platform call + Gate A decision
 - [ ] Slice 7 — baseline instrument: the external card (C1, parallel)
@@ -129,7 +130,7 @@ Thirteen slices, full Gate 3 scope, in `docs/plans/urgent-advice-accessibility/0
 | R3 | **Recruitment fails** — no dyads means no Gate B | `04-slices.md` §6, Slice 7–8 |
 | R4 | **Option C source cannot be cleared** | `04-slices.md` §6, Slice 0/5 |
 | R5 | **Reading B is the real contract** — K1 weakens | `04-slices.md` §1.1, ADR-0007 |
-| R6 | **Callback atomicity fails** — duplicates lost | `04-slices.md` §6, Slice 3 |
+| R6 | ~~**Callback atomicity fails** — duplicates lost~~ **Resolved at Slice 3, 30 Sep.** `BEGIN IMMEDIATE` plus the busy timeout serialises the lookup and the insert; two connections in two threads on one key yield one applied receipt and one recorded duplicate. Gate 2 was not backtracked | `04-slices.md` §6, Slice 3 |
 | R7 | **Effort estimate is wrong** — 90–150 h unverified | `04-slices.md` §6 |
 
 ## Review conclusion — round 2

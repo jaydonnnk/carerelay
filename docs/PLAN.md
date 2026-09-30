@@ -4,7 +4,7 @@ Planning document for the **Tencent Cloud "AI CAN DO IT" Hackathon Singapore 202
 
 This replaces the 16 September session-transfer version. It consolidates two reviews: an evidence and feasibility audit, and a refactor that prioritises organiser-native capability.
 
-**21 September revision:** PlanBack (§5.1) and the Closure Contract (§6.1) are now part of the plan, following the independent adversarial review of 21 September. The single-ladder state model in §6 has been corrected to two independent axes. See `docs/plans/urgent-advice-accessibility/02-adversarial-review.md` and `03-planback-closure-contract.md`.
+**21 September revision:** PlanBack (§5.1) and the Closure Contract (§6.1) are now part of the plan, following the independent adversarial review of 21 September. The single-ladder state model in §6 has been corrected to two independent axes. See `docs/reviews/gate2-adversarial-review-round1.md` and `03-planback-closure-contract.md`.
 
 Every claim below is labelled:
 
