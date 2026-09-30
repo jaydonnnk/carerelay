@@ -3,7 +3,7 @@
 **Supporting note. Authoritative for nothing.**
 
 Reviewed 30 September 2026 against branch `slice-3`, HEAD `e3d4dad`, working tree
-uncommitted. No commit, branch, push or tag was made. The tree was left exactly as
+uncommitted at the time of review. No commit, branch, push or tag was made. The tree was left exactly as
 found: `git status --short --untracked-files=all` listed 9 paths before and after,
 and `src/carerelay/state.py` hashed `326d31fa8473c7aeeb1bd39ab35491e3` before and
 after every experiment. Scratch scripts were written to `%TEMP%` and deleted.
@@ -17,10 +17,11 @@ code. `00-status.md` now carries the corrections to F2, F3, F11 and F12 and reco
 this review in its slice list. Section 8 says what was corrected and what was
 deliberately left alone.
 
-The tree has since grown from the 9 paths this review recorded to 18, because the
+The 9 paths this review recorded describe the review session, not the tree today. The
 30 September documentation restructure added `docs/README.md` and this note and renamed
-four review files into `docs/reviews/`. The 9-path figure describes the review session,
-not the tree today.
+four review files into `docs/reviews/`, and the whole Slice 3 work was then committed on
+the user's explicit instruction and fast-forwarded into `main`.
+`git status --short --untracked-files=all` is now empty.
 
 Evidence labels: `[verified]` observed by me in this session, `[estimate]` my
 judgement, `[guess]` a hunch, `[unknown]` not established.
@@ -99,7 +100,7 @@ in `00-status.md` is blocker-grade by this project's own rule.
 `docs/plans/urgent-advice-accessibility/00-status.md:115`.
 
 What I observed: `docs/plans/urgent-advice-accessibility/slice-3-review-prompt.md` is
-absent, and `git status --short --untracked-files=all` lists **9** paths, not the
+absent, and `git status --short --untracked-files=all` listed **9** paths at review time, not the
 claimed ten. This is the second consecutive slice where this exact row was wrong: the
 Slice 2 version of the row said four paths when the tree held nine.
 
@@ -494,7 +495,7 @@ that extra width have no test (F5). Second, the exit contract asked for one visi
 demonstration and received 1280 lines of module plus 1136 lines of tests for a layer
 no route and no user touches yet. Third, `derive_attempt_key` (reading 10) is a
 service-layer decision placed in the store. Against that: this is the substrate for
-everything downstream, it is uncommitted and therefore reversible, and the tests are
+everything downstream, it is a self-contained layer a revert can remove cleanly, and the tests are
 mostly doing real work. My verdict is not "over-built" but "wider than the contract,
 with unproven constraints inside the extra width". If the schedule (R1: 102 to 169
 hours against 144 available) has to give, the extra width is where to cut, not the
