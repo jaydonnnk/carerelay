@@ -147,7 +147,7 @@ a third routes to the human path (C6).
 
 **Carried into Slice 4 and later:** the Option C source (blocks Slice 5), F5 at Slice 6, F6 at
 Slice 5, F4 and the §2.2 amendment at Slice 9, and Gate A (still unrun, fallback recorded for
-Slice 6). Slice 3 is **committed** on branch `slice-3`.
+Slice 6). Slice 3 is **committed** on branch `slice-3` and fast-forwarded into `main`.
 
 - 2026-09-30: **Slice 2 complete and adversarially reviewed**; remediated the same day (two
   blockers, five scanner evasions, a corpus widened against self-serving entries). 240 tests pass.
