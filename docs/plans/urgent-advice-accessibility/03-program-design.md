@@ -1,14 +1,14 @@
 # Program design: CareRelay urgent-advice accessibility
 
-**Gate 3 — APPROVED 26 September 2026.** Approval authorises drafting Gate 4 only. It does **not** authorise code, installs, credentials, recruitment, external calls, or a push.
+**Gate 3: APPROVED 30 September 2026 (re-approved).** First approved 26 September 2026. Reopened because Decision **D-1b** moves the clinical screens from server-rendered Python to a Next.js frontend on Vercel, which changed this document's file list (§2) and falsified its statement that no public auth flow is implied. **The reopened change is confined to §1 and §2.** The type contracts, call stacks and test plan in §3 to §8 are unchanged. **Re-approved 30 September 2026.**
 
-Authority: `00-status.md` records Gate 1, Gate 2 revision 2 and Gate 3 as approved. This document specifies that architecture; it does not add a clinical pathway, scheduler, real integration, or public deployment. The Gate A result, clinical review, participant access, and the card comparison are **[unknown]**.
+Authority: `00-status.md` records Gate 1, Gate 2 revision 3 and Gate 3 as approved.
 
 **Amended at approval (26 September 2026):** §6's blocking clinical dependency is **resolved by decision** — the user selected **Option A + C** from `clinical-review-blocker.md`: a non-clinical comparator (A) with the fixture sourced from attributable published guidance (C). Consequence: **D6's comparator material changes, which is a Gate 2 backtrack** and is recorded as such in `00-status.md`. Two of the three PlanBack kill conditions are lifted out of the study and run immediately with no participants (§6.1, new).
 
 ## 1. Scope and stop conditions
 
-- **[verified, approved design]** Python 3.13, FastAPI, SQLite, server-rendered HTML and vanilla JS are the default. Check the environment before Slice 1; any Node reversal must precede the first domain-code commit.
+- **[verified, approved design]** Python 3.13, FastAPI and SQLite remain the backend default on Render, with the SQLite path supplied by `APP_DATABASE_URL` on a mounted persistent disk. **[REOPENED AND RE-APPROVED 30 September 2026]** The **Node and Next.js reversal is now made**: the clinical frontend is a Next.js app on Vercel calling the Render API as JSON, so server-rendered HTML and vanilla JS are no longer the presentation target (Decision **D-1b**, user instruction 30 September 2026). The original trigger required this decision before the first domain-code commit; Slices 1 to 3 had already shipped, so it is recorded as **made now**, with the reason and the date. A public deployment and a shared bearer token are now implied (§2).
 - **[verified, approved design]** One bounded, scripted recommendation fixture, one simulated provider, one caregiver name, one failed action, one interruption. The fixture is labelled as a research demonstration. No arbitrary symptom input may generate a patient-ready disposition without a qualified reviewer and authorised protocol.
 - **[verified, approved design]** WorkBuddy is the primary coordinator path. It must execute the MCP tool through the platform, and the ledger must show the platform failure origin. If Gate A fails, use a labelled `local-sim` path and weaken the platform claim. CodeBuddy development history is the recorded usage-proof fallback; its proof is not yet present.
 - **[verified, approved design]** The fixed card and the Gate B comparison precede the Closure Contract build in Gate 4. D9 scheduled reassessment, Mandarin voice, real booking, a second adapter, and caregiver messaging are outside this build.
@@ -20,7 +20,7 @@ The list is the intended implementation footprint, not files authorised by this 
 
 | File | Responsibility |
 |---|---|
-| `pyproject.toml` | Pin the Python version, runtime and test dependencies, and focused check commands. No install is authorised by this document. |
+| `pyproject.toml` | Pin the Python version, runtime and test dependencies, and focused check commands. **`jinja2` is removed** (declared at line 12, imported nowhere; D-1b leaves no server-side HTML to render). No install is authorised by this document. |
 | `src/carerelay/__init__.py` | Package marker only. |
 | `src/carerelay/domain/models.py` | Frozen value types and enums for disposition, facts, consent, attempts, evidence, expiry, PlanBack, and closure. No I/O. |
 | `src/carerelay/domain/rules.py` | Pure route validation, PlanBack comparison, abstention, transition projection, ownership, closure, and four-line projection rules. No I/O, SDK, or wall clock. |
@@ -29,12 +29,13 @@ The list is the intended implementation footprint, not files authorised by this 
 | `src/carerelay/coordinator.py` | WorkBuddy SDK boundary plus a separately labelled local simulation implementation. Returns structured values only; never writes the database. |
 | `src/carerelay/tools.py` | MCP `get_episode`, `submit_simulated_request`, and `record_evidence` handlers. Rechecks authorisation, consent, route, and attempt key server-side. |
 | `src/carerelay/simulated_provider.py` | One deterministic, local-only scripted provider port. Every response has `simulated: true`. |
-| `src/carerelay/api.py` | FastAPI routes from Gate 2 §3.1, request validation, local-only binding, and HTTP error mapping. No clinical decision logic. |
-| `src/carerelay/presentation.py` | Patient, judge, and research response serializers; policy-owned text only. Owns no state. |
-| `src/carerelay/templates/patient.html` | Accessible one-question patient view and the approved four-line unresolved or expired rendering. |
-| `src/carerelay/templates/ledger.html` | Local judge view of the two axes, transitions, expiry, simulation label, and failure origin. |
-| `src/carerelay/static/app.js` | Progressive enhancement for form submission, transcript confirmation, hint disclosure, and resume; no clinical rules. |
-| `src/carerelay/static/style.css` | Text-first, high-contrast, responsive presentation; no timed hiding or auto-advance. |
+| `src/carerelay/api.py` | FastAPI routes from Gate 2 §3.1, request validation, **the shared bearer-token dependency on every route and on `/ledger`**, CORS locked to the Vercel origin, and HTTP error mapping. No clinical decision logic. |
+| `src/carerelay/presentation.py` | **JSON serializers only** (patient, judge, research). Policy-owned text only. Owns no state and, under D-1b, renders no HTML. |
+| `src/carerelay/templates/` | **Removed under D-1b.** The clinical screens are Next.js components under `frontend/`. This directory does not exist and is not created. |
+| `src/carerelay/static/` | **Removed under D-1b.** Presentation assets live with the Next.js app. |
+| `Dockerfile`, `render.yaml` | Backend image and the Render service definition: the paid plan, the **mounted persistent disk**, and the `APP_DATABASE_URL` mount path. |
+| `frontend/` (Next.js) | The clinical frontend on Vercel: the one-question patient screen, the four-line unresolved and expired renderings, the hint disclosure control, and the judge ledger view. Calls the Render API as JSON. **No clinical rules**: text comes from the API, never from a component. |
+| `frontend/lib/api.ts` | Typed API client and the bearer-token header. No policy logic. |
 | `fixtures/scripted_episode.json` | Fictional, explicitly simulated plan and permitted vocabulary. No real facility, ward, clinician, threshold, or reviewed-content claim. |
 | `study/fixed-card.html` | Standalone external card to print or export, with the same fixture wording, legitimate options, link, and human route. It is not an in-app condition. |
 | `study/protocol.md` | Pre-registration, allocation, consent, scripted failure question, answer key, raw outcome sheet, and cut rule before any participant session. |
@@ -42,13 +43,13 @@ The list is the intended implementation footprint, not files authorised by this 
 | `tests/test_domain.py` | PlanBack, route vocabulary, abstention, ownership, transition, closure, and expiry truth tables. |
 | `tests/test_state.py` | SQLite constraints, append-only behaviour, atomicity, callback races, and restart persistence. |
 | `tests/test_service.py` | Consent/version race, idempotency, coordinator failure, reassessment authority, and resume. |
-| `tests/test_api.py` | Route contracts and serialized patient/ledger projections, including labels and expired copy. |
+| `tests/test_api.py` | Route contracts and serialized patient/ledger projections, including labels, expired copy, and the auth dependency. |
 | `tests/test_coordinator.py` | Contract tests for structured outputs and observed origin; SDK availability is not faked as Gate A proof. |
 | `tests/test_fault_sequences.py` | Seven deterministic injected sequences from `PLAN.md` §9, with each invariant asserted at the boundary it protects. |
 | `tests/test_boundaries.py` | Import rule, forbidden-content scanner with serialized self-tests, and no-model-text-to-patient checks. |
 | `tests/test_study.py` | Equal-content card check, response scoring, allocation integrity, and small-sample reporting rules. |
 
-No extra application package, scheduler worker, TRTC file, public auth flow, or submission asset is implied. The approved Gate 2 `/api` routes are all mapped to `api.py`; the three MCP tools are mapped to `tools.py`.
+**Amended 30 September 2026 (Gate 3 reopen).** A public auth flow **is** now implied, so the sentence that said none was is corrected rather than left standing. `jinja2` is removed from `pyproject.toml`: it was declared at line 12 and imported nowhere, and under D-1b there is no server-side HTML to render. The approved Gate 2 `/api` routes are all mapped to `api.py`; the three MCP tools are mapped to `tools.py`; the clinical screens are mapped to `frontend/` and are not Python files.
 
 ## 3. Types and signatures
 
@@ -191,7 +192,7 @@ The service generates one idempotency key from `(episode_id, route_id, purpose_i
 
 **Expiry:** the first patient or ledger read after an unresolved deadline calls `record_expiry_once` before projecting. No scheduler is implied. Once recorded, a backward clock cannot reopen that disposition. Later evidence can be shown with its own timestamp without erasing the prior expiry event.
 
-**Route mapping:** `/episodes` creates the fixture-bound episode; `/intake`, `/clarifications`, `/transcript-confirmations`, `/restatements`, `/restatements/{rid}/repairs`, `/hint-events`, `/barriers`, `/consents`, `/actions`, `/callbacks/{route_id}`, `/acceptances`, `/escalations`, and `/reassessments` call the correspondingly named service operation. `/episodes/{id}`, `/options`, and `/ledger` are read projections. `/api/study/{session_id}/responses` writes to the separate research response store and never changes a clinical episode. Every write route validates a server-side episode/version or callback binding; the local-only demo is not a public API.
+**Route mapping:** `/episodes` creates the fixture-bound episode; `/intake`, `/clarifications`, `/transcript-confirmations`, `/restatements`, `/restatements/{rid}/repairs`, `/hint-events`, `/barriers`, `/consents`, `/actions`, `/callbacks/{route_id}`, `/acceptances`, `/escalations`, and `/reassessments` call the correspondingly named service operation. `/episodes/{id}`, `/options`, and `/ledger` are read projections. `/api/study/{session_id}/responses` writes to the separate research response store and never changes a clinical episode. Every write route validates a server-side episode/version or callback binding. **[REOPENED AND RE-APPROVED 30 September 2026]** The demo is no longer local-only: every `/api` route and `/ledger` sit behind the shared bearer-token dependency of Gate 2 D13, with CORS locked to the Vercel origin, so the public deployment is authenticated rather than open.
 
 ## 4. Call stacks
 
