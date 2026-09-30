@@ -1,7 +1,7 @@
 # Independent review: ADP, hosting, tech stack, and the slice plan
 
 **Kind:** adversarial review, read only at the time of writing. **Written:** 30 September 2026.
-**Brief:** `docs/reviews/adp-hosting-stack-review-prompt.md`.
+**Brief:** delivered in chat on 30 September 2026, not as a repository file. (Corrected 30 September 2026: this line previously cited `docs/reviews/adp-hosting-stack-review-prompt.md`, which was never created.)
 **Scope:** the three new facts (the ADP guide, the Vercel plus Render request, the laeria.ai
 precedent) and their effect on `docs/plans/urgent-advice-accessibility/04-slices.md`.
 **Ground rules at the time of the review:** no file created, edited or deleted; no commit;
