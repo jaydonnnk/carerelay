@@ -90,14 +90,14 @@ Authority rules:
 - Branch state (verified 30 September 2026, after the Slice 3 ship): `slice-3`
   holds the Slice 3 work in four commits (the store's command and result types, the
   append-only record, the documentation restructure, and the record itself), plus
-  this branch-state correction, and `main` is fast-forwarded to the same commit.
-  `slice-2-domain-core` sits at `80245e4`. `gate-2-architecture` and
-  `care-relay-adversarial-review` no longer exist as branches; their commits remain
-  reachable from `main`. `origin` holds exactly one branch, `refs/heads/main`, still
-  at `e3d4dad`: **the Slice 3 commits are not pushed**. No gate authorises a commit
-  or a push, so the Slice 1, 2 and 3 commits were made on the user's **explicit
-  instruction** of 30 September 2026. The push succeeds when it is asked for, so the
-  credential failures recorded in `tasks/lessons.md` no longer apply.
+  the record corrections that follow them, and `main` is fast-forwarded to the same
+  commit and pushed. `slice-2-domain-core` sits at `80245e4`.
+  `gate-2-architecture` and `care-relay-adversarial-review` no longer exist as
+  branches; their commits remain reachable from `main`. `origin` holds exactly one
+  branch, `refs/heads/main`, in sync with local `main`. No gate authorises a commit
+  or a push, so the Slice 1, 2 and 3 commits were made and pushed on the user's
+  **explicit instruction** of 30 September 2026. The push succeeds when it is asked
+  for, so the credential failures recorded in `tasks/lessons.md` no longer apply.
 - **Next hard dependency: the Gate A access spike, due 2026-09-26.** Approval of
   Gate 2 authorises the spike only (read-only credential checks and one typed tool
   call), not implementation code. The reversal is pre-recorded: if WorkBuddy access
