@@ -29,8 +29,13 @@ DEMO_EPISODE_ID = "demo-episode-001"
 
 ACTION_TEXT = "Go to the fictional provider's same-day review."
 DEADLINE_DISPLAY = "6pm today"
-OWNER_DISPLAY = "Myself"  # named owner; see the note on `demo_lines`
 FALLBACK_ROUTE_TEXT = "the fictional nurse line"
+
+#: Line 2, for a demo episode whose owner is the patient. `domain.rules.patient_lines`
+#: owns this rule and renders a third-party owner as "You or [name] must act now.";
+#: this fixture has one hardcoded episode, so it carries the self-owner form only.
+#: `fixtures/scripted_episode.json` agrees: its `next_owner_id` is `patient`.
+SELF_OWNER_SENTENCE = "You must act now."
 
 
 @dataclass(frozen=True)
@@ -39,7 +44,7 @@ class PatientLines:
 
     Order is part of the contract: line 3 carries the deadline, line 4 names the
     fallback route. The expired rendering (`02-architecture.md` 7) is a different
-    set of four lines and arrives with the Closure Contract in Slice 9.
+    set of four lines and arrives with the Closure Contract in Slice 10.
     """
 
     line_1: str
@@ -55,24 +60,30 @@ class PatientLines:
 def demo_lines() -> PatientLines:
     """The unresolved rendering: 'we tried and nobody said yes.'
 
-    Hardcoded for Slice 1. Slice 9 derives this from `domain.patient_lines`
+    Hardcoded for Slice 1. Slice 10 derives this from `domain.patient_lines`
     against the two axes, so the wording stops being a literal.
 
-    **Line 2 note.** `PLAN.md` 6.1 and `02-architecture.md` 7 both render line 2
-    as "You or *[named person]* must act now.", and `01-product.md` does the
-    same. Taken literally with a patient owner that produces "You or you must
-    act now." — a malformed sentence, caught by inspection of the running app on
-    28 September 2026, not by the test suite. It is corrected here to a straight
-    naming of the owner.
+    **Line 2 note.** `PLAN.md` 6.1, `02-architecture.md` 7 and `01-product.md` all
+    render line 2 as "You or *[named person]* must act now." Taken literally with
+    a patient owner that produced "You or you must act now.", a malformed
+    sentence, caught by inspection of the running app on 28 September 2026, not
+    by the test suite.
 
-    **This is a real divergence from three approved documents and it is flagged,
-    not silently absorbed.** The correction belongs in the source documents at
-    the next Gate 1 touch. Slice 9 must implement whichever form those documents
-    then carry — this line is not the authority.
+    The Slice 1 band-aid was `OWNER_DISPLAY = "Myself"`, which rendered "Myself
+    must act now." and was itself malformed. **Slice 2 now owns this rule:**
+    `domain.rules.patient_lines` composes line 2 by owner, rendering a self owner
+    as "You must act now." This fixture mirrors that form, because the demo
+    episode's owner is the patient.
+
+    **This remains a real divergence from three approved documents, flagged and
+    not silently absorbed.** The correction belongs in those documents at the next
+    Gate 1 touch, and `00-status.md` records the reading at the Slice 2 section.
+    Slice 10 replaces this fixture with `domain.patient_lines` and implements
+    whichever form the documents then carry; this line is not the authority.
     """
     return PatientLines(
         line_1="Help is not arranged.",
-        line_2=f"{OWNER_DISPLAY} must act now.",
+        line_2=SELF_OWNER_SENTENCE,
         line_3=f"Before {DEADLINE_DISPLAY}.",
         line_4=f"If this route fails, call {FALLBACK_ROUTE_TEXT}.",
         simulated=True,
