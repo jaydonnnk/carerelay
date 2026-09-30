@@ -80,6 +80,7 @@
 - [x] **Slice 2 complete**: pure domain core plus an enforcing import boundary; boundary check seen red then green; 240 tests pass after the adversarial review and remediation (30 Sep). Review: `docs/reviews/slice2-adversarial-review.md`
 - [x] **Slice 2 adversarial review + remediation** (30 Sep). Verdict: exit contract met with named caveats. Two blockers fixed (a stale deadline rendered to the patient, and a false CRLF claim in `00-status.md`); the boundary scanner's five evasions closed; `project_attempt` now validates every row; the K1 corpus widened with independently-chosen phrasings.
 - [x] **Slice 3 complete** (30 Sep): the append-only SQLite record. Thirteen tables, every one refusing UPDATE and DELETE by trigger; the D11 `CHECK` proven independently of the Python guard; the callback representation proven atomic under two concurrent writers and under an injected crash; the `source_ref` mutation gap from the Slice 2 review closed. 69 new tests, 310 pass. Eleven mutations each seen RED and each reverted with an md5 check.
+- [x] **Slice 3 remediation** (30 Sep, same day): the review's blocking finding and four more closed before Slice 4 began. `PRAGMA recursive_triggers = ON`, so `INSERT OR REPLACE` is refused on every connection this module opens; five fail-capable tests for the previously untested constraints; the NULL-distinctness assumption proven with its own control; `trim(source_ref) <> ''` added to the D11 `CHECK` and the Python guard widened to match. 22 new tests, 332 pass, eight mutations each RED on exactly its own test. **Committed on `slice-3` and merged into `main`.** O5 at Slice 6, O7 at Slice 5, O8 at Slice 10, O2's typed lock error at Slice 6.
 
 ### Open from the Slice 2 review: deferred to the slice where each becomes live
 
@@ -102,7 +103,7 @@ Thirteen slices, full Gate 3 scope, in `docs/plans/urgent-advice-accessibility/0
 - [ ] Slice 0 — kill tests (**PASS** 28 Sep) + Option C source (**open**)
 - [x] **Slice 1 — tracer bullet: episode to four lines, hardcoded** (28 Sep)
 - [x] **Slice 2: pure domain core + enforcing import boundary** (30 Sep; adversarially reviewed and remediated the same day)
-- [x] **Slice 3: append-only state + Closure Contract invariants** (30 Sep; 69 new tests, 310 pass)
+- [x] **Slice 3: append-only state + Closure Contract invariants** (30 Sep; 69 new tests, 310 pass at completion, 332 after the remediation the same day)
 - [ ] Slice 4 — PlanBack end to end, hint ladder, bounded repair ← **next**
 - [ ] Slice 5 — judged fixture + abstention path (blocked on the Option C source)
 - [ ] Slice 6 — action path, simulated provider, platform call + Gate A decision

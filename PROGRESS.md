@@ -147,7 +147,10 @@ a third routes to the human path (C6).
 
 **Carried into Slice 4 and later:** the Option C source (blocks Slice 5), F5 at Slice 6, F6 at
 Slice 5, F4 and the §2.2 amendment at Slice 9, and Gate A (still unrun, fallback recorded for
-Slice 6). Slice 3 is **committed** on branch `slice-3` and fast-forwarded into `main`.
+Slice 6). From the Slice 3 review: O2's typed lock error and O5 at Slice 6, O7 at Slice 5, O8 at
+Slice 10. O1, O3, O4 and O6 were closed by the remediation below and O2's docstring half with them.
+Slice 3 is **committed** on branch `slice-3` and fast-forwarded into `main`, as is the
+remediation.
 
 - 2026-09-30: **Slice 2 complete and adversarially reviewed**; remediated the same day (two
   blockers, five scanner evasions, a corpus widened against self-serving entries). 240 tests pass.
@@ -162,3 +165,15 @@ Slice 6). Slice 3 is **committed** on branch `slice-3` and fast-forwarded into `
   review's `source_ref` gap is closed in `tests/test_domain.py`. Ten readings of the approved
   documents are flagged in `00-status.md`; reading 6 (the snapshot reports the expiry event for the
   current disposition version) wants an explicit yes or no.
+- 2026-09-30: **Slice 3 remediation: the blocking review finding is closed.** O1 to O4 and O6 of the
+  Slice 3 review, plus the F9 minor finding. `PRAGMA recursive_triggers = ON` in
+  `SqliteEpisodeStore.__init__`, which makes `INSERT OR REPLACE` fire the `BEFORE DELETE` triggers
+  and closes the hole that rewrote `dispositions.clinical_deadline_utc`; five fail-capable tests for
+  the constraints the review found untested; a three-delivery test proving SQLite's NULL-distinctness
+  assumption; `trim(source_ref) <> ''` added to the D11 `CHECK` with the Python guard widened to
+  match. Two docstrings that claimed more than the mechanism delivers were corrected. **22 new tests;
+  332 pass** (89 domain, 141 boundaries, 11 api, 91 state). Eight mutations, each applied alone to an
+  anchor asserted to occur exactly once, each RED on exactly its own test and each reverted with an
+  md5 check. A schema-level `BEFORE INSERT` guard was measured and rejected because it also refuses
+  the harmless `INSERT OR IGNORE`. **Committed on `slice-3` and fast-forwarded into `main`**, in two
+  commits: the code, then the record.
