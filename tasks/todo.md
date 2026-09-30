@@ -77,7 +77,22 @@
 - [x] Resolve ADR-0007 (canonicalisation layer) at Gate 4 approval — **Reading A accepted**, ADR now `accepted`.
 - [x] **Slice 1 complete** — tracer bullet runs; 11 tests pass; curl-verified live; documented defect found and fixed.
 - [ ] Select the Option C source; check licensing and Singapore applicability. **Precedes Slice 5.**
-- [ ] Slice 2 — pure domain core + enforcing import boundary.
+- [x] **Slice 2 complete**: pure domain core plus an enforcing import boundary; boundary check seen red then green; 240 tests pass after the adversarial review and remediation (30 Sep). Review: `docs/plans/urgent-advice-accessibility/slice2-adversarial-review.md`
+- [x] **Slice 2 adversarial review + remediation** (30 Sep). Verdict: exit contract met with named caveats. Two blockers fixed (a stale deadline rendered to the patient, and a false CRLF claim in `00-status.md`); the boundary scanner's five evasions closed; `project_attempt` now validates every row; the K1 corpus widened with independently-chosen phrasings.
+
+### Open from the Slice 2 review: deferred to the slice where each becomes live
+
+**Standing instruction (user, 30 September 2026):** these are not to be decided now. Each is decided (or put to the user as a question) **at the slice where it first becomes live**, and the decision is recorded in `00-status.md` in that slice's section. Do not silently implement one of these while building an earlier slice.
+
+| # | Open item | Decided at | Why that slice |
+|---|---|---|---|
+| F4 | **`closed_with_evidence` must render twice over.** It is reachable from real evidence *and* from a recorded human acceptance with no evidence (`care_evidenced = False`). `patient_lines` raises for both today, so the acceptance path that `POST /acceptances` produces has no patient rendering at all. The two cases are not the same fact and must not share a rendering | **Slice 9** | Slice 9 owns the Closure Contract rendering: `derive_closure` complete, `POST /acceptances`, and the four-line unresolved/expired renderings. The acceptance endpoint does not exist before it |
+| F5 | **Decide what `simulated` means.** It is currently `not care_evidenced`, conflating "this episode is a simulation" with "care is not evidenced". The code implements the D11 rule as written, so this is a semantics decision, not a bug fix | **Slice 6**, made visible at **Slice 11** | Slice 6 introduces the simulated provider and the `simulated: true` label; Slice 11 shows the simulated label in the judge ledger. Ask the user at Slice 6, before the label is written anywhere a judge will read |
+| F6 | **Decide the owner after an escalation.** `action_owner_id` ignores `escalation_id`, so an escalated episode still names the patient. I4 allows "an explicit human service" as the acting party, and the projection cannot express it | **Slice 5**, re-checked at **Slice 9** | Slice 5 records escalations (`POST /escalations`); Slice 9 is where the owner is rendered. Decide when the escalation is first recorded |
+| §2.2 | **Amend `03-planback-closure-contract.md` section 2.2.** The `closed_with_evidence` row ("evidence >= documented, **or** an explicit human acceptance is recorded") and the `expired_unresolved` row ("deadline passed with no evidence") overlap on acceptance plus past-deadline. The document states no order; the implementation puts expiry first, for I2 and because the other order is unrenderable | **Slice 9** | The amendment is the documented form of whatever F4 decides. It is a document edit, not code, and it should follow the Slice 9 rendering decision so the two stay consistent |
+| `source_ref` | **Record the `source_ref` mutation gap.** The D11 guard's `simulated` and `source_ref` halves share one mutation flag, so the `source_ref` half has no independent proof. One extra named flag closes it | **Slice 3** | Slice 3 writes the `evidence` table and its D11 `CHECK`; the mutation flag belongs with the constraint it proves |
+
+Reminder: the `00-status.md` section for the slice that resolves an item must state the decision and its reason, so a fresh session can see it was made deliberately and not overlooked.
 
 ## Gate 4 — slice plan (APPROVED 2026-09-28)
 
@@ -85,8 +100,8 @@ Thirteen slices, full Gate 3 scope, in `docs/plans/urgent-advice-accessibility/0
 
 - [ ] Slice 0 — kill tests (**PASS** 28 Sep) + Option C source (**open**)
 - [x] **Slice 1 — tracer bullet: episode to four lines, hardcoded** (28 Sep)
-- [ ] Slice 2 — pure domain core + enforcing import boundary ← **next**
-- [ ] Slice 3 — state, append-only, Closure Contract invariants
+- [x] **Slice 2: pure domain core + enforcing import boundary** (30 Sep; adversarially reviewed and remediated the same day)
+- [ ] Slice 3: state, append-only, Closure Contract invariants ← **next**
 - [ ] Slice 4 — PlanBack end to end, hint ladder, bounded repair
 - [ ] Slice 5 — judged fixture + abstention path (blocked on the Option C source)
 - [ ] Slice 6 — action path, simulated provider, platform call + Gate A decision

@@ -11,8 +11,8 @@
 
 - [ ] Slice 0 — kill tests (**PASS** 28 Sep) + Option C source (**open**, blocks Slice 5 only)
 - [x] **Slice 1 — COMPLETE 28 Sep.** Tracer bullet runs; 11 tests pass; curl-verified live
-- [ ] Slice 2 — pure domain core + enforcing boundary ← **next**
-- [ ] Slice 3 — state, append-only, Closure Contract invariants
+- [x] **Slice 2: COMPLETE 30 Sep; adversarially reviewed and remediated the same day.** Pure domain core; boundary check seen red then green; 240 tests pass. Review at `slice2-adversarial-review.md`
+- [ ] Slice 3: state, append-only, Closure Contract invariants ← **next**
 - [ ] Slice 4 — PlanBack end to end, hint ladder, bounded repair
 - [ ] Slice 5 — judged fixture + abstention path (**blocked on the Option C source**)
 - [ ] Slice 6 — action path, simulated provider, platform call + Gate A decision
@@ -22,6 +22,91 @@
 - [ ] Slice 10 — fault harness + seven sequences
 - [ ] Slice 11 — judge ledger + usage proof
 - [ ] Slice 12 — submission assets
+
+**Carried decisions.** Five items from the Slice 2 review are deliberately undecided. Each is settled (or asked about) at the slice where it becomes live, and recorded there: F4 and the §2.2 amendment at **Slice 9**; F5 at **Slice 6**; F6 at **Slice 5**; the `source_ref` mutation gap at **Slice 3**. The full list and the reasons are in the Slice 2 review section below.
+
+## Slice 2 complete, 30 September 2026
+
+**The pure decision layer exists, and constraint C7 is enforced by a check that has been seen to fail.** Branch `slice-2-domain-core`, created from `main` at `6e9be4f` before any edit, per `AGENTS.md` section 6 ("never begin slice work on `main`"). **Nothing is committed:** no gate authorises a commit, and the five new files are untracked.
+
+| Evidence | Result |
+|---|---|
+| `pytest tests/` | **240 passed, 1 warning** (Slice 1 baseline: 11 passed; 109 at first completion, before the review added 131 checks) |
+| `tests/test_domain.py` | **88 passed** |
+| `tests/test_boundaries.py` | **141 passed** |
+| `tests/test_api.py` | 11 passed, unchanged |
+| **Boundary check seen RED** | `import socket` added to `rules.py` line 40. `test_domain_import_boundary` **FAILED**, naming the file, the line and the module: `rules.py:40: imports forbidden module 'socket'`. Removed; re-run green. `grep -rn "socket\|TEMPORARY" src/carerelay/domain/` returns nothing |
+| Injection against the **real** file | `test_scanner_detects_an_injected_import_in_the_real_rules_file` prepends the forbidden import to the actual `rules.py` source and requires detection. A scanner proven only on toy strings proves nothing about the file it polices |
+| One detector per forbidden form | `TestScannerHasTeeth` covers module import, `from` import, nested import, wall-clock call after a `from` import, wall-clock call through the module, `time` call, bare `open`, and a model-client import. `TestEveryDetectorIsPairedWithItsInput` iterates the three lists themselves, so **every** entry in `FORBIDDEN_MODULES`, `FORBIDDEN_CALLS` and `FORBIDDEN_CALL_SUFFIXES` now carries an input that must be caught. It also asserts the check is **not** a blanket ban that would forbid the imports `domain` legitimately needs |
+| Line endings | New files are CRLF, matching every tracked file (`core.autocrlf=true`). Verified byte-wise: zero lone LF across all five. No line-ending damage |
+| Secret and prohibited-content scan | Clean. The only match for "secret" is the stdlib `secrets` module inside the forbidden-import list. No credential-shaped string, no prohibited claim, no real facility or clinician name |
+
+**Files created.** `src/carerelay/domain/__init__.py` (16 lines), `src/carerelay/domain/models.py` (393 lines), `src/carerelay/domain/rules.py` (610 lines), `tests/test_domain.py` (1357 lines), `tests/test_boundaries.py` (507 lines). Line counts are post-remediation.
+
+**The five tests Gate 4 required to be fail-capable.**
+
+| Test | Where | The defect it must catch |
+|---|---|---|
+| `test_domain_import_boundary` | `test_boundaries.py` | An SDK, network, database, filesystem or wall-clock import or call under `domain/`. Seen failing on a real injected `import socket` |
+| `test_planback_known_match_mismatch_uncertain` | `test_domain.py` | **K1.** The six-entry adversarial corpus of correct restatements produces zero false mismatches. `TestPlanBackAssertionsHaveTeeth` swaps in four defective comparators (surface-only, always-uncertain, unknown-as-mismatch, drops-extractor-doubt) and requires the corpus to catch each. **Added at review:** a second, independently-chosen natural-phrasing corpus, because every entry in the original six turned out to be a literal key in one of the resolution tables, plus a test that an unresolvable phrase is `uncertain` and never `mismatched` |
+| `test_closed_vocab_and_missing_is_not_negative` | `test_domain.py` | A hallucinated route or change code must stop, and a missing code must assert nothing. Every stop reason is exercised separately |
+| `test_disposition_deadline_is_append_only` | `test_domain.py` | A retry that updates v1 or mints v2. Includes a structural scan proving `domain` constructs no `Disposition` at all, with its own teeth test |
+| `test_hint_disclosure_accessibility` | `test_domain.py` | **C8.** Card visibility derived from the event vocabulary alone; `dwell_seconds` never changes the outcome; H3 is never a comprehension pass |
+
+**K1 is now a domain test, not a spike result.** The comparator was moved from `spike/kill_spike/planback.py` rather than rewritten: the alias, relative-time and owner tables and the six-entry corpus are carried across, and the resolution logic is the spike's, widened per section 1.1. The spike directory is untouched and remains throwaway.
+
+**Signature amendments carried from Gate 4 section 1.1, made explicit rather than silent.**
+
+| Item | Gate 3 said | Implemented as | Why |
+|---|---|---|---|
+| `ExtractedPlan` field names | `action_id`, `deadline_utc`, `next_owner_id` | `action_span`, `deadline_span`, `next_owner_span` | Under Reading A the coordinator returns **raw text**, so the old names would have been false. Section 1.1 requires the raw span and the extractor's own uncertainty to be carried separately, and `uncertain_fields` is now a real field that outranks a resolvable span |
+| `compare_plan` widening | `(expected, extracted, action_aliases)` | `(expected, extracted, *, policy, now_utc, display_tz)` | Section 1.1 widened the signature with `action_aliases`, `deadline_forms` and `owner_aliases` "as explicit policy data". All three are carried on one `PolicyFixture` value rather than three parallel mappings, so a policy has one source of truth |
+
+**Three readings the approved documents leave open, plus one completion. Each is implemented, documented in `rules.py`, and flagged here so it can be corrected.**
+
+| # | Reading | The alternative | Why this one |
+|---|---|---|---|
+| 1 | **Closure precedence: expiry outranks a recorded human acceptance.** The approved condition for `closed_with_evidence` is "evidence >= documented **or** an explicit human acceptance is recorded", and a human acceptance is not evidence that care happened. Once the deadline has passed with no evidence, the state is `expired_unresolved` | Put acceptance above expiry, so an accepted handoff stays `closed_with_evidence` past the deadline | The other order lets a scripted acceptance report a resolved episode whose deadline passed with nothing to show for it. That is invariant I2, and it is the product thesis. **This is the one reading most worth an explicit yes or no** |
+| 2 | **Line 2 is composed by owner.** "You must act now." when the owner is the patient; the approved "You or [named person] must act now." otherwise | Reproduce the approved literal, which yields the malformed "You or you must act now." that Slice 1 found by inspection | Carries the Slice 1 divergence forward instead of reintroducing the defect. The Slice 1 note still stands: Slice 9 implements whichever form the documents then carry |
+| 3 | **`patient_lines` refuses for `closed_with_evidence`.** It raises `NoApprovedPatientWording` | Render the unresolved four lines | No approved rendering exists for a resolved episode. Rendering "Help is not arranged." over an episode where care is evidenced is a false statement to the patient. Slice 9 owns the Closure Contract rendering |
+| 4 | **Execution axis completion.** `expired` is set on axis A when an attempt recorded no terminal outcome and the deadline has passed. A recorded `acknowledged`, `failed` or `superseded` outcome is never overwritten, and an episode with no attempt stays `not_started` | Leave `expired` unwired | Contract section 2.2 lists `expired` as an axis value. Left unwired it was unreachable vocabulary, and "we tried and nobody said yes, and the deadline has gone" had no rendering on axis A at all. Found by the post-slice cleanup scan, not by the tests |
+
+**Two defects the post-slice cleanup scan found in this slice's own code, both fixed.** `models.DisplayZone` was defined and never used: removed, along with its now-unused `tzinfo` import. `ExecutionStatus.EXPIRED` was unreachable: reading 4 above wires it, with three tests (the attempt-with-no-outcome case, the recorded-terminal case, and the no-attempt case) each covering a distinct guard.
+
+**The em dash question is settled by measurement, and the original claim was wrong.** The source contains **no** em dash character at all: line 4 of the expired rendering is written as the escape `\u2014`, so the rendered string reproduces the approved copy verbatim while the file stays clean of U+2014. `AGENTS.md` section 6 is therefore not breached and no approved clinical wording has drifted. Verified byte-wise across all five new files: zero U+2014. The first version of this entry said "one em dash is used", which overstated the problem.
+
+**Not in this slice, and deliberately.** No database (Slice 3). No routes, no service, no coordinator. No `presentation.py` or `templates/` (the plan-versus-code drift recorded earlier today is untouched: `04-slices.md` still names `src/carerelay/templates/patient.html`, which does not exist, and `jinja2` is still imported nowhere). The Option C source is still unselected, so every alias table and every corpus entry here is **provisional** and nothing may be shown to a participant.
+
+**What this evidence does not prove.** A passing static check is not evidence of WorkBuddy access, clinical safety, human learning or patient benefit. K1 remains a deterministic-layer result and depends on Reading A (ADR-0007, risk R5). The 88 domain tests exercise the pure layer only: the model's own extraction is not reachable offline.
+
+## Slice 2 adversarial review and remediation (30 September 2026)
+
+An independent adversarial review with no prior context was run against the branch, from the brief at `04-slices.md` (Slice 2). Full note: **`slice2-adversarial-review.md`**. Verdict: **the exit contract is met, with named caveats.**
+
+**Two blockers were found and fixed, both real.**
+
+| # | Defect | Fix |
+|---|---|---|
+| 1 | `patient_lines` rendered `PolicyText.deadline_display` verbatim, decoupled from `disposition.clinical_deadline_utc`. A reassessed disposition (deadline 1 Oct) rendered line 3 as "Before 6:00 PM on 30 September." That is a false statement to the patient, and it breaks approved copy rule 5 in `02-architecture.md` section 7 | `PolicyText.deadline_display` is now `deadline_display_by_version`, keyed by disposition version, mirroring `owner_display_by_id` and `route_display_by_id`. An unworded version raises `MissingDisplayText` instead of printing a stale date |
+| 2 | This entry claimed the new files were CRLF and matched every tracked file. They were pure LF | The five new files were normalised to CRLF, which is what the entry intended and what every tracked file uses. Verified byte-wise: zero lone LF |
+
+**The review's highest-ranked risk was confirmed.** The boundary scanner was evadable in five ways, all of which reached a filesystem, a network, a database or the clock without importing a forbidden module: `__builtins__["open"](...)`, `builtins.open(...)`, `builtins.__import__("socket")`, `builtins.__import__("sqlite3")`, and `getattr(datetime, "now")()`. Root cause: `_dotted_name` returned `""` for any call whose `func` was itself a call, a subscript or a lambda, and the scanner skipped those. Fixed by refusing a dynamically produced call target and by adding `builtins` and `sys` to `FORBIDDEN_MODULES`. All five are now caught and each has its own regression test.
+
+**Four further defects fixed.** `project_attempt` raised only on the lowest-`seq` row, so a corrupt row at a higher `seq` was silently ignored, contradicting its own docstring; every row is now validated. `derive_closure` returned `expired_unresolved` with no named owner when an expiry event arrived with no disposition, which I4 forbids; that is now refused. The K1 corpus was found to be self-serving, since all six entries are literal keys in the resolution tables; a second, independently-chosen natural-phrasing corpus was added, together with a test that an unresolvable phrase stays `uncertain` and never becomes a mismatch. Two docstrings claimed full detector coverage that the tests did not provide (deleting `"eval"` and `".today"` from the lists left the suite green); three parametrised tests now iterate the lists themselves.
+
+**Five findings were deliberately left open**, because each needs a product, clinical or documentary decision rather than a code fix.
+
+**They are not decided now. Standing instruction (user, 30 September 2026): each is decided (or put to the user as a question) at the slice where it first becomes live, and the decision is recorded here in that slice's section.** No later slice may silently implement one of these while building an earlier one.
+
+| # | Open question | Decided at |
+|---|---|---|
+| F4 | `closed_with_evidence` is reachable both from real evidence and from a recorded human acceptance with no evidence, and `patient_lines` raises for both. The acceptance case is a normal product state (`POST /acceptances`) with no patient rendering at all. Slice 9 must render it, and must render the two cases separately | **Slice 9** |
+| F5 | `simulated = not care_evidenced` conflates "this episode is a simulation" with "care is not evidenced". The code implements the D11 rule as written, so the meaning is a decision, not a defect | **Slice 6**, visible in the ledger at **Slice 11** |
+| F6 | `action_owner_id` ignores `escalation_id` and `human_acceptance_id`, so I4's "explicit human service" owner is inexpressible | **Slice 5**, re-checked at **Slice 9** |
+| §2.2 | The `closed_with_evidence` and `expired_unresolved` rows of `03-planback-closure-contract.md` section 2.2 overlap on acceptance plus past-deadline and state no order; the implementation puts expiry first. This is the documentary form of the F4 decision | **Slice 9** |
+| `source_ref` | The D11 guard's `simulated` and `source_ref` halves share one mutation flag, so the `source_ref` half has no independent proof | **Slice 3** |
+
+**Evidence.** 240 passed, 1 warning (88 domain, 141 boundaries, 11 api), up from 109. Five mutation checks confirmed the new tests are fail-capable: reverting each fix in turn caused its paired test to fail. Every mutation was reverted with an md5 check, and `git status --short --untracked-files=all` was identical before and after. Nothing was committed, no branch was created, and no gate was reopened.
 
 ## Gate 4 approval — 28 September 2026
 The user approved **Gate 4 (Slice plan)** on 28 September 2026 with the instruction **"continue"**, following the approval question in this file. `04-slices.md` now records the approval.
@@ -212,6 +297,7 @@ The skill's canonical gate filenames are reserved for Gates 2–4. Two supportin
 | `clinical-review-blocker.md` | supporting note | decision paper, 26 Sep — what the reviewer blocker actually blocks, and three routes through |
 | `03-program-design.md` | **Gate 3 doc** | **approved 26 September 2026** — files, types, call stacks, failure-capable tests, effort |
 | `04-slices.md` | **Gate 4 doc** | **APPROVED 28 September 2026** — 13 slices, full scope, Gate A re-verification, R1 schedule risk |
+| `slice2-adversarial-review.md` | supporting note | independent adversarial review of Slice 2, 30 Sep: verdict, findings, judgement calls, evasion, test quality, and the remediation applied before Slice 3 |
 | `clinical-review-blocker.md` | supporting note | decision paper, 26 Sep — what the reviewer blocker actually blocks, and three routes through |
 | `../../adr/` | decision records | `docs/adr/` — ADR-0001 to ADR-0008 plus index; decisions that outlive this feature |
 | `mockups/` | Gate 1 assets | five plain-HTML screens, throwaway by design |
