@@ -32,10 +32,13 @@ from carerelay.coordinator import (
 from carerelay.demo import fixture
 from carerelay.domain.rules import PolicyViolation
 from carerelay.service import (
+    BarrierOutcome,
     EpisodeAlreadyAssessed,
     EpisodeService,
+    EscalationOutcome,
     IntakeNotRecognised,
     NoDispositionYet,
+    ReassessmentResult,
     RepairCapReached,
     RestatementOutcome,
     ScenarioClock,
@@ -110,9 +113,10 @@ _SERVICE = EpisodeService(
     disposition_factory=fixture.disposition,
     bound_complaint=fixture.BOUND_COMPLAINT,
     policy_provenance=(
-        "PROVISIONAL: unsourced placeholder. The Option C source check is open "
-        "and licensing plus Singapore applicability are unchecked "
-        "(03-program-design.md 6.2)."
+        "PROVISIONAL: non-clinical placeholder, authored rather than sourced. "
+        "Option C was dropped on 1 October 2026 after the source check cleared "
+        "no source; the wording names no symptom, urgency, threshold or real "
+        "facility and asserts no clinical claim (03-program-design.md 6.2)."
     ),
 )
 
@@ -189,8 +193,10 @@ def create_episode(
         fixture_label=fixture.FIXTURE_LABEL,
         note=(
             "Slice 1 tracer bullet: hardcoded. No disposition is written, no "
-            "database exists, and the fixture wording is a provisional "
-            "placeholder awaiting the Option C source check."
+            "database exists on this path, and the fixture wording is a "
+            "provisional non-clinical placeholder, authored rather than sourced. "
+            "Option C was dropped on 1 October 2026; the wording asserts no "
+            "clinical claim."
         ),
     )
 
@@ -519,3 +525,181 @@ def repair_restatement(
     except CoordinatorUnavailable:
         raise _coordinator_down()
     return _restatement_body(outcome)
+
+
+# ---------------------------------------------------------------------------
+# Slice 5: barriers, escalation and reassessment
+# ---------------------------------------------------------------------------
+
+
+class BarrierRequest(BaseModel):
+    barrier_text: str
+    proposed_route_id: str | None = None
+
+
+class BarrierResponse(BaseModel):
+    episode_id: str
+    barrier_id: str
+    disposition_version: int
+    proposed_route_id: str | None
+    permitted_route_id: str | None
+    stopped_at_human_path: bool
+    human_path_route_id: str | None
+    simulated: bool
+    fixture_label: str
+
+
+class EscalationRequest(BaseModel):
+    human_path: str
+    outcome: str = "handed_off"
+
+
+class EscalationResponse(BaseModel):
+    episode_id: str
+    escalation_id: str
+    human_path: str
+    outcome: str
+    simulated: bool
+    fixture_label: str
+
+
+class ReassessmentRequest(BaseModel):
+    """A closed-vocabulary change code, or nothing.
+
+    Absence is not a negative finding (I5): omitting the code stops at the human
+    path exactly as an unknown code does.
+    """
+
+    confirmed_change_code: str | None = None
+
+
+class ReassessmentResponse(BaseModel):
+    episode_id: str
+    outcome: str
+    reason: str
+    disposition_version: int | None
+    routes_to_human_path: bool
+    human_path_route_id: str | None
+    simulated: bool
+    fixture_label: str
+
+
+@app.post(
+    "/api/episodes/{episode_id}/barriers",
+    response_model=BarrierResponse,
+    tags=["planback"],
+)
+def record_barrier(
+    episode_id: str,
+    body: BarrierRequest,
+    service: EpisodeService = Depends(get_service),
+) -> BarrierResponse:
+    """Report a practical barrier. `domain` judges any proposed route.
+
+    A proposal outside the policy is recorded as a stop **and then** refused with
+    422, so the ledger keeps the evidence and the caller still gets the refusal.
+    """
+    try:
+        with _DB_LOCK:
+            outcome: BarrierOutcome = service.record_barrier(
+                episode_id, body.barrier_text, body.proposed_route_id
+            )
+    except EpisodeNotFound:
+        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
+    except NoDispositionYet as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except PolicyViolation as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "detail": str(exc),
+                "stopped_at": "human_path",
+                "barrier_recorded": True,
+            },
+        )
+    return BarrierResponse(
+        episode_id=episode_id,
+        barrier_id=outcome.barrier_id,
+        disposition_version=outcome.disposition_version,
+        proposed_route_id=outcome.proposed_route_id,
+        permitted_route_id=outcome.permitted_route_id,
+        stopped_at_human_path=outcome.stopped_at_human_path,
+        human_path_route_id=outcome.human_path_route_id,
+        simulated=outcome.simulated,
+        fixture_label=fixture.FIXTURE_LABEL,
+    )
+
+
+@app.post(
+    "/api/episodes/{episode_id}/escalations",
+    response_model=EscalationResponse,
+    tags=["planback"],
+)
+def record_escalation(
+    episode_id: str,
+    body: EscalationRequest,
+    service: EpisodeService = Depends(get_service),
+) -> EscalationResponse:
+    """Hand the episode to a named human path.
+
+    From this record onward the acting party is that path, not the patient (F6).
+    """
+    try:
+        with _DB_LOCK:
+            outcome: EscalationOutcome = service.escalate(
+                episode_id, body.human_path, body.outcome
+            )
+    except EpisodeNotFound:
+        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
+    except NoDispositionYet as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except PolicyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return EscalationResponse(
+        episode_id=episode_id,
+        escalation_id=outcome.escalation_id,
+        human_path=outcome.human_path,
+        outcome=outcome.outcome,
+        simulated=outcome.simulated,
+        fixture_label=fixture.FIXTURE_LABEL,
+    )
+
+
+@app.post(
+    "/api/episodes/{episode_id}/reassessments",
+    response_model=ReassessmentResponse,
+    tags=["planback"],
+)
+def reassess(
+    episode_id: str,
+    body: ReassessmentRequest,
+    service: EpisodeService = Depends(get_service),
+) -> ReassessmentResponse:
+    """Classify a confirmed change, then stop or insert a new version.
+
+    With no reviewer, `permitted_change_codes` is empty, so every input stops at
+    the human path. That is the intended state, not a gap.
+    """
+    try:
+        with _DB_LOCK:
+            result: ReassessmentResult = service.reassess(
+                episode_id, body.confirmed_change_code
+            )
+    except EpisodeNotFound:
+        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
+    except NoDispositionYet as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except PolicyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    except StateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return ReassessmentResponse(
+        episode_id=episode_id,
+        outcome=result.outcome.value,
+        reason=result.reason,
+        disposition_version=result.disposition_version,
+        routes_to_human_path=result.routes_to_human_path,
+        human_path_route_id=result.human_path_route_id,
+        simulated=result.simulated,
+        fixture_label=fixture.FIXTURE_LABEL,
+    )

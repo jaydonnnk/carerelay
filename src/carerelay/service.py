@@ -39,7 +39,7 @@ bare. The comparison is unchanged; only the envelope grew.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from datetime import tzinfo
 from typing import Protocol
@@ -60,6 +60,7 @@ from carerelay.domain.models import (
     InputMode,
     PlanComparison,
     PolicyFixture,
+    ReassessmentOutcome,
     RecallOutcome,
 )
 from carerelay.state import (
@@ -187,6 +188,60 @@ class RestatementOutcome:
         every time. K1 must not be passable by refusing to commit.
         """
         return not self.comparison.mismatched and not self.comparison.uncertain
+
+
+@dataclass(frozen=True)
+class BarrierOutcome:
+    """What one barrier report produced, for the API to serialise.
+
+    `proposed_route_id` and `permitted_route_id` are both carried because the
+    ledger has to be able to show *why* an episode stopped. A proposal outside
+    the policy is refused and the refusal is recorded; it is never dropped and
+    never silently rewritten to a permitted value.
+    """
+
+    barrier_id: str
+    episode_id: str
+    disposition_version: int
+    proposed_route_id: str | None
+    permitted_route_id: str | None
+    stopped_at_human_path: bool
+    human_path_route_id: str | None
+    simulated: bool
+
+
+@dataclass(frozen=True)
+class EscalationOutcome:
+    """The recorded handoff to a named human path.
+
+    `human_path` is a permitted route id, so the ledger names a service this
+    policy can display rather than arbitrary free text.
+    """
+
+    escalation_id: str
+    episode_id: str
+    human_path: str
+    outcome: str
+    simulated: bool
+
+
+@dataclass(frozen=True)
+class ReassessmentResult:
+    """What one reassessment produced.
+
+    `disposition_version` is set only when a reviewer-authorised branch inserted
+    a new version. With no reviewer, every input lands on `STOP_AT_HUMAN_PATH`,
+    which is the honest state of the judged fixture and is why this slice adds no
+    clinical wording.
+    """
+
+    episode_id: str
+    outcome: ReassessmentOutcome
+    reason: str
+    disposition_version: int | None
+    routes_to_human_path: bool
+    human_path_route_id: str | None
+    simulated: bool
 
 
 # ---------------------------------------------------------------------------
@@ -418,6 +473,160 @@ class EpisodeService:
             repair_round=repair_round,
         )
 
+    # -- barriers, escalation and reassessment (Slice 5) ------------------
+
+    def record_barrier(
+        self,
+        episode_id: str,
+        barrier_text: str,
+        proposed_route_id: str | None = None,
+    ) -> BarrierOutcome:
+        """Record a practical barrier, and judge any proposed route.
+
+        `domain.validate_route` is the only thing that decides whether a route id
+        is permitted, and it is reached through this layer rather than in the
+        route function (D2). **A proposal outside the policy is recorded as a
+        stop and then refused**: the record keeps the evidence that the episode
+        reached the human path, and the caller still gets the refusal. Dropping
+        the refusal would lose the one fact the ledger exists to show.
+
+        No route is proposed by the system here. The coordinator proposal the
+        architecture names arrives with the coordinator wiring in Slice 6; until
+        then a caller may supply one and `domain` judges it.
+        """
+        snapshot = self._store.load_snapshot(episode_id)
+        if snapshot.disposition is None:
+            raise NoDispositionYet(
+                f"episode {episode_id!r} has no disposition, so there is no plan "
+                "for a barrier to be reported against"
+            )
+        now_utc = self._clock.now_utc()
+        permitted_route_id: str | None = None
+        if proposed_route_id is not None:
+            try:
+                permitted_route_id = rules.validate_route(
+                    proposed_route_id, self._policy.permitted_route_ids
+                )
+            except rules.PolicyViolation:
+                self._store.record_barrier(
+                    episode_id,
+                    disposition_version=snapshot.disposition.version,
+                    barrier_text=barrier_text,
+                    proposed_route_id=proposed_route_id,
+                    permitted_route_id=None,
+                    stopped_at_human_path=True,
+                    now_utc=now_utc,
+                )
+                raise
+        barrier_id = self._store.record_barrier(
+            episode_id,
+            disposition_version=snapshot.disposition.version,
+            barrier_text=barrier_text,
+            proposed_route_id=proposed_route_id,
+            permitted_route_id=permitted_route_id,
+            stopped_at_human_path=False,
+            now_utc=now_utc,
+        )
+        return BarrierOutcome(
+            barrier_id=barrier_id,
+            episode_id=episode_id,
+            disposition_version=snapshot.disposition.version,
+            proposed_route_id=proposed_route_id,
+            permitted_route_id=permitted_route_id,
+            stopped_at_human_path=False,
+            # The route to use when this plan cannot be carried out. It is the
+            # disposition's own fallback, so a barrier never invents a route.
+            human_path_route_id=snapshot.disposition.fallback_route_id,
+            simulated=True,
+        )
+
+    def escalate(
+        self,
+        episode_id: str,
+        human_path: str,
+        outcome: str = "handed_off",
+    ) -> EscalationOutcome:
+        """Record the handoff to a named human path.
+
+        The path is validated against the policy's permitted routes, so the
+        ledger names a service this product can display rather than free text.
+
+        Escalating twice is allowed, and both records stand. The later one is the
+        current handoff (`load_snapshot` takes the latest) and the earlier one
+        stays in the record, which is what an append-only history is for. F6
+        reads this record: from the moment it exists, the acting party is the
+        human path, not the patient.
+        """
+        snapshot = self._store.load_snapshot(episode_id)
+        if snapshot.disposition is None:
+            raise NoDispositionYet(
+                f"episode {episode_id!r} has no disposition, so there is no plan "
+                "to hand off"
+            )
+        validated = rules.validate_route(human_path, self._policy.permitted_route_ids)
+        escalation_id = self._store.record_escalation(
+            episode_id,
+            human_path=validated,
+            outcome=outcome,
+            now_utc=self._clock.now_utc(),
+        )
+        return EscalationOutcome(
+            escalation_id=escalation_id,
+            episode_id=episode_id,
+            human_path=validated,
+            outcome=outcome,
+            simulated=True,
+        )
+
+    def reassess(
+        self, episode_id: str, confirmed_change_code: str | None
+    ) -> ReassessmentResult:
+        """Classify a confirmed change, then let `domain` decide what may happen.
+
+        The classification is a closed-vocabulary code supplied by the caller.
+        `domain.reassessment_decision` is the only thing that may authorise a
+        second disposition version, and with no reviewer every input stops at the
+        human path (D7, `03-program-design.md` section 8 item 2). This method
+        therefore inserts nothing today: the endpoint and the refusal are what
+        this slice owes, not a clinical branch.
+
+        The version number is this layer's to carry when a branch is authorised,
+        because it is state rather than policy. `state.insert_disposition` then
+        enforces O7: a new version's deadline must be later than the one it
+        replaces.
+        """
+        snapshot = self._store.load_snapshot(episode_id)
+        if snapshot.disposition is None:
+            raise NoDispositionYet(
+                f"episode {episode_id!r} has no disposition, so there is nothing "
+                "to reassess"
+            )
+        decision = rules.reassessment_decision(confirmed_change_code, self._policy)
+        new_version: int | None = None
+        if (
+            decision.outcome is ReassessmentOutcome.INSERT_DISPOSITION_VERSION
+            and decision.disposition is not None
+        ):
+            authorised = replace(
+                decision.disposition,
+                episode_id=episode_id,
+                version=snapshot.disposition.version + 1,
+            )
+            self._store.insert_disposition(authorised, now_utc=self._clock.now_utc())
+            new_version = authorised.version
+        stops = decision.outcome is ReassessmentOutcome.STOP_AT_HUMAN_PATH
+        return ReassessmentResult(
+            episode_id=episode_id,
+            outcome=decision.outcome,
+            reason=decision.reason,
+            disposition_version=new_version,
+            routes_to_human_path=stops,
+            human_path_route_id=(
+                snapshot.disposition.fallback_route_id if stops else None
+            ),
+            simulated=True,
+        )
+
     # -- internals --------------------------------------------------------
 
     def _allowed_values(self) -> AllowedPlanValues:
@@ -545,11 +754,14 @@ class EpisodeService:
 
 
 __all__ = [
+    "BarrierOutcome",
     "Clock",
     "EpisodeAlreadyAssessed",
     "EpisodeService",
+    "EscalationOutcome",
     "IntakeNotRecognised",
     "NoDispositionYet",
+    "ReassessmentResult",
     "RepairCapReached",
     "RestatementOutcome",
     "ScenarioClock",

@@ -31,10 +31,12 @@ from carerelay.coordinator import (  # noqa: E402
 from carerelay.demo import fixture  # noqa: E402
 from carerelay.domain import rules  # noqa: E402
 from carerelay.domain.models import (  # noqa: E402
+    ClosureState,
     ExtractedPlan,
     HintEventKind,
     HintLevel,
     InputMode,
+    ReassessmentOutcome,
     RecallOutcome,
 )
 from carerelay.service import (  # noqa: E402
@@ -523,3 +525,172 @@ class TestGuardsHaveTeeth:
             "disabling the latest-round check did not re-open round zero, so "
             "the check was not what stopped the fork"
         )
+
+
+# ---------------------------------------------------------------------------
+# Slice 5: barriers, escalation and reassessment
+# ---------------------------------------------------------------------------
+
+
+class TestBarriers:
+    """`domain` judges the route; this layer records what it decided.
+
+    Gate 3's named test, first half: **a hallucinated route id stops at the human
+    path**. The refusal is recorded as well as raised, because the record is the
+    evidence that the episode reached the human path and a caller that only sees
+    the exception cannot show it.
+    """
+
+    def test_a_permitted_route_is_recorded(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        outcome = service.record_barrier(assessed, "no transport today", "nurse_line")
+        assert outcome.permitted_route_id == "nurse_line"
+        assert outcome.stopped_at_human_path is False
+        assert outcome.human_path_route_id == fixture.FALLBACK_ROUTE_ID
+        assert len(service._store.list_barriers(assessed)) == 1
+
+    def test_a_hallucinated_route_is_refused_and_still_recorded(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        with pytest.raises(rules.UnpermittedRouteId):
+            service.record_barrier(assessed, "no transport", "teleport_clinic")
+        rows = service._store.list_barriers(assessed)
+        assert len(rows) == 1, (
+            "the refusal was raised but not recorded, so the ledger cannot show "
+            "that the episode stopped at the human path"
+        )
+        assert rows[0]["permitted_route_id"] is None
+        assert rows[0]["stopped_at_human_path"] == 1
+
+    def test_a_barrier_before_a_plan_is_refused(self, service: EpisodeService) -> None:
+        service.ensure_episode(EPISODE, "test persona")
+        with pytest.raises(NoDispositionYet):
+            service.record_barrier(EPISODE, "no transport", "nurse_line")
+        assert service._store.list_barriers(EPISODE) == ()
+
+
+class TestEscalation:
+    def test_a_permitted_human_path_is_recorded(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        outcome = service.escalate(assessed, "nurse_line")
+        assert outcome.human_path == "nurse_line"
+        assert (
+            service._store.load_snapshot(assessed).escalation_id
+            == outcome.escalation_id
+        )
+
+    def test_an_unpermitted_human_path_is_refused(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        """A handoff to a path the policy cannot display leaves nothing to show."""
+        with pytest.raises(rules.UnpermittedRouteId):
+            service.escalate(assessed, "dr-smith-mobile")
+        assert service._store.load_snapshot(assessed).escalation_id is None
+
+    def test_the_handoff_moves_the_acting_party(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        """F6, end to end, through the real store rather than a hand-built snapshot."""
+        before = service._store.derive_closure(assessed, fixture.SCENARIO_NOW_UTC)
+        assert before.action_owner_id == fixture.NEXT_OWNER_ID
+        service.escalate(assessed, "nurse_line")
+        after = service._store.derive_closure(assessed, fixture.SCENARIO_NOW_UTC)
+        assert after.closure is ClosureState.ESCALATED_TO_HUMAN
+        assert after.action_owner_id == "nurse_line", (
+            "the patient is still named as the acting party after the handoff, "
+            "which is the defect F6 records"
+        )
+
+
+class TestReassessment:
+    """Gate 3's named test, second half: missing is not negative (I5).
+
+    With no reviewer, `permitted_change_codes` is empty and every input stops at
+    the human path. The assertion that matters is not the outcome string but that
+    **no second disposition version exists**, because a version is the only thing
+    that can move a deadline.
+    """
+
+    def test_no_code_stops_at_the_human_path(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        result = service.reassess(assessed, None)
+        assert result.outcome is ReassessmentOutcome.STOP_AT_HUMAN_PATH
+        assert result.disposition_version is None
+        assert result.routes_to_human_path is True
+        assert "absence is not a negative finding" in result.reason
+        assert len(service._store.list_dispositions(assessed)) == 1
+
+    def test_an_unknown_code_stops_at_the_human_path(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        result = service.reassess(assessed, "chest_pain_now")
+        assert result.outcome is ReassessmentOutcome.STOP_AT_HUMAN_PATH
+        assert "outside policy" in result.reason
+        assert len(service._store.list_dispositions(assessed)) == 1
+
+    def test_nothing_this_fixture_accepts_inserts_a_version(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        for code in (None, "", "chest_pain_now", "appointment_changed", "worse"):
+            result = service.reassess(assessed, code)
+            assert result.outcome is ReassessmentOutcome.STOP_AT_HUMAN_PATH
+        assert len(service._store.list_dispositions(assessed)) == 1, (
+            "a second disposition version exists, so a clinical branch was "
+            "authored without a reviewer"
+        )
+
+    def test_a_reassessment_before_a_plan_is_refused(
+        self, service: EpisodeService
+    ) -> None:
+        service.ensure_episode(EPISODE, "test persona")
+        with pytest.raises(NoDispositionYet):
+            service.reassess(EPISODE, None)
+
+
+class TestPlanPrecedesReadBack:
+    """K2, promoted from the spike into the real suite at Slice 5.
+
+    The spike asserted the ordering property against a throwaway module. This
+    asserts it against the product, with **no coordinator and no reviewer**: the
+    plan is issued and renderable before the coordinator is reached at all, so
+    read-back can neither gate nor delay it, and a coordinator failure cannot
+    move the deadline.
+
+    The fixture carries no urgent symptom content by design (Option C was dropped
+    on 1 October 2026, so nothing here is clinical), so the property this fixture
+    can actually prove is the ordering one rather than the clinical one.
+    """
+
+    def _assessed_with_a_dead_coordinator(self, store) -> EpisodeService:
+        service = _build(store, coordinator=DeadCoordinator())
+        service.ensure_episode(EPISODE, "test persona")
+        service.intake(EPISODE, "i need help sorting out my appointment")
+        return service
+
+    def test_the_plan_is_issued_without_reaching_the_coordinator(self, store) -> None:
+        service = self._assessed_with_a_dead_coordinator(store)
+        assert service._store.load_snapshot(EPISODE).disposition.version == 1
+
+    def test_the_plan_is_renderable_before_any_restatement(self, store) -> None:
+        service = self._assessed_with_a_dead_coordinator(store)
+        snapshot = service._store.load_snapshot(EPISODE)
+        lines = rules.patient_lines(
+            snapshot,
+            rules.derive_closure(snapshot, fixture.SCENARIO_NOW_UTC),
+            fixture.policy_text(),
+        )
+        assert len(lines) == 4
+        assert all(line.strip() for line in lines)
+
+    def test_a_coordinator_failure_cannot_move_the_deadline(self, store) -> None:
+        """The degraded state stops the flow and changes nothing (architecture 8)."""
+        service = self._assessed_with_a_dead_coordinator(store)
+        before = service._store.load_snapshot(EPISODE).disposition
+        with pytest.raises(CoordinatorUnavailable):
+            service.submit_restatement(EPISODE, CORRECT, HintLevel.H0)
+        after = service._store.load_snapshot(EPISODE).disposition
+        assert after == before
+        assert service._store.list_restatements(EPISODE) == ()

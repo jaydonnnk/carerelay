@@ -415,3 +415,139 @@ class TestCoordinatorUnavailable:
             json={"text": CORRECT, "hint_level": "H0"},
         )
         assert response.status_code != 200
+
+
+# ---------------------------------------------------------------------------
+# Slice 5: barriers, escalation and reassessment
+# ---------------------------------------------------------------------------
+
+
+class TestBarrierRoute:
+    def test_a_permitted_route_returns_200(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/barriers",
+            json={"barrier_text": "no transport today", "proposed_route_id": "nurse_line"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["permitted_route_id"] == "nurse_line"
+        assert body["simulated"] is True
+        assert body["fixture_label"] == fixture.FIXTURE_LABEL
+
+    def test_no_proposal_is_accepted(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        """Reporting a barrier without proposing a route is the common case."""
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/barriers",
+            json={"barrier_text": "no transport today"},
+        )
+        assert response.status_code == 200
+        assert response.json()["permitted_route_id"] is None
+
+    def test_a_hallucinated_route_is_422_and_says_it_was_recorded(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/barriers",
+            json={"barrier_text": "no transport", "proposed_route_id": "teleport_clinic"},
+        )
+        assert response.status_code == 422
+        detail = response.json()["detail"]
+        assert detail["stopped_at"] == "human_path"
+        assert detail["barrier_recorded"] is True
+
+    def test_a_barrier_with_no_plan_is_409(self, planback_client: TestClient) -> None:
+        planback_client.post("/api/episodes")
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/barriers",
+            json={"barrier_text": "no transport today"},
+        )
+        assert response.status_code == 409
+
+    def test_an_unknown_episode_is_404(self, planback_client: TestClient) -> None:
+        response = planback_client.post(
+            "/api/episodes/nope/barriers", json={"barrier_text": "no transport today"}
+        )
+        assert response.status_code == 404
+
+
+class TestEscalationRoute:
+    def test_a_permitted_path_returns_200(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/escalations", json={"human_path": "nurse_line"}
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["human_path"] == "nurse_line"
+        assert body["escalation_id"]
+
+    def test_an_unpermitted_path_is_422(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/escalations", json={"human_path": "dr-smith-mobile"}
+        )
+        assert response.status_code == 422
+
+    def test_the_escalation_moves_the_owner_in_the_derived_state(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        """F6 through the HTTP surface, against the service the route uses."""
+        service = app.dependency_overrides[get_service]()
+        before = service._store.derive_closure(EPISODE, fixture.SCENARIO_NOW_UTC)
+        assert before.action_owner_id == fixture.NEXT_OWNER_ID
+        planback_client.post(
+            f"/api/episodes/{EPISODE}/escalations", json={"human_path": "nurse_line"}
+        )
+        after = service._store.derive_closure(EPISODE, fixture.SCENARIO_NOW_UTC)
+        assert after.action_owner_id == "nurse_line"
+
+
+class TestReassessmentRoute:
+    def test_no_code_stops_at_the_human_path_with_200(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        """A stop is a normal outcome, not an error: it is the designed behaviour."""
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/reassessments", json={}
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["outcome"] == "stop_at_human_path"
+        assert body["disposition_version"] is None
+        assert body["routes_to_human_path"] is True
+        assert body["human_path_route_id"] == fixture.FALLBACK_ROUTE_ID
+
+    def test_an_unknown_code_also_stops_with_200(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/reassessments",
+            json={"confirmed_change_code": "chest_pain_now"},
+        )
+        assert response.status_code == 200
+        assert response.json()["outcome"] == "stop_at_human_path"
+
+    def test_no_version_is_added_by_any_input(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        service = app.dependency_overrides[get_service]()
+        for payload in ({}, {"confirmed_change_code": None}, {"confirmed_change_code": "worse"}):
+            planback_client.post(
+                f"/api/episodes/{EPISODE}/reassessments", json=payload
+            )
+        assert len(service._store.list_dispositions(EPISODE)) == 1
+
+    def test_a_reassessment_with_no_plan_is_409(
+        self, planback_client: TestClient
+    ) -> None:
+        planback_client.post("/api/episodes")
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/reassessments", json={}
+        )
+        assert response.status_code == 409
