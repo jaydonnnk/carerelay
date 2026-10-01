@@ -2,6 +2,8 @@
 
 Reframe CareRelay around truthful urgent-advice execution, produce a Gate 1 product specification and HTML wireframes, and determine whether Mandarin Chinese and voice can be included safely.
 
+> **Supersession banner, 1 October 2026.** This file is operational memory only and is never an authority for gate or slice state. **Every line below that treats the Option C source as an open, blocking or pending item is superseded.** The source check ran on 1 October 2026, no source cleared, and the user answered "drop": Option C is dropped and `03-program-design.md` section 6.2 carries Option A alone. See `00-status.md` for the authority. The dated entries below are kept as the record of what was believed when they were written; they are not current claims.
+
 ## Checklist
 
 - [x] Inspect repository state and existing plan evidence.
@@ -77,7 +79,7 @@ Both mechanisms are now written into `PLAN.md`. The single-ladder state model wa
 - [x] **Clinical-review blocker resolved by decision (26 Sep):** user selected **Option A + C** — non-clinical comparator, fixture sourced verbatim from attributable published guidance.
 - [ ] **Gate 2 D6 formally backtracked** — the comparator material loses its clinical content. D6's decision is unchanged; the material and the claim it supports are not.
 - [ ] Write and run the two §6.1 kill tests (`test_planback_known_match_mismatch_uncertain` adversarial corpus; `test_urgent_path_precedes_planback`). **These precede all participant work and need no reviewer.**
-- [ ] Select the Option C source and check licensing + Singapore applicability. **Precedes use.**
+- [x] Select the Option C source and check licensing + Singapore applicability. **Closed 1 October 2026: no source cleared, and Option C was found to contradict Option A, so the user answered "drop". Option C is dropped; this item no longer blocks anything.**
 - [ ] Gate 4 — Slice plan. Must sequence the baseline comparison before the Closure Contract build, assign dates and stop conditions, and not remove the Closure Contract tests to make the schedule look green.
 
 ### Assumptions and blockers — Gate 2

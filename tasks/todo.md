@@ -76,7 +76,7 @@
 - [x] **Obtain Gate 4 approval** — granted 28 September 2026 ("continue"). No code before it.
 - [x] Resolve ADR-0007 (canonicalisation layer) at Gate 4 approval — **Reading A accepted**, ADR now `accepted`.
 - [x] **Slice 1 complete** — tracer bullet runs; 11 tests pass; curl-verified live; documented defect found and fixed.
-- [ ] Select the Option C source; check licensing and Singapore applicability. **Precedes Slice 5.**
+- [x] **Option C source check run 1 October 2026: no source clears.** MOH clause 11 and HealthHub clause 12.1 both require prior written permission, and the UK Open Government Licence route fails Singapore applicability. The check also found that Option C **contradicts** Option A, because a fixture of fictional entities cannot be quoted verbatim from any published guidance. The user answered "drop", so `03-program-design.md` section 6.2 now carries Option A alone and **Gate 3 is reopened** pending re-approval. Detail in `00-status.md`.
 - [x] **Slice 2 complete**: pure domain core plus an enforcing import boundary; boundary check seen red then green; 240 tests pass after the adversarial review and remediation (30 Sep). Review: `docs/reviews/slice2-adversarial-review.md`
 - [x] **Slice 2 adversarial review + remediation** (30 Sep). Verdict: exit contract met with named caveats. Two blockers fixed (a stale deadline rendered to the patient, and a false CRLF claim in `00-status.md`); the boundary scanner's five evasions closed; `project_attempt` now validates every row; the K1 corpus widened with independently-chosen phrasings.
 - [x] **Slice 3 complete** (30 Sep): the append-only SQLite record. Thirteen tables, every one refusing UPDATE and DELETE by trigger; the D11 `CHECK` proven independently of the Python guard; the callback representation proven atomic under two concurrent writers and under an injected crash; the `source_ref` mutation gap from the Slice 2 review closed. 69 new tests, 310 pass. Eleven mutations each seen RED and each reverted with an md5 check.
@@ -95,6 +95,14 @@
 | `source_ref` | ~~**Record the `source_ref` mutation gap.**~~ **SETTLED at Slice 3, 30 Sep.** `mutated_closure` now carries two named flags, one per half of the D11 guard, and a test requires each half to be independently provable. The new test fails when the flag is reverted to the Slice 2 form. No product code changed | ~~Slice 3~~ done | Closed where the constraint it proves was written |
 
 Reminder: the `00-status.md` section for the slice that resolves an item must state the decision and its reason, so a fresh session can see it was made deliberately and not overlooked.
+
+### Open from the Slice 5 build: deferred to the slice where each becomes live
+
+**Same standing instruction (user, 30 September 2026).** Decided, or put to the user as a question, at the slice where each first becomes live, and recorded in `00-status.md` in that slice's section.
+
+| # | Open item | Decided at | Why that slice |
+|---|---|---|---|
+| F6-render | **`patient_lines` does not follow the escalation.** F6 moved `action_owner_id` to the human path, but line 2 is still composed from `disposition.next_owner_id`, so a derived patient screen would say "You must act now." while the ledger says the nurse line acts. **Latent today:** every HTTP path returns hardcoded fixture lines, so nothing derived is rendered. Fixing it needs approved copy for a human-service owner on line 2, which is a Gate 1 touch | **Slice 10** | Slice 10 owns the Closure Contract rendering and re-checks F6. Authoring the copy now would repeat the `COORDINATOR_FALLBACK_TEXT` situation, which cost a Gate 1 reopen |
 
 ### Open from the Slice 4 review: deferred to the slice where each becomes live
 
@@ -122,7 +130,7 @@ Reminder: the `00-status.md` section for the slice that resolves an item must st
 - [x] **Slice 2: pure domain core + enforcing import boundary** (30 Sep; adversarially reviewed and remediated the same day)
 - [x] **Slice 3: append-only state + Closure Contract invariants** (30 Sep; 69 new tests, 310 pass at completion, 332 after the remediation the same day)
 - [x] **Slice 4: COMPLETE 1 Oct.** PlanBack end to end, hint ladder, bounded repair. Implemented 30 Sep; adversarially reviewed and remediated 1 Oct (APPROVE WITH CHANGES, 383 pass); **the Check was run live on 1 October 2026 and the user walked through it.** Transcript at `docs/reviews/slice4-walkthrough.md`. **The usage-proof capture starts here and is only half met: see the usage-proof section below**
-- [ ] Slice 5: judged fixture + abstention path (blocked on the Option C source)
+- [ ] **Slice 5: judged fixture + abstention path. IN PROGRESS 1 Oct 2026.** Unblocked by dropping Option C. Built, tested and proven live: `POST /barriers`, `POST /escalations`, `POST /reassessments`, F6 (the owner moves to the human path on escalation), O7 (a new disposition version must move the deadline later), the `submission/usage-proof.md` skeleton, and K2 promoted from the spike into `tests/test_service.py`. 419 tests pass; nine live curls correct; three mutations each seen RED. **The Check is outstanding.** B3 still needs a clinical reviewer
 - [ ] Slice 6: action path, simulated provider, platform call + Gate A decision
 - [ ] **Slice 7: public deployment, the Next.js clinical frontend and auth (NEW 30 Sep)**
 - [ ] Slice 8: baseline instrument, the external card (C1, parallel)
@@ -135,7 +143,7 @@ Reminder: the `00-status.md` section for the slice that resolves an item must st
 ## Usage proof (OPEN: one half is done, and the missing half blocks scoring)
 
 - [x] **Publish the written development history, done 1 October 2026,** at `docs/session-logs/`. This satisfies `CHALLENGE_REQUIREMENTS_JUDGING.md` line 128, which accepts a written development-process description
-- [ ] **Capture at least three redacted chat screenshots** into `submission/usage-proof/screenshots/`. **Named person: Jaydon.** `CHALLENGE_REQUIREMENTS_JUDGING.md` line 164 requires them **separately** from the written description, they cannot be reconstructed after the fact, and their absence blocks scoring entirely (Slice 12 stop condition). `submission/usage-proof.md` itself is Slice 5's skeleton and is not written here
+- [x] **Three redacted chat screenshots captured 1 October 2026** into `submission/usage-proof/screenshots/`, by Jaydon, and pushed. Redaction checked: no AppKey, token, key or credential in any of the three. Manifest and rules in that folder's `README.md`; the capture log is in `submission/usage-proof.md`, written at Slice 5
 
 ### Standing constraints for every slice
 

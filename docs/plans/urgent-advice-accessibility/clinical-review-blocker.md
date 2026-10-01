@@ -93,6 +93,8 @@ The third condition — the participant comparison — is the one that needs peo
 
 ### Option C — Source the fixture verbatim from published guidance (cheap, strengthens Tier 2)
 
+**Superseded 1 October 2026. Option C was dropped; this section is kept as the record of what was proposed, not as an open route.** The source check ran, no source cleared (MOH clause 11 and HealthHub clause 12.1 both require prior written permission, and the UK OGL route fails Singapore applicability), and Option C was found to **contradict Option A**: a fixture of fictional entities cannot be quoted verbatim from any published guidance. The user answered "drop", and `03-program-design.md` section 6.2 now carries Option A alone. See `00-status.md` for the record.
+
 **What:** derive the fixture wording **word for word** from an attributable public source rather than authoring it. Then the demo *reproduces* guidance instead of inventing it.
 
 - **Cost:** a few hours of careful sourcing and citation.
