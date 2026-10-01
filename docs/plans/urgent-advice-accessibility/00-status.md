@@ -2,7 +2,7 @@
 
 - Gate 1: Product, **RE-APPROVED 1 October 2026** (approved 25 September 2026; reopened 1 October 2026 by one added subsection of approved patient-facing copy, and **re-approved the same day**; see the Gate 1 reopen section below). The reopen is one added subsection of approved patient-facing copy, nothing else; see the Gate 1 reopen section below
 - Gate 2: Architecture, **APPROVED** (revision 3 re-approved 30 September 2026; revision 2 was approved 25 September 2026)
-- Gate 3: Program Design, **REOPENED 1 October 2026, awaiting re-approval** (re-approved 30 September 2026; first approved 26 September 2026). The reopen is one paragraph of section 6.2, dropping Option C; see the Gate 3 reopen section below
+- Gate 3: Program Design, **RE-APPROVED 1 October 2026** (reopened and re-approved the same day; re-approved 30 September 2026; first approved 26 September 2026). The reopen was one paragraph of section 6.2, dropping Option C, and section 8 item 3 was reconciled to the post-drop state in the same pass; see the Gate 3 re-approval below
 - Gate 4: Slice plan, **APPROVED** (re-approved 30 September 2026; first approved 28 September 2026)
 
 **All three reopened gates were re-approved on 30 September 2026.** Implementation is authorised again, slice by slice, in the order `04-slices.md` gives.
@@ -96,9 +96,19 @@ All three rows are **[verified]** as read from the primary terms pages on 1 Octo
 
 **Gate 4 is untouched**, so implementation remains authorised slice by slice while this question is open, and Slice 5's non-clinical work proceeds. `04-slices.md`'s stale Slice 5 gate line is corrected at the next Gate 4 touch rather than now.
 
-## Slice 5 in progress, 1 October 2026
+### Gate 3 re-approval: 1 October 2026
 
-**The non-clinical half is built, tested and proven live. The slice is NOT complete: its Check is outstanding.**
+**The user answered the standing question with "Yea i approve", 1 October 2026.** Gate 3 (Program Design) is therefore **APPROVED** again, carrying **Option A alone** in section 6.2 and the reconciled section 8 item 3. **All four gates are APPROVED.**
+
+**Two further edits were made in the same completion pass, and both are inside the reopened scope rather than new content:** the Slice 5 adversarial review's finding B1 on section 8 item 3 (which still claimed the fixture was sourced verbatim, contradicting section 6.2), and finding B2 on section 6.2's own first line (which still recorded the 26 September selection of Option A + C with no qualifier). Both are reconciled to the drop. Neither adds a decision; both remove a self-contradiction the review named. Section 6.2's heading already carried the drop.
+
+**The authorisation limits are unchanged.** No installs beyond the declared test dependencies, no credentials, no recruitment, no deployment, no external calls beyond those the plan names, and no push. Gate 3's re-approval does not itself authorise code; Gate 4 authorises implementation slice by slice.
+
+**Blockers closed in the same pass, verified:** B1 and B2 above; B3, the `POST /api/episodes` `note` on the wire, re-run live and confirmed to match `policy_provenance`. Evidence is recorded in the Slice 5 section below.
+
+## Slice 5: judged fixture and abstention path, 1 October 2026
+
+**Built, tested, proven live, reviewed, and its blockers closed. Adversarially reviewed the same day: D1 APPROVE WITH CHANGES, three blocking findings, all documentary or wire-payload, none in the code.** The review is at `docs/reviews/slice5-adversarial-review.md`; its D2 upholds dropping Option C.
 
 | Item | State |
 |---|---|
@@ -119,18 +129,30 @@ All three rows are **[verified]** as read from the primary terms pages on 1 Octo
 | Live `curl` on `127.0.0.1:8137` | **Nine calls, all correct.** Health 200; create 200; intake 200; barrier with a permitted route 200; barrier with no proposal 200; **hallucinated route 422 carrying `stopped_at: human_path` and `barrier_recorded: true`**; escalation 200; unpermitted human path 422; reassessment with no code 200 `stop_at_human_path`; unknown code 200 `stop_at_human_path`. **Reproducibility, corrected 1 October 2026:** the intake request body field is **`confirmed_text`**, not `text` (`api.py`, `IntakeRequest`). Posting `{"text": ...}` returns 422 and every later call then returns 409 "episode has no disposition". With `{"confirmed_text": ...}` all nine results above reproduce |
 | Mutations | **Three, each seen RED on exactly its own test, each reverted.** The O7 check disabled: 2 failed, the later-deadline control passed. F6 reverted to naming the patient: 2 failed. A refused barrier recorded as not-a-stop: 1 failed. The full suite was green again after every revert |
 
-**The Check is outstanding:** the user reads the fixture wording and the provenance record. **Nothing is committed**, and no gate authorises a commit.
+**The review's three blockers, all closed and verified on 1 October 2026.**
+
+| # | Finding | Close and its evidence |
+|---|---|---|
+| **B1** | `03-program-design.md` section 8 item 3 still claimed, present tense, that the fixture was "sourced verbatim from attributable published guidance" | Rewritten to the post-drop state: Option A alone, the fixture is **authored rather than sourced**, asserts no clinical claim, no source claimed. Label now `[resolved, 26 September 2026; amended 1 October 2026]`. The item is kept, not deleted. `grep 'sourced verbatim'` over the document returns nothing |
+| **B2** | Section 6.2's first line still read "The user selected Option A + C on 26 September 2026" under a heading that says Option C is dropped | Qualified: the 26 September selection of Option A stands, and its Option C half is superseded by the drop. History preserved, not rewritten |
+| **B3** | `api.py` `POST /api/episodes` `note` still ended "placeholder awaiting the Option C source check", so the wire payload contradicted `policy_provenance` in the same file | Note strings updated to the corrected record. **Re-run live and the body confirmed:** the create response now reads "the fixture wording is a provisional non-clinical placeholder, authored rather than sourced. Option C was dropped on 1 October 2026; the wording asserts no clinical claim." The "Slice 1 tracer bullet: hardcoded" honesty is kept |
+
+**Secondary items closed in the same pass:** `AGENTS.md` section 3 (no longer says Slice 5 is blocked on the source), the `test_domain.py` module docstring, the `test_state.py` provenance literal, and the live-curl evidence above (the `confirmed_text` correction).
+
+**Deliberately not closed, and recorded as such.** `04-slices.md` still states Slice 5's gate as "the Option C source must be cleared". It is corrected at the **next Gate 4 touch** to avoid a second reopening while a slice is in flight. The review's should-fix items are also left: `list_barriers` returning raw `sqlite3.Row` (S1), the 18 `service._store` reaches in tests (S2), and the two NITs. None is slice-blocking.
+
+**Committed, and not pushed.** Six commits on `slice-5`, base `ff22ed3`, tip `f95cea4` (`6187e51` F6 and O7; `9c331b9` the endpoints and K2; `b7655e6` the corrected fixture record; `6ced793` the Gate 3 amendment and status record; `f6a89f2` the stale-claim sweep; `f95cea4` the review note and the usage-proof skeleton). The working tree is clean and `pytest tests/` reports **419 passed, 1 warning** at the tip. `slice-5` sits one commit range above `main` at the base, so it needs a fast-forward into `main` if and when the ship is authorised. **No push has been made, and no gate authorises one.**
 
 ## Slices
 
-**Gate 4 is re-approved as of 30 September 2026, so implementation is authorised slice by slice.** Slices proceed one at a time, each ending with a "continue, or re-steer?" check. **Slice 5 is next, and it is blocked on the Option C source.** Slice state below is the only authority.
+**Gate 4 is re-approved as of 30 September 2026, so implementation is authorised slice by slice.** Slices proceed one at a time, each ending with a "continue, or re-steer?" check. **Slice 5 is built, reviewed and committed on `slice-5`; Slice 6 is next.** Slice state below is the only authority.
 
 - [x] Slice 0: kill tests (**PASS** 28 Sep) + Option C source (**RESOLVED 1 Oct 2026: no source clears, Option C dropped by user decision**)
 - [x] **Slice 1 — COMPLETE 28 Sep.** Tracer bullet runs; 11 tests pass; curl-verified live
 - [x] **Slice 2: COMPLETE 30 Sep; adversarially reviewed and remediated the same day.** Pure domain core; boundary check seen red then green; 240 tests pass. Review at `docs/reviews/slice2-adversarial-review.md`
 - [x] **Slice 3: COMPLETE 30 Sep; adversarially reviewed the same day, verdict yes with named caveats.** The append-only SQLite record; every table refuses UPDATE and DELETE by trigger; the callback representation proven atomic under two concurrent writers and a crash; 70 new tests (69 in the new `tests/test_state.py`, one added to `tests/test_domain.py`), 310 pass, **332 after the remediation of 30 Sep**. The Slice 2 review's `source_ref` open item is settled here. Review at `docs/reviews/slice3-adversarial-review.md`; eight open items, of which the blocking one and three others were closed by the remediation recorded in the Slice 3 remediation section below
 - [x] **Slice 4: COMPLETE 1 Oct.** PlanBack end to end, hint ladder, bounded repair. Implemented 30 September 2026; adversarially reviewed and remediated 1 October 2026 (APPROVE WITH CHANGES, 383 tests pass, two blocking test gaps closed, one intake decision carried); **the Check was run live on 1 October 2026 and the user walked through it: mismatch to one repaired field to a clean pass to a third failure routing to the human path, against a running server, not a summary.** Transcript at `docs/reviews/slice4-walkthrough.md`; review at `docs/reviews/slice4-adversarial-review.md`; see the Slice 4 sections below. **The usage-proof obligation starts here and is only half met: the written history is published, the three chat screenshots are not captured.** See the outstanding-items section below
-- [ ] Slice 5: judged fixture + abstention path. **IN PROGRESS 1 Oct 2026**, unblocked by dropping Option C. The non-clinical half is built and proven live (barriers, escalations, reassessments, F6, O7, the usage-proof skeleton, K2 promoted); **the Check is outstanding**. B3 still needs a clinical reviewer
+- [x] **Slice 5: BUILT, REVIEWED AND COMMITTED 1 Oct; NOT SHIPPED.** Judged fixture + abstention path. Unblocked by dropping Option C. Barriers, escalations, reassessments, F6, O7 and the promoted K2 are built and proven live; the adversarial review returned APPROVE WITH CHANGES, its three blocking findings were documentary or wire-payload and are all closed, and **419 tests pass**. Six commits on `slice-5`, not merged into `main` and not pushed. **The Check has not been run as a live walkthrough.** B3 still needs a clinical reviewer
 - [ ] Slice 6: action path, simulated provider, platform call + Gate A decision
 - [ ] **Slice 7: public deployment, the Next.js clinical frontend and auth (NEW 30 Sep, was not in the approved plan)**
 - [ ] Slice 8: baseline instrument, the external card (C1, parallel). **Was Slice 7**
