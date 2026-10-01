@@ -154,7 +154,7 @@ def seed(path: str | Path) -> Seeded:
     store.register_policy_version(
         POLICY_VERSION,
         content="{}",
-        provenance="provisional placeholder pending the Option C source check",
+        provenance="provisional non-clinical placeholder, authored rather than sourced",
         approved_by=None,
         now_utc=NOW_UTC,
     )
@@ -280,6 +280,13 @@ def _one_row_per_table(path: str | Path) -> None:
             "INSERT OR IGNORE INTO human_acceptances "
             "(id, episode_id, accepted_by, scope, recorded_at) VALUES (?, ?, ?, ?, ?)",
             ("acceptance-raw", EPISODE_ID, "fictional daughter", "handoff", stamp),
+        ),
+        "barriers": (
+            "INSERT OR IGNORE INTO barriers "
+            "(id, episode_id, disposition_version, barrier_text, proposed_route_id, "
+            " permitted_route_id, stopped_at_human_path, recorded_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            ("barrier-raw", EPISODE_ID, 1, "no transport", "nurse_line", None, 1, stamp),
         ),
         "escalations": (
             "INSERT OR IGNORE INTO escalations "
@@ -656,7 +663,10 @@ class TestDispositionsAreAppendOnly:
             version=2,
             policy_version="a-policy-that-was-never-recorded",
             action_id=ACTION_ID,
-            clinical_deadline_utc=DEADLINE_UTC,
+            # Later than version 1 on purpose: O7 (added at Slice 5) refuses a
+            # version whose deadline is not later, and this test is about the
+            # policy-version foreign key, so the deadline must not trip first.
+            clinical_deadline_utc=DEADLINE_UTC + timedelta(hours=1),
             next_owner_id=NEXT_OWNER_ID,
             fallback_route_id=FALLBACK_ROUTE_ID,
             source=DispositionSource.REASSESSMENT,
@@ -1458,3 +1468,106 @@ class TestSnapshotAndRestart:
         seeded.store.load_snapshot(EPISODE_ID)
         seeded.store.derive_closure(EPISODE_ID, AFTER_DEADLINE_UTC)
         assert seeded.store.list_events(EPISODE_ID) == before
+
+
+# ---------------------------------------------------------------------------
+# O7, closed at Slice 5: a second version may move the deadline forward only
+# ---------------------------------------------------------------------------
+
+
+def second_version(deadline: datetime) -> Disposition:
+    return Disposition(
+        episode_id=EPISODE_ID,
+        version=2,
+        policy_version=POLICY_VERSION,
+        action_id=ACTION_ID,
+        clinical_deadline_utc=deadline,
+        next_owner_id=NEXT_OWNER_ID,
+        fallback_route_id=FALLBACK_ROUTE_ID,
+        source=DispositionSource.REASSESSMENT,
+    )
+
+
+class TestDeadlineMonotonicity:
+    """O7. Reading 6 reports an expiry event **by version**.
+
+    A version 2 with a deadline at or before version 1 would leave the current
+    version with no expiry event, so an episode that had already expired could be
+    returned to `open`. That is invariant I2, so the store refuses it.
+    """
+
+    def test_an_earlier_deadline_is_refused(self, seeded: Seeded) -> None:
+        with pytest.raises(state.DeadlineNotMonotonic):
+            seeded.store.insert_disposition(
+                second_version(DEADLINE_UTC - timedelta(minutes=1)), now_utc=NOW_UTC
+            )
+        assert len(seeded.store.list_dispositions(EPISODE_ID)) == 1
+
+    def test_an_equal_deadline_is_refused(self, seeded: Seeded) -> None:
+        """Sideways is not forward. The version must actually move the instant."""
+        with pytest.raises(state.DeadlineNotMonotonic):
+            seeded.store.insert_disposition(
+                second_version(DEADLINE_UTC), now_utc=NOW_UTC
+            )
+        assert len(seeded.store.list_dispositions(EPISODE_ID)) == 1
+
+    def test_a_later_deadline_is_accepted(self, seeded: Seeded) -> None:
+        """The control: the check refuses the defect and not the feature."""
+        seeded.store.insert_disposition(
+            second_version(DEADLINE_UTC + timedelta(hours=2)), now_utc=NOW_UTC
+        )
+        versions = seeded.store.list_dispositions(EPISODE_ID)
+        assert [item.version for item in versions] == [1, 2]
+        assert versions[1].clinical_deadline_utc == DEADLINE_UTC + timedelta(hours=2)
+
+
+# ---------------------------------------------------------------------------
+# Barriers: recorded, and recorded as a stop when the route is refused
+# ---------------------------------------------------------------------------
+
+
+class TestBarriers:
+    def test_a_barrier_round_trips(self, seeded: Seeded) -> None:
+        barrier_id = seeded.store.record_barrier(
+            EPISODE_ID,
+            disposition_version=1,
+            barrier_text="no transport today",
+            proposed_route_id="nurse_line",
+            permitted_route_id="nurse_line",
+            stopped_at_human_path=False,
+            now_utc=NOW_UTC,
+        )
+        rows = seeded.store.list_barriers(EPISODE_ID)
+        assert len(rows) == 1
+        assert rows[0]["id"] == barrier_id
+        assert rows[0]["barrier_text"] == "no transport today"
+        assert rows[0]["permitted_route_id"] == "nurse_line"
+        assert rows[0]["stopped_at_human_path"] == 0
+
+    def test_a_refused_route_is_recorded_as_a_stop(self, seeded: Seeded) -> None:
+        """The refusal is evidence, so it is written rather than discarded."""
+        seeded.store.record_barrier(
+            EPISODE_ID,
+            disposition_version=1,
+            barrier_text="no transport today",
+            proposed_route_id="teleport_clinic",
+            permitted_route_id=None,
+            stopped_at_human_path=True,
+            now_utc=NOW_UTC,
+        )
+        row = seeded.store.list_barriers(EPISODE_ID)[0]
+        assert row["permitted_route_id"] is None
+        assert row["stopped_at_human_path"] == 1
+
+    def test_the_barrier_is_also_an_event(self, seeded: Seeded) -> None:
+        seeded.store.record_barrier(
+            EPISODE_ID,
+            disposition_version=1,
+            barrier_text="no transport today",
+            proposed_route_id=None,
+            permitted_route_id=None,
+            stopped_at_human_path=False,
+            now_utc=NOW_UTC,
+        )
+        kinds = [kind for kind, _payload, _at in seeded.store.list_events(EPISODE_ID)]
+        assert "barrier_recorded" in kinds

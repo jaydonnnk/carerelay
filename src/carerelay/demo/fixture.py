@@ -5,12 +5,19 @@ to end, with no database, no domain layer and no coordinator. Slice 4 keeps the
 tracer bullet's four-line contract and adds the policy values PlanBack needs to
 have something to compare against.
 
-Everything here is **provisional and hardcoded**. It is not sourced. The judged
-fixture must be copied verbatim from attributable published guidance (Option C)
-with the licence and Singapore applicability checked, and that check is still
-open (`03-program-design.md` section 6.2). **Nothing here may be shown to a
-participant**, and no value here is a clinical threshold: there is no reviewer,
-so none may be authored (`03-program-design.md` section 8 item 2).
+Everything here is **provisional and hardcoded**. It is not sourced, and at
+Slice 5 it stopped trying to be: **Option C was dropped on 1 October 2026** after
+the source check cleared no source and found that Option C contradicted Option A
+(`03-program-design.md` section 6.2). MOH clause 11 and HealthHub clause 12.1 both
+require prior written permission, the UK Open Government Licence route fails
+Singapore applicability, and a fixture built from fictional entities cannot be
+quoted verbatim from any published guidance at all.
+
+**What makes this honest now is the absence of a claim, not the presence of a
+citation.** No value here names a symptom, an urgency, a threshold or a real
+facility. **Nothing here may be shown to a participant**, and no value here is a
+clinical threshold: there is no reviewer, so none may be authored
+(`03-program-design.md` section 8 item 2).
 
 Three rules already hold in this file, because retrofitting them later is how
 they get lost:
@@ -38,8 +45,8 @@ from carerelay.domain.models import (
     PolicyText,
 )
 
-# Slice 1 placeholder. The judged fixture must be sourced verbatim from
-# attributable published guidance (Option C) before any participant sees it.
+# Slice 1 placeholder, and still a placeholder at Slice 5: Option C was dropped
+# on 1 October 2026, so this wording is authored and carries no clinical claim.
 FIXTURE_LABEL = "SIMULATED — RESEARCH DEMONSTRATION. Not clinical advice."
 POLICY_VERSION = "fixture-provisional-0"
 DEMO_EPISODE_ID = "demo-episode-001"
@@ -131,10 +138,12 @@ PERMITTED_ACTION_IDS = frozenset(
 )
 PERMITTED_OWNER_IDS = frozenset({NEXT_OWNER_ID, "caregiver"})
 
-#: Empty on purpose. See the module docstring: with no reviewer, no symptom-change
-#: code may be permitted, so `domain.rules.reassessment_decision` stops every
-#: reassessment at the human path (D7). Slice 5 fills this from the sourced
-#: fixture, and only with a reviewer-authorised branch.
+#: Empty on purpose, and **still empty at the close of Slice 5**. See the module
+#: docstring: with no reviewer, no symptom-change code may be permitted, so
+#: `domain.rules.reassessment_decision` stops every reassessment at the human
+#: path (D7). Dropping Option C did not change this: a sourced fixture would have
+#: been evidence that a code is attributable, never authority to act on it. The
+#: set is filled only by a reviewer-authorised branch, and no reviewer exists.
 PERMITTED_CHANGE_CODES: frozenset[str] = frozenset()
 
 #: Surface phrases the resolver accepts, not clinical content. Carried from the

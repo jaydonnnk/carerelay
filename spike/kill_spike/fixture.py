@@ -1,5 +1,10 @@
 """PROVISIONAL fixture for the §6.1 kill-test spike. Not sourced. Not reusable.
 
+Superseded 1 October 2026. The paragraph below describes Option C as open. It is
+not: the source check ran, no source cleared, and Option C contradicted Option A,
+so the user answered "drop" and `03-program-design.md` section 6.2 now carries
+Option A alone (see `00-status.md`).
+
 Option C — the fixture wording copied verbatim from attributable published guidance —
 is still open: no source selected, licensing and Singapore applicability unchecked
 (`03-program-design.md` §6.2). Nothing here may be shown to a participant, and none of

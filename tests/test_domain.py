@@ -17,9 +17,10 @@ Every assertion below is therefore paired with the mutation that must break it:
 `TestClosureDerivation` runs three separately disabled guards.
 
 Wording note. The alias tables and the corpus are carried over from
-`spike/kill_spike/` and are still **provisional**. The judged fixture is sourced
-verbatim from attributable published guidance in Slice 5 (Option C), and the
-Option C source is not yet cleared. Nothing here may be shown to a participant.
+`spike/kill_spike/` and are still **provisional**. The judged fixture is authored
+and non-clinical: **Option C was dropped on 1 October 2026**, so the fixture is
+authored rather than sourced and asserts no clinical claim. Nothing here may be
+shown to a participant.
 """
 
 from __future__ import annotations
@@ -1064,17 +1065,44 @@ class TestClosureDerivation:
 
     def test_an_escalation_before_the_deadline_is_escalated_to_human(self) -> None:
         projection = rules.derive_closure(
-            empty_snapshot(escalation_id="escalation-1"), SCENARIO_NOW_UTC
+            empty_snapshot(
+                escalation_id="escalation-1", escalated_human_path="nurse_line"
+            ),
+            SCENARIO_NOW_UTC,
         )
         assert projection.closure is ClosureState.ESCALATED_TO_HUMAN
-        assert projection.action_owner_id == NEXT_OWNER_ID
+        # F6, decided at Slice 5: the acting party follows the handoff. Before
+        # this the assertion was NEXT_OWNER_ID, which told the patient to act on
+        # a plan that had been handed to a human service (I4).
+        assert projection.action_owner_id == "nurse_line"
 
     def test_an_escalation_past_the_deadline_with_no_evidence_is_expired(self) -> None:
         after = local_deadline() + timedelta(minutes=1)
         projection = rules.derive_closure(
-            empty_snapshot(escalation_id="escalation-1"), after
+            empty_snapshot(
+                escalation_id="escalation-1", escalated_human_path="nurse_line"
+            ),
+            after,
         )
         assert projection.closure is ClosureState.EXPIRED_UNRESOLVED
+
+    def test_an_escalation_with_no_human_path_is_refused(self) -> None:
+        """F6: an escalation that names no service leaves no party to act.
+
+        Falling back to the patient here would silently re-impose the obligation
+        the escalation was recorded to hand away, which is why this refuses
+        rather than guessing (I4).
+        """
+        with pytest.raises(rules.DomainError, match="names no human path"):
+            rules.derive_closure(
+                empty_snapshot(escalation_id="escalation-1"), SCENARIO_NOW_UTC
+            )
+
+    def test_a_non_escalated_episode_still_names_the_patient(self) -> None:
+        """The control for F6: the change moves the owner only on a handoff."""
+        projection = rules.derive_closure(empty_snapshot(), SCENARIO_NOW_UTC)
+        assert projection.closure is ClosureState.OPEN
+        assert projection.action_owner_id == NEXT_OWNER_ID
 
     def test_an_acceptance_past_the_deadline_with_no_evidence_is_expired(self) -> None:
         """The precedence decision recorded in `rules.py`.
