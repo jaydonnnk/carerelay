@@ -83,7 +83,8 @@ Authority rules:
   Plan) are **all APPROVED**. Gates 2, 3 and 4 were reopened on 30 September 2026
   to encode Decisions D-A to D-D and hosting Decision D-1b, and were **re-approved
   the same day**. `00-status.md` records both the reopen and the re-approval.
-  Slices 1, 2 and 3 are complete; Slice 4 is next and may begin. **Each slice stops
+  Slices 1, 2, 3 and 4 are complete. **Slice 5 is next and is blocked on the Option C
+  source**; it has not been begun. **Each slice stops
   for the user's "continue, or re-steer?" before the next one begins.**
 - Gate 1 approval covers the reframe, PlanBack, the recall hint ladder, the Closure
   Contract, the two-axis state model, the design principles and the five HTML

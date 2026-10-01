@@ -495,7 +495,7 @@ Seven seeded fault sequences are explicit pass/fail cases, not narrative: timeou
 ## 10. Submission readiness
 
 **Required or treat as required**
-- [ ] **Genuine CodeBuddy/WorkBuddy development history, and at least three development-chat screenshots (redacted). This is the scoring blocker, and it moves to the top of this list: capture starts at Slice 4, not on the last day.** `.gitignore` excludes `.codebuddy/` and `.workbuddy-ai/`, so it cannot be reconstructed later
+- [ ] **Genuine CodeBuddy/WorkBuddy development history, and at least three development-chat screenshots (redacted). This is the scoring blocker, and it moves to the top of this list: capture started at Slice 4, not on the last day.** **Half met as of 1 October 2026:** the written history is published at `docs/session-logs/`, which satisfies the "written development-process description". **The three screenshots are still not captured.** Named location `submission/usage-proof/screenshots/`, named person Jaydon. `.gitignore` excludes `.codebuddy/` and `.workbuddy-ai/`, and a screenshot cannot be reconstructed later
 - [ ] Confirm team eligibility, registration and healthcare-specific criteria
 - [ ] Declare Challenge 1 at presentation start
 - [ ] Project title

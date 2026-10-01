@@ -1,6 +1,6 @@
 # Status: CareRelay urgent-advice accessibility
 
-- Gate 1: Product, **APPROVED** (25 September 2026; reopened and re-amended the same day, see the reopening section below)
+- Gate 1: Product, **REOPENED 1 October 2026, awaiting re-approval** (approved 25 September 2026; reopened and re-amended the same day, see the reopening section below). The reopen is one added subsection of approved patient-facing copy, nothing else; see the Gate 1 reopen section below
 - Gate 2: Architecture, **APPROVED** (revision 3 re-approved 30 September 2026; revision 2 was approved 25 September 2026)
 - Gate 3: Program Design, **APPROVED** (re-approved 30 September 2026; first approved 26 September 2026)
 - Gate 4: Slice plan, **APPROVED** (re-approved 30 September 2026; first approved 28 September 2026)
@@ -37,15 +37,25 @@
 
 **The authorisation limits are unchanged from the original approvals.** No installs beyond the declared test dependencies, no credentials, no recruitment, no deployment, no external calls beyond those the plan names, and no push. The restructure in `04-slices.md` is approved as the plan of record, including Slice 7 (public deployment and auth) and the conditional Slice 13.
 
+## Gate 1 reopen: 1 October 2026
+
+**Gate 1 is reopened because `01-product.md` gained one subsection.** `AGENTS.md` section 5 is explicit: editing an approved gate document reopens that gate. This is the smallest edit that closes the Slice 4 open item, and it changes no other approved content.
+
+| What changed | Why |
+|---|---|
+| `01-product.md` gained **Approved patient-facing copy**, carrying one string: the coordinator-unavailable fallback, "We could not check that answer just now. Your plan has not changed." | `COORDINATOR_FALLBACK_TEXT` in `api.py` was authored patient-facing copy with no approved source, and Gate 1 owns patient-facing copy. The Slice 4 adversarial review judged the wording acceptable for a labelled research demonstration, because it names no symptom, urgency, route or deadline and asserts only that the check did not happen, on the condition that the touch it needs be tracked rather than left in prose |
+
+**Awaiting re-approval.** The standing question now applies: **Approve Gate 1, or what should change?** Nothing else waits on it. Slice 4 is complete on its own evidence, and Slice 5 is blocked on the Option C source, not on Gate 1.
+
 ## Slices
 
-**Gate 4 is re-approved as of 30 September 2026, so implementation is authorised slice by slice.** Slices proceed one at a time, each ending with a "continue, or re-steer?" check. **Slice 4 is next and may begin.** Slice state below is the only authority.
+**Gate 4 is re-approved as of 30 September 2026, so implementation is authorised slice by slice.** Slices proceed one at a time, each ending with a "continue, or re-steer?" check. **Slice 5 is next, and it is blocked on the Option C source.** Slice state below is the only authority.
 
 - [ ] Slice 0 — kill tests (**PASS** 28 Sep) + Option C source (**open**, blocks Slice 5 only)
 - [x] **Slice 1 — COMPLETE 28 Sep.** Tracer bullet runs; 11 tests pass; curl-verified live
 - [x] **Slice 2: COMPLETE 30 Sep; adversarially reviewed and remediated the same day.** Pure domain core; boundary check seen red then green; 240 tests pass. Review at `docs/reviews/slice2-adversarial-review.md`
 - [x] **Slice 3: COMPLETE 30 Sep; adversarially reviewed the same day, verdict yes with named caveats.** The append-only SQLite record; every table refuses UPDATE and DELETE by trigger; the callback representation proven atomic under two concurrent writers and a crash; 70 new tests (69 in the new `tests/test_state.py`, one added to `tests/test_domain.py`), 310 pass, **332 after the remediation of 30 Sep**. The Slice 2 review's `source_ref` open item is settled here. Review at `docs/reviews/slice3-adversarial-review.md`; eight open items, of which the blocking one and three others were closed by the remediation recorded in the Slice 3 remediation section below
-- [ ] Slice 4: PlanBack end to end, hint ladder, bounded repair. **Implemented 30 September 2026; the user's walkthrough has not happened yet, so it is not marked complete.** **The usage-proof capture starts here.** **Adversarially reviewed 1 October 2026: APPROVE WITH CHANGES, 383 tests pass, two blocking test gaps closed and one intake decision carried.** Review at `docs/reviews/slice4-adversarial-review.md`; see the Slice 4 review and remediation section below. ← **in progress**
+- [x] **Slice 4: COMPLETE 1 Oct.** PlanBack end to end, hint ladder, bounded repair. Implemented 30 September 2026; adversarially reviewed and remediated 1 October 2026 (APPROVE WITH CHANGES, 383 tests pass, two blocking test gaps closed, one intake decision carried); **the Check was run live on 1 October 2026 and the user walked through it: mismatch to one repaired field to a clean pass to a third failure routing to the human path, against a running server, not a summary.** Transcript at `docs/reviews/slice4-walkthrough.md`; review at `docs/reviews/slice4-adversarial-review.md`; see the Slice 4 sections below. **The usage-proof obligation starts here and is only half met: the written history is published, the three chat screenshots are not captured.** See the outstanding-items section below
 - [ ] Slice 5: judged fixture + abstention path (**blocked on the Option C source**)
 - [ ] Slice 6: action path, simulated provider, platform call + Gate A decision
 - [ ] **Slice 7: public deployment, the Next.js clinical frontend and auth (NEW 30 Sep, was not in the approved plan)**
@@ -286,9 +296,13 @@ An independent adversarial review with no prior context was run against the bran
 
 **Committed on `slice-3` and fast-forwarded into `main`**, in two commits: the code, then this record. `origin` holds both `main` and `slice-3`, each in sync with its local branch. They no longer point at the same commit: `slice-3` was frozen when the slice closed, and `main` has carried later work since. No hash is cited here on purpose: a hash in this file goes stale on the next push, and that correction has already been needed twice.
 
-## Slice 4 implemented, 30 September 2026 (awaiting the user's walkthrough)
+## Slice 4 COMPLETE, 1 October 2026
 
-**PlanBack runs end to end against real state: coordinator extracts raw spans, `domain` resolves and compares, the record holds every round, and the repair loop is bounded at two.** The slice's own Check has **not** been performed by the user yet, so this section says implemented rather than complete.
+**PlanBack runs end to end against real state: coordinator extracts raw spans, `domain` resolves and compares, the record holds every round, and the repair loop is bounded at two.** The slice's Check was run live on 1 October 2026 and the user walked through the result, so the slice is complete. Transcript: `docs/reviews/slice4-walkthrough.md`.
+
+**What the Check showed.** 383 passed, re-verified first. Then over HTTP against uvicorn on 127.0.0.1:8017: an unbound complaint stops at 422 with `stopped_at: human_path`; the bound complaint issues disposition v1; H0 and H2 events leave the card visible through a 900 second dwell and only `patient_hid` hides it; a voice restatement with no confirmation is 409 and with one is scored; round 0 mismatches on `deadline_utc`; repair round 1 fixing the deadline is a clean pass recording `recall_unaided`; a second ladder fails through rounds 0, 1 and 2 and round 2 sets `routes_to_human_path` with `human_path_route_id = nurse_line`; a fourth call is 409; a repair against a superseded round is 409 `StaleRestatement`; and the same clean text records `recall_unaided` at H0 and `not_recalled` at H3. `events.payload` holds `dwell_seconds` 45.5 and 900.0 for the two H2 shown events, and no patient response in the run contains the string `dwell`.
+
+**The stop condition is met structurally, not by demonstration.** No route in this slice returns hint text: `POST /hint-events` answers with the rung and the card's visibility, so there is no surface from which H0 to H2 could leak a critical field. The real hint copy does not exist yet. When it is authored it is Gate 1 content and is checked against this rule.
 
 **Branch `slice-4`, recreated from the tip of `main` on the user's instruction of 30 September 2026.** It had previously been created ahead of the slice at `82df9ee`, which was **nine commits behind `main`**. That is a ship hazard, not a cosmetic one: `git merge-base --is-ancestor main slice-4` failed, so once the slice had commits, `git merge --ff-only` into `main` could not succeed. It was recreated with `git branch -f slice-4 main` after verifying that `git log main..slice-4` was empty (no unique commits to lose) and that `git ls-remote --heads origin slice-4` returned nothing (no remote to orphan). **Lesson for the next slice: do not pre-create a slice branch.** The `AGENTS.md` rule now says to create it from the current tip of `main`, but it does not name this failure mode, and it should.
 
@@ -311,7 +325,7 @@ An independent adversarial review with no prior context was run against the bran
 | `pytest tests/` | **380 passed, 1 warning**, up from 332. Per file: **95** domain, **141** boundaries, **25** api, **91** state, **28** service. The five counts sum to 380 |
 | Line endings | Zero lone LF across the ten touched files, verified byte-wise |
 | Em dashes | Zero U+2014 on any added line, verified with `git diff -U0` |
-| The walkthrough, run programmatically | A mismatch names `deadline_utc`; repair 1 still mismatches; repair 2 sets `routes_to_human_path` with `human_path_route_id = nurse_line`; a fourth call returns 409 |
+| The Check, a live walkthrough with the user | **Run 1 October 2026 against a running server, and walked through with the user the same day.** A mismatch names `deadline_utc`; repair 1 fixes that field and is a clean pass; a second ladder fails through rounds 0, 1 and 2 and round 2 sets `routes_to_human_path` with `human_path_route_id = nurse_line`; a fourth call is 409. Transcript: `docs/reviews/slice4-walkthrough.md` |
 
 **Two defects found during the build, both fixed, both real.**
 
@@ -369,7 +383,7 @@ An independent adversarial review with no prior context was run against the bran
 
 **Evidence after the remediation.** **383 passed, 1 warning**, split **95** domain, **141** boundaries, **25** api, **91** state, **31** service; the five counts sum to 383. Three tests added, all three by parametrising the hint-level test from one case into four. Three mutations re-applied to check the two fixes: each turned exactly its own new assertion red, and each reverted with an md5 match. `tests/test_service.py` remains CRLF with zero lone LF and zero U+2014.
 
-**Still open, and deliberately untouched.** B3 and NF1 to NF6, each anchored above to the slice where it becomes live, so no later slice implements one early and silently. The exit contract itself was met before the review and is met now; nothing in the remediation changed product behaviour. **The user's walkthrough has still not happened**, so Slice 4 is still not marked complete.
+**Still open, and deliberately untouched.** B3 and NF1 to NF6, each anchored above to the slice where it becomes live, so no later slice implements one early and silently. The exit contract itself was met before the review and is met now; nothing in the remediation changed product behaviour. **Superseded 1 October 2026: the user walked through the live Check, so Slice 4 is complete.**
 
 **Not committed at review time.** No gate authorises a commit, so at that point the review, the two test changes and this record sat in the working tree only. **Superseded 1 October 2026:** all of it is committed and pushed on the user's explicit instruction. See the ship section below.
 
@@ -382,6 +396,15 @@ An independent adversarial review with no prior context was run against the bran
 **The session logs are now published, at `docs/session-logs/`.** `docs/CHALLENGE_REQUIREMENTS_JUDGING.md` section 8 lists the CodeBuddy or WorkBuddy conversation history as a **required** submission item and accepts a written development-process description as proof of product usage, and submission is through this repository. The live files stay at `.workbuddy-ai/memory/`, which remains git-ignored, so this folder is a published copy with the refresh rule recorded in its own `README.md`. **Third-party skills are deliberately NOT published:** `.workbuddy-ai/skills/` holds six files copied from a local agents directory with no `license`, `author` or source field, and the challenge requires the project to be original, so unlicensed third-party content does not ship.
 
 **Two disclosed exceptions, not silent ones.** The imported logs carry **136 em dashes**. `AGENTS.md` section 6 bans em dashes in *new writing*; these are imported historical records, so rewriting them would falsify the usage proof, and they are published as written. Their working-tree line endings were normalised to CRLF, which `core.autocrlf=true` normalises back to LF on commit, so no content changed. A content scan before publishing found no tokens, keys, credentials, email addresses or real institution names; the logs do contain the Windows username inside a handful of absolute paths.
+
+## Outstanding items at the close of Slice 4, 1 October 2026
+
+| # | Item | State | Next action |
+|---|---|---|---|
+| 1 | **Three redacted chat screenshots.** `CHALLENGE_REQUIREMENTS_JUDGING.md` line 164 requires a minimum of three, separately from the written development-process description that line 128 accepts. The written history is published at `docs/session-logs/`; **the screenshots are not captured** | **OPEN, and it blocks scoring entirely.** It cannot be reconstructed after the fact | **Named location: `submission/usage-proof/screenshots/`. Named person: Jaydon.** Capture three or more now, while the chat history exists, and redact before committing. `submission/usage-proof.md` itself is Slice 5's skeleton and is not written here |
+| 2 | **`COORDINATOR_FALLBACK_TEXT`**, the patient-facing copy shown when the coordinator cannot answer | **CLOSED 1 October 2026 by the Gate 1 touch above.** Approved as "We could not check that answer just now. Your plan has not changed." | Awaiting the Gate 1 re-approval question below. Nothing else waits on it |
+| 3 | **B3, the intake recognition rule.** A bare substring test that also recognises a negated, third-party or red-flag-carrying complaint | **Unchanged and deferred to Slice 5** by the standing instruction of 30 September 2026 | Decided at Slice 5, with a clinical reviewer. No red-flag or negation handling is authored before one exists |
+| 4 | **The Option C source.** Unselected; licence and Singapore applicability unchecked | **OPEN.** Blocks Slice 5 and nothing earlier | Select the source, or fall back to Option B. Clinical wording is not authored to unblock the schedule |
 
 ## Gate 4 approval — 28 September 2026
 **Reopened and re-approved on 30 September 2026. See the reopening and re-approval sections at the top of this file.**

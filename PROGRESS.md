@@ -140,11 +140,11 @@ Both mechanisms are now written into `PLAN.md`. The single-ladder state model wa
 
 ### Next
 
-**Slice 4: PlanBack end to end, with the hint ladder and bounded repair.** `POST /restatements`,
-`/restatements/{rid}/repairs`, `/hint-events`, `/transcript-confirmations`; the coordinator
-extracts raw spans and `domain` resolves and compares (Reading A, pinned there); H0 to H3 recorded,
-H2 stays until the patient hides it, H3 is `not_recalled` and never a pass, two repairs maximum and
-a third routes to the human path (C6).
+**Slice 5: the judged fixture and the abstention path.** **Blocked on the Option C source**, and not
+started on the user's instruction of 1 October 2026. `fixtures/scripted_episode.json` carrying the
+Option C wording verbatim with provenance recorded; `POST /barriers`; the closed-vocabulary
+classification to abstention policy and the emergency stop; `POST /reassessments` (the only path that
+may insert disposition v2); `POST /escalations`. B3, the intake recognition rule, is decided here.
 
 **Carried into Slice 4 and later:** the Option C source (blocks Slice 5), F5 at Slice 6, F6 at
 Slice 5, F4 and the §2.2 amendment at Slice 10 (Slice 9 before the 30 September 2026
@@ -231,5 +231,35 @@ remediation.
   31 service. Three tests added, all three by parametrising the hint-level test over all four rungs.
   Full note at `docs/reviews/slice4-adversarial-review.md`; open items B3 and NF1 to NF6 are anchored
   to the slice where each becomes live in `tasks/todo.md`.
-- **Not committed.** No gate authorises a commit.
+- **Superseded 1 October 2026: shipped on the user's instruction.** Committed on `slice-4`,
+  fast-forwarded into `main`, both branches pushed.
 - **Operational record only.** `00-status.md` is the authority for slice state.
+
+## Slice 4 completion: 2026-10-01
+
+- 2026-10-01: **The Check was run live and the user walked through it, so Slice 4 is COMPLETE.**
+  `pytest -o addopts="" -q` re-verified first: **383 passed, 1 warning**. (`-q` on top of
+  `addopts = "-q"` becomes `-qq` and suppresses the summary line, so the `-o addopts=""` form is the
+  one to use.) Then uvicorn on `127.0.0.1:8017` with `PYTHONPATH=src` and `APP_DATABASE_URL` pointed at
+  a temp file, so the ledger could be read after the run. Every contract line was exercised: an
+  unbound intake stops at 422 with `stopped_at: human_path`; the bound complaint issues disposition v1;
+  H0 and H2 events leave the card visible through a 900 second dwell and only `patient_hid` hides it; a
+  voice restatement with no confirmation is 409 and with one is scored; round 0 mismatches on
+  `deadline_utc`; repair round 1 fixing that field is a clean pass recording `recall_unaided`; a second
+  ladder fails through rounds 0, 1 and 2, and round 2 sets `routes_to_human_path` with
+  `human_path_route_id = nurse_line`; a fourth call is 409; a repair against a superseded round is 409
+  `StaleRestatement`; the same clean text records `recall_unaided` at H0 and `not_recalled` at H3.
+  `events.payload` holds `dwell_seconds` 45.5 and 900.0, and no patient response in the run contains the
+  string `dwell`. Transcript: `docs/reviews/slice4-walkthrough.md`.
+- 2026-10-01: **One honest wrinkle, recorded rather than smoothed over.** The failure ladder's action
+  span came back `uncertain`, not `mismatched`: "wait and monitor" is not in the alias table, so the
+  resolver refuses to accuse. That is the correct behaviour and it still routes to the human path at
+  round 2, but the Check's third failure was an unresolvable field rather than a known wrong one.
+- 2026-10-01: **The Gate 1 touch is done.** `01-product.md` gained an "Approved patient-facing copy"
+  subsection carrying the one coordinator-unavailable string, "We could not check that answer just now.
+  Your plan has not changed." `AGENTS.md` section 5 reopens a gate when its document is edited, so
+  `00-status.md` records Gate 1 as reopened and awaiting re-approval. Nothing else waits on it.
+- 2026-10-01: **Two outstanding items, neither closeable by writing code.** The three redacted chat
+  screenshots are still not captured (named location `submission/usage-proof/screenshots/`, named person
+  Jaydon) and cannot be reconstructed after the fact; and the Option C source still blocks Slice 5.
+  Slice 5 has **not** been started on the user's instruction.
