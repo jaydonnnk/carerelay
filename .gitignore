@@ -1,4 +1,9 @@
-# ---- Agent / tooling metadata (contains session data, may contain tokens) ----
+# ---- Agent / tooling metadata ----
+# The live WorkBuddy session logs are written under .workbuddy-ai/memory/. They
+# are PUBLISHED, as the challenge's usage proof, at docs/session-logs/ (tracked).
+# This directory stays ignored so agent tooling state, third-party skills with
+# unknown licences, and any future token material do not ship. Refresh the
+# published copy when a slice ships.
 .workbuddy-ai/
 .codebuddy/
 .claude/
