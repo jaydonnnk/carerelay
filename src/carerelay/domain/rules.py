@@ -416,6 +416,14 @@ def derive_closure(snapshot: EpisodeSnapshot, now_utc: datetime) -> ClosureProje
     4. A recorded escalation: handed to a named human path, deadline still
        visible.
     5. Otherwise `open`.
+
+    **F6, decided at Slice 5:** the acting party follows the handoff. Once an
+    escalation is recorded, `action_owner_id` names the human path it was handed
+    to rather than the patient, because I4 requires exactly one party to act at
+    every moment and telling a patient to act on a plan that has been handed away
+    is the false-responsibility failure this product exists to prevent. An
+    escalation that names no human path is refused rather than silently falling
+    back to the patient.
     """
     if now_utc.tzinfo is None:
         raise DomainError(
@@ -469,11 +477,30 @@ def derive_closure(snapshot: EpisodeSnapshot, now_utc: datetime) -> ClosureProje
         execution=execution,
         evidence=evidence,
         closure=closure,
-        action_owner_id=disposition.next_owner_id if disposition is not None else None,
+        action_owner_id=_action_owner(snapshot, disposition),
         care_evidenced=care_evidenced,
         # The simulated label survives until real, sourced evidence exists (D11).
         simulated=not care_evidenced,
     )
+
+
+def _action_owner(
+    snapshot: EpisodeSnapshot, disposition: Disposition | None
+) -> str | None:
+    """Who must act now. F6, decided at Slice 5; see `derive_closure`.
+
+    An escalation moves the obligation to the named human path. Without an
+    escalation the owner is the disposition's own `next_owner_id`, which is the
+    pre-Slice-5 behaviour and is unchanged for every non-escalated episode.
+    """
+    if snapshot.escalation_id is None:
+        return disposition.next_owner_id if disposition is not None else None
+    if snapshot.escalated_human_path is None:
+        raise DomainError(
+            f"escalation {snapshot.escalation_id!r} names no human path, so no "
+            "party is left to act, which I4 forbids"
+        )
+    return snapshot.escalated_human_path
 
 
 # ---------------------------------------------------------------------------

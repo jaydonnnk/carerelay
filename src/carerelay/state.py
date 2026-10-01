@@ -147,6 +147,7 @@ APPEND_ONLY_TABLES: tuple[str, ...] = (
     "evidence",
     "consents",
     "human_acceptances",
+    "barriers",
     "escalations",
     "expiry_events",
     "restatements",
@@ -185,6 +186,17 @@ class EvidenceProvenanceViolation(StateError):
 
 class DispositionVersionConflict(StateError):
     """A disposition version that already exists, or one that skips a number."""
+
+
+class DeadlineNotMonotonic(StateError):
+    """A new disposition version whose deadline is not later than the old one.
+
+    O7, closed at Slice 5. Read 6 reports an expiry event by disposition
+    version, so a version 2 carrying an *earlier* deadline than an expired
+    version 1 would leave reading 6 with no expiry event for the current
+    version and could return an expired episode to `open`. A reassessment may
+    move a deadline forward only, never backward, and never sideways.
+    """
 
 
 class NoDispositionForExpiry(StateError):
@@ -395,6 +407,17 @@ CREATE TABLE IF NOT EXISTS human_acceptances (
     episode_id TEXT NOT NULL REFERENCES episodes(id),
     accepted_by TEXT NOT NULL,
     scope TEXT NOT NULL,
+    recorded_at TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS barriers (
+    id TEXT PRIMARY KEY,
+    episode_id TEXT NOT NULL REFERENCES episodes(id),
+    disposition_version INTEGER NOT NULL,
+    barrier_text TEXT NOT NULL,
+    proposed_route_id TEXT,
+    permitted_route_id TEXT,
+    stopped_at_human_path INTEGER NOT NULL CHECK (stopped_at_human_path IN (0,1)),
     recorded_at TEXT NOT NULL
 );
 
@@ -710,6 +733,25 @@ class SqliteEpisodeStore:
                     f"disposition version {disposition.version} does not follow "
                     f"version {top} for episode {disposition.episode_id!r}"
                 )
+            if top > 0:
+                # O7, closed at Slice 5. Reading 6 reports an expiry event by
+                # disposition version, so a version whose deadline is not later
+                # than the version it replaces would leave the current version
+                # with no expiry event and could return an expired episode to
+                # `open`. A reassessment moves a deadline forward only (I2).
+                previous = self._conn.execute(
+                    "SELECT clinical_deadline_utc AS deadline FROM dispositions "
+                    "WHERE episode_id = ? AND version_no = ?",
+                    (disposition.episode_id, top),
+                ).fetchone()
+                previous_deadline = _parse(previous["deadline"])
+                if disposition.clinical_deadline_utc <= previous_deadline:
+                    raise DeadlineNotMonotonic(
+                        f"disposition version {disposition.version} deadline "
+                        f"{_iso(disposition.clinical_deadline_utc)} is not later "
+                        f"than version {top} deadline {_iso(previous_deadline)}: "
+                        "a reassessment may move a deadline forward only (O7, I2)"
+                    )
             self._conn.execute(
                 "INSERT INTO dispositions "
                 "(episode_id, version_no, policy_version, action_id, "
@@ -1232,6 +1274,63 @@ class SqliteEpisodeStore:
             )
         return acceptance_id
 
+    def record_barrier(
+        self,
+        episode_id: str,
+        *,
+        disposition_version: int,
+        barrier_text: str,
+        proposed_route_id: str | None,
+        permitted_route_id: str | None,
+        stopped_at_human_path: bool,
+        now_utc: datetime,
+    ) -> str:
+        """Record a practical barrier, and the route decision it produced.
+
+        Slice 5. Both the proposal and the permitted result are stored, so the
+        ledger can show *why* an episode stopped: a proposal outside the policy's
+        permitted routes is recorded as a stop, never silently dropped. The
+        barrier text is kept because a barrier with no text is unauditable; it is
+        patient-authored free text and is covered by the redaction work in
+        NF6's slice.
+        """
+        barrier_id = uuid.uuid4().hex
+        with self._write():
+            self._conn.execute(
+                "INSERT INTO barriers "
+                "(id, episode_id, disposition_version, barrier_text, "
+                " proposed_route_id, permitted_route_id, stopped_at_human_path, "
+                " recorded_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    barrier_id,
+                    episode_id,
+                    disposition_version,
+                    barrier_text,
+                    proposed_route_id,
+                    permitted_route_id,
+                    1 if stopped_at_human_path else 0,
+                    _iso(now_utc),
+                ),
+            )
+            self._append_event(
+                episode_id,
+                "barrier_recorded",
+                f"version={disposition_version} "
+                f"permitted_route={permitted_route_id or 'none'} "
+                f"stopped_at_human_path={int(stopped_at_human_path)}",
+                now_utc,
+            )
+        return barrier_id
+
+    def list_barriers(self, episode_id: str) -> tuple[sqlite3.Row, ...]:
+        """Every barrier recorded for an episode, oldest first."""
+        return tuple(
+            self._conn.execute(
+                "SELECT * FROM barriers WHERE episode_id = ? ORDER BY rowid",
+                (episode_id,),
+            ).fetchall()
+        )
+
     def record_escalation(
         self,
         episode_id: str,
@@ -1594,7 +1693,8 @@ class SqliteEpisodeStore:
             (episode_id,),
         ).fetchone()
         escalation = self._conn.execute(
-            "SELECT id FROM escalations WHERE episode_id = ? ORDER BY rowid DESC LIMIT 1",
+            "SELECT id, human_path FROM escalations WHERE episode_id = ? "
+            "ORDER BY rowid DESC LIMIT 1",
             (episode_id,),
         ).fetchone()
         expiry = (
@@ -1614,6 +1714,9 @@ class SqliteEpisodeStore:
             consent_version=current[0] if current is not None else None,
             human_acceptance_id=acceptance["id"] if acceptance is not None else None,
             escalation_id=escalation["id"] if escalation is not None else None,
+            escalated_human_path=(
+                escalation["human_path"] if escalation is not None else None
+            ),
             expiry_event_id=expiry["id"] if expiry is not None else None,
         )
 

@@ -322,6 +322,12 @@ class EpisodeSnapshot:
     human_acceptance_id: str | None
     escalation_id: str | None
     expiry_event_id: str | None
+    #: The named human path the escalation handed the episode to. Slice 5, F6:
+    #: an escalated episode's acting party is that service, not the patient, so
+    #: `derive_closure` needs the path itself and not merely the fact that an
+    #: escalation exists. `None` whenever `escalation_id` is `None`.
+    #: Defaulted, and therefore last, so every existing construction still holds.
+    escalated_human_path: str | None = None
 
 
 @dataclass(frozen=True)
