@@ -1,8 +1,8 @@
 # Status: CareRelay urgent-advice accessibility
 
-- Gate 1: Product, **REOPENED 1 October 2026, awaiting re-approval** (approved 25 September 2026; reopened and re-amended the same day, see the reopening section below). The reopen is one added subsection of approved patient-facing copy, nothing else; see the Gate 1 reopen section below
+- Gate 1: Product, **RE-APPROVED 1 October 2026** (approved 25 September 2026; reopened 1 October 2026 by one added subsection of approved patient-facing copy, and **re-approved the same day**; see the Gate 1 reopen section below). The reopen is one added subsection of approved patient-facing copy, nothing else; see the Gate 1 reopen section below
 - Gate 2: Architecture, **APPROVED** (revision 3 re-approved 30 September 2026; revision 2 was approved 25 September 2026)
-- Gate 3: Program Design, **APPROVED** (re-approved 30 September 2026; first approved 26 September 2026)
+- Gate 3: Program Design, **REOPENED 1 October 2026, awaiting re-approval** (re-approved 30 September 2026; first approved 26 September 2026). The reopen is one paragraph of section 6.2, dropping Option C; see the Gate 3 reopen section below
 - Gate 4: Slice plan, **APPROVED** (re-approved 30 September 2026; first approved 28 September 2026)
 
 **All three reopened gates were re-approved on 30 September 2026.** Implementation is authorised again, slice by slice, in the order `04-slices.md` gives.
@@ -45,18 +45,92 @@
 |---|---|
 | `01-product.md` gained **Approved patient-facing copy**, carrying one string: the coordinator-unavailable fallback, "We could not check that answer just now. Your plan has not changed." | `COORDINATOR_FALLBACK_TEXT` in `api.py` was authored patient-facing copy with no approved source, and Gate 1 owns patient-facing copy. The Slice 4 adversarial review judged the wording acceptable for a labelled research demonstration, because it names no symptom, urgency, route or deadline and asserts only that the check did not happen, on the condition that the touch it needs be tracked rather than left in prose |
 
-**Awaiting re-approval.** The standing question now applies: **Approve Gate 1, or what should change?** Nothing else waits on it. Slice 4 is complete on its own evidence, and Slice 5 is blocked on the Option C source, not on Gate 1.
+### Gate 1 re-approval: 1 October 2026
+
+**The user answered the standing question with "I reapprove gate 1", 1 October 2026.** Gate 1 is therefore **APPROVED** again, and the coordinator-unavailable string "We could not check that answer just now. Your plan has not changed." is approved patient-facing copy in `01-product.md`.
+
+**All four gates are now APPROVED.** The authorisation limits are unchanged: no installs beyond the declared test dependencies, no credentials, no recruitment, no deployment, no external calls beyond those the plan names, and no push. Gate 1's approval does not itself authorise code; Gate 4 authorises implementation slice by slice.
+
+**What this does and does not unblock.** It closes outstanding item 2 of the Slice 4 close-out. It does **not** unblock Slice 5, which is blocked on the Option C source, not on Gate 1. See the source-check section below.
+
+## Option C source check, run 1 October 2026
+
+Requested by the Slice 0 stop condition ("if no Option C source can be cleared by 2 October, escalate") and by Slice 5's gate. **Verdict: no source clears, and the check exposed a contradiction inside the approved decision rather than a missing URL.**
+
+| Candidate | Attributable | Licence | Singapore applicability | Clears |
+|---|---|---|---|---|
+| **MOH, `moh.gov.sg` content** | Yes | **No.** Clause 11: the Contents "shall not be reproduced, republished, uploaded, posted, transmitted or otherwise distributed in any way, without the prior written permission of the Ministry of Health". Clause 12 makes modification or use for another purpose a violation. The **Singapore Open Data Licence is granted for Datasets only** and does not reach website content (clause 1, and the licence grant itself). Permission route: `moh_qsm@moh.gov.sg`, at MOH's "sole and absolute discretion" | Yes | **No** |
+| **HealthHub, `healthhub.sg`** | Yes | **No.** Clause 12.1: materials may not be "modified, copied, used, distributed, framed, reproduced, republished, downloaded, scraped, displayed, posted, transmitted, or sold in any form or by any means, in whole or in part, without our prior written permission. All rights are expressly reserved." Clause 12.2's only carve-out is fair dealings for private study, research, criticism or review. Clause 12.3 also claims IP in AI-generated content; clause 2.4(9) forbids using the interface or outputs to develop a similar interface | Yes | **No** |
+| **UK public-sector content under OGL v3, for example NHS** | Yes | Yes, OGL v3 with attribution; the UK framework also carries a "content not licensed for re-use" list **[hypothesis]** as to which specific pages are covered | **No.** UK health-system guidance. Its routes (111, GP) do not exist in Singapore, and quoting it into a Singapore patient-facing surface imports a foreign standard of care | **No** |
+
+All three rows are **[verified]** as read from the primary terms pages on 1 October 2026, except where marked otherwise.
+
+**The finding that matters, and it is not a licensing detail.** `03-program-design.md` section 6.2 approves **Option A and Option C together**, and they cannot both hold:
+
+- **Option A** makes the material **content-neutral** and names **no real service**. The fixture's entities are literally "the fictional provider" and "the fictional nurse line", its complaint is "help sorting out my appointment", and it asserts no symptom, urgency or threshold.
+- **Option C** requires the fixture wording to be **sourced verbatim from attributable published guidance**.
+
+**No published guidance contains "the fictional provider's same-day review".** A fixture built from fictional entities cannot be quoted verbatim from anywhere, so Option C is **unsatisfiable as written**, and no amount of searching fixes it. `clinical-review-blocker.md` section 3 already classifies exactly this material as Tier 1 (non-clinical mechanism, "requires no review, not blocked"); the Option C obligation was written for Tier 2 clinical wording that Option A then removed.
+
+**Three ways forward, with the honest cost of each:**
+
+| # | Route | Cost | Effect on Slice 5 |
+|---|---|---|---|
+| 1 | **Amend section 6.2 to drop Option C** (recommended). Record that under Option A the fixture is Tier 1 content: it carries no symptom, urgency, threshold or real facility, and it is honest because it **asserts no clinical claim**, not because it quotes one | **Gate 3 reopens**, because section 6.2 is approved. Slice 5 is unblocked the same day | **Unblocked today** |
+| 2 | **Request written permission from MOH** at `moh_qsm@moh.gov.sg` | MOH has "sole and absolute discretion" and no published timeline; the 2 October trigger is one day away. Permission to quote MOH wording still cannot produce a **fictional** provider, so this does not resolve the contradiction | **Stays blocked** |
+| 3 | **Take the recorded fallback, Option B**: secure one qualified reviewer | Unbounded. `clinical-review-blocker.md` records two approaches already made with no response | **Stays blocked** |
+
+**[hypothesis] Recommendation: route 1, with Option B kept as an upside if a reviewer appears.** Route 1 is the only one that resolves the contradiction rather than waiting beside it, and it costs a Gate 3 reopening rather than a schedule. The fixture's honesty does not depend on a quotation: `demo/fixture.py` already carries a simulated research-demonstration label as part of the fixture data itself, and an empty `PERMITTED_CHANGE_CODES`, so every reassessment fails closed to the human path.
+
+**Decision required, and this is Slice 5's gate:** approve the section 6.2 amendment (route 1), or hold for route 2 or 3. **Clinical wording is not authored to unblock the schedule** (the standing instruction of 28 and 30 September 2026), so Slice 5's judged fixture waits on this answer.
+
+**RESOLVED 1 October 2026: route 1.** The user answered **"drop"**. `03-program-design.md` section 6.2 is amended to carry Option A alone, with Option C dropped and both reasons recorded there. **Gate 3 is reopened by that edit** (`AGENTS.md` section 5) and awaits re-approval; Gate 4 is untouched, so implementation stays authorised slice by slice. **Known pending touch:** `04-slices.md` still states Slice 5's gate as "the Option C source must be cleared". That line is superseded by this decision and is corrected at the **next Gate 4 touch**, not now, so that a second reopening is not triggered while a slice is in flight.
+
+**What is not blocked, and can be built now regardless of the answer:** the abstention and barrier path (`POST /barriers`), the escalation and reassessment endpoints (`POST /escalations`, `POST /reassessments`), the F6 owner decision, the O7 deadline constraint, and `submission/usage-proof.md`. None of these carries clinical wording. **These are now being built, at the user's "drop" instruction.**
+
+## Gate 3 reopen: 1 October 2026
+
+**Gate 3 is reopened because `03-program-design.md` section 6.2 was edited** to drop Option C (`AGENTS.md` section 5). One paragraph and one heading changed. The edit adds **no clinical wording**, removes no capability, and changes nothing else in the document.
+
+**Re-approval question: approve the section 6.2 amendment (Option A alone, Option C dropped), or what should change?**
+
+**Gate 4 is untouched**, so implementation remains authorised slice by slice while this question is open, and Slice 5's non-clinical work proceeds. `04-slices.md`'s stale Slice 5 gate line is corrected at the next Gate 4 touch rather than now.
+
+## Slice 5 in progress, 1 October 2026
+
+**The non-clinical half is built, tested and proven live. The slice is NOT complete: its Check is outstanding.**
+
+| Item | State |
+|---|---|
+| `POST /barriers` | **Built.** `service.record_barrier` validates any proposed route through `domain.validate_route`. A refused proposal is **recorded as a stop and then refused** with 422, so the ledger keeps the evidence and the caller still gets the refusal |
+| `POST /escalations` | **Built.** `service.escalate` validates the human path against the policy's permitted routes, so the record names a service the product can display |
+| `POST /reassessments` | **Built.** `service.reassess` calls `domain.reassessment_decision`. With no reviewer, every input stops at the human path and **no second version is inserted** |
+| **F6** (the owner after an escalation) | **DECIDED and implemented.** An escalation moves `action_owner_id` to the named human path. `EpisodeSnapshot` gained `escalated_human_path`, and an escalation that names no path is refused rather than falling back to the patient, because a fallback would silently re-impose the obligation the escalation handed away |
+| **O7** (deadline monotonicity) | **CLOSED.** `state.insert_disposition` refuses a new version whose deadline is not **later** than the one it replaces (`DeadlineNotMonotonic`). A version 2 at or before version 1 would leave the current version with no expiry event and could return an expired episode to `open` |
+| `submission/usage-proof.md` | **Written**, as a skeleton to be completed at Slice 12 |
+| The judged fixture wording | **Unblocked and deliberately unchanged.** Option C was dropped, so the non-clinical placeholder stands as authored rather than sourced. `fixtures/scripted_episode.json`, `demo/fixture.py` and the API's `policy_provenance` carry the corrected record |
+| **K2, promoted from the spike** | **Done.** `TestPlanPrecedesReadBack` asserts against the product, with no coordinator and no reviewer, that the plan is issued and renderable before the coordinator is reached and that a coordinator failure cannot move the deadline. The fixture carries no urgent clinical content by design, so the ordering property is the one this fixture can actually prove |
+| **B3** (the intake recognition rule) | **Untouched, and still needs a clinical reviewer.** A bare substring test binds the fixture-bound complaint. No red-flag or negation handling is authored |
+| **F6's rendering half** | **NOT DONE, and deliberately not authored.** `derive_closure` now names the human path, but `patient_lines` still composes line 2 from `disposition.next_owner_id`, so a derived patient screen would say "You must act now." while the ledger says the nurse line acts. That is a real contradiction between the two axes. It is **latent today**: `GET /api/episodes/{id}` returns the hardcoded fixture lines, so no HTTP path renders derived lines, and the same is true of the response bodies of the new endpoints. Fixing it needs approved copy for a human-service owner on line 2, which is a **Gate 1 touch**, so it is not authored here. **Anchored to Slice 10**, which owns the Closure Contract rendering and re-checks F6 |
+
+| Evidence | Result |
+|---|---|
+| `pytest tests/` | **419 passed, 1 warning** (Slice 4 close: 383). Per file: 97 domain, 141 boundaries, 37 api, 100 state, 44 service |
+| Live `curl` on `127.0.0.1:8137` | **Nine calls, all correct.** Health 200; create 200; intake 200; barrier with a permitted route 200; barrier with no proposal 200; **hallucinated route 422 carrying `stopped_at: human_path` and `barrier_recorded: true`**; escalation 200; unpermitted human path 422; reassessment with no code 200 `stop_at_human_path`; unknown code 200 `stop_at_human_path`. **Reproducibility, corrected 1 October 2026:** the intake request body field is **`confirmed_text`**, not `text` (`api.py`, `IntakeRequest`). Posting `{"text": ...}` returns 422 and every later call then returns 409 "episode has no disposition". With `{"confirmed_text": ...}` all nine results above reproduce |
+| Mutations | **Three, each seen RED on exactly its own test, each reverted.** The O7 check disabled: 2 failed, the later-deadline control passed. F6 reverted to naming the patient: 2 failed. A refused barrier recorded as not-a-stop: 1 failed. The full suite was green again after every revert |
+
+**The Check is outstanding:** the user reads the fixture wording and the provenance record. **Nothing is committed**, and no gate authorises a commit.
 
 ## Slices
 
 **Gate 4 is re-approved as of 30 September 2026, so implementation is authorised slice by slice.** Slices proceed one at a time, each ending with a "continue, or re-steer?" check. **Slice 5 is next, and it is blocked on the Option C source.** Slice state below is the only authority.
 
-- [ ] Slice 0 — kill tests (**PASS** 28 Sep) + Option C source (**open**, blocks Slice 5 only)
+- [x] Slice 0: kill tests (**PASS** 28 Sep) + Option C source (**RESOLVED 1 Oct 2026: no source clears, Option C dropped by user decision**)
 - [x] **Slice 1 — COMPLETE 28 Sep.** Tracer bullet runs; 11 tests pass; curl-verified live
 - [x] **Slice 2: COMPLETE 30 Sep; adversarially reviewed and remediated the same day.** Pure domain core; boundary check seen red then green; 240 tests pass. Review at `docs/reviews/slice2-adversarial-review.md`
 - [x] **Slice 3: COMPLETE 30 Sep; adversarially reviewed the same day, verdict yes with named caveats.** The append-only SQLite record; every table refuses UPDATE and DELETE by trigger; the callback representation proven atomic under two concurrent writers and a crash; 70 new tests (69 in the new `tests/test_state.py`, one added to `tests/test_domain.py`), 310 pass, **332 after the remediation of 30 Sep**. The Slice 2 review's `source_ref` open item is settled here. Review at `docs/reviews/slice3-adversarial-review.md`; eight open items, of which the blocking one and three others were closed by the remediation recorded in the Slice 3 remediation section below
 - [x] **Slice 4: COMPLETE 1 Oct.** PlanBack end to end, hint ladder, bounded repair. Implemented 30 September 2026; adversarially reviewed and remediated 1 October 2026 (APPROVE WITH CHANGES, 383 tests pass, two blocking test gaps closed, one intake decision carried); **the Check was run live on 1 October 2026 and the user walked through it: mismatch to one repaired field to a clean pass to a third failure routing to the human path, against a running server, not a summary.** Transcript at `docs/reviews/slice4-walkthrough.md`; review at `docs/reviews/slice4-adversarial-review.md`; see the Slice 4 sections below. **The usage-proof obligation starts here and is only half met: the written history is published, the three chat screenshots are not captured.** See the outstanding-items section below
-- [ ] Slice 5: judged fixture + abstention path (**blocked on the Option C source**)
+- [ ] Slice 5: judged fixture + abstention path. **IN PROGRESS 1 Oct 2026**, unblocked by dropping Option C. The non-clinical half is built and proven live (barriers, escalations, reassessments, F6, O7, the usage-proof skeleton, K2 promoted); **the Check is outstanding**. B3 still needs a clinical reviewer
 - [ ] Slice 6: action path, simulated provider, platform call + Gate A decision
 - [ ] **Slice 7: public deployment, the Next.js clinical frontend and auth (NEW 30 Sep, was not in the approved plan)**
 - [ ] Slice 8: baseline instrument, the external card (C1, parallel). **Was Slice 7**
@@ -401,10 +475,10 @@ An independent adversarial review with no prior context was run against the bran
 
 | # | Item | State | Next action |
 |---|---|---|---|
-| 1 | **Three redacted chat screenshots.** `CHALLENGE_REQUIREMENTS_JUDGING.md` line 164 requires a minimum of three, separately from the written development-process description that line 128 accepts. The written history is published at `docs/session-logs/`; **the screenshots are not captured** | **OPEN, and it blocks scoring entirely.** It cannot be reconstructed after the fact | **Named location: `submission/usage-proof/screenshots/`. Named person: Jaydon.** Capture three or more now, while the chat history exists, and redact before committing. `submission/usage-proof.md` itself is Slice 5's skeleton and is not written here |
-| 2 | **`COORDINATOR_FALLBACK_TEXT`**, the patient-facing copy shown when the coordinator cannot answer | **CLOSED 1 October 2026 by the Gate 1 touch above.** Approved as "We could not check that answer just now. Your plan has not changed." | Awaiting the Gate 1 re-approval question below. Nothing else waits on it |
+| 1 | **Three redacted chat screenshots.** `CHALLENGE_REQUIREMENTS_JUDGING.md` line 164 requires a minimum of three, separately from the written development-process description that line 128 accepts | **CLOSED 1 October 2026.** Three captured by Jaydon into `submission/usage-proof/screenshots/` and pushed. Redaction checked: no AppKey, token, key or credential in any of the three | None. The manifest is in that folder's `README.md` and the capture log is in `submission/usage-proof.md` |
+| 2 | **`COORDINATOR_FALLBACK_TEXT`**, the patient-facing copy shown when the coordinator cannot answer | **CLOSED 1 October 2026.** Approved as "We could not check that answer just now. Your plan has not changed." **Gate 1 was re-approved the same day**, so the string now has an approved source | None. This row is closed |
 | 3 | **B3, the intake recognition rule.** A bare substring test that also recognises a negated, third-party or red-flag-carrying complaint | **Unchanged and deferred to Slice 5** by the standing instruction of 30 September 2026 | Decided at Slice 5, with a clinical reviewer. No red-flag or negation handling is authored before one exists |
-| 4 | **The Option C source.** Unselected; licence and Singapore applicability unchecked | **OPEN.** Blocks Slice 5 and nothing earlier | Select the source, or fall back to Option B. Clinical wording is not authored to unblock the schedule |
+| 4 | **The Option C source.** Unselected; licence and Singapore applicability unchecked | **RESOLVED 1 October 2026.** The check ran, no source cleared, and Option C was found to contradict Option A. The user answered **"drop"**, so `03-program-design.md` section 6.2 now carries Option A alone | **Gate 3 is reopened by that edit** and awaits re-approval. Nothing else waits on it. See the source-check section above |
 
 ## Gate 4 approval — 28 September 2026
 **Reopened and re-approved on 30 September 2026. See the reopening and re-approval sections at the top of this file.**
