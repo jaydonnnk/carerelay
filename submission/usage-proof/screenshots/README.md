@@ -1,28 +1,29 @@
-# Chat screenshots: the missing half of the usage proof
+# Chat screenshots: the captured half of the usage proof
 
 ## Why this folder exists
 
-`CHALLENGE_REQUIREMENTS_JUDGING.md` asks for two different things, and only one of
-them is done.
+`CHALLENGE_REQUIREMENTS_JUDGING.md` asks for two different things. Both are now
+done, and this folder holds one of them.
 
 | Line | Requirement | State |
 |---|---|---|
 | 128 | Proof of product usage: chat screenshots, API call logs, **or** a written development-process description | **Met.** The written history is published at `docs/session-logs/` |
-| 164 | Chat history: **a minimum of 3 screenshots** of your chat logs from CodeBuddy or WorkBuddy during the development process | **NOT MET.** Nothing has been captured |
+| 164 | Chat history: **a minimum of 3 screenshots** of your chat logs from CodeBuddy or WorkBuddy during the development process | **MET.** Three captured 1 October 2026; see the manifest below |
 
-The written history does not close line 164: it is a separate row in the
-submission table, not an alternative reading of line 128. **Screenshots cannot be
-reconstructed after the fact.** The chat history they have to show is only in the
-session that produced it, so this is the one artefact that gets harder every day it
-is deferred.
+**Both rows are now met, and they remain separate rows.** The written history does
+not close line 164: it is an alternative to the screenshots under line 128 only,
+not an alternative under line 164. **Screenshots cannot be reconstructed after the
+fact**: the chat history they show exists only in the session that produced it,
+which is why capture started at the slice rather than at the end.
 
 ## Named person, named location
 
 - **Named person: Jaydon.** The capture is deliberate and attributable, not a side effect.
 - **Named location: this folder, `submission/usage-proof/screenshots/`.**
 
-`submission/usage-proof.md`, the written skeleton, is **Slice 5's** artefact and is
-deliberately not written here.
+`submission/usage-proof.md`, the written skeleton, is **Slice 5's** artefact and now
+exists at `submission/usage-proof.md`. It carries the capture log and the redaction
+rules; this folder carries the images themselves.
 
 ## Captured screenshots
 
