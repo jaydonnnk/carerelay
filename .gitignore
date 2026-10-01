@@ -29,6 +29,13 @@ secrets/
 credentials.json
 service-account*.json
 
+# ---- Gate A spike output ----
+# The probe records the endpoint, the response bodies it observed and the
+# verdict. Bodies are redacted before they are written, but the file is still
+# raw external response data and must not enter the repository. The harness
+# itself (spike/gate_a/probe.py) is tracked; only its output is not.
+gate_a_result.json
+
 # ---- Node ----
 node_modules/
 npm-debug.log*
