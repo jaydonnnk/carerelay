@@ -16,11 +16,13 @@ Curated long-term project notes. Daily logs live beside this file.
 
 ## Current state, 1 October 2026
 
-- Gates 1, 2 (revision 3), 3 and 4 are all **APPROVED**.
-- **Slice 4 is SHIPPED but NOT COMPLETE.** Committed, fast-forwarded into `main`, and pushed. It is not marked complete because **the user's walkthrough has not happened**.
+- Gates 2 (revision 3), 3 and 4 are **APPROVED**. **Gate 1 is REOPENED as of 1 October 2026 and awaits re-approval**: closing the `COORDINATOR_FALLBACK_TEXT` item meant editing `01-product.md`, and editing an approved gate document reopens that gate.
+- **Slice 4 is COMPLETE, 1 October 2026.** Shipped earlier (committed, fast-forwarded into `main`, pushed), and completed when the user walked through the live Check. Transcript at `docs/reviews/slice4-walkthrough.md`.
+- **The usage proof is half met.** The written history is published at `docs/session-logs/`; **the three chat screenshots are still not captured** and cannot be reconstructed later. Named location `submission/usage-proof/screenshots/`, named person Jaydon. This is the one artefact whose absence blocks scoring entirely.
+- **Slice 5 is not started and is blocked on the Option C source.** No clinical wording is authored to unblock the schedule.
 - Slice 4 verdict from the adversarial review: **APPROVE WITH CHANGES**. B1 and B2 closed; B3 is a claim correction with the rule deliberately unchanged. Six non-blocking findings (NF1 to NF6) are carried in `tasks/todo.md`, each anchored to the slice where it becomes live.
 - **The intake and assessment path is scheduled in no slice.** Slice 4 closed it narrowly and correctly in shape. The full clarification loop is still unowned and unestimated.
-- **`COORDINATOR_FALLBACK_TEXT` needs a Gate 1 touch.** Authored patient-facing copy with no approved source.
+- **`COORDINATOR_FALLBACK_TEXT` is closed** by the Gate 1 touch of 1 October 2026: "We could not check that answer just now. Your plan has not changed." now sits in `01-product.md` under "Approved patient-facing copy". Its presence there is what reopened Gate 1.
 - Stack: Python 3.13 + FastAPI + SQLite on **Render** with a mounted persistent disk; **Next.js** clinical frontend on **Vercel**; **ADP additive only** (interpretation step, never execution or rendering).
 - Plan: 14 slices, Slice 0 to Slice 13, **122 to 203 h** against 16 days of capacity.
 - `src/carerelay/demo/fixture.py` is **clean and committed**. The earlier note that it carried an uncommitted change that was "not the agent's" was **stale**: that change was committed on 30 September 2026, and the Slice 4 policy block that followed is the agent's own work.
