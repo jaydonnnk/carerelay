@@ -1,25 +1,42 @@
-"""The hardcoded demo episode — Slice 1 only.
+"""The hardcoded demo episode, and its PROVISIONAL policy.
 
-Slice 1 is the tracer bullet: one mocked endpoint and a stubbed UI, wired end to
-end. It does almost nothing, but it runs.
+Slice 1 built the tracer bullet: one mocked endpoint and a stubbed UI, wired end
+to end, with no database, no domain layer and no coordinator. Slice 4 keeps the
+tracer bullet's four-line contract and adds the policy values PlanBack needs to
+have something to compare against.
 
-Everything here is deliberately **hardcoded**. There is no domain layer, no
-database, no coordinator and no policy engine yet — those arrive in Slices 2 and 3.
-The four-line shape below is the contract the later slices must keep, so the
-tracer bullet fixes it now.
+Everything here is **provisional and hardcoded**. It is not sourced. The judged
+fixture must be copied verbatim from attributable published guidance (Option C)
+with the licence and Singapore applicability checked, and that check is still
+open (`03-program-design.md` section 6.2). **Nothing here may be shown to a
+participant**, and no value here is a clinical threshold: there is no reviewer,
+so none may be authored (`03-program-design.md` section 8 item 2).
 
-Two rules already hold in this file, because retrofitting them later is how they
-get lost:
+Three rules already hold in this file, because retrofitting them later is how
+they get lost:
 
 * **No timer, countdown or auto-advance.** The plan card stays until the patient
   hides it (`PLAN.md` 5.2.1). There is nothing here that hides anything.
 * **The simulated label is part of the patient-visible data**, not page chrome.
   An unlabelled simulated receipt is a D11 violation even at Slice 1.
+* **The change vocabulary is empty on purpose.** `permitted_change_codes` and
+  `authorised_reassessments` carry nothing, so every reassessment fails closed to
+  the human path (D7). That is the honest state until a reviewer authorises a
+  branch; inventing codes here would make an unauthorised clinical branch look
+  approved.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timedelta, timezone
+
+from carerelay.domain.models import (
+    Disposition,
+    DispositionSource,
+    PolicyFixture,
+    PolicyText,
+)
 
 # Slice 1 placeholder. The judged fixture must be sourced verbatim from
 # attributable published guidance (Option C) before any participant sees it.
@@ -87,4 +104,138 @@ def demo_lines() -> PatientLines:
         line_3=f"Before {DEADLINE_DISPLAY}.",
         line_4=f"If this route fails, call {FALLBACK_ROUTE_TEXT}.",
         simulated=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# The provisional policy
+# ---------------------------------------------------------------------------
+
+#: Singapore has had a fixed UTC+8 offset with no DST since 1982, so a fixed
+#: offset is exact. Used in preference to `zoneinfo` so no dependency is added:
+#: Gate 3 authorises no install beyond the declared test dependencies.
+DISPLAY_TZ = timezone(timedelta(hours=8), "SGT")
+
+#: The demo scenario instant: 09:00 SGT, before the 18:00 deadline. Deterministic
+#: on purpose, so a walkthrough and a test see the same "today".
+SCENARIO_NOW_UTC = datetime(2026, 9, 30, 1, 0, tzinfo=timezone.utc)
+
+ACTION_ID = "attend_same_day_review"
+DEADLINE_LOCAL_HHMM = "18:00"
+NEXT_OWNER_ID = "patient"
+FALLBACK_ROUTE_ID = "nurse_line"
+
+PERMITTED_ROUTE_IDS = frozenset({"fictional_provider", "nurse_line"})
+PERMITTED_ACTION_IDS = frozenset(
+    {ACTION_ID, "call_nurse_line", "wait_and_monitor"}
+)
+PERMITTED_OWNER_IDS = frozenset({NEXT_OWNER_ID, "caregiver"})
+
+#: Empty on purpose. See the module docstring: with no reviewer, no symptom-change
+#: code may be permitted, so `domain.rules.reassessment_decision` stops every
+#: reassessment at the human path (D7). Slice 5 fills this from the sourced
+#: fixture, and only with a reviewer-authorised branch.
+PERMITTED_CHANGE_CODES: frozenset[str] = frozenset()
+
+#: Surface phrases the resolver accepts, not clinical content. Carried from the
+#: Slice 0 kill-test spike, which is where the K1 corpus was proved.
+ACTION_ALIASES = {
+    "go to the clinic": ACTION_ID,
+    "attend the clinic": ACTION_ID,
+    "go down to the clinic": ACTION_ID,
+    "see the doctor": ACTION_ID,
+    "the polyclinic": ACTION_ID,
+    "去诊所": ACTION_ID,
+    "看医生": ACTION_ID,
+}
+
+OWNER_ALIASES = {
+    "you": NEXT_OWNER_ID,
+    "me": NEXT_OWNER_ID,
+    "myself": NEXT_OWNER_ID,
+    "the patient": NEXT_OWNER_ID,
+    "我自己": NEXT_OWNER_ID,
+}
+
+#: Normalised surface phrase -> (day offset, local HH:MM). The last two resolve to
+#: a KNOWN DIFFERENT instant on purpose: a known wrong value must be a mismatch,
+#: not an "uncertain". That distinction is the whole point of kill condition K1.
+DEADLINE_FORMS = {
+    "today before 18:00": (0, "18:00"),
+    "today before 6pm": (0, "18:00"),
+    "today before six": (0, "18:00"),
+    "before six today": (0, "18:00"),
+    "by 6 today": (0, "18:00"),
+    "今天六点前": (0, "18:00"),
+    "today before 8pm": (0, "20:00"),
+    "今天八点前": (0, "20:00"),
+    "tomorrow before 6pm": (1, "18:00"),
+}
+
+#: The one complaint this fixture is bound to. Deliberately non-clinical: it names
+#: no symptom, urgency or threshold, because none may be authored before a
+#: reviewer exists. Intake accepts a description containing this phrase and stops
+#: at the human path for anything else (`03-program-design.md` section 4).
+BOUND_COMPLAINT = "help sorting out my appointment"
+
+
+def policy() -> PolicyFixture:
+    """The one provisional policy version. Not sourced; see the module docstring."""
+    return PolicyFixture(
+        version=POLICY_VERSION,
+        permitted_route_ids=PERMITTED_ROUTE_IDS,
+        permitted_action_ids=PERMITTED_ACTION_IDS,
+        permitted_owner_ids=PERMITTED_OWNER_IDS,
+        permitted_change_codes=PERMITTED_CHANGE_CODES,
+        action_aliases=ACTION_ALIASES,
+        owner_aliases=OWNER_ALIASES,
+        deadline_forms=DEADLINE_FORMS,
+        authorised_reassessments={},
+    )
+
+
+def policy_text() -> PolicyText:
+    """Policy-owned patient wording.
+
+    `deadline_display_by_version` is keyed by disposition version because a
+    reassessment inserts a new version with a new deadline, and one fixed string
+    would then describe the wrong instant (`domain.models.PolicyText`).
+    """
+    return PolicyText(
+        policy_version=POLICY_VERSION,
+        fixture_label=FIXTURE_LABEL,
+        deadline_display_by_version={1: DEADLINE_DISPLAY},
+        self_owner_id=NEXT_OWNER_ID,
+        owner_display_by_id={NEXT_OWNER_ID: "you", "caregiver": "your daughter"},
+        route_display_by_id={
+            "fictional_provider": "the fictional provider",
+            FALLBACK_ROUTE_ID: FALLBACK_ROUTE_TEXT,
+        },
+        simulated=True,
+    )
+
+
+def deadline_utc(now_utc: datetime) -> datetime:
+    """The fixture deadline: 18:00 SGT on the local day `now_utc` falls in."""
+    hour, minute = (int(part) for part in DEADLINE_LOCAL_HHMM.split(":"))
+    local = now_utc.astimezone(DISPLAY_TZ)
+    return local.replace(hour=hour, minute=minute, second=0, microsecond=0).astimezone(
+        timezone.utc
+    )
+
+
+def disposition(episode_id: str, now_utc: datetime) -> Disposition:
+    """The fixture's one pre-authored plan, anchored to the caller's clock.
+
+    `source` is `fixture`, never `reviewer`: no reviewer has authorised anything.
+    """
+    return Disposition(
+        episode_id=episode_id,
+        version=1,
+        policy_version=POLICY_VERSION,
+        action_id=ACTION_ID,
+        clinical_deadline_utc=deadline_utc(now_utc),
+        next_owner_id=NEXT_OWNER_ID,
+        fallback_route_id=FALLBACK_ROUTE_ID,
+        source=DispositionSource.FIXTURE,
     )

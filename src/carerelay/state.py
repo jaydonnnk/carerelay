@@ -66,6 +66,7 @@ time, this module only records it.
 from __future__ import annotations
 
 import hashlib
+import json
 import sqlite3
 import uuid
 from collections.abc import Iterator, Sequence
@@ -76,6 +77,8 @@ from pathlib import Path
 
 from carerelay.domain import rules
 from carerelay.domain.models import (
+    COMPARISON_FIELDS,
+    MAX_REPAIR_ROUNDS,
     TERMINAL_TRANSITIONS,
     AttemptCommand,
     AttemptSnapshot,
@@ -88,7 +91,13 @@ from carerelay.domain.models import (
     EvidenceLevel,
     EvidenceRecord,
     ExecutionStatus,
+    ExtractedPlan,
+    HintEventKind,
+    HintLevel,
+    InputMode,
     Origin,
+    PlanComparison,
+    RecallOutcome,
 )
 
 __all__ = [
@@ -101,8 +110,14 @@ __all__ = [
     "NoDispositionForExpiry",
     "PrematureExpiry",
     "IdempotencyKeyCollision",
+    "UnconfirmedTranscript",
+    "RepairRoundOutOfRange",
+    "RestatementNotFound",
     "CallbackReceipt",
+    "HintEventRecord",
+    "RestatementRecord",
     "derive_attempt_key",
+    "transcript_confirmation_id",
     "SqliteEpisodeStore",
     "APPEND_ONLY_TABLES",
     "CLINICAL_SCOPE",
@@ -184,6 +199,23 @@ class IdempotencyKeyCollision(StateError):
     """One key reused for two different `(episode, route, purpose)` triples."""
 
 
+class UnconfirmedTranscript(StateError):
+    """A voice restatement was scored before its transcript was confirmed.
+
+    The record-level half of Gate 1's ordering rule: `domain` decides, and this
+    module refuses to hold a round that was evaluated on a draft the patient
+    never agreed to.
+    """
+
+
+class RepairRoundOutOfRange(StateError):
+    """A repair round outside `0..MAX_REPAIR_ROUNDS`. Never written (C6)."""
+
+
+class RestatementNotFound(StateError):
+    """A restatement id the record does not hold."""
+
+
 # ---------------------------------------------------------------------------
 # Idempotency keys
 # ---------------------------------------------------------------------------
@@ -217,6 +249,22 @@ def derive_attempt_key(
 
 def _digest(value: str) -> str:
     return hashlib.sha256(value.encode("utf-8")).hexdigest()
+
+
+def transcript_confirmation_id(text: str) -> str:
+    """Bind a confirmation to the text it confirmed.
+
+    The id is a digest of the normalised text, not an opaque counter. That is
+    what makes Gate 1's ordering rule enforceable: a restatement may only be
+    scored when a confirmation exists whose id equals the digest of **the very
+    text being scored**, so the draft cannot be swapped for a corrected version
+    between confirmation and evaluation. An opaque id would let the caller name
+    any confirmation and score any string.
+
+    The text itself is not recoverable from the id, so the id is safe to carry
+    in a URL and in the ledger.
+    """
+    return "tc-" + _digest(rules.normalise(text))
 
 
 # ---------------------------------------------------------------------------
@@ -447,6 +495,49 @@ class CallbackReceipt:
     received_at: datetime
 
 
+@dataclass(frozen=True)
+class HintEventRecord:
+    """One hint event, as the judge ledger reads it.
+
+    `dwell_seconds` is judge-facing evidence and nothing more: it is recorded,
+    shown in the ledger, and must never reach the patient surface
+    (`PLAN.md` 5.2.1, constraint C8).
+    """
+
+    level: HintLevel
+    kind: HintEventKind
+    dwell_seconds: float | None
+    recorded_at: datetime
+
+
+@dataclass(frozen=True)
+class RestatementRecord:
+    """One row of `restatements`, as the judge ledger reads it.
+
+    The columns the evaluation depends on are carried whole: the raw spans the
+    coordinator returned, and the comparison `domain` produced from them. The
+    row is the evidence that a recorded hint level was used for a real round,
+    because a hint level that is not recorded with its outcome is a claim about
+    scaffolding that cannot be audited.
+
+    `dwell_seconds` is judge-facing evidence only: recorded, shown in the
+    ledger, never shown to the patient (`PLAN.md` 5.2.1, constraint C8).
+    """
+
+    restatement_id: str
+    episode_id: str
+    disposition_version: int
+    hint_level: HintLevel
+    input_mode: InputMode
+    transcript_confirmed: bool
+    extracted: ExtractedPlan
+    comparison: PlanComparison
+    repair_round: int
+    outcome: RecallOutcome
+    dwell_seconds: float | None
+    created_at: datetime
+
+
 # ---------------------------------------------------------------------------
 # The store
 # ---------------------------------------------------------------------------
@@ -469,7 +560,18 @@ class SqliteEpisodeStore:
         *,
         busy_timeout_ms: int = DEFAULT_BUSY_TIMEOUT_MS,
         key_namespace: str = DEFAULT_KEY_NAMESPACE,
+        check_same_thread: bool = True,
     ) -> None:
+        """One instance is one connection.
+
+        `check_same_thread` is `True` by default, which is SQLite's own guard
+        against a connection being shared across threads. It is **not** a
+        guarantee of thread safety: SQLite has no way to make one connection safe
+        for concurrent use, so a caller that passes `False` owns the serialisation
+        itself, and Slice 4's `api.py` does exactly that with an explicit lock.
+        FastAPI serves synchronous routes from a thread pool, so one store shared
+        by several requests needs the flag off and the lock on.
+        """
         self.path = str(path)
         self.key_namespace = key_namespace
         self.busy_timeout_ms = busy_timeout_ms
@@ -477,6 +579,7 @@ class SqliteEpisodeStore:
             self.path,
             isolation_level=None,
             timeout=busy_timeout_ms / 1000,
+            check_same_thread=check_same_thread,
         )
         self._conn.row_factory = sqlite3.Row
         self._conn.execute(f"PRAGMA busy_timeout = {int(busy_timeout_ms)}")
@@ -1228,6 +1331,224 @@ class SqliteEpisodeStore:
             (int(row["disposition_version"]), _parse(row["occurred_at"])) for row in rows
         )
 
+    # -- restatements ------------------------------------------------------
+
+    def record_restatement(
+        self,
+        episode_id: str,
+        *,
+        disposition_version: int,
+        hint_level: HintLevel,
+        input_mode: InputMode,
+        transcript_confirmed: bool,
+        extracted: ExtractedPlan,
+        comparison: PlanComparison,
+        repair_round: int,
+        outcome: RecallOutcome,
+        dwell_seconds: float | None,
+        now_utc: datetime,
+    ) -> str:
+        """Append one scored restatement. Returns the new row's id.
+
+        Three refusals, each the record-level half of a rule `domain` already
+        owns, enforced here as well because D11 sets the precedent that an
+        invariant is not real until the record refuses to hold its violation:
+
+        * **an unconfirmed voice transcript cannot be scored.** Gate 1's
+          ordering rule, re-checked at the moment of writing so a service-layer
+          defect cannot persist a round that was evaluated on a draft;
+        * **the repair cap is two.** A third round is never written (C6), so the
+          record cannot hold an offer the domain says is never made;
+        * **the comparison must name a disposition that exists.** A restatement
+          against nothing is not a restatement.
+
+        The extracted spans are patient free text, so the audit `events` row
+        carries no span; the spans live in `restatements.extracted_json`, which
+        is the clinical record the ledger reads directly.
+        """
+        now_utc = _utc(now_utc)
+        if input_mode is InputMode.VOICE and not transcript_confirmed:
+            raise UnconfirmedTranscript(
+                "a voice restatement may not be scored before its transcript "
+                "is confirmed (Gate 1 ordering rule)"
+            )
+        if not 0 <= repair_round <= MAX_REPAIR_ROUNDS:
+            raise RepairRoundOutOfRange(
+                f"repair_round {repair_round} is outside 0..{MAX_REPAIR_ROUNDS} "
+                "(two repairs maximum, a third is never offered: C6)"
+            )
+
+        with self._write():
+            episode = self._conn.execute(
+                "SELECT id FROM episodes WHERE id = ?", (episode_id,)
+            ).fetchone()
+            if episode is None:
+                raise EpisodeNotFound(episode_id)
+            disposition = self._conn.execute(
+                "SELECT version_no FROM dispositions WHERE episode_id = ? "
+                "AND version_no = ?",
+                (episode_id, disposition_version),
+            ).fetchone()
+            if disposition is None:
+                raise NoDispositionForExpiry(
+                    f"episode {episode_id!r} has no disposition version "
+                    f"{disposition_version} to compare against"
+                )
+
+            restatement_id = uuid.uuid4().hex
+            self._conn.execute(
+                "INSERT INTO restatements "
+                "(id, episode_id, disposition_version, hint_level, input_mode, "
+                " transcript_confirmed, extracted_json, mismatches, repair_round, "
+                " outcome, dwell_seconds, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    restatement_id,
+                    episode_id,
+                    disposition_version,
+                    hint_level.value,
+                    input_mode.value,
+                    1 if transcript_confirmed else 0,
+                    json.dumps(
+                        {
+                            "action_span": extracted.action_span,
+                            "deadline_span": extracted.deadline_span,
+                            "next_owner_span": extracted.next_owner_span,
+                            "uncertain_fields": sorted(extracted.uncertain_fields),
+                        },
+                        ensure_ascii=False,
+                    ),
+                    json.dumps(
+                        {
+                            "matched": sorted(comparison.matched),
+                            "mismatched": sorted(comparison.mismatched),
+                            "uncertain": sorted(comparison.uncertain),
+                        },
+                        ensure_ascii=False,
+                    ),
+                    repair_round,
+                    outcome.value,
+                    dwell_seconds,
+                    _iso(now_utc),
+                ),
+            )
+            self._append_event(
+                episode_id,
+                "restatement_recorded",
+                f"hint={hint_level.value} round={repair_round} "
+                f"outcome={outcome.value}",
+                now_utc,
+            )
+            return restatement_id
+
+    def list_restatements(
+        self, episode_id: str
+    ) -> tuple[RestatementRecord, ...]:
+        rows = self._conn.execute(
+            "SELECT * FROM restatements WHERE episode_id = ? ORDER BY rowid",
+            (episode_id,),
+        ).fetchall()
+        return tuple(_restatement_from_row(row) for row in rows)
+
+    def get_restatement(self, restatement_id: str) -> RestatementRecord:
+        row = self._conn.execute(
+            "SELECT * FROM restatements WHERE id = ?", (restatement_id,)
+        ).fetchone()
+        if row is None:
+            raise RestatementNotFound(restatement_id)
+        return _restatement_from_row(row)
+
+    def record_hint_event(
+        self,
+        episode_id: str,
+        *,
+        hint_level: HintLevel,
+        kind: HintEventKind,
+        dwell_seconds: float | None,
+        now_utc: datetime,
+    ) -> None:
+        """Append one hint event to the audit log.
+
+        The schema has no hint-events table, and Slice 4 adds none: `events` is
+        the table the judge ledger already reads. `dwell_seconds` travels here
+        and nowhere else in the patient direction (`PLAN.md` 5.2.1, C8).
+        """
+        now_utc = _utc(now_utc)
+        with self._write():
+            self._append_event(
+                episode_id,
+                "hint_event",
+                json.dumps(
+                    {
+                        "hint_level": hint_level.value,
+                        "kind": kind.value,
+                        "dwell_seconds": dwell_seconds,
+                    }
+                ),
+                now_utc,
+            )
+
+    def list_hint_events(self, episode_id: str) -> tuple[HintEventRecord, ...]:
+        rows = self._conn.execute(
+            "SELECT payload, recorded_at FROM events WHERE episode_id = ? "
+            "AND kind = 'hint_event' ORDER BY id",
+            (episode_id,),
+        ).fetchall()
+        records: list[HintEventRecord] = []
+        for row in rows:
+            payload = json.loads(row["payload"])
+            records.append(
+                HintEventRecord(
+                    level=HintLevel(payload["hint_level"]),
+                    kind=HintEventKind(payload["kind"]),
+                    dwell_seconds=payload["dwell_seconds"],
+                    recorded_at=_parse(row["recorded_at"]),
+                )
+            )
+        return tuple(records)
+
+    def record_transcript_confirmation(
+        self, episode_id: str, *, text: str, now_utc: datetime
+    ) -> str:
+        """Record that the patient confirmed or corrected this transcript.
+
+        Returns the confirmation id, which is a digest of the text itself
+        (see `transcript_confirmation_id`), so the id binds to the string rather
+        than to a row number the caller cannot be made to respect.
+
+        The confirmed text is clinical free text and lives in `events.payload`,
+        which `02-architecture.md` section 8 permits for the clinical record:
+        payloads are redacted from application logs, and the ledger reads the
+        table directly.
+        """
+        now_utc = _utc(now_utc)
+        confirmation_id = transcript_confirmation_id(text)
+        with self._write():
+            self._append_event(
+                episode_id,
+                "transcript_confirmed",
+                json.dumps(
+                    {
+                        "confirmation_id": confirmation_id,
+                        "text": text,
+                    },
+                    ensure_ascii=False,
+                ),
+                now_utc,
+            )
+            return confirmation_id
+
+    def has_transcript_confirmation(
+        self, episode_id: str, confirmation_id: str
+    ) -> bool:
+        """Whether this confirmation was recorded for this episode."""
+        row = self._conn.execute(
+            "SELECT 1 FROM events WHERE episode_id = ? AND kind = "
+            "'transcript_confirmed' AND json_extract(payload, '$.confirmation_id') = ?",
+            (episode_id, confirmation_id),
+        ).fetchone()
+        return row is not None
+
     # -- projections -------------------------------------------------------
 
     def load_snapshot(self, episode_id: str) -> EpisodeSnapshot:
@@ -1314,8 +1635,40 @@ def _disposition_from_row(row: sqlite3.Row) -> Disposition:
     )
 
 
+def _restatement_from_row(row: sqlite3.Row) -> RestatementRecord:
+    extracted_payload = json.loads(row["extracted_json"])
+    comparison_payload = json.loads(row["mismatches"])
+    return RestatementRecord(
+        restatement_id=row["id"],
+        episode_id=row["episode_id"],
+        disposition_version=int(row["disposition_version"]),
+        hint_level=HintLevel(row["hint_level"]),
+        input_mode=InputMode(row["input_mode"]),
+        transcript_confirmed=bool(row["transcript_confirmed"]),
+        extracted=ExtractedPlan(
+            action_span=extracted_payload["action_span"],
+            deadline_span=extracted_payload["deadline_span"],
+            next_owner_span=extracted_payload["next_owner_span"],
+            uncertain_fields=frozenset(extracted_payload["uncertain_fields"]),
+        ),
+        comparison=PlanComparison(
+            frozenset(comparison_payload["matched"]),
+            frozenset(comparison_payload["mismatched"]),
+            frozenset(comparison_payload["uncertain"]),
+        ),
+        repair_round=int(row["repair_round"]),
+        outcome=RecallOutcome(row["outcome"]),
+        dwell_seconds=row["dwell_seconds"],
+        created_at=_parse(row["created_at"]),
+    )
+
+
 def open_store(path: str | Path, **kwargs: object) -> SqliteEpisodeStore:
-    """Named constructor, so call sites do not repeat keyword defaults."""
+    """Named constructor, so call sites do not repeat keyword defaults.
+
+    Keyword arguments pass straight through, including `check_same_thread`, so
+    `api.py` can open a store that survives FastAPI's thread-pool dispatch.
+    """
     return SqliteEpisodeStore(path, **kwargs)  # type: ignore[arg-type]
 
 

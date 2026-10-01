@@ -1,21 +1,54 @@
-"""FastAPI routes — Slice 1 (tracer bullet).
+"""FastAPI routes: Slice 1 (tracer bullet) plus Slice 4 (PlanBack).
 
-Two routes, wired end to end, against a hardcoded episode. No database, no
-domain logic, no coordinator. It runs, and the user can see it.
+Slice 1 wired two routes end to end against a hardcoded episode: no database, no
+domain logic, no coordinator. Those two routes are untouched here and still serve
+the tracer bullet.
 
-`02-architecture.md` 3.1 lists the full route surface. This file deliberately
-implements two of them and no more. Later slices add routes in build order —
-the API is grown slice by slice, never filled in horizontally.
+Slice 4 adds the PlanBack routes: `/intake`, `/transcript-confirmations`,
+`/hint-events`, `/restatements` and `/restatements/{id}/repairs`. **This file
+carries no clinical decision.** Every decision is in `domain`, reached through
+`service`; the routes validate input, call one use case, and map typed errors to
+HTTP. That split is D2's, and it is what lets the route layer be the one file in
+the project with no rules in it.
+
+`02-architecture.md` 3.1 lists the full route surface. Later slices add routes in
+build order: the API is grown slice by slice, never filled in horizontally.
 """
 
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
+import os
+import threading
+
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from carerelay import __version__
+from carerelay.coordinator import (
+    CoordinatorUnavailable,
+    LocalSimulationCoordinator,
+)
 from carerelay.demo import fixture
+from carerelay.domain.rules import PolicyViolation
+from carerelay.service import (
+    EpisodeAlreadyAssessed,
+    EpisodeService,
+    IntakeNotRecognised,
+    NoDispositionYet,
+    RepairCapReached,
+    RestatementOutcome,
+    ScenarioClock,
+    StaleRestatement,
+    SystemClock,
+    UnconfirmedTranscript,
+)
+from carerelay.state import (
+    EpisodeNotFound,
+    RestatementNotFound,
+    StateError,
+    open_store,
+)
 
 app = FastAPI(
     title="CareRelay",
@@ -26,11 +59,81 @@ app = FastAPI(
     ),
 )
 
-# Slice 1 only: one in-memory episode. Slice 3 built the SQLite record at
-# `carerelay.state`, but this route is not wired to it yet: the slice plan gives
-# `state.py` its own slice and leaves the API wiring to the slices that add the
-# routes. Until then this set is the whole of the API's state.
+# Slice 1 only: one in-memory episode, used by the two tracer-bullet routes.
 _OPEN_EPISODES: set[str] = set()
+
+
+# ---------------------------------------------------------------------------
+# Slice 4 wiring
+# ---------------------------------------------------------------------------
+
+
+def _clock() -> SystemClock | ScenarioClock:
+    """The injected clock. `APP_CLOCK=scenario|system`, scenario by default.
+
+    Scenario is the demo default because the fixture's deadline display is "6pm
+    today": under a wall clock it would drift as the real day changed, and the
+    walkthrough would stop matching its own fixture.
+    """
+    if os.getenv("APP_CLOCK", "scenario").strip().casefold() == "system":
+        return SystemClock()
+    return ScenarioClock(fixture.SCENARIO_NOW_UTC)
+
+
+def _database_path() -> str:
+    """`APP_DATABASE_URL`, or an in-memory database for the local demo.
+
+    Slice 7 sets the mounted persistent disk path on Render. Until then the demo
+    runs in memory: the record is still real SQL with real triggers and real
+    transactions, but it does not survive a restart, and no claim is made that it
+    does.
+    """
+    return os.getenv("APP_DATABASE_URL") or ":memory:"
+
+
+#: SQLite has no way to make one connection safe for concurrent use, and FastAPI
+#: serves synchronous routes from a thread pool. The store is therefore opened
+#: with `check_same_thread=False` and every use case runs under this lock, so a
+#: second request waits rather than trying to begin a transaction inside another
+#: one. `02-architecture.md` section 4.1's `BEGIN IMMEDIATE` still handles the
+#: genuinely concurrent case, which is a *second connection* to the same file.
+_DB_LOCK = threading.Lock()
+
+_STORE = open_store(_database_path(), check_same_thread=False)
+
+_SERVICE = EpisodeService(
+    _STORE,
+    coordinator=LocalSimulationCoordinator(),
+    clock=_clock(),
+    policy=fixture.policy(),
+    display_tz=fixture.DISPLAY_TZ,
+    disposition_factory=fixture.disposition,
+    bound_complaint=fixture.BOUND_COMPLAINT,
+    policy_provenance=(
+        "PROVISIONAL: unsourced placeholder. The Option C source check is open "
+        "and licensing plus Singapore applicability are unchecked "
+        "(03-program-design.md 6.2)."
+    ),
+)
+
+
+def get_service() -> EpisodeService:
+    """The service behind every Slice 4 route.
+
+    A FastAPI dependency rather than a direct module reference, so a test can
+    supply a service on a fresh in-memory database. That is not test
+    convenience: the clinical record is append-only, so a test suite that shares
+    one database cannot be reset, and the second intake would be refused as a
+    repeat assessment.
+    """
+    return _SERVICE
+
+#: The degraded-state message for a coordinator that cannot answer. Not approved
+#: clinical copy: none exists for this state, and this is authored so the flow
+#: stops with words rather than with a blank screen. It needs a Gate 1 touch.
+COORDINATOR_FALLBACK_TEXT = (
+    "We could not check that answer just now. Your plan has not changed."
+)
 
 
 class EpisodeCreated(BaseModel):
@@ -62,13 +165,22 @@ def health() -> dict[str, str]:
 
 
 @app.post("/api/episodes", response_model=EpisodeCreated, tags=["episodes"])
-def create_episode() -> EpisodeCreated:
+def create_episode(
+    service: EpisodeService = Depends(get_service),
+) -> EpisodeCreated:
     """Create the demo episode.
 
     Does **not** write a disposition — that follows assessment (`02-architecture.md`
-    3.1, 5.1). Slice 1 has no assessment, so it has no disposition.
+    3.1, 5.1), which Slice 4 adds at `/intake`. Slice 1 has no assessment, so it
+    has no disposition.
+
+    Slice 4 does add the **store** row, because the PlanBack routes need the
+    episode to exist as real state. That is idempotent, and it still writes no
+    disposition.
     """
     _OPEN_EPISODES.add(fixture.DEMO_EPISODE_ID)
+    with _DB_LOCK:
+        service.ensure_episode(fixture.DEMO_EPISODE_ID, "fictional older adult")
     return EpisodeCreated(
         episode_id=fixture.DEMO_EPISODE_ID,
         persona=fixture.DEMO_EPISODE_ID and "fictional older adult",
@@ -133,3 +245,277 @@ def patient_page(episode_id: str = fixture.DEMO_EPISODE_ID) -> HTMLResponse:
 </body>
 </html>"""
     return HTMLResponse(content=html)
+
+
+# ---------------------------------------------------------------------------
+# Slice 4: PlanBack
+# ---------------------------------------------------------------------------
+
+
+class IntakeRequest(BaseModel):
+    confirmed_text: str
+
+
+class IntakeResponse(BaseModel):
+    episode_id: str
+    disposition_version: int
+    action_id: str
+    deadline_utc: str
+    next_owner_id: str
+    fallback_route_id: str
+    simulated: bool
+    fixture_label: str
+
+
+class TranscriptConfirmationRequest(BaseModel):
+    corrected_text: str
+
+
+class TranscriptConfirmationResponse(BaseModel):
+    episode_id: str
+    confirmation_id: str
+
+
+class HintEventRequest(BaseModel):
+    hint_level: str
+    event: str
+    dwell_seconds: float | None = None
+
+
+class HintEventResponse(BaseModel):
+    """The resulting card state, and nothing else.
+
+    There is deliberately no `dwell_seconds` here: it is recorded for the judge
+    ledger and must never reach the patient surface (`PLAN.md` 5.2.1, C8).
+    """
+
+    episode_id: str
+    hint_level: str
+    card_visible: bool
+
+
+class RestatementRequest(BaseModel):
+    text: str
+    hint_level: str
+    input_mode: str = "text"
+    transcript_confirmation_id: str | None = None
+    dwell_seconds: float | None = None
+
+
+class RestatementResponse(BaseModel):
+    restatement_id: str
+    understood: bool
+    mismatches: list[str]
+    uncertain: list[str]
+    outcome: str
+    repair_round: int
+    next_repair_field: str | None
+    routes_to_human_path: bool
+    human_path_route_id: str | None
+    simulated: bool
+    fixture_label: str
+
+
+def _restatement_body(outcome: RestatementOutcome) -> RestatementResponse:
+    return RestatementResponse(
+        restatement_id=outcome.restatement_id,
+        understood=outcome.understood,
+        mismatches=sorted(outcome.comparison.mismatched),
+        uncertain=sorted(outcome.comparison.uncertain),
+        outcome=outcome.outcome.value,
+        repair_round=outcome.repair_round,
+        next_repair_field=outcome.next_repair_field,
+        routes_to_human_path=outcome.routes_to_human_path,
+        human_path_route_id=outcome.human_path_route_id,
+        simulated=outcome.simulated,
+        fixture_label=fixture.FIXTURE_LABEL,
+    )
+
+
+def _coordinator_down() -> HTTPException:
+    """503, with a text fallback and an explicit `scored: False`.
+
+    The flow stops at the current question (`02-architecture.md` section 8). The
+    response refuses to look like a scored round, because a 200 carrying empty
+    mismatches would read as "you understood your plan" and would be a false
+    completion of exactly the kind the product exists to prevent.
+    """
+    return HTTPException(
+        status_code=503,
+        detail={
+            "detail": "the coordinator could not answer, so nothing was scored",
+            "text_fallback": COORDINATOR_FALLBACK_TEXT,
+            "scored": False,
+        },
+    )
+
+
+@app.post(
+    "/api/episodes/{episode_id}/intake",
+    response_model=IntakeResponse,
+    tags=["planback"],
+)
+def intake(
+    episode_id: str,
+    body: IntakeRequest,
+    service: EpisodeService = Depends(get_service),
+) -> IntakeResponse:
+    """The fixture-bound assessment. Issues the preauthored plan, or stops.
+
+    A complaint this fixture is not bound to stops at the human path with 422.
+    No disposition is derived from free text, and none is written for an
+    unrecognised complaint (D7).
+    """
+    try:
+        with _DB_LOCK:
+            disposition = service.intake(episode_id, body.confirmed_text)
+    except EpisodeNotFound:
+        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
+    except EpisodeAlreadyAssessed as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except IntakeNotRecognised as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "detail": str(exc),
+                "stopped_at": "human_path",
+            },
+        )
+    return IntakeResponse(
+        episode_id=episode_id,
+        disposition_version=disposition.version,
+        action_id=disposition.action_id,
+        deadline_utc=disposition.clinical_deadline_utc.isoformat(),
+        next_owner_id=disposition.next_owner_id,
+        fallback_route_id=disposition.fallback_route_id,
+        simulated=True,
+        fixture_label=fixture.FIXTURE_LABEL,
+    )
+
+
+@app.post(
+    "/api/episodes/{episode_id}/transcript-confirmations",
+    response_model=TranscriptConfirmationResponse,
+    tags=["planback"],
+)
+def confirm_transcript(
+    episode_id: str,
+    body: TranscriptConfirmationRequest,
+    service: EpisodeService = Depends(get_service),
+) -> TranscriptConfirmationResponse:
+    """Confirm or correct a transcript, **before** any evaluation.
+
+    The returned id is a digest of the text, so a restatement can be required to
+    be the very string that was confirmed.
+    """
+    try:
+        with _DB_LOCK:
+            confirmation_id = service.confirm_transcript(
+                episode_id, body.corrected_text
+            )
+    except EpisodeNotFound:
+        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
+    return TranscriptConfirmationResponse(
+        episode_id=episode_id, confirmation_id=confirmation_id
+    )
+
+
+@app.post(
+    "/api/episodes/{episode_id}/hint-events",
+    response_model=HintEventResponse,
+    tags=["planback"],
+)
+def record_hint_event(
+    episode_id: str,
+    body: HintEventRequest,
+    service: EpisodeService = Depends(get_service),
+) -> HintEventResponse:
+    """Record a hint event. The card is hidden only by `patient_hid` (C8)."""
+    try:
+        with _DB_LOCK:
+            state = service.record_hint_event(
+                episode_id, body.hint_level, body.event, body.dwell_seconds
+            )
+    except EpisodeNotFound:
+        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
+    except PolicyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return HintEventResponse(
+        episode_id=episode_id,
+        hint_level=state.level.value,
+        card_visible=state.card_visible,
+    )
+
+
+@app.post(
+    "/api/episodes/{episode_id}/restatements",
+    response_model=RestatementResponse,
+    tags=["planback"],
+)
+def submit_restatement(
+    episode_id: str,
+    body: RestatementRequest,
+    service: EpisodeService = Depends(get_service),
+) -> RestatementResponse:
+    """Score one restatement. The coordinator extracts; `domain` decides."""
+    try:
+        with _DB_LOCK:
+            outcome = service.submit_restatement(
+                episode_id,
+                body.text,
+                body.hint_level,
+                body.transcript_confirmation_id,
+                input_mode=body.input_mode,
+                dwell_seconds=body.dwell_seconds,
+            )
+    except EpisodeNotFound:
+        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
+    except (NoDispositionYet, UnconfirmedTranscript) as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except StateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except CoordinatorUnavailable:
+        raise _coordinator_down()
+    return _restatement_body(outcome)
+
+
+@app.post(
+    "/api/episodes/{episode_id}/restatements/{restatement_id}/repairs",
+    response_model=RestatementResponse,
+    tags=["planback"],
+)
+def repair_restatement(
+    episode_id: str,
+    restatement_id: str,
+    body: RestatementRequest,
+    service: EpisodeService = Depends(get_service),
+) -> RestatementResponse:
+    """Score one repair round, capped at two (C6)."""
+    try:
+        with _DB_LOCK:
+            outcome = service.repair_restatement(
+                restatement_id,
+                body.text,
+                body.hint_level,
+                body.transcript_confirmation_id,
+                input_mode=body.input_mode,
+                dwell_seconds=body.dwell_seconds,
+                episode_id=episode_id,
+            )
+    except RestatementNotFound:
+        raise HTTPException(
+            status_code=404,
+            detail=f"restatement {restatement_id!r} not found for episode {episode_id!r}",
+        )
+    except (
+        NoDispositionYet,
+        UnconfirmedTranscript,
+        RepairCapReached,
+        StaleRestatement,
+    ) as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except StateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except CoordinatorUnavailable:
+        raise _coordinator_down()
+    return _restatement_body(outcome)

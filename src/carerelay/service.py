@@ -1,0 +1,560 @@
+"""Application use cases for PlanBack. Slice 4.
+
+`03-program-design.md` section 2 gives this file its responsibility: intake,
+restatement, action, callback, consent, expiry, reassessment and resume, and
+makes it "the only layer allowed to coordinate domain, store, coordinator and
+clock". Slice 4 implements the PlanBack half of that list: intake, transcript
+confirmation, hint events, the restatement round, and the bounded repair.
+
+Nothing here is a clinical decision. Every clinical decision is in `domain`, and
+this file is what makes that claim testable: it is the only layer that may call
+the coordinator, and it hands the coordinator's output to `domain` without ever
+resolving it itself.
+
+**Four decisions this layer owns, and why they are here:**
+
+1. **Whether a restatement may be scored at all.** `domain.may_score_restatement`
+   decides. This layer supplies the confirmation and refuses on its behalf, and
+   it checks that the confirmation binds to **the very text being scored**, so a
+   corrected transcript cannot be swapped for a draft at evaluation time.
+2. **Which field is repaired next, and whether a further round exists.**
+   `domain.next_repair` decides; this layer carries the round count, which is
+   state, not policy.
+3. **What the recorded outcome was.** The hint level alone does not settle it. A
+   mismatched round achieved no recall, so it records `not_recalled` even at H0;
+   and H3 records `not_recalled` even when its comparison is clean, which is the
+   rule that revealing the plan is never a comprehension pass (C6).
+4. **What happens when the coordinator cannot answer.** The flow stops and
+   nothing is written, so no later surface may present the round as scored
+   (`02-architecture.md` section 8, degraded states).
+
+**A divergence from the Gate 3 sketch, stated rather than silent.** Gate 3
+declares `submit_restatement(...) -> PlanComparison`. Gate 2 section 3.1 gives
+the route a `/repairs` child keyed on the restatement id and requires the response
+to say whether the patient routes to the human path, so the method returns a
+`RestatementOutcome` that carries the `PlanComparison` rather than returning it
+bare. The comparison is unchanged; only the envelope grew.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass
+from datetime import datetime, timezone
+from datetime import tzinfo
+from typing import Protocol
+
+from carerelay.coordinator import (
+    AllowedPlanValues,
+    CoordinatorPort,
+)
+from carerelay.domain import rules
+from carerelay.domain.models import (
+    MAX_REPAIR_ROUNDS,
+    RECALL_OUTCOME_BY_LEVEL,
+    Disposition,
+    HintEvent,
+    HintEventKind,
+    HintLevel,
+    HintState,
+    InputMode,
+    PlanComparison,
+    PolicyFixture,
+    RecallOutcome,
+)
+from carerelay.state import (
+    EpisodeNotFound,
+    RestatementNotFound,
+    SqliteEpisodeStore,
+)
+
+# Aliased on purpose: `_require_scorable` takes a parameter named
+# `transcript_confirmation_id`, which would otherwise shadow the function and
+# turn a digest comparison into a call on the parameter itself.
+from carerelay.state import (  # noqa: E402
+    transcript_confirmation_id as derive_confirmation_id,
+)
+
+
+# ---------------------------------------------------------------------------
+# Errors
+# ---------------------------------------------------------------------------
+
+
+class ServiceError(Exception):
+    """Base class for a use case that refuses to proceed."""
+
+
+class NoDispositionYet(ServiceError):
+    """A restatement before any plan exists. There is nothing to compare against."""
+
+
+class UnconfirmedTranscript(ServiceError):
+    """A voice restatement arrived before its transcript was confirmed.
+
+    The request-layer half of Gate 1's ordering rule. `state.UnconfirmedTranscript`
+    is the record-level half; both exist so a defect in either place cannot
+    produce a scored round that was evaluated on a draft.
+    """
+
+
+class RepairCapReached(ServiceError):
+    """A third repair round was requested. It is never offered (C6)."""
+
+
+class StaleRestatement(ServiceError):
+    """A repair against a restatement that is no longer the latest round.
+
+    Every round is its own row, so repairing an older round would fork the
+    ladder: the caller could re-repair round zero forever and the two-repair cap
+    would never bite. The repair must be against the most recent round, which is
+    the one the previous response named.
+    """
+
+
+class EpisodeAlreadyAssessed(ServiceError):
+    """A second intake for an episode that already carries a disposition."""
+
+
+class IntakeNotRecognised(ServiceError):
+    """A complaint this fixture is not bound to. Stops at the human path (D7)."""
+
+
+# ---------------------------------------------------------------------------
+# The clock
+# ---------------------------------------------------------------------------
+
+
+class Clock(Protocol):
+    """The only source of time. Injected, so no layer below reads a clock (D5)."""
+
+    def now_utc(self) -> datetime: ...
+
+
+class SystemClock:
+    """The wall clock."""
+
+    def now_utc(self) -> datetime:
+        return datetime.now(timezone.utc)
+
+
+class ScenarioClock:
+    """A fixed instant, so a walkthrough and a test see the same "today".
+
+    The demo default: the fixture's deadline display is "6pm today" and its
+    deadline is computed relative to the injected clock, so a wall clock would
+    make the displayed deadline drift as the real day changed.
+    """
+
+    def __init__(self, instant: datetime) -> None:
+        self._instant = instant
+
+    def now_utc(self) -> datetime:
+        return self._instant
+
+
+# ---------------------------------------------------------------------------
+# Results
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class RestatementOutcome:
+    """What one restatement round produced, for the API to serialise.
+
+    `simulated` travels on the result because the coordinator that produced it
+    did: an unlabelled simulated extraction is the same defect D11 forbids for a
+    simulated receipt.
+    """
+
+    restatement_id: str
+    comparison: PlanComparison
+    hint_level: HintLevel
+    repair_round: int
+    outcome: RecallOutcome
+    next_repair_field: str | None
+    routes_to_human_path: bool
+    human_path_route_id: str | None
+    simulated: bool
+
+    @property
+    def understood(self) -> bool:
+        """True only when every critical field resolved **and** agreed.
+
+        Deliberately stricter than "no mismatch": an extractor that answers
+        uncertain to everything has zero false mismatches and is useless, because
+        read-back would repair nothing and the patient would reach the human path
+        every time. K1 must not be passable by refusing to commit.
+        """
+        return not self.comparison.mismatched and not self.comparison.uncertain
+
+
+# ---------------------------------------------------------------------------
+# The service
+# ---------------------------------------------------------------------------
+
+
+class EpisodeService:
+    """The PlanBack use cases, and the intake that gives them a plan.
+
+    The fixture-shaped values are constructor arguments rather than imports, so
+    a test can swap the policy and the disposition without monkeypatching, and so
+    Slice 5 can replace the provisional fixture with the sourced one without
+    touching this file.
+    """
+
+    def __init__(
+        self,
+        store: SqliteEpisodeStore,
+        *,
+        coordinator: CoordinatorPort,
+        clock: Clock,
+        policy: PolicyFixture,
+        display_tz: tzinfo,
+        disposition_factory: Callable[[str, datetime], Disposition],
+        bound_complaint: str,
+        policy_provenance: str,
+    ) -> None:
+        self._store = store
+        self._coordinator = coordinator
+        self._clock = clock
+        self._policy = policy
+        self._display_tz = display_tz
+        self._disposition_factory = disposition_factory
+        self._bound_complaint = bound_complaint
+        self._policy_provenance = policy_provenance
+
+    # -- episode ----------------------------------------------------------
+
+    def ensure_episode(self, episode_id: str, persona: str) -> None:
+        """Create the episode row if it is absent. Idempotent on purpose.
+
+        `POST /api/episodes` returns one demo episode, and the tracer bullet
+        calls it once per session. Making the second call raise would break the
+        Slice 1 route contract for no gain. **This writes no disposition**
+        (`02-architecture.md` 3.1): assessment does, and only assessment.
+        """
+        try:
+            self._store.load_snapshot(episode_id)
+        except EpisodeNotFound:
+            self._store.create_episode(
+                episode_id, persona, now_utc=self._clock.now_utc()
+            )
+
+    def intake(self, episode_id: str, confirmed_text: str) -> Disposition:
+        """Assess the fixture-bound complaint and issue the preauthored plan.
+
+        The minimal stand-in for the assessment path, which is scheduled in no
+        slice. It is deliberately narrow: the complaint must match the one phrase
+        this fixture is bound to, and anything else stops at the human path
+        (D7). It never composes clinical wording and never derives a deadline
+        from free text; the disposition is the fixture's preauthored one.
+
+        It also records the policy version first, because the disposition cites
+        it and the schema enforces that with a foreign key: a plan that names a
+        policy the system never recorded would be unauditable.
+        """
+        snapshot = self._store.load_snapshot(episode_id)
+        if snapshot.disposition is not None:
+            raise EpisodeAlreadyAssessed(
+                f"episode {episode_id!r} already carries disposition version "
+                f"{snapshot.disposition.version}; assessment happens once"
+            )
+        if self._bound_complaint not in rules.normalise(confirmed_text):
+            raise IntakeNotRecognised(
+                "the complaint is not one this fixture is bound to, so no "
+                "disposition may be issued: stop at the human path (D7)"
+            )
+
+        now_utc = self._clock.now_utc()
+        self._store.register_policy_version(
+            self._policy.version,
+            content=f"provisional fixture policy {self._policy.version}",
+            provenance=self._policy_provenance,
+            approved_by=None,
+            now_utc=now_utc,
+        )
+        disposition = self._disposition_factory(episode_id, now_utc)
+        self._store.insert_disposition(disposition, now_utc=now_utc)
+        return disposition
+
+    # -- transcript -------------------------------------------------------
+
+    def confirm_transcript(self, episode_id: str, corrected_text: str) -> str:
+        """Record a confirmed or corrected transcript. Returns the confirmation id.
+
+        Gate 1's ordering rule: this happens **before** any evaluation. The id is
+        a digest of the text, so a later restatement can be required to be the
+        very string that was confirmed.
+        """
+        self._store.load_snapshot(episode_id)
+        return self._store.record_transcript_confirmation(
+            episode_id, text=corrected_text, now_utc=self._clock.now_utc()
+        )
+
+    # -- hints ------------------------------------------------------------
+
+    def record_hint_event(
+        self,
+        episode_id: str,
+        hint_level: HintLevel | str,
+        kind: HintEventKind | str,
+        dwell_seconds: float | None = None,
+    ) -> HintState:
+        """Record one hint event and return the resulting card state.
+
+        The returned state is derived, not stored (D4's sibling rule): the card
+        is visible exactly when the recorded event vocabulary says it is, and
+        only `patient_hid` can hide it. `dwell_seconds` is recorded for the
+        ledger and is not an input to the derivation (C8).
+        """
+        level = HintLevel(hint_level)
+        event_kind = HintEventKind(kind)
+        self._store.load_snapshot(episode_id)
+        self._store.record_hint_event(
+            episode_id,
+            hint_level=level,
+            kind=event_kind,
+            dwell_seconds=dwell_seconds,
+            now_utc=self._clock.now_utc(),
+        )
+        return self.hint_state(episode_id)
+
+    def hint_state(self, episode_id: str) -> HintState:
+        """The current card state, folded from every recorded hint event."""
+        self._store.load_snapshot(episode_id)
+        state = HintState(level=HintLevel.H0, card_visible=False)
+        for record in self._store.list_hint_events(episode_id):
+            event = HintEvent(
+                level=record.level,
+                kind=record.kind,
+                dwell_seconds=record.dwell_seconds,
+            )
+            if event.level is not state.level:
+                # A new rung of the ladder starts hidden; only a `shown` event
+                # reveals it, and only `patient_hid` removes it.
+                state = HintState(level=event.level, card_visible=False)
+            state = rules.hint_transition(state, event)
+        return state
+
+    # -- restatements -----------------------------------------------------
+
+    def submit_restatement(
+        self,
+        episode_id: str,
+        confirmed_text: str,
+        hint_level: HintLevel | str,
+        transcript_confirmation_id: str | None = None,
+        *,
+        input_mode: InputMode | str = InputMode.TEXT,
+        dwell_seconds: float | None = None,
+    ) -> RestatementOutcome:
+        """Score one restatement. Round zero of the ladder.
+
+        Raises `CoordinatorUnavailable` when the coordinator cannot answer, in
+        which case nothing is recorded and no outcome exists.
+        """
+        return self._score(
+            episode_id,
+            confirmed_text,
+            hint_level,
+            transcript_confirmation_id,
+            input_mode=input_mode,
+            dwell_seconds=dwell_seconds,
+            repair_round=0,
+        )
+
+    def repair_restatement(
+        self,
+        restatement_id: str,
+        confirmed_text: str,
+        hint_level: HintLevel | str,
+        transcript_confirmation_id: str | None = None,
+        *,
+        input_mode: InputMode | str = InputMode.TEXT,
+        dwell_seconds: float | None = None,
+        episode_id: str | None = None,
+    ) -> RestatementOutcome:
+        """Score one repair round against a recorded restatement.
+
+        The cap is enforced before anything is extracted: a third round is never
+        offered (C6), so this refuses rather than scoring a round the product
+        says does not exist. A caller that received `routes_to_human_path` has
+        already been told where to go.
+
+        `episode_id` is checked against the parent when supplied, so a repair
+        cannot be applied to a restatement belonging to another episode. The
+        check is here rather than in the route because the route has no business
+        reading the record.
+
+        The parent must be the **latest** round. Repairing an older one would
+        fork the ladder and let the cap be evaded by re-repairing round zero.
+        """
+        parent = self._store.get_restatement(restatement_id)
+        if episode_id is not None and parent.episode_id != episode_id:
+            raise RestatementNotFound(restatement_id)
+        rounds = self._store.list_restatements(parent.episode_id)
+        latest_id = rounds[-1].restatement_id if rounds else None
+        if latest_id != restatement_id:
+            raise StaleRestatement(
+                f"restatement {restatement_id!r} is not the latest round (the "
+                f"latest is {latest_id!r}); repair the round the previous "
+                "response named"
+            )
+        repair_round = parent.repair_round + 1
+        if repair_round > MAX_REPAIR_ROUNDS:
+            raise RepairCapReached(
+                f"restatement {restatement_id!r} is already at repair round "
+                f"{parent.repair_round}; two repairs is the maximum and a third "
+                "is never offered (C6). Route to the human path."
+            )
+        return self._score(
+            parent.episode_id,
+            confirmed_text,
+            hint_level,
+            transcript_confirmation_id,
+            input_mode=input_mode,
+            dwell_seconds=dwell_seconds,
+            repair_round=repair_round,
+        )
+
+    # -- internals --------------------------------------------------------
+
+    def _allowed_values(self) -> AllowedPlanValues:
+        """The surface forms the coordinator may recognise, and nothing else.
+
+        The canonical ids are included because a restatement may legitimately
+        use one verbatim, and the alias keys because a patient will not. What is
+        excluded is anything that would let the coordinator see the expected
+        answer (ADR-0007).
+        """
+        return AllowedPlanValues(
+            action_forms=frozenset(self._policy.action_aliases)
+            | self._policy.permitted_action_ids,
+            owner_forms=frozenset(self._policy.owner_aliases)
+            | self._policy.permitted_owner_ids,
+            deadline_forms=frozenset(self._policy.deadline_forms),
+        )
+
+    def _require_scorable(
+        self,
+        episode_id: str,
+        input_mode: InputMode,
+        transcript_confirmation_id: str | None,
+        confirmed_text: str,
+    ) -> None:
+        """Refuse to evaluate a voice restatement before its transcript is confirmed.
+
+        Two checks, because one is not enough: `domain` says whether the mode
+        needs a confirmation at all, and the digest check says that the
+        confirmation covers **this** string. An id that merely exists would let a
+        caller confirm one transcript and score another.
+        """
+        if not rules.may_score_restatement(input_mode, transcript_confirmation_id):
+            raise UnconfirmedTranscript(
+                f"an {input_mode.value} restatement may not be scored before its "
+                "transcript is confirmed (Gate 1 ordering rule)"
+            )
+        if input_mode is InputMode.VOICE and transcript_confirmation_id is not None:
+            if transcript_confirmation_id != derive_confirmation_id(confirmed_text):
+                raise UnconfirmedTranscript(
+                    "the confirmation does not match the text being scored; "
+                    "confirm this transcript first"
+                )
+            if not self._store.has_transcript_confirmation(
+                episode_id, transcript_confirmation_id
+            ):
+                raise UnconfirmedTranscript(
+                    f"no confirmation {transcript_confirmation_id!r} was recorded "
+                    f"for episode {episode_id!r}"
+                )
+
+    def _score(
+        self,
+        episode_id: str,
+        confirmed_text: str,
+        hint_level: HintLevel | str,
+        transcript_confirmation_id: str | None,
+        *,
+        input_mode: InputMode | str,
+        dwell_seconds: float | None,
+        repair_round: int,
+    ) -> RestatementOutcome:
+        level = HintLevel(hint_level)
+        mode = InputMode(input_mode)
+        snapshot = self._store.load_snapshot(episode_id)
+        if snapshot.disposition is None:
+            raise NoDispositionYet(
+                f"episode {episode_id!r} has no disposition, so there is no "
+                "approved plan for a restatement to be compared against"
+            )
+        self._require_scorable(
+            episode_id, mode, transcript_confirmation_id, confirmed_text
+        )
+
+        now_utc = self._clock.now_utc()
+        # Coordinator extraction may raise `CoordinatorUnavailable`, which is
+        # deliberately not caught: the flow stops, and stopping before the store
+        # write is what guarantees no row claims a round that never happened.
+        extracted = self._coordinator.extract_plan(
+            confirmed_text, self._allowed_values()
+        )
+        comparison = rules.compare_plan(
+            snapshot.disposition,
+            extracted,
+            policy=self._policy,
+            now_utc=now_utc,
+            display_tz=self._display_tz,
+        )
+
+        understood = not comparison.mismatched and not comparison.uncertain
+        outcome = (
+            RECALL_OUTCOME_BY_LEVEL[level] if understood else RecallOutcome.NOT_RECALLED
+        )
+        next_field = rules.next_repair(comparison, repair_round)
+        routes_to_human_path = not understood and next_field is None
+
+        restatement_id = self._store.record_restatement(
+            episode_id,
+            disposition_version=snapshot.disposition.version,
+            hint_level=level,
+            input_mode=mode,
+            transcript_confirmed=transcript_confirmation_id is not None,
+            extracted=extracted,
+            comparison=comparison,
+            repair_round=repair_round,
+            outcome=outcome,
+            dwell_seconds=dwell_seconds,
+            now_utc=now_utc,
+        )
+        return RestatementOutcome(
+            restatement_id=restatement_id,
+            comparison=comparison,
+            hint_level=level,
+            repair_round=repair_round,
+            outcome=outcome,
+            next_repair_field=next_field,
+            routes_to_human_path=routes_to_human_path,
+            human_path_route_id=(
+                snapshot.disposition.fallback_route_id
+                if routes_to_human_path
+                else None
+            ),
+            simulated=bool(getattr(self._coordinator, "simulated", False)),
+        )
+
+
+__all__ = [
+    "Clock",
+    "EpisodeAlreadyAssessed",
+    "EpisodeService",
+    "IntakeNotRecognised",
+    "NoDispositionYet",
+    "RepairCapReached",
+    "RestatementOutcome",
+    "ScenarioClock",
+    "ServiceError",
+    "StaleRestatement",
+    "SystemClock",
+    "UnconfirmedTranscript",
+]

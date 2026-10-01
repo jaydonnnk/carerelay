@@ -1,0 +1,525 @@
+"""Slice 4 service tests. Every guard here must be able to fail.
+
+The four things Slice 4 claims are: a transcript is confirmed before it is
+scored, two repairs is the cap, the hint card stays until the patient hides it,
+and a coordinator that cannot answer stops the flow without recording a round.
+Each of those is a **refusal**, and a refusal that was never seen to bite is a
+comment, not a guard. `TestGuardsHaveTeeth` at the bottom disables each one in
+turn and requires the paired assertion to change.
+
+Every test gets a fresh in-memory store. That is not convenience: the clinical
+record is append-only, so a shared database cannot be reset between tests, and a
+second intake would be refused as a repeat assessment.
+"""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+from carerelay import service as service_module  # noqa: E402
+from carerelay import state as state_module  # noqa: E402
+from carerelay.coordinator import (  # noqa: E402
+    AllowedPlanValues,
+    CoordinatorUnavailable,
+    LocalSimulationCoordinator,
+)
+from carerelay.demo import fixture  # noqa: E402
+from carerelay.domain import rules  # noqa: E402
+from carerelay.domain.models import (  # noqa: E402
+    ExtractedPlan,
+    HintEventKind,
+    HintLevel,
+    InputMode,
+    RecallOutcome,
+)
+from carerelay.service import (  # noqa: E402
+    EpisodeAlreadyAssessed,
+    EpisodeService,
+    IntakeNotRecognised,
+    NoDispositionYet,
+    RepairCapReached,
+    ScenarioClock,
+    StaleRestatement,
+    UnconfirmedTranscript,
+)
+from carerelay.state import (  # noqa: E402
+    RepairRoundOutOfRange,
+    UnconfirmedTranscript as StoreUnconfirmedTranscript,
+    open_store,
+)
+
+EPISODE = "ep-001"
+
+#: A restatement that resolves to exactly the fixture's plan.
+CORRECT = "see the doctor today before 6pm myself"
+#: A known, different deadline: a mismatch, not an uncertainty (kill condition K1).
+WRONG_DAY = "see the doctor tomorrow before 6pm myself"
+#: Nothing the policy can resolve.
+UNRESOLVABLE = "not sure at all"
+
+
+@pytest.fixture()
+def store():
+    handle = open_store(":memory:")
+    yield handle
+    handle.close()
+
+
+@pytest.fixture()
+def service(store):
+    return _build(store)
+
+
+def _build(store, coordinator=None):
+    return EpisodeService(
+        store,
+        coordinator=coordinator or LocalSimulationCoordinator(),
+        clock=ScenarioClock(fixture.SCENARIO_NOW_UTC),
+        policy=fixture.policy(),
+        display_tz=fixture.DISPLAY_TZ,
+        disposition_factory=fixture.disposition,
+        bound_complaint=fixture.BOUND_COMPLAINT,
+        policy_provenance="test: provisional",
+    )
+
+
+@pytest.fixture()
+def assessed(service: EpisodeService) -> str:
+    service.ensure_episode(EPISODE, "test persona")
+    service.intake(EPISODE, "i need help sorting out my appointment")
+    return EPISODE
+
+
+class StubCoordinator:
+    """A coordinator that returns a fixed plan, so a test controls extraction."""
+
+    simulated = True
+
+    def __init__(self, extracted: ExtractedPlan | None = None) -> None:
+        self._extracted = extracted or ExtractedPlan(None, None, None)
+        self.calls: list[str] = []
+
+    def extract_plan(
+        self, confirmed_text: str, allowed_values: AllowedPlanValues
+    ) -> ExtractedPlan:
+        self.calls.append(confirmed_text)
+        return self._extracted
+
+
+class DeadCoordinator:
+    simulated = True
+
+    def extract_plan(
+        self, confirmed_text: str, allowed_values: AllowedPlanValues
+    ) -> ExtractedPlan:
+        raise CoordinatorUnavailable("no credentials; the Gate A spike is unrun")
+
+
+# ---------------------------------------------------------------------------
+# The transcript ordering rule
+# ---------------------------------------------------------------------------
+
+
+class TestTranscriptOrderAndRepairCap:
+    """Gate 3 section 5 names this test. Three claims, each independently."""
+
+    def test_an_unconfirmed_voice_transcript_cannot_be_scored(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        with pytest.raises(UnconfirmedTranscript):
+            service.submit_restatement(
+                assessed, CORRECT, HintLevel.H0, input_mode=InputMode.VOICE
+            )
+
+    def test_a_confirmed_voice_transcript_can_be_scored(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        confirmation_id = service.confirm_transcript(assessed, CORRECT)
+        outcome = service.submit_restatement(
+            assessed,
+            CORRECT,
+            HintLevel.H0,
+            confirmation_id,
+            input_mode=InputMode.VOICE,
+        )
+        assert outcome.understood is True
+        assert outcome.comparison.mismatched == frozenset()
+
+    def test_a_confirmation_covers_the_text_being_scored(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        """Confirm one transcript, score another. The digest must catch it."""
+        confirmation_id = service.confirm_transcript(assessed, CORRECT)
+        with pytest.raises(UnconfirmedTranscript):
+            service.submit_restatement(
+                assessed,
+                "a completely different sentence",
+                HintLevel.H0,
+                confirmation_id,
+                input_mode=InputMode.VOICE,
+            )
+
+    def test_a_text_restatement_needs_no_confirmation(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        outcome = service.submit_restatement(
+            assessed, CORRECT, HintLevel.H0, input_mode=InputMode.TEXT
+        )
+        assert outcome.understood is True
+
+    def test_two_repairs_is_the_maximum(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        """Round zero, then two repairs. The third is refused."""
+        outcome = service.submit_restatement(assessed, WRONG_DAY, HintLevel.H0)
+        assert outcome.repair_round == 0
+        assert outcome.next_repair_field == "deadline_utc"
+        assert outcome.routes_to_human_path is False
+
+        first = service.repair_restatement(
+            outcome.restatement_id, WRONG_DAY, HintLevel.H0
+        )
+        assert first.repair_round == 1
+        assert first.routes_to_human_path is False
+
+        second = service.repair_restatement(
+            first.restatement_id, WRONG_DAY, HintLevel.H0
+        )
+        assert second.repair_round == 2
+        # The second repair still mismatches, and no third round exists, so this
+        # is the point where the patient is handed to a human.
+        assert second.routes_to_human_path is True
+        assert second.human_path_route_id == "nurse_line"
+
+        with pytest.raises(RepairCapReached):
+            service.repair_restatement(second.restatement_id, WRONG_DAY, HintLevel.H0)
+
+    def test_repairing_an_older_round_cannot_evade_the_cap(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        """Every round is its own row, so re-repairing round zero would fork the
+        ladder and the cap would never bite."""
+        outcome = service.submit_restatement(assessed, WRONG_DAY, HintLevel.H0)
+        service.repair_restatement(outcome.restatement_id, WRONG_DAY, HintLevel.H0)
+        with pytest.raises(StaleRestatement):
+            service.repair_restatement(
+                outcome.restatement_id, WRONG_DAY, HintLevel.H0
+            )
+
+    def test_a_repair_that_lands_is_a_clean_pass(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        outcome = service.submit_restatement(assessed, WRONG_DAY, HintLevel.H0)
+        repaired = service.repair_restatement(
+            outcome.restatement_id, CORRECT, HintLevel.H0
+        )
+        assert repaired.understood is True
+        assert repaired.routes_to_human_path is False
+        assert repaired.outcome is RecallOutcome.RECALL_UNAIDED
+
+
+# ---------------------------------------------------------------------------
+# Recorded outcomes
+# ---------------------------------------------------------------------------
+
+
+class TestRecordedOutcomes:
+    def test_an_unaided_match_records_recall_unaided(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        outcome = service.submit_restatement(assessed, CORRECT, HintLevel.H0)
+        assert outcome.outcome is RecallOutcome.RECALL_UNAIDED
+
+    def test_h3_is_not_recalled_even_when_its_comparison_is_clean(self, service, assessed):
+        """The plan was revealed. That is never a comprehension pass (C6)."""
+        outcome = service.submit_restatement(assessed, CORRECT, HintLevel.H3)
+        assert outcome.understood is True
+        assert outcome.outcome is RecallOutcome.NOT_RECALLED
+
+    def test_a_mismatched_round_records_not_recalled(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        outcome = service.submit_restatement(assessed, WRONG_DAY, HintLevel.H0)
+        assert outcome.outcome is RecallOutcome.NOT_RECALLED
+
+    def test_an_unresolvable_span_is_uncertain_and_never_a_mismatch(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        outcome = service.submit_restatement(assessed, UNRESOLVABLE, HintLevel.H0)
+        assert outcome.comparison.mismatched == frozenset()
+        assert set(outcome.comparison.uncertain) == {
+            "action_id",
+            "deadline_utc",
+            "next_owner_id",
+        }
+        assert outcome.understood is False
+        # Slice 4 review B1. An unrecognised answer achieved no recall, so it
+        # records `not_recalled` at H0 exactly as a mismatched round does. Without
+        # this line a mutant that drops the uncertainty half of `understood`
+        # records `recall_unaided` here, which is a false recall pass written into
+        # the clinical record, and the whole suite stays green.
+        assert outcome.outcome is RecallOutcome.NOT_RECALLED
+
+    @pytest.mark.parametrize(
+        ("level", "expected"),
+        [
+            (HintLevel.H0, RecallOutcome.RECALL_UNAIDED),
+            (HintLevel.H1, RecallOutcome.RECALL_SCAFFOLDED),
+            (HintLevel.H2, RecallOutcome.RECALL_CUED),
+            (HintLevel.H3, RecallOutcome.NOT_RECALLED),
+        ],
+    )
+    def test_the_record_carries_the_hint_level_and_the_round(
+        self, service, store, assessed, level, expected
+    ):
+        """Every rung of the ladder, not just H2. Slice 4 review B2.
+
+        The exit contract says "H0 to H3 recorded". Before this parametrisation
+        the cited test exercised H2 only, so changing the `H1` mapping to
+        `recall_unaided` broke no test anywhere in the suite. Each case is clean
+        (`CORRECT` resolves to the plan), so the recorded outcome is exactly the
+        `RECALL_OUTCOME_BY_LEVEL` entry for that rung and the mapping table is
+        exercised whole.
+        """
+        outcome = service.submit_restatement(assessed, CORRECT, level)
+        record = store.get_restatement(outcome.restatement_id)
+        assert record.hint_level is level
+        assert record.repair_round == 0
+        assert record.outcome is expected
+
+
+# ---------------------------------------------------------------------------
+# The hint ladder
+# ---------------------------------------------------------------------------
+
+
+class TestHintLadder:
+    def test_the_card_stays_visible_until_the_patient_hides_it(
+        self, service: EpisodeService, assessed: str
+    ) -> None:
+        shown = service.record_hint_event(
+            assessed, HintLevel.H2, HintEventKind.SHOWN, dwell_seconds=4.5
+        )
+        assert shown.card_visible is True
+        hidden = service.record_hint_event(
+            assessed, HintLevel.H2, HintEventKind.PATIENT_HID, dwell_seconds=9.0
+        )
+        assert hidden.card_visible is False
+
+    def test_dwell_seconds_is_recorded_for_the_ledger_only(
+        self, service, store, assessed
+    ):
+        service.record_hint_event(
+            assessed, HintLevel.H2, HintEventKind.SHOWN, dwell_seconds=4.5
+        )
+        events = store.list_hint_events(assessed)
+        assert len(events) == 1
+        assert events[0].dwell_seconds == 4.5
+
+    def test_no_event_vocabulary_member_hides_the_card_without_a_patient_action(
+        self,
+    ) -> None:
+        """C8 as a property of the vocabulary, not of a caller."""
+        hiding = {
+            member.value
+            for member in HintEventKind
+            if "hid" in member.value or "auto" in member.value
+        }
+        assert hiding == {"patient_hid"}
+
+    def test_a_dwell_only_difference_changes_nothing(self, service, assessed):
+        with_dwell = service.record_hint_event(
+            assessed, HintLevel.H2, HintEventKind.SHOWN, dwell_seconds=1.0
+        )
+        service.record_hint_event(
+            assessed, HintLevel.H2, HintEventKind.PATIENT_HID, dwell_seconds=0.0
+        )
+        later = service.record_hint_event(
+            assessed, HintLevel.H2, HintEventKind.SHOWN, dwell_seconds=600.0
+        )
+        assert with_dwell.card_visible == later.card_visible
+
+
+# ---------------------------------------------------------------------------
+# The coordinator failing
+# ---------------------------------------------------------------------------
+
+
+class TestCoordinatorFailure:
+    def test_a_dead_coordinator_stops_the_flow_without_recording_a_round(
+        self, store, assessed: str
+    ) -> None:
+        dead = _build(store, coordinator=DeadCoordinator())
+        with pytest.raises(CoordinatorUnavailable):
+            dead.submit_restatement(assessed, CORRECT, HintLevel.H0)
+        assert store.list_restatements(assessed) == (), (
+            "a round was recorded for a restatement that was never scored"
+        )
+
+    def test_a_dead_coordinator_does_not_record_a_repair(
+        self, store, assessed: str
+    ) -> None:
+        """A real round exists, so the refusal is the coordinator and not a
+        missing id."""
+        live = _build(store)
+        outcome = live.submit_restatement(assessed, WRONG_DAY, HintLevel.H0)
+        before = len(store.list_restatements(assessed))
+
+        dead = _build(store, coordinator=DeadCoordinator())
+        with pytest.raises(CoordinatorUnavailable):
+            dead.repair_restatement(outcome.restatement_id, WRONG_DAY, HintLevel.H0)
+        assert len(store.list_restatements(assessed)) == before
+
+
+# ---------------------------------------------------------------------------
+# Refusals
+# ---------------------------------------------------------------------------
+
+
+class TestRefusals:
+    def test_a_restatement_before_any_plan_exists_is_refused(self, service) -> None:
+        service.ensure_episode(EPISODE, "test persona")
+        with pytest.raises(NoDispositionYet):
+            service.submit_restatement(EPISODE, CORRECT, HintLevel.H0)
+
+    def test_a_complaint_the_fixture_is_not_bound_to_stops_at_the_human_path(
+        self, service
+    ) -> None:
+        service.ensure_episode(EPISODE, "test persona")
+        with pytest.raises(IntakeNotRecognised):
+            service.intake(EPISODE, "something this fixture does not cover")
+
+    def test_a_second_intake_is_refused(self, service, assessed: str) -> None:
+        with pytest.raises(EpisodeAlreadyAssessed):
+            service.intake(assessed, "i need help sorting out my appointment")
+
+    def test_creating_an_episode_writes_no_disposition(self, service) -> None:
+        service.ensure_episode(EPISODE, "test persona")
+        assert service._store.load_snapshot(EPISODE).disposition is None
+
+    def test_the_record_refuses_an_unconfirmed_voice_row_on_its_own(
+        self, store, assessed: str
+    ) -> None:
+        """The second layer: bypassing the service guard must not be enough."""
+        with pytest.raises(StoreUnconfirmedTranscript):
+            store.record_restatement(
+                assessed,
+                disposition_version=1,
+                hint_level=HintLevel.H0,
+                input_mode=InputMode.VOICE,
+                transcript_confirmed=False,
+                extracted=ExtractedPlan("see the doctor", "today before 6pm", "myself"),
+                comparison=_empty_comparison(),
+                repair_round=0,
+                outcome=RecallOutcome.RECALL_UNAIDED,
+                dwell_seconds=None,
+                now_utc=fixture.SCENARIO_NOW_UTC,
+            )
+
+    def test_the_record_refuses_a_third_repair_round_on_its_own(
+        self, store, assessed: str
+    ) -> None:
+        with pytest.raises(RepairRoundOutOfRange):
+            store.record_restatement(
+                assessed,
+                disposition_version=1,
+                hint_level=HintLevel.H0,
+                input_mode=InputMode.TEXT,
+                transcript_confirmed=False,
+                extracted=ExtractedPlan(None, None, None),
+                comparison=_empty_comparison(),
+                repair_round=3,
+                outcome=RecallOutcome.NOT_RECALLED,
+                dwell_seconds=None,
+                now_utc=fixture.SCENARIO_NOW_UTC,
+            )
+
+
+def _empty_comparison():
+    from carerelay.domain.models import PlanComparison  # noqa: PLC0415
+
+    return PlanComparison(frozenset(), frozenset(), frozenset())
+
+
+# ---------------------------------------------------------------------------
+# The guards can fail
+# ---------------------------------------------------------------------------
+
+
+class TestGuardsHaveTeeth:
+    """Disable each guard; its assertion must change. A green guard that was
+    never seen red is not evidence."""
+
+    def test_without_the_transcript_rule_a_voice_restatement_is_scored(
+        self, service: EpisodeService, assessed: str, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(
+            rules, "may_score_restatement", lambda mode, cid: True
+        )
+        try:
+            service.submit_restatement(
+                assessed, CORRECT, HintLevel.H0, input_mode=InputMode.VOICE
+            )
+        except StoreUnconfirmedTranscript:
+            return  # the record-level guard still refuses, which is the point
+        pytest.fail(
+            "the transcript rule was bypassed and nothing refused; the guard "
+            "is not doing the work"
+        )
+
+    def test_without_the_cap_a_third_repair_is_scored(
+        self, store, assessed: str, monkeypatch
+    ) -> None:
+        monkeypatch.setattr(service_module, "MAX_REPAIR_ROUNDS", 5)
+        monkeypatch.setattr(state_module, "MAX_REPAIR_ROUNDS", 5)
+        service = _build(store)
+        outcome = service.submit_restatement(assessed, WRONG_DAY, HintLevel.H0)
+        first = service.repair_restatement(outcome.restatement_id, WRONG_DAY, HintLevel.H0)
+        second = service.repair_restatement(first.restatement_id, WRONG_DAY, HintLevel.H0)
+        third = service.repair_restatement(second.restatement_id, WRONG_DAY, HintLevel.H0)
+        assert third.repair_round == 3, (
+            "raising the cap did not allow a third round, so the cap was not "
+            "what stopped it"
+        )
+
+    def test_a_mutant_hint_transition_changes_the_answer(self, service, assessed, monkeypatch):
+        """The honest answer is False; a mutant that never hides must make it True.
+
+        Both halves matter: without the first, the assertion could be passing for
+        the wrong reason, and without the second the guard would be vacuous.
+        """
+        service.record_hint_event(assessed, HintLevel.H2, HintEventKind.SHOWN)
+        service.record_hint_event(assessed, HintLevel.H2, HintEventKind.PATIENT_HID)
+        assert service.hint_state(assessed).card_visible is False
+
+        monkeypatch.setattr(
+            rules,
+            "hint_transition",
+            lambda state, event: type(state)(level=state.level, card_visible=True),
+        )
+        assert service.hint_state(assessed).card_visible is True
+
+    def test_without_the_stale_check_a_forked_repair_is_accepted(
+        self, service: EpisodeService, assessed: str, monkeypatch
+    ) -> None:
+        outcome = service.submit_restatement(assessed, WRONG_DAY, HintLevel.H0)
+        service.repair_restatement(outcome.restatement_id, WRONG_DAY, HintLevel.H0)
+        monkeypatch.setattr(
+            service._store,
+            "list_restatements",
+            lambda episode_id: (
+                service._store.get_restatement(outcome.restatement_id),
+            ),
+        )
+        again = service.repair_restatement(
+            outcome.restatement_id, WRONG_DAY, HintLevel.H0
+        )
+        assert again.repair_round == 1, (
+            "disabling the latest-round check did not re-open round zero, so "
+            "the check was not what stopped the fork"
+        )
