@@ -197,5 +197,39 @@ remediation.
 - **Committed to `main` and pushed to `origin` on 30 September 2026.** Gates 2, 3 and 4 were
   **re-approved** the same day, so implementation is authorised again. The answer is recorded in
   `00-status.md` and at the end of `04-slices.md`.
-- **No product code was written.** Slice 4 remains next and remains blocked on the same two items as
-  before: the Option C source for Slice 5, and Gate A for Slice 6.
+- **No product code was written.** Slice 4 remained next, blocked on the same two items as before:
+  the Option C source for Slice 5, and Gate A for Slice 6.
+
+## Slice 4: 2026-09-30
+
+- 2026-09-30: **`slice-4` recreated from the tip of `main`** on the user's instruction, because it had
+  been pre-created nine commits behind and could not have been fast-forwarded into `main` once it had
+  commits. Verified first that it held no unique commits and had no remote.
+- **Implemented:** `src/carerelay/coordinator.py` (the extraction port plus a labelled local
+  simulation), `src/carerelay/service.py` (intake, transcript confirmation, hint events, the
+  restatement round and the bounded repair), and `tests/test_service.py`. Modified: `demo/fixture.py`
+  (the provisional policy), `state.py` (the restatement, hint-event and transcript writers),
+  `api.py` (five routes), `domain/models.py` and `domain/rules.py` (the input-mode vocabulary and the
+  transcript ordering rule), `tests/test_api.py`, `tests/test_domain.py`.
+- **380 pass**, up from 332: 95 domain, 141 boundaries, 25 api, 91 state, 28 service. Zero lone LF and
+  zero U+2014 on every added line.
+- **Two defects found and fixed:** the repair cap was evadable by re-repairing round zero (now refused
+  with `StaleRestatement`), and the confirmation digest was never computed because a parameter
+  shadowed the function of the same name.
+- **A Gate 4 gap, needing a decision:** the intake and assessment path is scheduled in **no slice**,
+  yet PlanBack needs a disposition and Slice 7's text assumes intake exists. Slice 4 implemented the
+  minimal fixture-bound version on the approved `/intake` route. The clarification loop is unowned.
+- 2026-10-01: **Slice 4 adversarially reviewed and remediated. Verdict APPROVE WITH CHANGES.**
+  Seventeen mutations applied and reverted with md5 checks; fifteen detected. The exit contract was met
+  line by line, and every mechanical claim in `00-status.md` was true. The two blocking findings were
+  unproven claims, both now closed: an unrecognised answer could record `recall_unaided` instead of
+  `not_recalled` with the whole suite still green, and the `H1` rung of the ladder had no test at all.
+  The third blocking finding, that intake recognition is a bare substring test, is corrected in the
+  record and carried as an open item at Slice 5, because widening it is a reviewer-gated clinical
+  decision and must not be authored without one.
+- **383 pass** after the remediation, up from 380: 95 domain, 141 boundaries, 25 api, 91 state,
+  31 service. Three tests added, all three by parametrising the hint-level test over all four rungs.
+  Full note at `docs/reviews/slice4-adversarial-review.md`; open items B3 and NF1 to NF6 are anchored
+  to the slice where each becomes live in `tasks/todo.md`.
+- **Not committed.** No gate authorises a commit.
+- **Operational record only.** `00-status.md` is the authority for slice state.

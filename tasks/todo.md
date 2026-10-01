@@ -96,6 +96,23 @@
 
 Reminder: the `00-status.md` section for the slice that resolves an item must state the decision and its reason, so a fresh session can see it was made deliberately and not overlooked.
 
+### Open from the Slice 4 review: deferred to the slice where each becomes live
+
+**Same standing instruction as above (user, 30 September 2026).** Decided, or put to the user as a question, at the slice where each first becomes live, and recorded in `00-status.md` in that slice's section. No later slice may implement one early and silently. Full note: `docs/reviews/slice4-adversarial-review.md`.
+
+| # | Open item | Decided at | Why that slice |
+|---|---|---|---|
+| B3 | **The intake recognition rule is a bare substring test.** A complaint that contains the bound phrase is recognised even when it also carries a red-flag symptom, negates the phrase, or asks about someone else. Measured 1 October 2026. No clinical branch is derived from free text and the disposition is the same non-clinical fixture plan in every case, so the demo does not mis-triage; the question is whether the fixture-bound rule should require an exact match, or whether red-flag and negation handling should be built at all | **Slice 5** | Slice 5 is where the judged fixture and the abstention path land. Binding a sourced complaint with a substring test is the same defect at larger size, and red-flag detection is clinical content that needs a reviewer. Do not author it before one exists |
+| `COORDINATOR_FALLBACK_TEXT` | **Authored patient-facing copy with no approved source.** `api.py` shows "We could not check that answer just now. Your plan has not changed." when the coordinator cannot answer. The review judged it acceptable for a labelled research demonstration because it names no symptom, urgency, route or deadline and asserts only that the check did not happen. **It needs a Gate 1 touch** | **Gate 1 next touch**, and at latest before **Slice 7** | The fallback is patient-visible and the Gate 1 document owns patient-facing copy. Slice 7 is the public deployment, so it must be settled before a judge can read it |
+| NF1 | **A second episode's intake raises an unhandled `sqlite3.IntegrityError`.** `service.intake` calls `state.register_policy_version` unconditionally and that store method is a plain `INSERT`, so the second episode assessed on one database fails. Latent today: `POST /api/episodes` can only create the demo episode, so no HTTP path reaches it | **Slice 7** | Slice 7 deploys with a persistent disk, and is the first point where the product holds more than one episode |
+| NF2 | **Malformed enum values return HTTP 500, not a typed refusal.** `hint_level: "H9"` and `event: "auto_hide"` both reach an uncaught `ValueError`. No row is written, so it is not fail-open | **Slice 7** | Slice 7 adds the auth dependency and the error surface; the refusals should be closed in the same pass |
+| NF3 | **The hint route's `PolicyViolation -> 422` branch is unreachable.** `service.hint_state` resets the level before `hint_transition` can refuse it, so the handler never fires | **Slice 7** | Same pass as NF2: either delete the branch or route the enum construction through a domain validator that raises `PolicyViolation` |
+| NF4 | **`transcript_confirmed` is recorded true from an unverified confirmation id** on text and chip rounds. Only voice checks the digest and the stored record, so the ledger can assert a confirmation that never happened | **Slice 7** | Slice 7 writes the judge ledger view, so the record's honesty should be settled before it is rendered to a judge |
+| NF5 | **The coordinator docstrings overclaim the boundary.** `AllowedPlanValues` carries `permitted_action_ids` and `permitted_owner_ids`, which contain the expected action and owner, so the honest claim is that the coordinator cannot determine **which** candidate is expected. It never sees the `Disposition`, which is the load-bearing half | **Slice 6** | Slice 6 wires the real coordinator or the labelled local simulation. Fix the wording once the second implementation exists, so the claim is written against both |
+| NF6 | **"Payloads are redacted from application logs" has nothing to verify against.** There is no logging in `src/`, and `events.payload` does hold raw confirmed patient text | **The slice that first introduces logging** | Build the redaction with the logs, not after them |
+
+Reminder: the `00-status.md` section for the slice that resolves an item must state the decision and its reason, so a fresh session can see it was made deliberately and not overlooked.
+
 ## Gate 4: slice plan (APPROVED 2026-09-28; reopened and **RE-APPROVED 2026-09-30**)
 
 **Fourteen slices, Slice 0 to Slice 13**, full Gate 3 scope, in `docs/plans/urgent-advice-accessibility/04-slices.md`. **Renumbered 30 September 2026:** old Slice 7 became 8, old 8 became 9, old 9 became 10, old 10 became 11, and old Slices 11 and 12 merged into Slice 12. **Slice 7 is new** (public deployment, Next.js frontend, auth) and **Slice 13 is new and conditional** (ADP interpretation surface, default do not run). **Gates 2, 3 and 4 are APPROVED in `00-status.md` as of 30 September 2026.**
@@ -104,7 +121,7 @@ Reminder: the `00-status.md` section for the slice that resolves an item must st
 - [x] **Slice 1: tracer bullet, episode to four lines, hardcoded** (28 Sep)
 - [x] **Slice 2: pure domain core + enforcing import boundary** (30 Sep; adversarially reviewed and remediated the same day)
 - [x] **Slice 3: append-only state + Closure Contract invariants** (30 Sep; 69 new tests, 310 pass at completion, 332 after the remediation the same day)
-- [ ] Slice 4: PlanBack end to end, hint ladder, bounded repair. **The usage-proof capture starts here.** ← **next**
+- [ ] Slice 4: PlanBack end to end, hint ladder, bounded repair. **The usage-proof capture starts here.** **Implemented 30 Sep; adversarially reviewed and remediated 1 Oct, verdict APPROVE WITH CHANGES, 383 pass.** ← **in progress**
 - [ ] Slice 5: judged fixture + abstention path (blocked on the Option C source)
 - [ ] Slice 6: action path, simulated provider, platform call + Gate A decision
 - [ ] **Slice 7: public deployment, the Next.js clinical frontend and auth (NEW 30 Sep)**
