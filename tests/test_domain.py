@@ -54,6 +54,7 @@ from carerelay.domain.models import (  # noqa: E402
     HintEventKind,
     HintLevel,
     HintState,
+    InputMode,
     Origin,
     PlanComparison,
     PolicyFixture,
@@ -548,6 +549,34 @@ class TestPlanBackAssertionsHaveTeeth:
         assert "action_id" in honest.uncertain
         assert "action_id" in mutant.matched
         assert honest != mutant
+
+
+class TestTranscriptOrder:
+    """Gate 1's ordering rule: confirm the transcript before evaluating it."""
+
+    @pytest.mark.parametrize(
+        ("mode", "expected"),
+        [
+            (InputMode.VOICE, False),
+            (InputMode.TEXT, True),
+            (InputMode.CHIPS, True),
+        ],
+    )
+    def test_a_voice_transcript_needs_a_confirmation_the_other_modes_do_not(
+        self, mode: InputMode, expected: bool
+    ) -> None:
+        assert rules.may_score_restatement(mode, None) is expected
+
+    def test_a_confirmed_transcript_is_scorable(self) -> None:
+        assert rules.may_score_restatement(InputMode.VOICE, "confirm-1") is True
+
+    def test_an_empty_confirmation_id_is_not_a_confirmation(self) -> None:
+        assert rules.may_score_restatement(InputMode.VOICE, "") is False
+
+    def test_the_rule_has_teeth(self) -> None:
+        """Without this, the refusal above could be vacuous: prove the mutant
+        `return True` changes an answer the suite relies on."""
+        assert rules.may_score_restatement(InputMode.VOICE, None) is not True
 
 
 # ---------------------------------------------------------------------------
@@ -1378,7 +1407,7 @@ class TestPatientLines:
 
     def test_no_approved_wording_exists_for_a_resolved_episode(self) -> None:
         """Refusing is safer than printing "Help is not arranged." over a resolved
-        episode. The Closure Contract rendering arrives in Slice 9."""
+        episode. The Closure Contract rendering arrives in Slice 10."""
         snapshot = empty_snapshot(evidence=(DOCUMENTED_REAL,))
         closure = rules.derive_closure(snapshot, SCENARIO_NOW_UTC)
         assert closure.closure is ClosureState.CLOSED_WITH_EVIDENCE

@@ -31,8 +31,12 @@ the Slice 2 entry so they can be corrected:
    inspection and flagged. Here the sentence is composed by owner: "You must act
    now." when the owner is the patient, and the approved sentence otherwise.
 3. No approved wording exists for `closed_with_evidence`. `patient_lines` raises
-   rather than render "Help is not arranged." over a resolved episode. Slice 9
+   rather than render "Help is not arranged." over a resolved episode. Slice 10
    owns the Closure Contract rendering.
+
+The tenth function, `may_score_restatement`, is here for the same reason as
+`hint_transition`: Gate 1's transcript-confirmation ordering rule is only a real
+rule if some code can refuse to evaluate an unconfirmed transcript.
 """
 
 from __future__ import annotations
@@ -59,6 +63,7 @@ from carerelay.domain.models import (
     HintEventKind,
     HintLevel,
     HintState,
+    InputMode,
     PlanComparison,
     PolicyFixture,
     PolicyText,
@@ -85,6 +90,7 @@ __all__ = [
     "derive_closure",
     "patient_lines",
     "reassessment_decision",
+    "may_score_restatement",
     "hint_transition",
 ]
 
@@ -315,6 +321,32 @@ def next_repair(comparison: PlanComparison, completed_rounds: int) -> str | None
     return None
 
 
+#: The input modes that carry a machine transcript, and therefore require the
+#: patient to confirm or correct it before any evaluation (Gate 1 ordering rule).
+TRANSCRIPT_INPUT_MODES: frozenset[InputMode] = frozenset({InputMode.VOICE})
+
+
+def may_score_restatement(
+    input_mode: InputMode, transcript_confirmation_id: str | None
+) -> bool:
+    """Whether a restatement may be evaluated at all.
+
+    Gate 1's ordering rule: a transcript is confirmed **before** it is evaluated.
+    Scoring a draft transcript judges a comprehension the patient never agreed to,
+    and `03-planback-closure-contract.md` section 1.5 records exactly that defect
+    in the current wireframe. A confirmed-and-corrected transcript is a different
+    string from the draft, so evaluating the draft is evaluating the wrong input.
+
+    A text or chip restatement carries no transcript and is always scorable.
+
+    This lives in `domain` rather than in the service layer because it is a safety
+    decision, and D2 puts safety decisions in the module that cannot do I/O.
+    """
+    if input_mode in TRANSCRIPT_INPUT_MODES:
+        return bool(transcript_confirmation_id)
+    return True
+
+
 # ---------------------------------------------------------------------------
 # Execution, evidence and closure
 # ---------------------------------------------------------------------------
@@ -502,7 +534,7 @@ def patient_lines(
     if closure.closure is ClosureState.CLOSED_WITH_EVIDENCE:
         raise NoApprovedPatientWording(
             "no approved patient rendering exists for closed_with_evidence; "
-            "the Closure Contract rendering arrives in Slice 9"
+            "the Closure Contract rendering arrives in Slice 10"
         )
 
     if disposition.next_owner_id == policy_text.self_owner_id:

@@ -91,6 +91,21 @@ class HintEventKind(StrEnum):
     PATIENT_HID = "patient_hid"
 
 
+class InputMode(StrEnum):
+    """How a restatement arrived.
+
+    `VOICE` is the only mode that carries a machine transcript, so it is the only
+    mode whose evaluation may be gated on a confirmation. The constrained `CHIPS`
+    path exists so PlanBack can be built and tested with no speech work at all
+    (`03-planback-closure-contract.md` section 1.5): a constrained input path is a
+    feasibility unlock, not a downgrade.
+    """
+
+    TEXT = "text"
+    VOICE = "voice"
+    CHIPS = "chips"
+
+
 class ExecutionStatus(StrEnum):
     """Axis A of the Closure Contract: did the request get through?"""
 
