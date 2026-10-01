@@ -47,6 +47,14 @@ CareRelay now helps older adults move from care advice to an honest next step. I
 - The restatement is compared **field by field by deterministic code**, never graded by a model.
 - Repair is **bounded to two rounds**, after which the flow stops and routes to a human path.
 
+### Approved patient-facing copy
+
+Patient-facing strings are Gate 1 content. A string that no wireframe carries must
+be approved here before it ships, because a flow that stops has to stop with words
+rather than with a blank screen.
+
+- **Coordinator unavailable, the PlanBack degraded state:** "We could not check that answer just now. Your plan has not changed." Approved at the Gate 1 touch of 1 October 2026, which Slice 4 raised as an open item. It names no symptom, urgency, route or deadline, and asserts only that the check did not happen. The round is not scored and no restatement row is written, so this sentence must never imply that an answer was accepted.
+
 ### Adaptive scaffolding rules
 
 The ladder fades as well as escalates: support is withdrawn when competence is demonstrated.
