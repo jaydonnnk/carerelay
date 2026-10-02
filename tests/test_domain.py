@@ -1409,22 +1409,22 @@ class TestPatientLines:
     def test_a_patient_owner_does_not_produce_a_doubled_owner(self) -> None:
         """The defect Slice 1 found by inspection: "You or you must act now."."""
         lines = self._lines(empty_snapshot())
-        assert lines[1] == "You must act now."
+        assert lines[1] == "Please act now."
 
     def test_a_named_caregiver_owner_keeps_the_approved_sentence(self) -> None:
         caregiver_disposition = dataclasses.replace(
             disposition(), next_owner_id="caregiver"
         )
         lines = self._lines(empty_snapshot(disposition=caregiver_disposition))
-        assert lines[1] == "You or your daughter must act now."
+        assert lines[1] == "Please act now: you, or your daughter."
 
     def test_the_expired_rendering_keeps_the_deadline_and_names_the_route(self) -> None:
         after = local_deadline() + timedelta(minutes=1)
         lines = self._lines(empty_snapshot(), after)
-        assert lines[0] == "Help still is not arranged."
+        assert lines[0] == "No one has agreed to help yet."
         assert POLICY_TEXT.deadline_display_by_version[1] in lines[2]
         assert POLICY_TEXT.route_display_by_id[FALLBACK_ROUTE_ID] in lines[3]
-        assert "Before" not in lines[2]
+        assert "before" not in lines[2].casefold()
 
     def test_the_expired_rendering_breaks_no_copy_rule(self) -> None:
         after = local_deadline() + timedelta(minutes=1)
@@ -1433,9 +1433,45 @@ class TestPatientLines:
         for banned in ("you did not", "you missed", "too late", "failed", "expired"):
             assert banned not in joined, f"copy rule broken by {banned!r}"
 
+    def test_no_patient_line_carries_an_exclamation_mark(self) -> None:
+        """Copy rule 2, added 2 October 2026: urgency is never punctuation.
+
+        A proposed "Please act now!!" was rejected as an alarm rather than a
+        courtesy. This test makes that decision fail-capable instead of leaving
+        it in prose: no approved rendering may carry a bang.
+        """
+        before = self._lines(empty_snapshot())
+        after = self._lines(empty_snapshot(), local_deadline() + timedelta(minutes=1))
+        for rendering in (before, after):
+            for line in rendering:
+                assert "!" not in line, f"alarm punctuation in {line!r}"
+
+    def test_no_patient_line_offers_an_unbuilt_capability(self) -> None:
+        """Copy rule 6, added 2 October 2026: no invented capability.
+
+        A proposed "I'll contact your emergency contact" was rejected because
+        CareRelay holds no emergency contact, no channel to reach one and no
+        consent record, so the sentence would promise a dispatch that cannot
+        occur. The screen may name a route; it may not promise to act.
+        """
+        before = self._lines(empty_snapshot())
+        after = self._lines(empty_snapshot(), local_deadline() + timedelta(minutes=1))
+        joined = " ".join(before + after).casefold()
+        for banned in (
+            "i'll contact",
+            "i will contact",
+            "we will contact",
+            "i'll call",
+            "i will call",
+            "emergency contact",
+            "i've alerted",
+            "i have alerted",
+        ):
+            assert banned not in joined, f"unbuilt capability promised by {banned!r}"
+
     def test_no_approved_wording_exists_for_a_resolved_episode(self) -> None:
-        """Refusing is safer than printing "Help is not arranged." over a resolved
-        episode. The Closure Contract rendering arrives in Slice 10."""
+        """Refusing is safer than printing "No one has agreed to help yet." over a
+        resolved episode. The Closure Contract rendering arrives in Slice 10."""
         snapshot = empty_snapshot(evidence=(DOCUMENTED_REAL,))
         closure = rules.derive_closure(snapshot, SCENARIO_NOW_UTC)
         assert closure.closure is ClosureState.CLOSED_WITH_EVIDENCE

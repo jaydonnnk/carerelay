@@ -1408,7 +1408,7 @@ class TestSnapshotAndRestart:
     def test_the_expired_rendering_is_reachable_through_the_store(self, seeded: Seeded) -> None:
         seeded.store.record_expiry_once(EPISODE_ID, 1, AFTER_DEADLINE_UTC)
         lines = patient_lines(seeded.store, AFTER_DEADLINE_UTC)
-        assert lines[0] == "Help still is not arranged."
+        assert lines[0] == "No one has agreed to help yet."
         assert "6:00 PM on 1 October" in lines[2]
         assert lines[3].startswith("Call the fictional nurse line")
 

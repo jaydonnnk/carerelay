@@ -56,10 +56,11 @@ DEADLINE_DISPLAY = "6pm today"
 FALLBACK_ROUTE_TEXT = "the fictional nurse line"
 
 #: Line 2, for a demo episode whose owner is the patient. `domain.rules.patient_lines`
-#: owns this rule and renders a third-party owner as "You or [name] must act now.";
-#: this fixture has one hardcoded episode, so it carries the self-owner form only.
-#: `fixtures/scripted_episode.json` agrees: its `next_owner_id` is `patient`.
-SELF_OWNER_SENTENCE = "You must act now."
+#: owns this rule and renders a third-party owner as "Please act now: you, or
+#: [name]."; this fixture has one hardcoded episode, so it carries the self-owner
+#: form only. `fixtures/scripted_episode.json` agrees: its `next_owner_id` is
+#: `patient`. Reworded 2 October 2026 with the rest of the patient copy.
+SELF_OWNER_SENTENCE = "Please act now."
 
 
 @dataclass(frozen=True)
@@ -88,7 +89,7 @@ def demo_lines() -> PatientLines:
     against the two axes, so the wording stops being a literal.
 
     **Line 2 note.** `PLAN.md` 6.1, `02-architecture.md` 7 and `01-product.md` all
-    render line 2 as "You or *[named person]* must act now." Taken literally with
+    rendered line 2 as "You or *[named person]* must act now." Taken literally with
     a patient owner that produced "You or you must act now.", a malformed
     sentence, caught by inspection of the running app on 28 September 2026, not
     by the test suite.
@@ -96,20 +97,20 @@ def demo_lines() -> PatientLines:
     The Slice 1 band-aid was `OWNER_DISPLAY = "Myself"`, which rendered "Myself
     must act now." and was itself malformed. **Slice 2 now owns this rule:**
     `domain.rules.patient_lines` composes line 2 by owner, rendering a self owner
-    as "You must act now." This fixture mirrors that form, because the demo
+    as "Please act now." This fixture mirrors that form, because the demo
     episode's owner is the patient.
 
-    **This remains a real divergence from three approved documents, flagged and
-    not silently absorbed.** The correction belongs in those documents at the next
-    Gate 1 touch, and `00-status.md` records the reading at the Slice 2 section.
-    Slice 10 replaces this fixture with `domain.patient_lines` and implements
-    whichever form the documents then carry; this line is not the authority.
+    **The divergence from three approved documents was closed on 2 October 2026,
+    not carried further.** The wording pass re-approved all three documents to
+    the "Please act now." form, so the fixture and `domain.patient_lines` now
+    agree with them rather than diverging. Slice 10 still replaces this fixture
+    with `domain.patient_lines`; this line is not the authority.
     """
     return PatientLines(
-        line_1="Help is not arranged.",
+        line_1="No one has agreed to help yet.",
         line_2=SELF_OWNER_SENTENCE,
-        line_3=f"Before {DEADLINE_DISPLAY}.",
-        line_4=f"If this route fails, call {FALLBACK_ROUTE_TEXT}.",
+        line_3=f"Please do it before {DEADLINE_DISPLAY}.",
+        line_4=f"If that does not work, call {FALLBACK_ROUTE_TEXT}.",
         simulated=True,
     )
 

@@ -113,9 +113,11 @@ class TestEpisodeContract:
     def test_line_two_does_not_render_a_doubled_owner(self, client: TestClient):
         """Regression: "You or you must act now." was rendered by the live app.
 
-        PLAN.md 6.1 renders line 2 as "You or [named person] must act now.".
+        The approved copy rendered line 2 as "You or [named person] must act now.".
         With a patient owner that yields "You or you ...". Caught by inspection
-        on 28 Sep 2026, not by a test — so this test now exists.
+        on 28 Sep 2026, not by a test, so this test now exists. The 2 October
+        2026 wording pass changed the sentence to "Please act now: you, or
+        [named person]." and the doubled-owner defect stays fixed.
         """
         client.post("/api/episodes")
         body = client.get(f"/api/episodes/{fixture.DEMO_EPISODE_ID}").json()

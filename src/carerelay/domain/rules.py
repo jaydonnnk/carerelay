@@ -526,8 +526,8 @@ def patient_lines(
 
     `02-architecture.md` section 7 fixes two approved renderings, the unresolved
     one and the expired one. There is no approved rendering for a resolved
-    episode, so this refuses instead of printing "Help is not arranged." over an
-    episode where care is evidenced.
+    episode, so this refuses instead of printing "No one has agreed to help yet."
+    over an episode where care is evidenced.
     """
     disposition = snapshot.disposition
     if disposition is None:
@@ -549,13 +549,15 @@ def patient_lines(
         )
 
     if closure.closure is ClosureState.EXPIRED_UNRESOLVED:
-        # Quoted from `02-architecture.md` section 7, approved 25 September 2026.
-        # The punctuation is part of the approved copy, not new prose.
+        # Quoted from `02-architecture.md` section 7, re-approved 2 October 2026.
+        # The punctuation is part of the approved copy, not new prose. Line 3
+        # carries the deadline and is a real sentence rather than a fragment;
+        # line 4 lost its em dash, which read clipped to a frightened reader.
         return (
-            "Help still is not arranged.",
+            "No one has agreed to help yet.",
             "You can still do this.",
-            f"It is past {deadline_display}, so please go now.",
-            f"Call {route_display} \u2014 they can help from here.",
+            f"It is past {deadline_display}. Please go now.",
+            f"Call {route_display}. They can help from here.",
         )
 
     if closure.closure is ClosureState.CLOSED_WITH_EVIDENCE:
@@ -565,15 +567,15 @@ def patient_lines(
         )
 
     if disposition.next_owner_id == policy_text.self_owner_id:
-        owner_sentence = "You must act now."
+        owner_sentence = "Please act now."
     else:
-        owner_sentence = f"You or {owner_display} must act now."
+        owner_sentence = f"Please act now: you, or {owner_display}."
 
     return (
-        "Help is not arranged.",
+        "No one has agreed to help yet.",
         owner_sentence,
-        f"Before {deadline_display}.",
-        f"If this route fails, call {route_display}.",
+        f"Please do it before {deadline_display}.",
+        f"If that does not work, call {route_display}.",
     )
 
 
