@@ -1,9 +1,11 @@
 # Status: CareRelay urgent-advice accessibility
 
-- Gate 1: Product, **RE-APPROVED 1 October 2026** (approved 25 September 2026; reopened 1 October 2026 by one added subsection of approved patient-facing copy, and **re-approved the same day**; see the Gate 1 reopen section below). The reopen is one added subsection of approved patient-facing copy, nothing else; see the Gate 1 reopen section below
-- Gate 2: Architecture, **APPROVED** (revision 3 re-approved 30 September 2026; revision 2 was approved 25 September 2026)
+- Gate 1: Product, **RE-APPROVED 2 October 2026** (re-approved 1 October 2026; approved 25 September 2026). Reopened and re-approved the same day by the plain-human wording pass on the approved patient-facing copy; see the "Patient wording pass" section below
+- Gate 2: Architecture, **RE-APPROVED 2 October 2026** (revision 3 re-approved 30 September 2026; revision 2 was approved 25 September 2026). Reopened and re-approved the same day by `02-architecture.md` section 7: the rendering table, a line-by-line change record, and two additions to the copy rules. See the "Patient wording pass" section below
 - Gate 3: Program Design, **RE-APPROVED 1 October 2026** (reopened and re-approved the same day; re-approved 30 September 2026; first approved 26 September 2026). The reopen was one paragraph of section 6.2, dropping Option C, and section 8 item 3 was reconciled to the post-drop state in the same pass; see the Gate 3 re-approval below
 - Gate 4: Slice plan, **APPROVED** (re-approved 30 September 2026; first approved 28 September 2026)
+
+**All four gates are APPROVED as of 2 October 2026.** Gates 1 and 2 were reopened that day by the patient wording pass and **re-approved the same day** ("I have read and i re approve both gates"), which also completed the re-opened Slice 5 Check. **Slice 5 closes as of 2 October 2026.** Gate 4 was untouched by the pass, so implementation stayed authorised throughout. Nothing is committed and nothing is pushed.
 
 **All three reopened gates were re-approved on 30 September 2026.** Implementation is authorised again, slice by slice, in the order `04-slices.md` gives.
 
@@ -143,6 +145,81 @@ All three rows are **[verified]** as read from the primary terms pages on 1 Octo
 
 **Committed, merged and pushed.** Six commits on `slice-5`, base `ff22ed3`, tip `f95cea4` (`6187e51` F6 and O7; `9c331b9` the endpoints and K2; `b7655e6` the corrected fixture record; `6ced793` the Gate 3 amendment and status record; `f6a89f2` the stale-claim sweep; `f95cea4` the review note and the usage-proof skeleton). `slice-5` was fast-forwarded into `main` and `main` pushed to `origin` at `f131ef2` on the user's explicit instruction of 1 October 2026. **The Gate A harness rebuild of 2 October 2026 sits on `main` uncommitted** (see the Gate A section below).
 
+## Slice 5 live check, 2 October 2026
+
+**An independent adversarial review was run against the committed slice. Verdict: PASS WITH CONCERNS, and no blocking finding in the code.** Review at `docs/reviews/slice5-live-check.md`.
+
+| Claim | Result |
+|---|---|
+| The abstention path is real | **PASS.** No input makes the product guess. Structurally: the only two production `insert_disposition` call sites are `service.intake` and `service.reassess`, both gated, and `permitted_change_codes` and `authorised_reassessments` are both empty, so no HTTP path can write a version 2 |
+| The fail-capable tests fail | **PASS, after one fix below.** F6, O7 and K2 are each now independently mutation-proven |
+
+**Two findings, both closed in this pass.**
+
+| # | Finding | Close |
+|---|---|---|
+| **S1** | The slice checklist row said Slice 5 was "not merged into `main` and not pushed". That was false | Corrected on that row, and re-verified: `origin/main` and `main` both sit at `d5efdc5`, and `f95cea4` is an ancestor of it |
+| **S2** | Two of K2's three assertions could not be made to fail alone: the only defect that broke them also broke `TestCoordinatorUnavailable`, and `AGENTS.md` section 6 counts a fault two checks both catch as proof of neither | `tests/test_service.py` gained `test_intake_never_reaches_the_coordinator`. It runs intake against a coordinator that **answers**, so the plan is issued either way and no other check moves. Mutating intake to reach the coordinator tolerantly turns **exactly that one test** red and nothing else: 1 failed, 419 passed |
+
+**Mutations, each seen red and each reverted byte-identical** (harness at `spike/review_mutate.py`): F6 owner reverted to the patient, 4 red; O7 check disabled, 2 red with the later-deadline control green; K2 deadline moved on a coordinator failure, 1 red; K2 intake tolerantly reaching the coordinator, 1 red. `rules.py`, `state.py` and `service.py` all hash back to their pre-mutation values and `loneLF` is 0 on each.
+
+**Test count: 420 passed, 1 warning** (419 at the close of the Slice 5 build, plus the one K2 assertion added here).
+
+**Deliberately not raised, per the review's constraints:** B3, F6's rendering half (anchored to Slice 10), `04-slices.md`'s stale Slice 5 gate line, and Gate A not closing the platform-integration question.
+
+**Carried as notes, none slice-blocking:** O7 is unreachable from any HTTP path today, so it is a store-layer guarantee rather than a product-path one; `barriers` and `escalations` inherit O1's **scoped** append-only guarantee, so `INSERT OR REPLACE` still rewrites a row from a connection that has not set `PRAGMA recursive_triggers`; `rules.validate_change` is defined and unit-tested but called by no production path; `CoordinatorPort.classify_change` is declared and never called, so `03-program-design.md` section 4's classification step lands with the Slice 6 coordinator wiring; the 422 body says `stopped_at` where the 200 body says `stopped_at_human_path`.
+
+**The Check, run 2 October 2026, and its wording has since been superseded.** `04-slices.md` sets it as "the user reads the fixture wording and the provenance record". Both were reproduced verbatim for the user's read at `docs/reviews/slice5-live-check.md` section 7. **The four lines read at that Check were the pre-rewrite forms**: "Help is not arranged.", "You must act now.", "Before 6pm today.", "If this route fails, call the fictional nurse line." The user then asked for a plain-human wording pass, which was applied the same day (see the wording-pass section below). The current lines are "No one has agreed to help yet.", "Please act now.", "Please do it before 6pm today.", "If that does not work, call the fictional nurse line." The stored `policy_versions.provenance` row is unchanged and still reads: "PROVISIONAL: non-clinical placeholder, authored rather than sourced. Option C was dropped on 1 October 2026 after the source check cleared no source; the wording names no symptom, urgency, threshold or real facility and asserts no clinical claim (03-program-design.md 6.2)." `approved_by` is still `NULL`. **Because the wording the user is asked to read has changed, the Check is re-opened: it completes on Jaydon confirming that he has read the reworded lines at `docs/reviews/slice5-live-check.md` section 7, and confirming the reworded forms.**
+
+## Patient wording pass: Gate 1 and Gate 2 reopened, 2 October 2026
+
+**Both gates are reopened by this pass, and neither is re-approved yet.** `AGENTS.md` section 5 is explicit: editing an approved gate document reopens that gate. The pass edits two of them, so two gates reopen.
+
+**What the user asked for.** On 2 October 2026 the user asked for the patient-facing wording across Slices 1 to 7 to "sound like a human, and not a robotic agent", and initially asked for the tone to be sourced from hospitality sources.
+
+**What was declined, and why.** The hospitality sourcing was **not** done, for a reason recorded rather than quietly dropped: a hospitality brand guide is **not a clinical authority**, so it cannot fill a gap the clinical sources already left. MOH clause 11 and HealthHub clause 12.1 both failed on licence on 1 October 2026, and a style guide is a weaker source than either. Citing one would have **weakened** the provenance record by implying an authority that does not exist, and the fixture has been explicitly unsourced since Option C was dropped. The user accepted the alternative: the rewrite is applied against the **five copy rules in `02-architecture.md` section 7**, which are already Gate-approved and were written for exactly this problem. Those rules, not a hotel guide, are the tone authority.
+
+| Gate | Document edited | What changed |
+|---|---|---|
+| **1** | `01-product.md` | "Approved patient-facing copy" gained the four-line rendering with its current forms, plus two new binding rules: no exclamation marks, and no invented capability. The coordinator-unavailable string is unchanged after review. |
+| **2** | `02-architecture.md` section 7 | The rendering table updated; a line-by-line change record added; copy rule 2 gained "no exclamation marks"; copy rule 6 "no invented capability" added. |
+
+**Two rewrites were rejected during the pass, and both rejections are now encoded as rules rather than left in prose.**
+
+| Proposal | Source | Why rejected |
+|---|---|---|
+| Line 1 becomes a question: "do you want me to alert your emergency contact?" or "I'll contact your emergency contact" | User proposal, 2 October 2026 | **No invented capability.** CareRelay holds no emergency contact, has no channel to reach one, and has no consent record, so the sentence promises a dispatch that cannot occur. That is a **false completion**, which is the exact failure I2 forbids. The question form also breaks **I4**: it moves the obligation back to the patient instead of naming the party who acts. Rejected in full. |
+| Line 2 becomes "Please act now!!" | User proposal, 2 October 2026 | **No alarm.** Copy rule 2 already banned alarms because the reviewer killed the first expired draft as too blunt. A double exclamation is an alarm, not a courtesy, and it is sterner than the "You must act now." it replaces, not softer. The user accepted "Please act now." without exclamation marks. |
+
+**Third-party documents carrying the copy were updated for consistency, and none of them is a gate document.** `PLAN.md` section 6.1's patient-facing rule, `03-planback-closure-contract.md` sections 2.5 and 4, and `mockups/03-unresolved-handoff.html` all mirrored the old wording. They were updated in the same pass so the documents stay consistent with the gates that own the copy; only `01-product.md` and `02-architecture.md` reopened anything.
+
+**The fixture remains authored, unsourced and non-clinical.** The rewrite changes tone and nothing else. `PERMITTED_CHANGE_CODES` stays empty, `authorised_reassessments` stays empty, no source is claimed, and `approved_by` stays `NULL`. `fixtures/scripted_episode.json`'s `note` records the reword date and repeats that the wording is still authored and still asserts no clinical claim.
+
+**One pre-existing em dash was carried, not added.** The mockup's line 2 read `<strong>You must act now</strong> — or your daughter, Mei-Ling.` before this pass, and reads `<strong>Please act now</strong> — or wait for your daughter, Mei-Ling.` after it. The em dash is the same construction in the same sentence, so it is not new writing under `AGENTS.md` section 6. Every other added line is em-dash free; the count is verified in the review.
+
+**Verification, 2 October 2026.** Suite **422 passed, 1 warning** (420 before the pass; two new fail-capable copy-rule tests added). The live render was captured from a running `uvicorn` on 127.0.0.1:8145 and matches the approved table exactly. loneLF is 0 on every file touched. **Nothing is committed and nothing is pushed.**
+
+**This pass is not self-approving.** Gates 1 and 2 stay **REOPENED** until the user re-approves them, and the standing question is the one at the end of this section, not an inference from the user having asked for the change.
+
+### The standing re-approval question, 2 October 2026
+
+> Gates 1 and 2 were reopened by the wording pass. The patient copy now reads "No one has agreed to help yet. / Please act now. / Please do it before 6pm today. / If that does not work, call the fictional nurse line." The two new binding rules are no exclamation marks and no invented capability. Gate 1 carries the copy; Gate 2 section 7 carries the table, the change record and the five rules. **Do you re-approve Gate 1 and Gate 2?**
+
+**ANSWERED YES, 2 October 2026.** The user answered: **"I have read and i re approve both gates"**. Gate 1 and Gate 2 are therefore **APPROVED** again, and the reworded patient copy is approved content in `01-product.md` and `02-architecture.md` section 7, carrying both new binding rules (no exclamation marks, no invented capability).
+
+**The same answer closes the re-opened Slice 5 Check.** Slice 5's Check is "the user reads the fixture wording and the provenance record", and it was re-opened because the wording it asks the user to read had changed in this pass. The user has confirmed that read in the same sentence. **Slice 5's Check is COMPLETE**, and Slice 5 closes as of 2 October 2026.
+
+**What this approval does and does not do.**
+
+| Does | Does not |
+|---|---|
+| Re-approves Gate 1 and Gate 2 as edited by the wording pass | Authorise a commit or a push; still requires an explicit instruction |
+| Fixes the wording it approves, so any later edit reopens the gate again | Make the fixture clinical, reviewed or sourced; `approved_by` stays `NULL` and no source is claimed |
+| Closes Slice 5's Check | Close Slice 5's other carried notes (F6's rendering half, O7 reachability, the scoped O1 guarantee, the two dead functions, the 422 field-name mismatch); those stay anchored to their later slices |
+| Leaves Gate 4 untouched, so implementation stays authorised | Re-approve Gate 3; it was re-approved on 1 October 2026 and is not touched by this pass |
+
+**The limits are unchanged from the original approvals.** No installs beyond the declared test dependencies, no credentials, no recruitment, no deployment, no external calls beyond those the plan names, and no commit or push.
+
 ## Gate A access spike: RUN AND PASSED, 2 October 2026
 
 **Verdict: PASS, exit code 0. All three Gate A questions answered from observation. The answer to the outstanding question "did Gate A ever run?" is yes, and it passed.** The pre-recorded reversal in `AGENTS.md` section 3 (labelled local `local-sim` fallback, weakened platform-advantage claim) **does not apply**.
@@ -184,7 +261,7 @@ The spike was built as `spike/gate_a/probe.py` with `spike/gate_a/test_probe.py`
 - [x] **Slice 2: COMPLETE 30 Sep; adversarially reviewed and remediated the same day.** Pure domain core; boundary check seen red then green; 240 tests pass. Review at `docs/reviews/slice2-adversarial-review.md`
 - [x] **Slice 3: COMPLETE 30 Sep; adversarially reviewed the same day, verdict yes with named caveats.** The append-only SQLite record; every table refuses UPDATE and DELETE by trigger; the callback representation proven atomic under two concurrent writers and a crash; 70 new tests (69 in the new `tests/test_state.py`, one added to `tests/test_domain.py`), 310 pass, **332 after the remediation of 30 Sep**. The Slice 2 review's `source_ref` open item is settled here. Review at `docs/reviews/slice3-adversarial-review.md`; eight open items, of which the blocking one and three others were closed by the remediation recorded in the Slice 3 remediation section below
 - [x] **Slice 4: COMPLETE 1 Oct.** PlanBack end to end, hint ladder, bounded repair. Implemented 30 September 2026; adversarially reviewed and remediated 1 October 2026 (APPROVE WITH CHANGES, 383 tests pass, two blocking test gaps closed, one intake decision carried); **the Check was run live on 1 October 2026 and the user walked through it: mismatch to one repaired field to a clean pass to a third failure routing to the human path, against a running server, not a summary.** Transcript at `docs/reviews/slice4-walkthrough.md`; review at `docs/reviews/slice4-adversarial-review.md`; see the Slice 4 sections below. **The usage-proof obligation starts here and is only half met: the written history is published, the three chat screenshots are not captured.** See the outstanding-items section below
-- [x] **Slice 5: BUILT, REVIEWED AND COMMITTED 1 Oct; NOT SHIPPED.** Judged fixture + abstention path. Unblocked by dropping Option C. Barriers, escalations, reassessments, F6, O7 and the promoted K2 are built and proven live; the adversarial review returned APPROVE WITH CHANGES, its three blocking findings were documentary or wire-payload and are all closed, and **419 tests pass**. Six commits on `slice-5`, not merged into `main` and not pushed. **The Check has not been run as a live walkthrough.** B3 still needs a clinical reviewer
+- [x] **Slice 5: BUILT, REVIEWED, CHECKED AND COMMITTED 2 Oct; the shipped copy was reworded the same day.** Judged fixture + abstention path. Unblocked by dropping Option C. Barriers, escalations, reassessments, F6, O7 and the promoted K2 are built and proven live; the adversarial review returned APPROVE WITH CHANGES, its three blocking findings were documentary or wire-payload and are all closed, and **422 tests pass**. Six commits on `slice-5`, **fast-forwarded into `main` and pushed to `origin`** (re-verified 2 October 2026: `origin/main` and `main` both sit at `d5efdc5`, and `f95cea4`, the tip of `slice-5`, is an ancestor of it; the earlier "not merged and not pushed" line on this row was false and is corrected here). **The Check is COMPLETE, 2 October 2026**: it was presented at `docs/reviews/slice5-live-check.md` section 7, re-opened when the wording pass changed the lines it asks the user to read, and confirmed by the user's "I have read and i re approve both gates". B3 still needs a clinical reviewer
 - [ ] Slice 6: action path, simulated provider, platform call + Gate A decision (**Gate A RAN AND PASSED 2 Oct 2026; see the Gate A section above**)
 - [ ] **Slice 7: public deployment, the Next.js clinical frontend and auth (NEW 30 Sep, was not in the approved plan)**
 - [ ] Slice 8: baseline instrument, the external card (C1, parallel). **Was Slice 7**

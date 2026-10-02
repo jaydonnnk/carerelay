@@ -674,6 +674,29 @@ class TestPlanPrecedesReadBack:
         service = self._assessed_with_a_dead_coordinator(store)
         assert service._store.load_snapshot(EPISODE).disposition.version == 1
 
+    def test_intake_never_reaches_the_coordinator(self, store) -> None:
+        """K2's ordering half, as an assertion only this test can catch.
+
+        The two tests above run intake against a coordinator that raises, so a
+        defect that made the plan wait on the coordinator also broke
+        `TestCoordinatorUnavailable`, and `AGENTS.md` section 6 counts a fault two
+        checks both catch as proof of neither. This one runs intake against a
+        coordinator that **answers**, so the plan is issued either way and no other
+        check moves. The only thing that can fail it is the plan having been made
+        to depend on read-back machinery at all, which is the harm K2 names: a
+        coordinator that is merely slow, or merely reachable, still delays the
+        urgent path.
+        """
+        coordinator = StubCoordinator()
+        service = _build(store, coordinator=coordinator)
+        service.ensure_episode(EPISODE, "test persona")
+        service.intake(EPISODE, "i need help sorting out my appointment")
+        assert coordinator.calls == [], (
+            f"intake asked the coordinator {len(coordinator.calls)} time(s) before "
+            "issuing the plan, so the urgent path waits on read-back, which is the "
+            "ordering defect K2 exists to catch"
+        )
+
     def test_the_plan_is_renderable_before_any_restatement(self, store) -> None:
         service = self._assessed_with_a_dead_coordinator(store)
         snapshot = service._store.load_snapshot(EPISODE)
