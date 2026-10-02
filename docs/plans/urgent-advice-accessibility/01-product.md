@@ -53,7 +53,34 @@ Patient-facing strings are Gate 1 content. A string that no wireframe carries mu
 be approved here before it ships, because a flow that stops has to stop with words
 rather than with a blank screen.
 
-- **Coordinator unavailable, the PlanBack degraded state:** "We could not check that answer just now. Your plan has not changed." Approved at the Gate 1 touch of 1 October 2026, which Slice 4 raised as an open item. It names no symptom, urgency, route or deadline, and asserts only that the check did not happen. The round is not scored and no restatement row is written, so this sentence must never imply that an answer was accepted.
+**The four-line patient rendering, re-approved 2 October 2026.** The rendering is
+owned jointly with `02-architecture.md` section 7, which carries the full table,
+the five copy rules and the line-by-line change record. The approved forms are:
+
+- Line 1: **"No one has agreed to help yet."**
+- Line 2: **"Please act now."** for a patient owner, or **"Please act now: you, or
+  [named person]."** for a named caregiver owner.
+- Line 3: **"Please do it before [deadline]."**
+- Line 4: **"If that does not work, call [approved human route]."**
+
+The expired rendering substitutes "You can still do this." on line 2, "It is past
+[deadline]. Please go now." on line 3, and "Call [approved human route]. They can
+help from here." on line 4. Line 1 is unchanged between the two renderings.
+
+**Two rules constrain every one of these strings**, and both were made explicit on
+2 October 2026:
+
+- **No exclamation marks.** Urgency is carried by the words, never by punctuation.
+  A proposed "Please act now!!" was rejected as an alarm rather than a courtesy.
+- **No invented capability.** The copy may not offer an action the system cannot
+  take or has no consent to take. A proposed "I'll contact your emergency contact"
+  on line 1 was rejected: CareRelay holds no emergency contact, no channel to reach
+  one and no consent record, so the sentence would promise a dispatch that cannot
+  occur and would create the false completion this product exists to prevent. A
+  question to the same effect was rejected additionally under I4, because it moves
+  the obligation back to the patient instead of naming the party who acts.
+
+- **Coordinator unavailable, the PlanBack degraded state:** "We could not check that answer just now. Your plan has not changed." Approved at the Gate 1 touch of 1 October 2026, which Slice 4 raised as an open item. It names no symptom, urgency, route or deadline, and asserts only that the check did not happen. The round is not scored and no restatement row is written, so this sentence must never imply that an answer was accepted. **Reviewed in the 2 October 2026 wording pass and kept unchanged:** it is already plain speech, names no capability, and carries no exclamation mark.
 
 ### Adaptive scaffolding rules
 

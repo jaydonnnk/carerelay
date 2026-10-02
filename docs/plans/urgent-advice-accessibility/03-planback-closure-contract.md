@@ -190,10 +190,14 @@ episode.attempts.append(Attempt(route_id=r, idempotency_key=k, status="attempted
 
 The review is blunt that the full ladder is emotionally cold (`docs/reviews/gate2-adversarial-review-round1.md` §"Emotional verdict"). The patient UI shows **four lines and nothing else**:
 
-1. Help is not arranged.
-2. You or [named person] must act now.
-3. Before 6:00 PM.
-4. If this route fails, call [approved human route].
+1. No one has agreed to help yet.
+2. Please act now: you, or [named person].
+3. Please do it before 6:00 PM.
+4. If that does not work, call [approved human route].
+
+**Reworded 2 October 2026** to read like a person rather than an agent. The
+normative table, the five copy rules and the change record live in
+`02-architecture.md` section 7; this list mirrors them and is not the authority.
 
 The two-axis ledger is **judge-facing evidence**, shown in the walkthrough and the failure-inspection view. It is not the patient's screen. This split is the single highest-leverage design decision in the reframe: it keeps the technical integrity visible to judges without turning the product into audit software.
 
@@ -270,7 +274,7 @@ Proposed edits to `docs/PLAN.md`. **Not applied** — the standing working agree
 5. **Barrier check** — separate from comprehension. *"I can't get there."* A permitted alternative route is proposed.
 6. **A real organiser tool call runs and fails.** Not a mock. The failure event is the platform's.
 7. **Closure Contract under injection:** restart, duplicate callback. The deadline holds. Execution stays `failed`. Evidence stays `none`.
-8. **Patient screen:** four lines. *Help is not arranged. You or [name] must act now. Before 6:00 PM. If this fails, call [route].*
+8. **Patient screen:** four lines. *No one has agreed to help yet. Please act now: you, or [name]. Please do it before 6:00 PM. If that does not work, call [route].*
 9. **Judge view:** the two-axis ledger, with the fault sequence and its assertions visible.
 
 ---

@@ -358,10 +358,13 @@ The Closure Contract is the rule set that makes the two axes hold **under fault*
 
 **Patient-facing rule.** The patient sees four lines and nothing else:
 
-1. Help is not arranged.
-2. You or *[named person]* must act now.
-3. Before *[deadline]*.
-4. If this route fails, call *[approved human route]*.
+1. No one has agreed to help yet.
+2. Please act now: you, or *[named person]*.
+3. Please do it before *[deadline]*.
+4. If that does not work, call *[approved human route]*.
+
+**Reworded 2 October 2026** for plain human tone. The normative table, the five copy
+rules and the change record are in `02-architecture.md` section 7.
 
 The two-axis ledger is **judge-facing evidence**, shown in the walkthrough and the failure-inspection view. It is not the patient's screen. Keeping that split is what stops a safety mechanism from reading as audit software.
 

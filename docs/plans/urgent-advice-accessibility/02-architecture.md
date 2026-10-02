@@ -234,24 +234,38 @@ No real healthcare endpoints exist anywhere. Adapter callbacks are local-only. *
 
 ## 7. The expired patient screen (was undefined)
 
-`01-product.md` fixes four lines whose third is "Before [deadline]" — wording that presumes a future deadline. After expiry that line is false, and revision 1 had no expired rendering anywhere. **The one state the product exists to report had no approved words.**
+`01-product.md` fixed four lines whose third is "Before [deadline]", which presumes a future deadline. After expiry that line is false, and revision 1 had no expired rendering anywhere. **The one state the product exists to report had no approved words.**
 
 **Approved by the user 25 September 2026**, on the condition that the wording is not aggressive. The first draft ("The time to go was [deadline]. It has passed." / "Call [route] now") was rejected as too blunt for a frightened older adult. The rendering below is short, warm and forward-looking: it states the situation plainly, keeps the original deadline visible as fact rather than as a reproach, and puts the next step in the present tense.
 
+**Reworded 2 October 2026 for plain human tone.** The user asked for wording that reads like a person rather than an agent. The rewrite is applied against the five copy rules below, which are unchanged, and against the same non-clinical constraint: it names no symptom, urgency, threshold or real facility and asserts no clinical claim. The two substantive changes are that line 1 now names *why* help is not arranged ("no one has agreed") instead of stating a bare negative, and line 2 drops the imperative "must act" for "please act now" while keeping the urgency. No exclamation mark is permitted on this screen: punctuation that alarms is a rule-2 violation.
+
 | Line | Pre-deadline | Expired |
 |---|---|---|
-| 1 | Help is not arranged. | Help still is not arranged. |
-| 2 | You or *[named person]* must act now. | You can still do this. |
-| 3 | Before *[deadline]*. | It is past *[deadline]*, so please go now. |
-| 4 | If this route fails, call *[approved human route]*. | Call *[approved human route]* — they can help from here. |
+| 1 | No one has agreed to help yet. | No one has agreed to help yet. |
+| 2 | Please act now: you, or *[named person]*. | You can still do this. |
+| 3 | Please do it before *[deadline]*. | It is past *[deadline]*. Please go now. |
+| 4 | If that does not work, call *[approved human route]*. | Call *[approved human route]*. They can help from here. |
+
+**What changed on 2 October 2026, line by line.**
+
+| Line | Was | Now | Reason |
+|---|---|---|---|
+| 1, both | Help is not arranged. / Help still is not arranged. | No one has agreed to help yet. | Names the reason rather than a bare negative. Rule 3 still holds: the facts are unchanged and no comfort is offered. |
+| 2, pre-deadline | You or *[named person]* must act now. | Please act now: you, or *[named person]*. | Drops the imperative. "Please" is courtesy, not a softener, so urgency survives. The self-owner form is "Please act now." and the malformed "You or you must act now." stays fixed. |
+| 3, pre-deadline | Before *[deadline]*. | Please do it before *[deadline]*. | A fragment became a sentence. The deadline is intact. |
+| 4, pre-deadline | If this route fails, call *[approved human route]*. | If that does not work, call *[approved human route]*. | "Route fails" is systems language. Rule 4 still names the route. |
+| 3, expired | It is past *[deadline]*, so please go now. | It is past *[deadline]*. Please go now. | Two sentences read calmer than one joined by "so". Rule 5 keeps the deadline. |
+| 4, expired | Call *[approved human route]* — they can help from here. | Call *[approved human route]*. They can help from here. | The dash read clipped. Rule 4 still names the route. |
 
 **Copy rules for this screen** (so later edits do not drift back):
 
 - **No reproach.** Never "you did not", "you missed", "too late", "failed", or a bare "now" as an imperative.
-- **No alarm.** No red urgency styling on this screen; the emergency path is reached through line 4's route, not through alarm on a missed appointment.
+- **No alarm.** No red urgency styling on this screen; the emergency path is reached through line 4's route, not through alarm on a missed appointment. **No exclamation marks**, added 2 October 2026: the user proposed "Please act now!!" and it was rejected as a rule-2 violation, because a double exclamation is an alarm rather than a courtesy.
 - **No false comfort.** It still says the help is not arranged. The softness is in the tone, not in the facts.
 - **Line 4 always names a real route** — 995 remains available, but the screen leads with the ordinary care route rather than the emergency number for a non-emergency expiry.
 - **The deadline stays visible.** Removing it would erase the fact the product exists to preserve.
+- **No invented capability.** Added 2 October 2026: the copy may not offer an action the system cannot take and has no consent to take. The user proposed adding "I'll contact your emergency contact" to line 1; it was rejected because CareRelay holds no emergency contact, has no channel to reach one and no consent record, so the sentence would promise a dispatch that cannot occur and would create the false completion the product exists to prevent. A question on line 1 ("do you want me to alert...") was rejected for the same reason plus I4: it moves the obligation back to the patient instead of naming the acting party.
 
 ---
 
