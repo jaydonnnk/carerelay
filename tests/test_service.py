@@ -31,19 +31,28 @@ from carerelay.coordinator import (  # noqa: E402
 from carerelay.demo import fixture  # noqa: E402
 from carerelay.domain import rules  # noqa: E402
 from carerelay.domain.models import (  # noqa: E402
+    CallbackResult,
     ClosureState,
+    ExecutionStatus,
     ExtractedPlan,
     HintEventKind,
     HintLevel,
     InputMode,
+    Origin,
+    ReceiptDisposition,
     ReassessmentOutcome,
     RecallOutcome,
 )
+from carerelay.simulated_provider import ScriptedProvider  # noqa: E402
+from carerelay.tools import McpTools  # noqa: E402
 from carerelay.service import (  # noqa: E402
+    ConsentRequired,
     EpisodeAlreadyAssessed,
     EpisodeService,
     IntakeNotRecognised,
+    NoAttemptForRoute,
     NoDispositionYet,
+    OriginNotWired,
     RepairCapReached,
     ScenarioClock,
     StaleRestatement,
@@ -78,9 +87,15 @@ def service(store):
 
 
 def _build(store, coordinator=None):
+    if coordinator is None:
+        # Slice 6: the coordinator reaches the world through the MCP tool
+        # surface, so it needs one even in a test that only exercises PlanBack.
+        coordinator = LocalSimulationCoordinator(
+            McpTools(store, policy=fixture.policy(), provider=ScriptedProvider())
+        )
     return EpisodeService(
         store,
-        coordinator=coordinator or LocalSimulationCoordinator(),
+        coordinator=coordinator,
         clock=ScenarioClock(fixture.SCENARIO_NOW_UTC),
         policy=fixture.policy(),
         display_tz=fixture.DISPLAY_TZ,
@@ -717,3 +732,186 @@ class TestPlanPrecedesReadBack:
         after = service._store.load_snapshot(EPISODE).disposition
         assert after == before
         assert service._store.list_restatements(EPISODE) == ()
+
+
+# ---------------------------------------------------------------------------
+# Slice 6: the action path, the simulated provider, and the platform call
+# ---------------------------------------------------------------------------
+
+
+class CountingCoordinator:
+    """The real coordinator, with a counter on the only door to the world.
+
+    The double-tap claim (I3) is "dispatched nothing", and nothing else in the
+    record can show it. A suppressed duplicate writes an audit event, but a
+    dispatch that never happened and one that happened and was suppressed leave
+    the same rows unless something counts the calls. This is that something.
+    """
+
+    def __init__(self, inner) -> None:
+        self._inner = inner
+        self.executions: list[object] = []
+
+    @property
+    def origin(self):
+        return self._inner.origin
+
+    def execute_tool(self, request, *, now_utc):
+        self.executions.append(request)
+        return self._inner.execute_tool(request, now_utc=now_utc)
+
+
+def _action_service(store):
+    """An assessed episode with consent granted, and a counting coordinator."""
+    coordinator = CountingCoordinator(
+        LocalSimulationCoordinator(
+            McpTools(store, policy=fixture.policy(), provider=ScriptedProvider())
+        )
+    )
+    service = _build(store, coordinator=coordinator)
+    service.ensure_episode(EPISODE, "test persona")
+    service.intake(EPISODE, fixture.BOUND_COMPLAINT)
+    service.change_consent(EPISODE, granted=True)
+    return service, coordinator
+
+
+#: A permitted route, and a purpose id. The purpose is free text by design: it
+#: is part of the idempotency triple, not part of the clinical vocabulary.
+ROUTE = "fictional_provider"
+PURPOSE = "book_transport"
+
+
+class TestActionPath:
+    """`02-architecture.md` section 3.3 steps 1 to 4, at the service boundary.
+
+    The three rechecks the tool surface performs are pinned in
+    `tests/test_coordinator.py`. What is pinned here is the ordering they sit
+    inside: authorisation, then consent, then a key the server generated, then
+    exactly one dispatch.
+    """
+
+    def test_an_action_before_any_consent_is_refused(self, service, assessed):
+        with pytest.raises(ConsentRequired):
+            service.open_action(EPISODE, ROUTE, PURPOSE)
+
+    def test_an_action_with_consent_is_opened(self, store):
+        service, _ = _action_service(store)
+        outcome = service.open_action(EPISODE, ROUTE, PURPOSE)
+        assert outcome.duplicate is False
+        assert outcome.tool is not None
+        assert outcome.consent_version == 1
+        assert outcome.disposition_version == 1
+
+    def test_a_route_the_policy_does_not_permit_is_refused_first(self, store):
+        """D7. A hallucinated route stops before a tool runs or an attempt exists."""
+        service, coordinator = _action_service(store)
+        with pytest.raises(rules.UnpermittedRouteId):
+            service.open_action(EPISODE, "somewhere_else", PURPOSE)
+        assert coordinator.executions == []
+        assert service._store.list_attempts(EPISODE) == ()
+
+    def test_a_double_tap_reuses_the_key_and_dispatches_once(self, store):
+        """I3. The second request returns the first attempt and runs nothing."""
+        service, coordinator = _action_service(store)
+        first = service.open_action(EPISODE, ROUTE, PURPOSE)
+        second = service.open_action(EPISODE, ROUTE, PURPOSE)
+        assert second.attempt_id == first.attempt_id
+        assert second.idempotency_key == first.idempotency_key
+        assert second.duplicate is True
+        assert second.tool is None
+        assert len(coordinator.executions) == 1
+
+    def test_a_second_purpose_is_a_second_attempt_and_dispatches(self, store):
+        """The control for the test above: not every repeat is a duplicate."""
+        service, coordinator = _action_service(store)
+        first = service.open_action(EPISODE, ROUTE, "purpose-a")
+        second = service.open_action(EPISODE, ROUTE, "purpose-b")
+        assert second.attempt_id != first.attempt_id
+        assert second.duplicate is False
+        assert len(coordinator.executions) == 2
+
+    def test_opening_an_action_writes_no_transition(self, store):
+        """The outcome arrives on the callback path, or it does not arrive."""
+        service, _ = _action_service(store)
+        outcome = service.open_action(EPISODE, ROUTE, PURPOSE)
+        assert service._store.list_transitions(outcome.attempt_id) == ()
+
+    def test_the_outcome_origin_is_the_one_the_tool_reports(self, store):
+        service, _ = _action_service(store)
+        outcome = service.open_action(EPISODE, ROUTE, PURPOSE)
+        assert outcome.origin is Origin.LOCAL_SIM
+        assert outcome.tool.origin is Origin.LOCAL_SIM
+
+
+class TestCallbackReceipts:
+    """O5. A receipt says applied, duplicate or refused, and says why."""
+
+    def _opened(self, store):
+        service, _coordinator = _action_service(store)
+        outcome = service.open_action(EPISODE, ROUTE, PURPOSE)
+        return service, outcome
+
+    @staticmethod
+    def _ack() -> CallbackResult:
+        return CallbackResult(transition=ExecutionStatus.ACKNOWLEDGED)
+
+    def test_a_callback_applies_and_moves_the_attempt(self, store):
+        service, _ = self._opened(store)
+        outcome = service.receive_callback(
+            EPISODE, ROUTE, "cb-1", self._ack(), Origin.LOCAL_SIM
+        )
+        assert outcome.receipt.disposition is ReceiptDisposition.APPLIED
+        assert outcome.applied is True
+        assert outcome.execution is ExecutionStatus.ACKNOWLEDGED
+
+    def test_a_repeat_callback_is_recorded_as_a_duplicate(self, store):
+        service, _ = self._opened(store)
+        service.receive_callback(EPISODE, ROUTE, "cb-1", self._ack(), Origin.LOCAL_SIM)
+        again = service.receive_callback(
+            EPISODE, ROUTE, "cb-1", self._ack(), Origin.LOCAL_SIM
+        )
+        assert again.receipt.disposition is ReceiptDisposition.DUPLICATE
+        assert again.applied is False
+        assert again.execution is ExecutionStatus.ACKNOWLEDGED
+
+    def test_a_success_after_revocation_is_refused_and_says_why(self, store):
+        service, _ = self._opened(store)
+        service.change_consent(EPISODE, granted=False)
+        outcome = service.receive_callback(
+            EPISODE, ROUTE, "cb-1", self._ack(), Origin.LOCAL_SIM
+        )
+        assert outcome.receipt.disposition is ReceiptDisposition.REFUSED
+        assert outcome.receipt.rejection_reason
+        assert outcome.execution is not ExecutionStatus.ACKNOWLEDGED
+
+    def test_a_platform_origin_is_refused_because_no_platform_is_wired(self, store):
+        service, _ = self._opened(store)
+        with pytest.raises(OriginNotWired):
+            service.receive_callback(
+                EPISODE, ROUTE, "cb-1", self._ack(), Origin.PLATFORM
+            )
+
+    def test_the_platform_refusal_also_fires_on_the_bare_string(self, store):
+        """The API passes a string through, so the string must be checked too."""
+        service, _ = self._opened(store)
+        with pytest.raises(OriginNotWired):
+            service.receive_callback(EPISODE, ROUTE, "cb-1", self._ack(), "platform")
+
+    def test_the_refused_platform_origin_wrote_nothing(self, store):
+        service, opened = self._opened(store)
+        with pytest.raises(OriginNotWired):
+            service.receive_callback(
+                EPISODE, ROUTE, "cb-1", self._ack(), Origin.PLATFORM
+            )
+        assert service._store.list_transitions(opened.attempt_id) == ()
+
+    def test_the_wired_origin_is_named_and_is_local_sim(self, store):
+        service, _ = self._opened(store)
+        assert service.available_origin is Origin.LOCAL_SIM
+
+    def test_a_callback_for_a_route_with_no_attempt_is_refused(self, store):
+        service, _ = self._opened(store)
+        with pytest.raises(NoAttemptForRoute):
+            service.receive_callback(
+                EPISODE, "nurse_line", "cb-1", self._ack(), Origin.LOCAL_SIM
+            )

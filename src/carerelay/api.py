@@ -19,9 +19,11 @@ from __future__ import annotations
 
 import os
 import threading
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from carerelay import __version__
@@ -30,14 +32,26 @@ from carerelay.coordinator import (
     LocalSimulationCoordinator,
 )
 from carerelay.demo import fixture
-from carerelay.domain.rules import PolicyViolation
+from carerelay.domain.rules import PolicyViolation, UnpermittedTransition
+from carerelay.domain.models import (
+    CallbackResult,
+    EvidenceLevel,
+    EvidenceRecord,
+    ExecutionStatus,
+    Origin,
+)
 from carerelay.service import (
+    ActionOutcome,
     BarrierOutcome,
+    CallbackOutcome,
+    ConsentRequired,
     EpisodeAlreadyAssessed,
     EpisodeService,
     EscalationOutcome,
     IntakeNotRecognised,
+    NoAttemptForRoute,
     NoDispositionYet,
+    OriginNotWired,
     ReassessmentResult,
     RepairCapReached,
     RestatementOutcome,
@@ -46,12 +60,15 @@ from carerelay.service import (
     SystemClock,
     UnconfirmedTranscript,
 )
+from carerelay.simulated_provider import ScriptedProvider
 from carerelay.state import (
+    CLINICAL_SCOPE,
     EpisodeNotFound,
     RestatementNotFound,
     StateError,
     open_store,
 )
+from carerelay.tools import McpTools
 
 app = FastAPI(
     title="CareRelay",
@@ -60,6 +77,16 @@ app = FastAPI(
         "SIMULATED RESEARCH DEMONSTRATION — not clinical advice, not a medical "
         "device, not validated for patient use."
     ),
+)
+
+# Slice 1 renders one patient page that links `/static/style.css`. The file has
+# been a declared Slice 1 deliverable since the tracer bullet, but nothing served
+# it, so the page rendered unstyled and `GET /static/style.css` answered 404. The
+# Slice 6 adversarial review found it. Mounted here so the declared link resolves.
+app.mount(
+    "/static",
+    StaticFiles(directory=str(Path(__file__).resolve().parent / "static")),
+    name="static",
 )
 
 # Slice 1 only: one in-memory episode, used by the two tracer-bullet routes.
@@ -104,9 +131,15 @@ _DB_LOCK = threading.Lock()
 
 _STORE = open_store(_database_path(), check_same_thread=False)
 
+#: Slice 6. The coordinator reaches the world only through this surface, and the
+#: surface reaches the provider, which is a labelled local simulation. The
+#: `origin` every action outcome carries comes from here, so it cannot be set
+#: per request: see `OriginNotWired` in `service.py`.
+_TOOLS = McpTools(_STORE, policy=fixture.policy(), provider=ScriptedProvider())
+
 _SERVICE = EpisodeService(
     _STORE,
-    coordinator=LocalSimulationCoordinator(),
+    coordinator=LocalSimulationCoordinator(_TOOLS),
     clock=_clock(),
     policy=fixture.policy(),
     display_tz=fixture.DISPLAY_TZ,
@@ -701,5 +734,255 @@ def reassess(
         routes_to_human_path=result.routes_to_human_path,
         human_path_route_id=result.human_path_route_id,
         simulated=result.simulated,
+        fixture_label=fixture.FIXTURE_LABEL,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Slice 6: consent, the action path and the callback
+# ---------------------------------------------------------------------------
+
+
+class ConsentRequest(BaseModel):
+    granted: bool
+
+
+class ConsentResponse(BaseModel):
+    episode_id: str
+    scope: str
+    version: int
+    granted: bool
+    simulated: bool
+    fixture_label: str
+
+
+class ActionRequest(BaseModel):
+    route_id: str
+    purpose_id: str
+
+
+class ActionResponse(BaseModel):
+    """One opened attempt, and what the tool call returned.
+
+    `origin` is on the response and not only inside `payload`, because
+    `02-architecture.md` section 3.3 step 6 requires the origin marker to be
+    displayable, and a marker buried in a payload is not displayable by
+    inspection.
+    """
+
+    episode_id: str
+    attempt_id: str
+    idempotency_key: str
+    route_id: str
+    purpose_id: str
+    disposition_version: int
+    consent_version: int
+    execution: str
+    duplicate: bool
+    origin: str
+    outcome: str | None
+    provider_ref: str | None
+    payload: str | None
+    simulated: bool
+    fixture_label: str
+
+
+class EvidenceBody(BaseModel):
+    level: str
+    simulated: bool = True
+    provenance: str = ""
+    source_ref: str | None = None
+
+
+class CallbackRequest(BaseModel):
+    """What the adapter asserts about one attempt.
+
+    `origin` defaults to the value the wired path can produce. A caller may state
+    it explicitly and `service.receive_callback` will check it, because a field
+    that says whatever the caller wants is not the checkable marker section 3.3
+    asks for.
+    """
+
+    callback_key: str
+    transition: str | None = None
+    evidence: EvidenceBody | None = None
+    payload: str = ""
+    origin: str = Origin.LOCAL_SIM.value
+
+
+class CallbackResponse(BaseModel):
+    episode_id: str
+    route_id: str
+    attempt_id: str
+    origin: str
+    receipt: str
+    applied: bool
+    rejection_reason: str | None
+    execution: str
+    simulated: bool
+    fixture_label: str
+
+
+@app.post(
+    "/api/episodes/{episode_id}/consents",
+    response_model=ConsentResponse,
+    tags=["actions"],
+)
+def change_consent(
+    episode_id: str,
+    body: ConsentRequest,
+    service: EpisodeService = Depends(get_service),
+) -> ConsentResponse:
+    """Grant or revoke clinical scope. Returns the new version number.
+
+    Revocation appends a row rather than editing one, so an attempt stamped with
+    an earlier version stays legible and its in-flight callback can be refused.
+    """
+    try:
+        with _DB_LOCK:
+            version = service.change_consent(episode_id, body.granted)
+    except EpisodeNotFound:
+        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
+    return ConsentResponse(
+        episode_id=episode_id,
+        scope=CLINICAL_SCOPE,
+        version=version,
+        granted=body.granted,
+        simulated=True,
+        fixture_label=fixture.FIXTURE_LABEL,
+    )
+
+
+@app.post(
+    "/api/episodes/{episode_id}/actions",
+    response_model=ActionResponse,
+    tags=["actions"],
+)
+def open_action(
+    episode_id: str,
+    body: ActionRequest,
+    service: EpisodeService = Depends(get_service),
+) -> ActionResponse:
+    """Open one attempt and execute the tool. Section 3.3 steps 1 to 4.
+
+    **This writes no transition.** The outcome arrives on `/callbacks/{route_id}`,
+    which is the path a real platform would use and the path that makes the
+    duplicate and reordered cases representable.
+
+    A repeat of the same `(episode, route, purpose)` returns the original attempt
+    with `duplicate: true` and dispatches nothing (I3).
+    """
+    try:
+        with _DB_LOCK:
+            outcome: ActionOutcome = service.open_action(
+                episode_id, body.route_id, body.purpose_id
+            )
+    except EpisodeNotFound:
+        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
+    except (NoDispositionYet, ConsentRequired) as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except PolicyViolation as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "detail": str(exc),
+                "stopped_at": "human_path",
+            },
+        )
+    except StateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    return ActionResponse(
+        episode_id=episode_id,
+        attempt_id=outcome.attempt_id,
+        idempotency_key=outcome.idempotency_key,
+        route_id=outcome.route_id,
+        purpose_id=outcome.purpose_id,
+        disposition_version=outcome.disposition_version,
+        consent_version=outcome.consent_version,
+        execution=outcome.execution.value,
+        duplicate=outcome.duplicate,
+        origin=outcome.origin.value,
+        outcome=outcome.tool.outcome.value if outcome.tool is not None else None,
+        provider_ref=outcome.tool.provider_ref if outcome.tool is not None else None,
+        payload=outcome.tool.payload if outcome.tool is not None else None,
+        simulated=outcome.simulated,
+        fixture_label=fixture.FIXTURE_LABEL,
+    )
+
+
+@app.post(
+    "/api/episodes/{episode_id}/callbacks/{route_id}",
+    response_model=CallbackResponse,
+    tags=["actions"],
+)
+def receive_callback(
+    episode_id: str,
+    route_id: str,
+    body: CallbackRequest,
+    service: EpisodeService = Depends(get_service),
+) -> CallbackResponse:
+    """Record one callback against the attempt this route opened.
+
+    A duplicate is recorded and returns `receipt: "duplicate"` with
+    `applied: false`. A success arriving after revocation is recorded and
+    returns `receipt: "refused"` with the reason. Neither is a 200 that looks
+    like an applied outcome, which is what O5 was raised for.
+    """
+    try:
+        transition = (
+            ExecutionStatus(body.transition) if body.transition is not None else None
+        )
+        origin = Origin(body.origin)
+        evidence = (
+            EvidenceRecord(
+                level=EvidenceLevel(body.evidence.level),
+                simulated=body.evidence.simulated,
+                provenance=body.evidence.provenance,
+                source_ref=body.evidence.source_ref,
+            )
+            if body.evidence is not None
+            else None
+        )
+    except ValueError as exc:
+        # NF2 is anchored to Slice 7, but this route is new and must not add
+        # another instance of the defect it names: an unknown enum value is a
+        # typed 422, never a 500.
+        raise HTTPException(status_code=422, detail=str(exc))
+
+    result = CallbackResult(
+        transition=transition, evidence=evidence, payload=body.payload
+    )
+    try:
+        with _DB_LOCK:
+            outcome: CallbackOutcome = service.receive_callback(
+                episode_id, route_id, body.callback_key, result, origin
+            )
+    except EpisodeNotFound:
+        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
+    except (NoAttemptForRoute, ConsentRequired) as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except OriginNotWired as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "detail": str(exc),
+                "requested_origin": origin.value,
+                "wired_origin": service.available_origin.value,
+            },
+        )
+    except StateError as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except UnpermittedTransition as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return CallbackResponse(
+        episode_id=episode_id,
+        route_id=route_id,
+        attempt_id=outcome.attempt_id,
+        origin=outcome.origin.value,
+        receipt=outcome.receipt.disposition.value,
+        applied=outcome.receipt.applied,
+        rejection_reason=outcome.receipt.rejection_reason,
+        execution=outcome.execution.value,
+        simulated=outcome.simulated,
         fixture_label=fixture.FIXTURE_LABEL,
     )

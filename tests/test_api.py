@@ -26,7 +26,9 @@ from carerelay.coordinator import (  # noqa: E402
 from carerelay.demo import fixture  # noqa: E402
 from carerelay.domain.models import ExtractedPlan  # noqa: E402
 from carerelay.service import EpisodeService, ScenarioClock  # noqa: E402
+from carerelay.simulated_provider import ScriptedProvider  # noqa: E402
 from carerelay.state import open_store  # noqa: E402
+from carerelay.tools import McpTools  # noqa: E402
 
 EPISODE = fixture.DEMO_EPISODE_ID
 
@@ -34,6 +36,15 @@ EPISODE = fixture.DEMO_EPISODE_ID
 CORRECT = "see the doctor today before 6pm myself"
 #: A known, different deadline: a mismatch, not an uncertainty (K1).
 WRONG_DAY = "see the doctor tomorrow before 6pm myself"
+
+
+def _tools(store) -> McpTools:
+    """The MCP surface one coordinator executes through. Slice 6.
+
+    Built per store, because the tool surface rechecks the attempt key against
+    the same database the attempt was opened in.
+    """
+    return McpTools(store, policy=fixture.policy(), provider=ScriptedProvider())
 
 
 @pytest.fixture()
@@ -52,7 +63,7 @@ def planback_client() -> Iterator[TestClient]:
     store = open_store(":memory:", check_same_thread=False)
     service = EpisodeService(
         store,
-        coordinator=LocalSimulationCoordinator(),
+        coordinator=LocalSimulationCoordinator(_tools(store)),
         clock=ScenarioClock(fixture.SCENARIO_NOW_UTC),
         policy=fixture.policy(),
         display_tz=fixture.DISPLAY_TZ,
@@ -152,6 +163,19 @@ class TestNoTimerOrAutoAdvance:
         lowered = css.lower()
         for banned in ("animation:", "transition:", "@keyframes"):
             assert banned not in lowered, f"stylesheet uses {banned!r}"
+
+    def test_the_page_links_a_stylesheet_the_app_actually_serves(
+        self, client: TestClient
+    ):
+        """The Slice 6 review found this: the page linked `/static/style.css`, no
+        mount served it, and the CSS test above read the file from disk so it never
+        noticed. A 404 on the declared stylesheet means the page renders unstyled.
+        """
+        html = client.get("/").text
+        assert 'href="/static/style.css"' in html
+        served = client.get("/static/style.css")
+        assert served.status_code == 200, "/static/style.css is linked but not served"
+        assert "{" in served.text, "the stylesheet route returned an empty body"
 
 
 class AssertionsHaveTeeth:
@@ -605,3 +629,223 @@ class TestReassessmentRoute:
             f"/api/episodes/{EPISODE}/reassessments", json={}
         )
         assert response.status_code == 409
+
+
+#: A permitted route, and a purpose id. The purpose is part of the idempotency
+#: triple, not part of the clinical vocabulary, so any string is legal here.
+ROUTE = "fictional_provider"
+PURPOSE = "book_transport"
+
+
+class TestActionRoutes:
+    """The Slice 6 action route.
+
+    Every status code below was also observed against a live server on
+    3 October 2026, because a 409 rendered by `TestClient` and a 409 rendered by
+    uvicorn are not the same claim.
+    """
+
+    @staticmethod
+    def _consent(client: TestClient) -> None:
+        response = client.post(
+            f"/api/episodes/{EPISODE}/consents", json={"granted": True}
+        )
+        assert response.status_code == 200
+
+    def test_consent_returns_a_version_and_carries_the_label(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/consents", json={"granted": True}
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["version"] == 1
+        assert body["granted"] is True
+        assert body["simulated"] is True
+
+    def test_an_action_without_consent_is_409(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/actions",
+            json={"route_id": ROUTE, "purpose_id": PURPOSE},
+        )
+        assert response.status_code == 409
+
+    def test_an_action_opens_an_attempt_and_names_its_origin(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        self._consent(planback_client)
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/actions",
+            json={"route_id": ROUTE, "purpose_id": PURPOSE},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["duplicate"] is False
+        assert body["origin"] == "local-sim"
+        assert body["consent_version"] == 1
+        assert body["outcome"] is not None
+        assert body["provider_ref"]
+        assert body["simulated"] is True
+
+    def test_a_double_tap_returns_the_first_attempt_and_no_outcome(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        """I3, at the HTTP boundary: the payload says it dispatched nothing."""
+        self._consent(planback_client)
+        first = planback_client.post(
+            f"/api/episodes/{EPISODE}/actions",
+            json={"route_id": ROUTE, "purpose_id": PURPOSE},
+        ).json()
+        second = planback_client.post(
+            f"/api/episodes/{EPISODE}/actions",
+            json={"route_id": ROUTE, "purpose_id": PURPOSE},
+        ).json()
+        assert second["attempt_id"] == first["attempt_id"]
+        assert second["idempotency_key"] == first["idempotency_key"]
+        assert second["duplicate"] is True
+        assert second["outcome"] is None
+        assert second["provider_ref"] is None
+
+    def test_a_route_the_policy_does_not_permit_is_422_at_the_human_path(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        self._consent(planback_client)
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/actions",
+            json={"route_id": "somewhere_else", "purpose_id": PURPOSE},
+        )
+        assert response.status_code == 422
+        assert response.json()["detail"]["stopped_at"] == "human_path"
+
+    def test_an_action_on_an_unknown_episode_is_404(
+        self, planback_client: TestClient
+    ) -> None:
+        response = planback_client.post(
+            "/api/episodes/nope/actions",
+            json={"route_id": ROUTE, "purpose_id": PURPOSE},
+        )
+        assert response.status_code == 404
+
+
+class TestCallbackRoute:
+    """O5 at the HTTP boundary: applied, duplicate and refused are different."""
+
+    def _opened(self, client: TestClient, assessed: str) -> str:
+        TestActionRoutes._consent(client)
+        response = client.post(
+            f"/api/episodes/{EPISODE}/actions",
+            json={"route_id": ROUTE, "purpose_id": PURPOSE},
+        )
+        assert response.status_code == 200
+        return response.json()["attempt_id"]
+
+    def test_a_callback_is_applied_and_reports_the_wired_origin(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        self._opened(planback_client, assessed)
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/callbacks/{ROUTE}",
+            json={"callback_key": "cb-1", "transition": "acknowledged"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["receipt"] == "applied"
+        assert body["applied"] is True
+        assert body["origin"] == "local-sim"
+        assert body["rejection_reason"] is None
+
+    def test_a_repeat_callback_is_a_duplicate_not_a_second_application(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        self._opened(planback_client, assessed)
+        body = {"callback_key": "cb-1", "transition": "acknowledged"}
+        planback_client.post(f"/api/episodes/{EPISODE}/callbacks/{ROUTE}", json=body)
+        again = planback_client.post(
+            f"/api/episodes/{EPISODE}/callbacks/{ROUTE}", json=body
+        )
+        assert again.status_code == 200
+        assert again.json()["receipt"] == "duplicate"
+        assert again.json()["applied"] is False
+
+    def test_a_success_arriving_after_revocation_is_refused_and_says_why(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        """O5, third state, at the HTTP boundary.
+
+        The Slice 6 review found this missing: this class covers `applied` and
+        `duplicate` but never revoked consent, so the `refused` receipt had no
+        fail-capable test on the route even though the class claims all three
+        states are different. A refusal is a success that was rejected because
+        consent moved, which must not be displayed as "nothing arrived".
+        """
+        self._opened(planback_client, assessed)
+        revoked = planback_client.post(
+            f"/api/episodes/{EPISODE}/consents", json={"granted": False}
+        )
+        assert revoked.status_code == 200
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/callbacks/{ROUTE}",
+            json={"callback_key": "cb-1", "transition": "acknowledged"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["receipt"] == "refused"
+        assert body["applied"] is False
+        assert body["rejection_reason"]
+        assert body["execution"] != "acknowledged"
+
+    def test_a_platform_origin_is_422_and_names_both_origins(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        """The refusal has to name the alternative, or it is just a rejection."""
+        self._opened(planback_client, assessed)
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/callbacks/{ROUTE}",
+            json={
+                "callback_key": "cb-1",
+                "transition": "acknowledged",
+                "origin": "platform",
+            },
+        )
+        assert response.status_code == 422
+        detail = response.json()["detail"]
+        assert detail["requested_origin"] == "platform"
+        assert detail["wired_origin"] == "local-sim"
+
+    def test_an_unknown_transition_is_a_typed_422_not_a_500(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        self._opened(planback_client, assessed)
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/callbacks/{ROUTE}",
+            json={"callback_key": "cb-1", "transition": "half_done"},
+        )
+        assert response.status_code == 422
+
+    def test_a_callback_for_a_route_with_no_attempt_is_409(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        self._opened(planback_client, assessed)
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/callbacks/nurse_line",
+            json={"callback_key": "cb-1", "transition": "acknowledged"},
+        )
+        assert response.status_code == 409
+
+    def test_a_callback_for_an_unknown_episode_is_404(
+        self, planback_client: TestClient
+    ) -> None:
+        """Found live on 3 October 2026: this answered 409 before it was fixed.
+
+        `list_attempts` on a missing episode returns nothing, so the route used
+        to say "no attempt on this route", which is true of an episode that does
+        not exist and implies one that does.
+        """
+        response = planback_client.post(
+            f"/api/episodes/nope/callbacks/{ROUTE}",
+            json={"callback_key": "cb-1", "transition": "acknowledged"},
+        )
+        assert response.status_code == 404

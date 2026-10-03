@@ -47,32 +47,42 @@ from typing import Protocol
 from carerelay.coordinator import (
     AllowedPlanValues,
     CoordinatorPort,
+    ToolRequest,
 )
 from carerelay.domain import rules
 from carerelay.domain.models import (
     MAX_REPAIR_ROUNDS,
     RECALL_OUTCOME_BY_LEVEL,
+    AttemptCommand,
+    CallbackResult,
     Disposition,
+    ExecutionStatus,
     HintEvent,
     HintEventKind,
     HintLevel,
     HintState,
     InputMode,
+    Origin,
     PlanComparison,
     PolicyFixture,
     ReassessmentOutcome,
     RecallOutcome,
 )
 from carerelay.state import (
+    CLINICAL_SCOPE,
+    DEFAULT_KEY_NAMESPACE,
     EpisodeNotFound,
     RestatementNotFound,
     SqliteEpisodeStore,
+    derive_attempt_key,
 )
+from carerelay.tools import ToolResult
 
 # Aliased on purpose: `_require_scorable` takes a parameter named
 # `transcript_confirmation_id`, which would otherwise shadow the function and
 # turn a digest comparison into a call on the parameter itself.
 from carerelay.state import (  # noqa: E402
+    ReceiptOutcome,
     transcript_confirmation_id as derive_confirmation_id,
 )
 
@@ -119,6 +129,40 @@ class EpisodeAlreadyAssessed(ServiceError):
 
 class IntakeNotRecognised(ServiceError):
     """A complaint this fixture is not bound to. Stops at the human path (D7)."""
+
+
+class ConsentRequired(ServiceError):
+    """An action before any consent was recorded.
+
+    `state.ConsentNotCurrent` covers a consent that exists and has moved. This
+    covers the case before it: there is no version to stamp on the attempt at
+    all. Distinguishing them matters because the second is "ask", and the first
+    is "ask earlier".
+    """
+
+
+class NoAttemptForRoute(ServiceError):
+    """A callback for a route this episode never opened an attempt on.
+
+    A callback is a reply to something. Replying to an attempt that does not
+    exist would append a transition to nothing, and the ledger would show an
+    outcome with no request behind it.
+    """
+
+
+class OriginNotWired(ServiceError):
+    """A caller asserted an origin this deployment cannot produce.
+
+    `02-architecture.md` section 3.3 step 6 makes the origin marker the thing
+    that keeps the platform claim checkable. A marker the caller can set to any
+    value is not checkable: it is a field that says whatever the caller wants.
+    This refusal is what stops `origin = platform` being written by a path that
+    never reached a platform, which in this build is every path.
+
+    The honest consequence is stated rather than hidden: until a platform really
+    executes a tool, `platform` is never a legal value here, and the record says
+    so instead of leaving the field empty and unexplained.
+    """
 
 
 # ---------------------------------------------------------------------------
@@ -226,6 +270,58 @@ class EscalationOutcome:
 
 
 @dataclass(frozen=True)
+class ActionOutcome:
+    """One opened attempt, and what the coordinator's tool call returned.
+
+    `tool` is `None` exactly when the attempt was a duplicate: a second request
+    on the same `(episode, route, purpose)` reuses the key, must not dispatch
+    again (I3), and therefore has nothing new to report. Returning the original
+    attempt with no tool result is what makes the double tap a recorded no-op
+    rather than a second dispatch.
+
+    `origin` is carried on the outcome, not only on the tool result, so a caller
+    that never looks at the tool result still cannot miss where the outcome came
+    from.
+    """
+
+    episode_id: str
+    attempt_id: str
+    idempotency_key: str
+    route_id: str
+    purpose_id: str
+    disposition_version: int
+    consent_version: int
+    execution: ExecutionStatus
+    duplicate: bool
+    tool: ToolResult | None
+    origin: Origin
+    simulated: bool
+
+
+@dataclass(frozen=True)
+class CallbackOutcome:
+    """What one callback did to the episode.
+
+    `receipt` is the state-layer outcome: applied, duplicate, or refused, and if
+    refused, why. Carrying the reason rather than a bool is O5, and it is here
+    because the action path is the first consumer that needs to tell "we ignored
+    a repeat" from "we refused a success".
+    """
+
+    episode_id: str
+    route_id: str
+    attempt_id: str
+    origin: Origin
+    receipt: "ReceiptOutcome"
+    execution: ExecutionStatus
+    simulated: bool
+
+    @property
+    def applied(self) -> bool:
+        return self.receipt.applied
+
+
+@dataclass(frozen=True)
 class ReassessmentResult:
     """What one reassessment produced.
 
@@ -269,6 +365,7 @@ class EpisodeService:
         disposition_factory: Callable[[str, datetime], Disposition],
         bound_complaint: str,
         policy_provenance: str,
+        key_namespace: str = DEFAULT_KEY_NAMESPACE,
     ) -> None:
         self._store = store
         self._coordinator = coordinator
@@ -278,6 +375,24 @@ class EpisodeService:
         self._disposition_factory = disposition_factory
         self._bound_complaint = bound_complaint
         self._policy_provenance = policy_provenance
+        # D5's server-held secret, folded in at Slice 6 as the Slice 3 review
+        # recorded. The key derivation stays in `state`; only the namespace
+        # travels, so the signature that makes a double tap provable is unchanged.
+        self._key_namespace = key_namespace
+        # Read with `getattr`, as `simulated` is below: a test stub implements
+        # the port structurally and may omit it, and the safe default is the
+        # honest one. A stub that cannot name an origin may not claim `platform`.
+        self._origin: Origin = getattr(coordinator, "origin", Origin.LOCAL_SIM)
+
+    @property
+    def available_origin(self) -> Origin:
+        """The only origin this deployment may record.
+
+        Public because the ledger and the API both have to be able to say which
+        origin the wired path can produce, so a refusal can name the alternative
+        rather than just refusing.
+        """
+        return self._origin
 
     # -- episode ----------------------------------------------------------
 
@@ -637,6 +752,193 @@ class EpisodeService:
             simulated=True,
         )
 
+    # -- consent ----------------------------------------------------------
+
+    def change_consent(self, episode_id: str, granted: bool) -> int:
+        """Append a consent version and return its number.
+
+        The action path is unreachable without one, which is why this lands with
+        it rather than in an earlier slice: `open_action` stamps the current
+        version on the attempt, `receive_callback` re-checks it, and an attempt
+        opened under a consent that is later revoked cannot be recorded as a
+        success. Revocation is a new row with a new version, never an edit, so
+        the stamped version stays legible forever.
+        """
+        self._store.load_snapshot(episode_id)
+        return self._store.change_consent(
+            episode_id,
+            CLINICAL_SCOPE,
+            granted=granted,
+            now_utc=self._clock.now_utc(),
+        )
+
+    # -- actions (Slice 6) ------------------------------------------------
+
+    def open_action(
+        self, episode_id: str, route_id: str, purpose_id: str
+    ) -> ActionOutcome:
+        """Open one attempt and execute the tool. `02-architecture.md` section 3.3.
+
+        The order is the normative one and it is not optional:
+
+        1. **authorisation**: `domain.validate_route` is the only thing that may
+           say a route is permitted (D2).
+        2. **consent**: there must be a current version to stamp.
+        3. **the key**: server-generated from `(episode, route, purpose)` under
+           the server-held namespace (D5). A client that supplied its own key
+           would make a double tap produce two keys, and I3 would never fire.
+        4. **open once**: a second request on the same triple returns the
+           original attempt and dispatches nothing.
+        5. **execute**: the coordinator executes through the MCP tool surface,
+           which rechecks all three server-side. The outcome comes back with an
+           `origin` saying where it came from.
+
+        This writes **no transition**. Appending the outcome is the callback's
+        job, because first-terminal-wins and the duplicate record only mean
+        something when the outcome arrives on the path a real platform would use.
+        """
+        snapshot = self._store.load_snapshot(episode_id)
+        if snapshot.disposition is None:
+            raise NoDispositionYet(
+                f"episode {episode_id!r} has no disposition, so there is no plan "
+                "with a permitted route to act on"
+            )
+        route = rules.validate_route(route_id, self._policy.permitted_route_ids)
+        if snapshot.consent_version is None:
+            raise ConsentRequired(
+                f"episode {episode_id!r} has no recorded {CLINICAL_SCOPE} consent, "
+                "so no attempt may be opened"
+            )
+
+        now_utc = self._clock.now_utc()
+        key = derive_attempt_key(
+            episode_id, route, purpose_id, namespace=self._key_namespace
+        )
+
+        existing = self._store.get_attempt_by_key(key)
+        if existing is not None:
+            return ActionOutcome(
+                episode_id=episode_id,
+                attempt_id=existing.attempt_id,
+                idempotency_key=key,
+                route_id=route,
+                purpose_id=purpose_id,
+                disposition_version=snapshot.disposition.version,
+                consent_version=snapshot.consent_version,
+                execution=existing.execution,
+                duplicate=True,
+                tool=None,
+                origin=self._origin,
+                simulated=True,
+            )
+
+        attempt = self._store.open_attempt_once(
+            AttemptCommand(
+                episode_id=episode_id,
+                route_id=route,
+                purpose_id=purpose_id,
+                consent_version=snapshot.consent_version,
+            ),
+            key,
+            now_utc=now_utc,
+        )
+        tool = self._coordinator.execute_tool(
+            ToolRequest(
+                episode_id=episode_id,
+                route_id=route,
+                attempt_key=key,
+                disposition_version=snapshot.disposition.version,
+            ),
+            now_utc=now_utc,
+        )
+        return ActionOutcome(
+            episode_id=episode_id,
+            attempt_id=attempt.attempt_id,
+            idempotency_key=key,
+            route_id=route,
+            purpose_id=purpose_id,
+            disposition_version=snapshot.disposition.version,
+            consent_version=attempt.consent_version,
+            execution=attempt.execution,
+            duplicate=False,
+            tool=tool,
+            # The origin the tool reports, not the origin the service assumes. If
+            # they ever disagree the record follows the tool, because the tool is
+            # the thing that actually ran.
+            origin=tool.origin,
+            simulated=True,
+        )
+
+    def receive_callback(
+        self,
+        episode_id: str,
+        route_id: str,
+        callback_key: str,
+        result: CallbackResult,
+        origin: Origin | str,
+    ) -> CallbackOutcome:
+        """Record one callback against the attempt this route opened.
+
+        **The origin is checked, not trusted.** A caller may assert any value in
+        the enum, and `origin = platform` is the one that makes the section 3.3
+        claim checkable, so it is precisely the one that must not be settable by
+        assertion. This refuses an origin the wired path cannot produce, which
+        today means anything other than `local-sim`. See `OriginNotWired`.
+
+        The attempt is the **latest** one opened on that route. Two attempts on
+        one route are possible only with two different purpose ids, and the later
+        one is the one awaiting an answer.
+
+        **The episode is loaded first, before anything is recorded.** `list_attempts`
+        on an episode that does not exist returns nothing, so without this a
+        callback for an unknown episode answered 409 "no attempt on this route",
+        which is true and misleading: it implies an episode that has been
+        contacted. The live run of 3 October 2026 caught it. A missing episode is
+        a 404 and says so.
+        """
+        self._store.load_snapshot(episode_id)
+        stated = Origin(origin)
+        if stated is not self._origin:
+            raise OriginNotWired(
+                f"origin {stated.value!r} is not one this deployment can produce; "
+                f"the wired path reports {self._origin.value!r}. No tool is "
+                "executed through a platform in this build, so recording a "
+                "platform origin would state a fact no observation supports."
+            )
+        attempts = [
+            attempt
+            for attempt in self._store.list_attempts(episode_id)
+            if attempt.route_id == route_id
+        ]
+        if not attempts:
+            raise NoAttemptForRoute(
+                f"episode {episode_id!r} opened no attempt on route {route_id!r}, "
+                "so a callback for it has nothing to answer"
+            )
+        attempt = attempts[-1]
+        receipt = self._store.record_callback_once(
+            attempt.attempt_id,
+            callback_key,
+            result,
+            stated,
+            now_utc=self._clock.now_utc(),
+        )
+        snapshot = self._store.load_snapshot(episode_id)
+        execution = (
+            snapshot.attempt.execution
+            if snapshot.attempt is not None
+            else ExecutionStatus.NOT_STARTED
+        )
+        return CallbackOutcome(
+            episode_id=episode_id,
+            route_id=route_id,
+            attempt_id=attempt.attempt_id,
+            origin=stated,
+            receipt=receipt,
+            execution=execution,
+            simulated=True,
+        )
+
     # -- internals --------------------------------------------------------
 
     def _allowed_values(self) -> AllowedPlanValues:
@@ -764,13 +1066,18 @@ class EpisodeService:
 
 
 __all__ = [
+    "ActionOutcome",
     "BarrierOutcome",
+    "CallbackOutcome",
     "Clock",
+    "ConsentRequired",
     "EpisodeAlreadyAssessed",
     "EpisodeService",
     "EscalationOutcome",
     "IntakeNotRecognised",
+    "NoAttemptForRoute",
     "NoDispositionYet",
+    "OriginNotWired",
     "ReassessmentResult",
     "RepairCapReached",
     "RestatementOutcome",
