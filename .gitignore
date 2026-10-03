@@ -115,3 +115,6 @@ $RECYCLE.BIN/
 *.tfstate
 *.tfstate.*
 docker-compose.override.yml
+
+# Frontend build cache
+tsconfig.tsbuildinfo

@@ -1,0 +1,35 @@
+# Slice 7. Keep the image to what the service needs to run.
+#
+# The point is not size. It is that a local database, a session log or a
+# screenshot with a credential in it must not be able to reach a public image by
+# accident. Anything that could carry a secret is excluded here rather than
+# trusted to be absent.
+
+.git/
+.github/
+.workbuddy-ai/
+.codebuddy/
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+*.db
+
+# Research, evidence and submission material. None of it is served, and the
+# screenshots are the artefact most likely to hold something redactable.
+docs/
+submission/
+fixtures/
+recovery-20260928/
+spike/
+tests/
+tools/
+
+.env
+.env.*
+*.pem
+*.key

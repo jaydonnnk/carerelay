@@ -1,0 +1,61 @@
+# Slice 7. The Render service definition.
+#
+# **This file carries no secret value.** `CARERELAY_API_TOKEN` is declared with
+# `sync: false`, which means Render expects it to be set in the dashboard and
+# will not read one from this repository. `tests/test_boundaries.py` fails if a
+# token-shaped string ever appears here, so the guarantee is checked rather than
+# promised.
+#
+# The disk is the point of the paid instance. Without it the filesystem is
+# ephemeral: the append-only record that Slice 3 proved would be gone on every
+# restart and every redeploy, and the honest label for that deployment is "no
+# persistence", not "persistent". See `04-slices.md` risk R8.
+
+services:
+  - type: web
+    name: carerelay
+    runtime: docker
+    region: singapore
+
+    # A persistent disk requires a **paid instance type**. The workspace plan
+    # (`Hobby`, $0/mo) is not what is being paid for here; the compute instance
+    # is. `plan: starter` is the cheapest tier that can hold a disk. Confirm the
+    # exact tier name in the dashboard when the service is created, because
+    # Render has renamed these.
+    plan: starter
+
+    healthCheckPath: /health
+
+    disk:
+      name: carerelay-data
+      # Only writes under this path survive a restart or a redeploy. The path is
+      # referenced by `APP_DATABASE_URL` below, and by nothing else.
+      mountPath: /var/data
+      # 1 GB is the smallest useful size. It can be increased later but never
+      # decreased, and this record is a few hundred rows.
+      sizeGB: 1
+
+    envVars:
+      # Arms the bearer-token dependency. With this set and no token configured,
+      # every `/api` route answers 503 rather than serving an open endpoint.
+      - key: APP_ENV
+        value: public
+
+      # SQLite on the mounted disk. A file that is not under the mount path is
+      # lost on redeploy, which would silently turn the persistence claim false.
+      - key: APP_DATABASE_URL
+        value: /var/data/carerelay.db
+
+      # The Vercel origin of the Next.js frontend, and nothing else. A wildcard
+      # is refused by `api._install_cors`, so this is the whole allow-list.
+      - key: CORS_ORIGINS
+        value: https://carerelay.vercel.app
+
+      # The scenario clock keeps the demo's "6pm today" deadline stable instead
+      # of drifting with the real date, so a judge sees the fixture as scripted.
+      - key: APP_CLOCK
+        value: scenario
+
+      # The shared bearer token. No value here: set it in the dashboard.
+      - key: CARERELAY_API_TOKEN
+        sync: false

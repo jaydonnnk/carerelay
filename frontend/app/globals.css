@@ -1,0 +1,93 @@
+/*
+ * Slice 7. Text-first, high contrast, one column.
+ *
+ * There is no animation, no transition and no auto-advance anywhere in this
+ * file, which is deliberate: constraint C8 says no timer or auto-hide may remove
+ * the plan card, and a CSS transition that faded it out would be the same defect
+ * written in a different language.
+ */
+
+:root {
+  --ink: #16191d;
+  --paper: #ffffff;
+  --rule: #c8cdd4;
+  --label-bg: #f2f2f2;
+  --accent: #1b4f8f;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  /* 20px base: this screen is read by an older adult, often on a phone. */
+  font-size: 20px;
+  line-height: 1.5;
+}
+
+main.screen {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem 3rem;
+}
+
+p.fixture-label {
+  background: var(--label-bg);
+  border: 1px solid var(--rule);
+  padding: 0.6rem 0.8rem;
+  font-size: 0.85rem;
+  margin: 0 0 1.5rem;
+}
+
+h1.screen-title {
+  font-size: 1.6rem;
+  margin: 0 0 1.25rem;
+}
+
+ol.lines {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+ol.lines li {
+  padding: 0.9rem 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 1.15rem;
+}
+
+/* The hint card is identical to the plan except for its border, so showing it
+   cannot be mistaken for new content. */
+div.hint-card {
+  border: 2px solid var(--accent);
+  padding: 1rem;
+  margin: 1.25rem 0;
+}
+
+button.control {
+  font: inherit;
+  font-size: 1rem;
+  padding: 0.7rem 1.1rem;
+  background: var(--paper);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  cursor: pointer;
+  min-height: 3rem;
+}
+
+button.control:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+p.unavailable {
+  border: 2px solid var(--ink);
+  padding: 1rem;
+  font-size: 1rem;
+}
