@@ -46,6 +46,7 @@ from datetime import datetime, timedelta, tzinfo
 
 from carerelay.domain.models import (
     COMPARISON_FIELDS,
+    DEPLOYMENT_SIMULATED,
     MAX_REPAIR_ROUNDS,
     TERMINAL_TRANSITIONS,
     AttemptTransition,
@@ -479,8 +480,10 @@ def derive_closure(snapshot: EpisodeSnapshot, now_utc: datetime) -> ClosureProje
         closure=closure,
         action_owner_id=_action_owner(snapshot, disposition),
         care_evidenced=care_evidenced,
-        # The simulated label survives until real, sourced evidence exists (D11).
-        simulated=not care_evidenced,
+        # F5, Slice 6: a deployment-level fact, not a function of the evidence.
+        # It was `not care_evidenced` until 3 October 2026, which let one
+        # documented row imply the episode had stopped being a simulation.
+        simulated=DEPLOYMENT_SIMULATED,
     )
 
 

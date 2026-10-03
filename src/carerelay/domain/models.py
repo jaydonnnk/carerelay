@@ -126,6 +126,21 @@ TERMINAL_TRANSITIONS: frozenset[ExecutionStatus] = frozenset(
     }
 )
 
+#: **F5, decided at Slice 6 on 3 October 2026.** `simulated` is a
+#: **deployment-level fact**, not a function of the evidence.
+#:
+#: It was `simulated = not care_evidenced` from Slice 2 until this decision. That
+#: made one documented evidence row flip the label off, so the ledger would read
+#: as though the episode had stopped being a simulation while the provider, the
+#: facility, the route text and the receipt were all still fictional. D11 is about
+#: an *artefact* (a simulated row may not close care), and the artefact-level
+#: meaning is unchanged and still lives on `EvidenceRecord.simulated`.
+#:
+#: The projection now answers two separate questions: `simulated` says what this
+#: deployment is, `care_evidenced` says what we hold. Nothing in this codebase is
+#: a non-simulated deployment, so the constant is `True` and it does not flip.
+DEPLOYMENT_SIMULATED: bool = True
+
 
 class EvidenceLevel(StrEnum):
     """Axis B of the Closure Contract: do we believe care actually happened?"""
@@ -148,6 +163,22 @@ class Origin(StrEnum):
 
     PLATFORM = "platform"
     LOCAL_SIM = "local-sim"
+
+
+class ReceiptDisposition(StrEnum):
+    """What happened to one callback receipt. Slice 6, closing O5.
+
+    `record_callback_once` returned a bare `bool` from Slice 3 until this slice.
+    A bool cannot answer the question the action path actually asks, because
+    `False` covers two states that must not be confused: a **duplicate**, which
+    is a correct no-op the ledger is supposed to show, and a **refusal**, which
+    means a success was received and rejected because consent had moved. Treating
+    them alike would let a consent revocation be displayed as "nothing arrived".
+    """
+
+    APPLIED = "applied"
+    DUPLICATE = "duplicate"
+    REFUSED = "refused"
 
 
 class DispositionSource(StrEnum):
@@ -332,7 +363,13 @@ class EpisodeSnapshot:
 
 @dataclass(frozen=True)
 class ClosureProjection:
-    """The derived closure. Nothing in the system can write this value."""
+    """The derived closure. Nothing in the system can write this value.
+
+    `simulated` and `care_evidenced` are independent axes (F5, Slice 6). The
+    first says what this deployment is and never flips; the second says whether
+    non-simulated, sourced evidence exists. Read together they say "a simulated
+    deployment that has, or has not, evidenced care", which is the honest pair.
+    """
 
     execution: ExecutionStatus
     evidence: EvidenceLevel

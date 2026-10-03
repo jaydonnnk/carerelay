@@ -1031,7 +1031,32 @@ class TestClosureDerivation:
         assert projection.closure is ClosureState.CLOSED_WITH_EVIDENCE
         assert projection.care_evidenced is True
         assert projection.evidence is EvidenceLevel.DOCUMENTED
-        assert projection.simulated is False
+        # Strengthened 3 October 2026 by F5, decided at Slice 6. This asserted
+        # `simulated is False` on the old conflated rule, where the label was
+        # `not care_evidenced`. That let one documented row imply the episode had
+        # stopped being a simulation, which is false: the provider, the facility
+        # and the receipt are all still fictional. `simulated` is now a
+        # deployment-level fact and is independent of the evidence axis, so the
+        # honest pair is "documented care, simulated deployment". The mutation
+        # that reverts `derive_closure` to the old rule turns this RED.
+        assert projection.simulated is True
+
+    def test_simulated_is_a_deployment_fact_and_not_a_function_of_evidence(self) -> None:
+        """F5, decided at Slice 6 on 3 October 2026. The two axes are independent.
+
+        The old rule was `simulated = not care_evidenced`, so the label flipped
+        off the moment one documented row landed. A mutation that restores it must
+        fail here and in the test above, and nowhere else.
+        """
+        without = rules.derive_closure(empty_snapshot(), SCENARIO_NOW_UTC)
+        with_real = rules.derive_closure(
+            empty_snapshot(evidence=(DOCUMENTED_REAL,)), SCENARIO_NOW_UTC
+        )
+        assert without.care_evidenced is False
+        assert with_real.care_evidenced is True
+        assert without.simulated is True
+        assert with_real.simulated is True
+        assert without.simulated is with_real.simulated
 
     def test_a_simulated_documented_row_cannot_close_care(self) -> None:
         projection = rules.derive_closure(
