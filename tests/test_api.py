@@ -71,7 +71,7 @@ def assessed(planback_client: TestClient) -> str:
     planback_client.post("/api/episodes")
     response = planback_client.post(
         f"/api/episodes/{EPISODE}/intake",
-        json={"confirmed_text": "I need help sorting out my appointment"},
+        json={"confirmed_text": fixture.BOUND_COMPLAINT},
     )
     assert response.status_code == 200
     return EPISODE
@@ -228,7 +228,7 @@ class TestPlanBackRouteContracts:
         planback_client.post("/api/episodes")
         body = planback_client.post(
             f"/api/episodes/{EPISODE}/intake",
-            json={"confirmed_text": "I need help sorting out my appointment"},
+            json={"confirmed_text": fixture.BOUND_COMPLAINT},
         ).json()
         assert body["disposition_version"] == 1
         assert body["action_id"] == "attend_same_day_review"
@@ -244,6 +244,58 @@ class TestPlanBackRouteContracts:
         )
         assert response.status_code == 422
         assert response.json()["detail"]["stopped_at"] == "human_path"
+
+    @pytest.mark.parametrize(
+        "red_flag_text",
+        [
+            "help sorting out my appointment, also I have chest pain and cannot breathe",
+            "I have crushing chest pain. Also help sorting out my appointment",
+            "help sorting out my appointment, I think I am having a stroke",
+            "I do not need help sorting out my appointment",
+            "does my mother need help sorting out my appointment",
+        ],
+    )
+    def test_a_bound_phrase_inside_a_larger_complaint_stops_at_the_human_path(
+        self, planback_client: TestClient, red_flag_text: str
+    ):
+        """B3, closed 2 October 2026. The binding is an exact match, not a substring.
+
+        These five texts all *contain* the bound phrase, so the old substring rule
+        bound them to the demo plan and returned 200. The second one carries
+        crushing chest pain and the third a stroke. Every one must now stop at the
+        human path, because recognition is "is this the bound complaint", not "does
+        it contain the bound phrase".
+
+        The old test submitted only a string with zero token overlap, so it proved
+        the disjoint case and nothing else. This parametrisation is what the old
+        test name claimed to prove.
+        """
+        planback_client.post("/api/episodes")
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/intake",
+            json={"confirmed_text": red_flag_text},
+        )
+        assert response.status_code == 422, (
+            f"{red_flag_text!r} was bound to the demo plan; the binding rule is "
+            "a substring match, so a complaint carrying a red flag is accepted"
+        )
+        assert response.json()["detail"]["stopped_at"] == "human_path"
+
+    def test_the_exact_bound_complaint_still_issues_the_plan(
+        self, planback_client: TestClient
+    ):
+        """The strict rule must not become so strict that nothing binds.
+
+        This is the control for the parametrised test above: the exact bound
+        complaint, normalised for case and whitespace, still scores 200.
+        """
+        planback_client.post("/api/episodes")
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/intake",
+            json={"confirmed_text": f"  {fixture.BOUND_COMPLAINT.upper()}  "},
+        )
+        assert response.status_code == 200
+        assert response.json()["disposition_version"] == 1
 
     def test_a_clean_restatement_is_understood(self, planback_client, assessed):
         body = planback_client.post(
@@ -391,7 +443,7 @@ class TestCoordinatorUnavailable:
         dead_client.post("/api/episodes")
         dead_client.post(
             f"/api/episodes/{EPISODE}/intake",
-            json={"confirmed_text": "I need help sorting out my appointment"},
+            json={"confirmed_text": fixture.BOUND_COMPLAINT},
         )
         response = dead_client.post(
             f"/api/episodes/{EPISODE}/restatements",
@@ -410,7 +462,7 @@ class TestCoordinatorUnavailable:
         dead_client.post("/api/episodes")
         dead_client.post(
             f"/api/episodes/{EPISODE}/intake",
-            json={"confirmed_text": "I need help sorting out my appointment"},
+            json={"confirmed_text": fixture.BOUND_COMPLAINT},
         )
         response = dead_client.post(
             f"/api/episodes/{EPISODE}/restatements",

@@ -184,8 +184,16 @@ DEADLINE_FORMS = {
 
 #: The one complaint this fixture is bound to. Deliberately non-clinical: it names
 #: no symptom, urgency or threshold, because none may be authored before a
-#: reviewer exists. Intake accepts a description containing this phrase and stops
-#: at the human path for anything else (`03-program-design.md` section 4).
+#: reviewer exists. Intake accepts **this exact complaint**, normalised for case
+#: and whitespace, and stops at the human path for anything else
+#: (`03-program-design.md` section 4).
+#:
+#: **The rule was a substring match until 2 October 2026.** It read "contains this
+#: phrase", so a text carrying a red-flag symptom alongside the phrase, such as
+#: "help sorting out my appointment, also I have chest pain and cannot breathe",
+#: was bound to the demo plan instead of stopping. Finding B3 in the Slice 4
+#: adversarial review measured that. The rule is now an exact normalised match,
+#: which is what the documents already claimed.
 BOUND_COMPLAINT = "help sorting out my appointment"
 
 

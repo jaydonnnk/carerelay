@@ -93,7 +93,7 @@ def _build(store, coordinator=None):
 @pytest.fixture()
 def assessed(service: EpisodeService) -> str:
     service.ensure_episode(EPISODE, "test persona")
-    service.intake(EPISODE, "i need help sorting out my appointment")
+    service.intake(EPISODE, fixture.BOUND_COMPLAINT)
     return EPISODE
 
 
@@ -398,7 +398,7 @@ class TestRefusals:
 
     def test_a_second_intake_is_refused(self, service, assessed: str) -> None:
         with pytest.raises(EpisodeAlreadyAssessed):
-            service.intake(assessed, "i need help sorting out my appointment")
+            service.intake(assessed, fixture.BOUND_COMPLAINT)
 
     def test_creating_an_episode_writes_no_disposition(self, service) -> None:
         service.ensure_episode(EPISODE, "test persona")
@@ -667,7 +667,7 @@ class TestPlanPrecedesReadBack:
     def _assessed_with_a_dead_coordinator(self, store) -> EpisodeService:
         service = _build(store, coordinator=DeadCoordinator())
         service.ensure_episode(EPISODE, "test persona")
-        service.intake(EPISODE, "i need help sorting out my appointment")
+        service.intake(EPISODE, fixture.BOUND_COMPLAINT)
         return service
 
     def test_the_plan_is_issued_without_reaching_the_coordinator(self, store) -> None:
@@ -690,7 +690,7 @@ class TestPlanPrecedesReadBack:
         coordinator = StubCoordinator()
         service = _build(store, coordinator=coordinator)
         service.ensure_episode(EPISODE, "test persona")
-        service.intake(EPISODE, "i need help sorting out my appointment")
+        service.intake(EPISODE, fixture.BOUND_COMPLAINT)
         assert coordinator.calls == [], (
             f"intake asked the coordinator {len(coordinator.calls)} time(s) before "
             "issuing the plan, so the urgent path waits on read-back, which is the "

@@ -300,10 +300,20 @@ class EpisodeService:
         """Assess the fixture-bound complaint and issue the preauthored plan.
 
         The minimal stand-in for the assessment path, which is scheduled in no
-        slice. It is deliberately narrow: the complaint must match the one phrase
-        this fixture is bound to, and anything else stops at the human path
-        (D7). It never composes clinical wording and never derives a deadline
-        from free text; the disposition is the fixture's preauthored one.
+        slice. It is deliberately narrow: the complaint must **be** the one
+        phrase this fixture is bound to, and anything else stops at the human
+        path (D7). It never composes clinical wording and never derives a
+        deadline from free text; the disposition is the fixture's preauthored one.
+
+        **The binding is an exact normalised match, not a substring.** It was a
+        substring match until 2 October 2026, when the Slice 4 adversarial review
+        raised it as finding B3 and measured the consequence: a text carrying a
+        red-flag symptom alongside the bound phrase, such as "help sorting out my
+        appointment, also I have chest pain and cannot breathe", contained the
+        phrase and therefore **scored 200 and issued the demo plan** instead of
+        stopping. An exact match is the rule the documents already claimed and the
+        stricter of the two, so it needs no reviewer: making the system refuse
+        more inputs is never a clinical claim.
 
         It also records the policy version first, because the disposition cites
         it and the schema enforces that with a foreign key: a plan that names a
@@ -315,9 +325,9 @@ class EpisodeService:
                 f"episode {episode_id!r} already carries disposition version "
                 f"{snapshot.disposition.version}; assessment happens once"
             )
-        if self._bound_complaint not in rules.normalise(confirmed_text):
+        if rules.normalise(confirmed_text) != self._bound_complaint:
             raise IntakeNotRecognised(
-                "the complaint is not one this fixture is bound to, so no "
+                "the complaint is not the one this fixture is bound to, so no "
                 "disposition may be issued: stop at the human path (D7)"
             )
 
