@@ -4,10 +4,14 @@ Supporting note. Authoritative for nothing; `00-status.md` remains the only
 authority for gate and slice state.
 
 **Provenance.** The review was run against the uncommitted Slice 6 tree on
-3 October 2026, under a brief that forbade writing to the repository, so the note
+3 October 2026 at `f0c8731`, under a brief that forbade writing to the repository, so the note
 was first written to `%TEMP%`. The author then instructed "do what you deem fit"
 on the same day. On that instruction the note was moved into `docs/reviews/`, both
 should-fix findings were fixed in the tree, and `00-status.md` was corrected.
+**Addendum, 3 October 2026:** a later verification pass the same day found four
+record claims that did not hold (see `slice6-verification-check.md`), and the Slice 6
+work was subsequently shipped on the user's explicit instruction (tip `dc95295`,
+fast-forwarded into `main`). The findings above stand as written against `f0c8731`.
 Sections 6 and 7 below carry the findings as first written; the resolution of each
 is recorded in section 11, added after the fixes.
 

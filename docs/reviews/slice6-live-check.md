@@ -1,7 +1,7 @@
 # Slice 6 Check: the origin marker, distinguishable by inspection
 
 **Check run, 3 October 2026.**
-**Branch:** `slice-6` at `f0c8731` (uncommitted, unpushed).
+**Branch:** `slice-6` at `f0c8731` (uncommitted, unpushed at the time of the run).
 **Interpreter:** managed Python 3.13 (pytest 9.x, fastapi) via
 `C:/Users/jayd0/.workbuddy-ai/binaries/python/envs/default/Scripts/python.exe`.
 **Constraints honoured:** no gate document edited, no slice or gate state changed, no
@@ -272,5 +272,10 @@ in prose.
 | the live run | servers on 8012 and 8013, started and killed within single commands; no process left running |
 | `APP_DATABASE_URL` files | written under the OS temp directory, outside the repo |
 
-No gate document was edited, so no gate reopened. Nothing is committed or pushed. The
-Slice 6 work remains built on `slice-6`, uncommitted and unpushed, awaiting a decision.
+No gate document was edited, so no gate reopened. Nothing was committed or pushed by
+this run, and the transcript above is the tree as it stood at `f0c8731`. **Superseded,
+3 October 2026:** the Slice 6 work was subsequently walked through, approved for commit,
+and shipped on the user's explicit instruction (five commits, tip `dc95295`,
+fast-forwarded into `main`, both branches pushed to `origin`). The run itself changed
+nothing; this note is added so a later reader does not read "uncommitted and unpushed"
+as the current state. See `00-status.md` for the authoritative state.

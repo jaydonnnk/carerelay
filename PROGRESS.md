@@ -265,7 +265,7 @@ remediation.
   screenshots are still not captured (named location `submission/usage-proof/screenshots/`, named person
   Jaydon) and cannot be reconstructed after the fact; and the Option C source still blocks Slice 5.
   Slice 5 has **not** been started on the user's instruction.
-- 2026-10-03: **Slice 6 is built on `slice-6`, uncommitted.** Action path
+- 2026-10-03: **Slice 6 is built on `slice-6`, then committed and pushed the same day on the user's explicit instruction.** Action path
   (`POST /actions`, `POST /callbacks/{route_id}`, `POST /consents`), the
   simulated provider (`simulated_provider.py`), the MCP tool surface
   (`tools.py`, three tools each rechecking authorisation, key and consent),
@@ -288,5 +288,8 @@ remediation.
   by loading the snapshot first so it answers 404. **A second verification pass
   the same day confirmed the honesty claim (seven injections all defeated) and
   the fixes, corrected four record claims, and repaired the mutation harness.**
-  Awaiting the Slice 6 Check.
-  Nothing committed, nothing pushed.
+  The Check was walked through on the user's behalf and approved for commit.
+  **Committed and pushed 3 October 2026:** five commits, tip `dc95295`,
+  fast-forwarded into `main`; `origin/main` and `origin/slice-6` both sit at
+  `dc95295`. No gate authorises a commit or a push, so this rests on the user's
+  instruction alone. Slice 7 is next.
