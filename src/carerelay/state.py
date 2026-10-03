@@ -111,6 +111,7 @@ __all__ = [
     "NoDispositionForExpiry",
     "PrematureExpiry",
     "IdempotencyKeyCollision",
+    "PolicyVersionConflict",
     "UnconfirmedTranscript",
     "RepairRoundOutOfRange",
     "RestatementNotFound",
@@ -211,6 +212,16 @@ class PrematureExpiry(StateError):
 
 class IdempotencyKeyCollision(StateError):
     """One key reused for two different `(episode, route, purpose)` triples."""
+
+
+class PolicyVersionConflict(StateError):
+    """A policy version number reused for a different policy.
+
+    Slice 7, closing NF1. A disposition cites a policy version through a foreign
+    key, so the version number is the audit handle for the wording a patient was
+    read. Reusing it for different content would make two episodes cite one
+    number and mean two different things, which is worse than refusing.
+    """
 
 
 class UnconfirmedTranscript(StateError):
@@ -750,7 +761,36 @@ class SqliteEpisodeStore:
         The foreign key is the point: a disposition cannot name a policy version
         the system never recorded, so the fixture's provenance is auditable
         rather than asserted.
+
+        **Idempotent, and deliberately not silent about a conflict.** It was a
+        plain `INSERT` until Slice 7, so the second episode assessed on one
+        database died on `sqlite3.IntegrityError` (finding NF1). The version is
+        the primary key, and `policy_versions` is append-only, so a repeat cannot
+        be absorbed by an update or a replace.
+
+        A repeat of the *same* policy is a no-op, which is what a second episode
+        needs. A repeat that disagrees on content, provenance or approver raises:
+        two different policies claiming one version number is exactly the
+        unauditable state the foreign key exists to prevent, and recording
+        whichever arrived first would be the same defect with extra steps.
         """
+        existing = self._conn.execute(
+            "SELECT content, provenance, approved_by FROM policy_versions "
+            "WHERE version = ?",
+            (version,),
+        ).fetchone()
+        if existing is not None:
+            if (
+                existing["content"] != content
+                or existing["provenance"] != provenance
+                or existing["approved_by"] != approved_by
+            ):
+                raise PolicyVersionConflict(
+                    f"policy version {version!r} is already recorded with "
+                    "different content, provenance or approver; a version "
+                    "number may not be reused for a different policy"
+                )
+            return
         self._conn.execute(
             "INSERT INTO policy_versions "
             "(version, content, provenance, approved_by, created_at) "

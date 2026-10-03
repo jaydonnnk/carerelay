@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import ast
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -505,3 +506,282 @@ class TestPatientSurfaceHasNoTimerAndNoDwell:
         assert "dwell_seconds" in scan_patient_surface(
             json.dumps({"dwell_seconds": 1.0})
         )
+
+
+# ---------------------------------------------------------------------------
+# Slice 7: a secret must never reach a serialized surface or the repository
+# ---------------------------------------------------------------------------
+
+#: Shapes, not values. A scanner that looks for one known token would pass the
+#: moment the token changed; these look for the shape a credential has, which is
+#: what a reviewer or a judge would actually be looking for.
+SECRET_MARKERS: tuple[str, ...] = (
+    "carerelay_api_token=",
+    "carerelay_api_token:",
+    "appkey",
+    "api_key=",
+    "apikey=",
+    "bearer ey",
+    "authorization: bearer ",
+    "sk-",
+    "secret_key",
+    "private_key",
+    "-----begin",
+    # Finding A7-1. `NEXT_PUBLIC_` is the specific prefix that inlines a value
+    # into the browser bundle, which would publish the token to every visitor.
+    # Nothing in the repository mentioned it before this line, so the scanner
+    # could not have caught its first appearance.
+    "next_public_",
+)
+
+#: Long high-entropy assignments are the shape a pasted credential takes when it
+#: is not next to a name that gives it away.
+_ASSIGNMENT_SHAPES = ("token", "secret", "password", "credential")
+
+#: Finding A7-1. The files the scan must police, as (label, relative path).
+#: `frontend/` was added in Slice 7 and is the one surface in the repository
+#: with `CARERELAY_API_TOKEN` written into its environment contract, so a
+#: scanner that skipped it would be a guard with a hole where the risk is.
+VICTIM_FILES: tuple[tuple[str, str], ...] = (
+    ("backend deployment file", "render.yaml"),
+    ("backend deployment file", "Dockerfile"),
+    ("backend deployment file", ".dockerignore"),
+    ("backend deployment file", "pyproject.toml"),
+    ("frontend server module", "frontend/lib/api.ts"),
+    ("frontend server action", "frontend/app/actions.ts"),
+    ("frontend server layout", "frontend/app/layout.tsx"),
+    ("frontend page", "frontend/app/page.tsx"),
+    ("frontend component", "frontend/components/HintCard.tsx"),
+    ("frontend build config", "frontend/next.config.mjs"),
+    ("frontend manifest", "frontend/package.json"),
+    ("frontend type config", "frontend/tsconfig.json"),
+)
+
+
+def scan_for_secrets(payload: str) -> list[str]:
+    """Return the secret-shaped markers present in a payload.
+
+    Slice 7. The deployment adds the first real secret this project has, and the
+    two places it can leak are the repository it is configured in and the JSON
+    the API serializes back. A check that only ever looks at one of them is half
+    a guard, so the same scan is applied to both.
+
+    It deliberately reports shapes rather than redacting: a scanner that quietly
+    cleaned up after itself would hide the leak instead of failing the build.
+
+    **Its limit, stated rather than papered over.** It catches a known secret
+    marker anywhere, and a long single-token value assigned to a key whose name
+    contains `token`, `secret`, `password` or `credential`. It does not catch a
+    bare 40-character string on a line that names nothing, because a URL in
+    `render.yaml` is also a long single token and flagging those would make the
+    check noisy enough to be ignored. It also does not catch a secret split
+    across two lines, or one encoded rather than written. Two detectors with a
+    stated limit is a guard; a detector that claims to catch everything and does
+    not is a decoration.
+    """
+    lowered = payload.casefold()
+    found = [marker for marker in SECRET_MARKERS if marker in lowered]
+    for line in lowered.splitlines():
+        if "=" not in line and ":" not in line:
+            continue
+        for shape in _ASSIGNMENT_SHAPES:
+            if shape in line:
+                value = _assigned_value(line).strip().strip("\"'")
+                # A pasted credential is one token: no spaces. This is what keeps
+                # prose from being a finding, and prose is most of what a
+                # commented configuration file is made of. A placeholder, an
+                # environment reference and a comment all fail one of these.
+                if (
+                    len(value) >= 24
+                    and not any(char.isspace() for char in value)
+                    and not value.startswith("$")
+                    and "example" not in value
+                ):
+                    found.append(f"{shape}=<{len(value)} chars>")
+    return sorted(set(found))
+
+
+def _assigned_value(line: str) -> str:
+    """Everything after the assignment separator, whichever one it is.
+
+    Finding A7-2. The first version was `line.split("=", 1)[-1].split(":", 1)[-1]`,
+    which takes the text after the *first* `=` and then after the first `:` in
+    that remainder. On a line carrying both, in either order, one of those two
+    splits lands inside the key rather than after it, and the value it returns is
+    the wrong substring. Splitting on the earliest separator of either kind, and
+    only once, is the shape that does not care which one the file uses.
+
+    It still returns text, not a verdict: whether the result is a credential is
+    decided by the caller, so a mis-split shows up as a *missed* finding rather
+    than as a fabricated one.
+    """
+    separators = [index for index in (line.find("="), line.find(":")) if index != -1]
+    if not separators:
+        return ""
+    return line[min(separators) + 1 :]
+
+
+class TestSecretsNeverReachASerializedSurface:
+    """The API must not echo the credential that guards it."""
+
+    def test_a_token_in_a_response_body_is_detected(self) -> None:
+        needle = "carerelay_api_token=abc123def456abc123def456"
+        assert scan_for_secrets(json.dumps({"config": needle}))
+
+    def test_a_bearer_header_echoed_back_is_detected(self) -> None:
+        assert scan_for_secrets(json.dumps({"h": "authorization: bearer s3cr3t"}))
+
+    def test_a_long_assigned_secret_is_detected(self) -> None:
+        assert scan_for_secrets("api_token = " + "z" * 40)
+
+    def test_an_environment_reference_is_not_a_finding(self) -> None:
+        """The control: `${CARERELAY_API_TOKEN}` is the correct way to write it."""
+        assert scan_for_secrets("api_token = ${CARERELAY_API_TOKEN}") == []
+
+    def test_a_placeholder_is_not_a_finding(self) -> None:
+        assert scan_for_secrets('api_token = "example-placeholder"') == []
+
+    def test_the_real_health_response_carries_no_secret(self) -> None:
+        from fastapi.testclient import TestClient
+
+        from carerelay.api import app
+
+        body = TestClient(app).get("/health").text
+        assert scan_for_secrets(body) == []
+
+    def test_the_patient_projection_carries_no_secret(self) -> None:
+        from fastapi.testclient import TestClient
+
+        from carerelay.api import app
+
+        client = TestClient(app)
+        client.post("/api/episodes")
+        body = client.get("/api/episodes/demo-episode-1").text
+        assert scan_for_secrets(body) == []
+
+
+class TestNoSecretIsCommitted:
+    """The repository is public, so a committed credential is a published one."""
+
+    def test_the_deployment_files_carry_no_secret(self) -> None:
+        """Every file in `VICTIM_FILES`, which includes all of `frontend/`.
+
+        Finding A7-1: the list used to be the four backend files, so the one
+        surface that names `CARERELAY_API_TOKEN` was the one surface not scanned.
+        """
+        for label, name in VICTIM_FILES:
+            path = REPO_ROOT / name
+            assert path.exists(), f"{label} is missing: {name}"
+            assert scan_for_secrets(path.read_text(encoding="utf-8")) == [], name
+
+    def test_the_victim_list_cannot_be_quietly_shortened(self) -> None:
+        """The list is a filter, so a shorter list is a *weaker* guard.
+
+        This is the A7-1 defect one level up, and it was caught by mutation
+        rather than by review: removing `frontend/lib/api.ts` from
+        `VICTIM_FILES` left every test green, because the only assertion on the
+        list was "nothing was found in what I did scan". A guard that can be
+        disarmed by deleting a line is not a guard, so the frontend files are
+        named here explicitly and their absence is a failure.
+
+        Written as a set comparison so reordering or relabelling does not make it
+        flaky, and adding a file does not make it fail.
+        """
+        scanned = {name for _, name in VICTIM_FILES}
+        required = {
+            "frontend/lib/api.ts",
+            "frontend/app/actions.ts",
+            "frontend/app/page.tsx",
+            "frontend/components/HintCard.tsx",
+            "frontend/next.config.mjs",
+            "frontend/package.json",
+        }
+        missing = required - scanned
+        assert missing == set(), f"the scan no longer covers: {sorted(missing)}"
+
+    def test_the_frontend_environment_contract_is_scanned(self) -> None:
+        """A scanner that misses the file it exists for is a decoration.
+
+        This plants a needle in the real `frontend/lib/api.ts` and requires the
+        scan to see it. Without this, A7-1 could be "fixed" by adding a path to a
+        list that is never read.
+
+        **The needle deliberately contains no `token`, `secret`, `password` or
+        `credential` in its name.** The first version used
+        `NEXT_PUBLIC_CARERELAY_API_TOKEN`, which the *name-shape* detector already
+        caught, so removing `next_public_` from the markers changed nothing and
+        the test could not tell the two detectors apart. Making the only marker
+        on the line the one under test is what gives this test teeth; mutation
+        caught the original.
+        """
+        real = (REPO_ROOT / "frontend" / "lib" / "api.ts").read_text(encoding="utf-8")
+        assert scan_for_secrets(real) == []
+        planted = (
+            real
+            + '\nconst NEXT_PUBLIC_CONTACT_ENDPOINT = "'
+            + "k9w2m4p7" * 4
+            + '"\n'
+        )
+        assert scan_for_secrets(planted), "the scanner missed a planted frontend secret"
+
+    def test_the_scanner_sees_a_value_after_both_separators(self) -> None:
+        """Finding A7-2. A line carrying both `=` and `:` must still be read.
+
+        The old split took the text after the first `=` and then after the first
+        `:` in that remainder. On a line carrying both, one order lands inside the
+        key and the other inside the value, so the value it returns is the wrong
+        substring.
+
+        **The needle itself contains the other separator**, which is what makes
+        this test able to tell the two implementations apart. The first version
+        used a needle of plain characters, so both splits returned the same
+        substring and the test passed against the broken code. Mutation caught
+        that too.
+        """
+        # A 32-char base64url-shaped value with no whitespace, carrying the
+        # separator the split must not stop at.
+        for line in (
+            "api_token: aaaaaaaaaaaaaaaaaaaaaaaa=bbbbbb",
+            "api_token = aaaaaaaaaaaaaaaaaaaaaaaa:bbbbbb",
+        ):
+            found = scan_for_secrets(line)
+            assert found, f"the scanner missed the value in {line!r}"
+
+    def test_no_env_file_is_tracked_by_git(self) -> None:
+        """Not "no `.env` on disk" -- that is the wrong question.
+
+        A `.env` in the working tree is normal and is how the Gate A spike
+        credential is held locally; it is gitignored and that is correct. The
+        guarantee that matters is that git has never been told about one, because
+        a tracked `.env` in a public repository is a published credential. This
+        asks git rather than the filesystem.
+        """
+        completed = subprocess.run(
+            ["git", "ls-files", "--cached", "*.env", ".env", "**/.env"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        tracked = [line for line in completed.stdout.splitlines() if line.strip()]
+        assert tracked == [], f"an env file is tracked by git: {tracked}"
+
+    def test_env_files_are_gitignored_and_excluded_from_the_image(self) -> None:
+        """Two independent exclusions, because one that fails is silent."""
+        gitignore = (REPO_ROOT / ".gitignore").read_text(encoding="utf-8")
+        assert ".env" in gitignore
+        dockerignore = (REPO_ROOT / ".dockerignore").read_text(encoding="utf-8")
+        assert ".env" in dockerignore
+
+    def test_the_scanner_detects_a_needle_in_a_real_deployment_file(self) -> None:
+        """A negative scan without a self-test is not evidence.
+
+        The needle is planted in a copy of the real `render.yaml` rather than in
+        a toy string, because that is the file the scanner is meant to police.
+        """
+        real = (REPO_ROOT / "render.yaml").read_text(encoding="utf-8")
+        assert scan_for_secrets(real) == []
+        # The needle is the realistic mistake: someone pastes the token next to
+        # its own name instead of setting it in the dashboard.
+        planted = real + "\nCARERELAY_API_TOKEN: " + "s3cr3t" * 6 + "\n"
+        assert scan_for_secrets(planted), "the scanner missed a planted secret"

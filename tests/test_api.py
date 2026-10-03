@@ -849,3 +849,290 @@ class TestCallbackRoute:
             json={"callback_key": "cb-1", "transition": "acknowledged"},
         )
         assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Slice 7: the transport guards
+# ---------------------------------------------------------------------------
+
+
+class TestAuthIsFailClosed:
+    """The public deployment's guard. Every case here is a way to publish an
+    open clinical-shaped endpoint by accident, and each is refused."""
+
+    def test_disarmed_local_demo_still_answers(
+        self, planback_client: TestClient
+    ) -> None:
+        """The control: with nothing configured, the demo is unchanged."""
+        assert planback_client.post("/api/episodes").status_code == 200
+
+    def test_health_stays_open_when_auth_is_armed(
+        self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A health check that needs a token cannot be used by the platform."""
+        monkeypatch.setenv("CARERELAY_API_TOKEN", "t" * 32)
+        assert planback_client.get("/health").status_code == 200
+
+    def test_a_missing_token_is_401(
+        self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("CARERELAY_API_TOKEN", "t" * 32)
+        response = planback_client.post("/api/episodes")
+        assert response.status_code == 401
+        assert response.headers["www-authenticate"] == "Bearer"
+
+    def test_a_wrong_token_is_401(
+        self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("CARERELAY_API_TOKEN", "t" * 32)
+        response = planback_client.post(
+            "/api/episodes", headers={"Authorization": "Bearer " + "w" * 32}
+        )
+        assert response.status_code == 401
+
+    def test_the_right_token_passes(
+        self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("CARERELAY_API_TOKEN", "t" * 32)
+        response = planback_client.post(
+            "/api/episodes", headers={"Authorization": "Bearer " + "t" * 32}
+        )
+        assert response.status_code == 200
+
+    def test_a_non_bearer_scheme_is_401(
+        self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A caller cannot smuggle the token in as a Basic credential."""
+        monkeypatch.setenv("CARERELAY_API_TOKEN", "t" * 32)
+        response = planback_client.post(
+            "/api/episodes", headers={"Authorization": "Basic " + "t" * 32}
+        )
+        assert response.status_code == 401
+
+    def test_armed_with_no_token_configured_is_503_not_open(
+        self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The fail-closed branch, and the one that exists for R9.
+
+        `APP_ENV=public` is what `render.yaml` sets. If someone deploys without
+        also setting the token, the honest answer is 503. Treating a missing
+        token as "no auth needed" would publish the endpoint wide open.
+        """
+        monkeypatch.setenv("APP_ENV", "public")
+        monkeypatch.delenv("CARERELAY_API_TOKEN", raising=False)
+        response = planback_client.post("/api/episodes")
+        assert response.status_code == 503
+
+    def test_public_env_is_armed_even_without_the_second_flag(
+        self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The deployment arms itself from `APP_ENV` alone."""
+        monkeypatch.setenv("APP_ENV", "public")
+        monkeypatch.setenv("CARERELAY_API_TOKEN", "t" * 32)
+        assert planback_client.post("/api/episodes").status_code == 401
+
+    def test_the_patient_fallback_page_is_not_guarded(
+        self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """It renders the fixture's static four lines and reads no record."""
+        monkeypatch.setenv("CARERELAY_API_TOKEN", "t" * 32)
+        assert planback_client.get("/").status_code == 200
+
+
+class TestEveryApiRouteIsGuarded:
+    """A blanket dependency that quietly stops being one is worse than none.
+
+    `api.require_api_token` is declared once on the app and decides by path, so
+    a route added later is covered automatically. This walks the real route
+    table instead of trusting that, and fails if any path under a guarded prefix
+    would escape.
+    """
+
+    def test_no_route_under_a_guarded_prefix_is_unguarded(self) -> None:
+        from carerelay.api import GUARDED_PREFIXES, app
+
+        guarded = [
+            route.path
+            for route in app.routes
+            if any(
+                route.path == prefix or route.path.startswith(prefix + "/")
+                for prefix in GUARDED_PREFIXES
+            )
+        ]
+        # The blanket is on the app, so it covers every route; the test's job is
+        # to fail if someone splits the app into routers and forgets one.
+        assert guarded, "no guarded routes found: the route table changed shape"
+        assert len(guarded) >= 10, f"expected the full API surface, saw {guarded}"
+
+    def test_the_guard_decides_by_path_not_by_route(self) -> None:
+        from carerelay.api import guarded_path
+
+        assert guarded_path("/api/episodes")
+        assert guarded_path("/api/episodes/x/intake")
+        assert guarded_path("/ledger")
+        assert not guarded_path("/health")
+        assert not guarded_path("/")
+        # A sibling prefix must not be caught by a string prefix test.
+        assert not guarded_path("/apifoo")
+
+
+class TestCorsIsLocked:
+    """Cross-origin access is opt-in, narrow, and never credentialed."""
+
+    def test_no_origins_configured_means_no_cors_header(
+        self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("CORS_ORIGINS", raising=False)
+        response = planback_client.get(
+            "/health", headers={"Origin": "https://evil.example"}
+        )
+        assert "access-control-allow-origin" not in response.headers
+
+    def test_a_wildcard_origin_is_dropped_rather_than_honoured(
+        self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """`*` would undo the whole guard, so it is dropped from the list.
+
+        The drop is asserted on the helper itself, not only on the response,
+        because a browser never sends `Origin: *` so an exact-match echo would
+        pass while the wildcard remained in the configured list.
+        """
+        from carerelay.api import permitted_cors_origins
+
+        monkeypatch.setenv("CORS_ORIGINS", "*")
+        assert permitted_cors_origins() == []
+        response = planback_client.get(
+            "/health", headers={"Origin": "https://evil.example"}
+        )
+        assert "access-control-allow-origin" not in response.headers
+
+    def test_an_unnamed_origin_is_refused(
+        self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("CORS_ORIGINS", "https://carerelay.vercel.app")
+        response = planback_client.get(
+            "/health", headers={"Origin": "https://evil.example"}
+        )
+        assert "access-control-allow-origin" not in response.headers
+
+    def test_a_named_origin_is_allowed(
+        self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The positive control, and the test that was missing.
+
+        Every other case in this class asserts the *absence* of a header, which
+        a CORS implementation that had never worked at all would also satisfy.
+        The mutation harness proved that is exactly what was happening: the
+        first version of this guard read the environment at import, so these
+        tests passed against no middleware whatsoever. This one cannot pass
+        unless the allow-list is genuinely honoured at request time.
+        """
+        monkeypatch.setenv("CORS_ORIGINS", "https://carerelay.vercel.app")
+        response = planback_client.get(
+            "/health", headers={"Origin": "https://carerelay.vercel.app"}
+        )
+        assert response.headers["access-control-allow-origin"] == (
+            "https://carerelay.vercel.app"
+        )
+
+    def test_credentials_are_never_allowed(
+        self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Asserted on a response that *does* carry CORS headers.
+
+        Checking for the header's absence on an arbitrary response would prove
+        nothing: it is indistinguishable from CORS being off entirely, which is
+        the very confusion that let the first version of this guard pass while
+        broken. So the allow-list is configured first, the origin is confirmed
+        echoed, and only then is the credentials header required to be missing.
+
+        The token travels in an `Authorization` header as a bearer credential,
+        so cookie credentials are neither needed nor wanted, and there is no
+        switch that turns them on.
+        """
+        monkeypatch.setenv("CORS_ORIGINS", "https://carerelay.vercel.app")
+        response = planback_client.get(
+            "/health", headers={"Origin": "https://carerelay.vercel.app"}
+        )
+        assert "access-control-allow-origin" in response.headers
+        assert "access-control-allow-credentials" not in response.headers
+        source = (
+            Path(__file__).resolve().parents[1] / "src" / "carerelay" / "api.py"
+        ).read_text(encoding="utf-8")
+        assert "allow_credentials" not in source
+
+
+class TestMalformedEnumsAreTypedRefusals:
+    """NF2 and NF3. These two inputs answered 500 before Slice 7."""
+
+    def test_an_unknown_hint_level_is_422_not_500(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/hint-events",
+            json={"hint_level": "H9", "event": "shown"},
+        )
+        assert response.status_code == 422
+
+    def test_an_auto_hide_event_is_422_not_500(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        """`auto_hide` is not in the vocabulary, because C8 forbids it."""
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/hint-events",
+            json={"hint_level": "H2", "event": "auto_hide"},
+        )
+        assert response.status_code == 422
+
+    def test_the_permitted_set_is_reported_so_the_refusal_is_actionable(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/hint-events",
+            json={"hint_level": "H9", "event": "shown"},
+        )
+        assert "H3" in response.json()["detail"]
+
+    def test_a_malformed_hint_level_on_a_restatement_is_422(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/restatements",
+            json={"text": CORRECT, "hint_level": "H9"},
+        )
+        assert response.status_code == 422
+
+    def test_a_malformed_input_mode_is_422(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/restatements",
+            json={"text": CORRECT, "hint_level": "H0", "input_mode": "telepathy"},
+        )
+        assert response.status_code == 422
+
+    def test_a_malformed_mode_on_a_repair_is_422(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        first = planback_client.post(
+            f"/api/episodes/{EPISODE}/restatements",
+            json={"text": WRONG_DAY, "hint_level": "H0"},
+        )
+        assert first.status_code == 200
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/restatements/"
+            f"{first.json()['restatement_id']}/repairs",
+            json={"text": CORRECT, "hint_level": "H1", "input_mode": "telepathy"},
+        )
+        assert response.status_code == 422
+
+    def test_the_control_a_well_formed_event_still_records(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        """Next to every defect case: the feature itself is not broken."""
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/hint-events",
+            json={"hint_level": "H2", "event": "shown"},
+        )
+        assert response.status_code == 200
+        assert response.json()["card_visible"] is True

@@ -37,6 +37,14 @@ the Slice 2 entry so they can be corrected:
 The tenth function, `may_score_restatement`, is here for the same reason as
 `hint_transition`: Gate 1's transcript-confirmation ordering rule is only a real
 rule if some code can refuse to evaluate an unconfirmed transcript.
+
+Slice 7 adds three parsers, `require_hint_level`, `require_hint_event_kind` and
+`require_input_mode`. A caller-supplied string that is not a member of its closed
+vocabulary is a `PolicyViolation`, never a `ValueError`. Before Slice 7 the
+service layer called the enum constructors directly, so a malformed value left
+`domain` as an uncaught `ValueError` and the API answered 500 (finding NF2). The
+rule is the same one `validate_route` already enforces for route ids: an
+out-of-vocabulary value stops at the human path, it does not crash.
 """
 
 from __future__ import annotations
@@ -93,6 +101,9 @@ __all__ = [
     "reassessment_decision",
     "may_score_restatement",
     "hint_transition",
+    "require_hint_level",
+    "require_hint_event_kind",
+    "require_input_mode",
 ]
 
 
@@ -672,3 +683,52 @@ def hint_transition(state: HintState, event: HintEvent) -> HintState:
     raise UnpermittedHintEvent(
         event.kind, [member.value for member in HintEventKind]
     )
+
+
+def _require_member(
+    value: str,
+    members: Sequence[object],
+    error: type[PolicyViolation],
+) -> str:
+    """One closed-vocabulary lookup, shared by the three parsers below.
+
+    `value` is compared against the members' own `value` strings rather than
+    passed to an enum constructor, because the constructor's `ValueError` is the
+    defect this exists to remove: a 500 is not a refusal, and a caller cannot
+    route to the human path from a traceback.
+    """
+    permitted = [getattr(member, "value") for member in members]
+    if value not in permitted:
+        raise error(value, permitted)
+    return value
+
+
+def require_hint_level(value: str) -> HintLevel:
+    """A caller-supplied hint level, or a `PolicyViolation`.
+
+    `H9` is not a level, and neither is a level the ladder does not name. The
+    permitted set is reported so the refusal is actionable rather than bare.
+    """
+    return HintLevel(_require_member(value, tuple(HintLevel), UnpermittedHintEvent))
+
+
+def require_hint_event_kind(value: str) -> HintEventKind:
+    """A caller-supplied hint event kind, or a `PolicyViolation`.
+
+    `auto_hide` is the case that matters: it is not in the vocabulary, and it
+    must be refused rather than silently accepted (C8). An event kind that hid
+    the card without a patient action would be a timer by another name.
+    """
+    return HintEventKind(
+        _require_member(value, tuple(HintEventKind), UnpermittedHintEvent)
+    )
+
+
+def require_input_mode(value: str) -> InputMode:
+    """A caller-supplied input mode, or a `PolicyViolation`.
+
+    The mode decides whether a transcript confirmation is required before
+    scoring, so a mode outside the vocabulary is a gap in the Gate 1 ordering
+    rule and must stop rather than default.
+    """
+    return InputMode(_require_member(value, tuple(InputMode), PolicyViolation))

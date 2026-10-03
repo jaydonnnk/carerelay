@@ -9,8 +9,13 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "pydantic>=2.9",
-    "jinja2>=3.1",
 ]
+
+# Slice 7. `jinja2` was declared from Slice 1 and imported nowhere, and the
+# 30 September 2026 templates decision retired the server-rendered templates it
+# was declared for. A declared dependency the code does not use is a claim the
+# repository cannot support, so it is removed rather than left for the image to
+# install.
 
 [project.optional-dependencies]
 test = [
@@ -24,6 +29,13 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+# Slice 7. The patient fallback page links `/static/style.css` and the Slice 6
+# review found it 404ing. Without this, `pip install .` puts the package in
+# site-packages without its stylesheet, so the Docker image would 404 on the one
+# static asset the service has.
+[tool.setuptools.package-data]
+"carerelay" = ["static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

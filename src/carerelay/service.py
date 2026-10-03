@@ -486,10 +486,16 @@ class EpisodeService:
         The returned state is derived, not stored (D4's sibling rule): the card
         is visible exactly when the recorded event vocabulary says it is, and
         only `patient_hid` can hide it. `dwell_seconds` is recorded for the
-        ledger and is not an input to the derivation (C8).
+        ledger         and is not an input to the derivation (C8).
+
+        The two strings are parsed by `domain` rather than by their enum
+        constructors. Until Slice 7 they were constructed directly, so `H9` or
+        `auto_hide` raised an uncaught `ValueError` and the route answered 500
+        (finding NF2). `PolicyViolation` is the refusal the hint route already
+        maps to 422, which is also what makes that branch reachable at last (NF3).
         """
-        level = HintLevel(hint_level)
-        event_kind = HintEventKind(kind)
+        level = rules.require_hint_level(hint_level)
+        event_kind = rules.require_hint_event_kind(kind)
         self._store.load_snapshot(episode_id)
         self._store.record_hint_event(
             episode_id,
@@ -990,6 +996,40 @@ class EpisodeService:
                     f"for episode {episode_id!r}"
                 )
 
+    def _verified_confirmation(
+        self,
+        episode_id: str,
+        transcript_confirmation_id: str | None,
+        confirmed_text: str,
+    ) -> bool:
+        """Whether a confirmation was really recorded **and** covers this text.
+
+        Slice 7 closes NF4. Until now the record carried
+        `transcript_confirmation_id is not None`, so a text or chip round that
+        named any id at all was recorded as confirmed, and the ledger could
+        assert a confirmation that never happened. Only the voice path checked
+        the digest and the stored row.
+
+        Two questions, and both must be yes: is this id the digest of the very
+        string being scored, and was a confirmation with that id recorded for
+        this episode. One alone is not enough: an id that merely exists would
+        let a caller confirm one transcript and score another, which is the same
+        swap the digest exists to prevent. The test is deliberately the same for
+        every input mode, because a false confirmation is a false confirmation
+        whichever path it arrived on.
+
+        Whether a mode *needs* a confirmation before scoring stays
+        `_require_scorable`'s job. This decides what the record may claim, which
+        is a different question and the one NF4 was about.
+        """
+        if transcript_confirmation_id is None:
+            return False
+        if transcript_confirmation_id != derive_confirmation_id(confirmed_text):
+            return False
+        return self._store.has_transcript_confirmation(
+            episode_id, transcript_confirmation_id
+        )
+
     def _score(
         self,
         episode_id: str,
@@ -1001,8 +1041,10 @@ class EpisodeService:
         dwell_seconds: float | None,
         repair_round: int,
     ) -> RestatementOutcome:
-        level = HintLevel(hint_level)
-        mode = InputMode(input_mode)
+        # Parsed by `domain` for the same reason as the hint route: a malformed
+        # level or mode is a 422 refusal, not a 500 (NF2).
+        level = rules.require_hint_level(hint_level)
+        mode = rules.require_input_mode(input_mode)
         snapshot = self._store.load_snapshot(episode_id)
         if snapshot.disposition is None:
             raise NoDispositionYet(
@@ -1040,7 +1082,9 @@ class EpisodeService:
             disposition_version=snapshot.disposition.version,
             hint_level=level,
             input_mode=mode,
-            transcript_confirmed=transcript_confirmation_id is not None,
+            transcript_confirmed=self._verified_confirmation(
+                episode_id, transcript_confirmation_id, confirmed_text
+            ),
             extracted=extracted,
             comparison=comparison,
             repair_round=repair_round,

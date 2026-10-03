@@ -1523,3 +1523,57 @@ class TestPatientLines:
         closure = rules.derive_closure(snapshot, SCENARIO_NOW_UTC)
         with pytest.raises(rules.NoDispositionToRender):
             rules.patient_lines(snapshot, closure, POLICY_TEXT)
+
+
+# ---------------------------------------------------------------------------
+# Slice 7: the closed-vocabulary parsers (NF2)
+# ---------------------------------------------------------------------------
+
+
+class TestCallersuppliedEnumsAreRefusedNotConstructed:
+    """NF2. The service layer used to call the enum constructors directly.
+
+    `HintLevel("H9")` raises `ValueError`, which nothing caught, so the API
+    answered 500. A 500 is not a refusal: it tells the caller nothing about what
+    was wrong and it cannot be routed to the human path. These three parsers are
+    the narrowest fix, because the refusal already exists as `PolicyViolation`
+    and the routes already map it to 422.
+    """
+
+    def test_an_unknown_hint_level_raises_a_policy_violation(self) -> None:
+        with pytest.raises(rules.PolicyViolation):
+            rules.require_hint_level("H9")
+
+    def test_an_auto_hide_event_kind_raises_a_policy_violation(self) -> None:
+        """C8: the vocabulary has no member that hides the card on its own."""
+        with pytest.raises(rules.PolicyViolation):
+            rules.require_hint_event_kind("auto_hide")
+
+    def test_an_unknown_input_mode_raises_a_policy_violation(self) -> None:
+        with pytest.raises(rules.PolicyViolation):
+            rules.require_input_mode("telepathy")
+
+    def test_the_refusal_names_the_permitted_set(self) -> None:
+        """A refusal the caller cannot act on is barely better than a 500."""
+        with pytest.raises(rules.PolicyViolation) as caught:
+            rules.require_hint_level("H9")
+        assert set(caught.value.permitted) == {"H0", "H1", "H2", "H3"}
+
+    def test_a_valid_value_is_returned_not_rejected(self) -> None:
+        """The control beside every defect case."""
+        assert rules.require_hint_level("H2") is models.HintLevel.H2
+        assert rules.require_hint_event_kind("shown") is models.HintEventKind.SHOWN
+        assert rules.require_input_mode("voice") is models.InputMode.VOICE
+
+    def test_a_value_that_only_looks_like_a_member_is_refused(self) -> None:
+        """Case and whitespace are not normalised into the vocabulary."""
+        with pytest.raises(rules.PolicyViolation):
+            rules.require_hint_level("h2")
+        with pytest.raises(rules.PolicyViolation):
+            rules.require_hint_event_kind(" shown")
+
+    def test_the_violation_is_the_hint_specific_subclass(self) -> None:
+        """So `except PolicyViolation` in the route still catches it."""
+        assert issubclass(rules.UnpermittedHintEvent, rules.PolicyViolation)
+        with pytest.raises(rules.UnpermittedHintEvent):
+            rules.require_hint_level("H9")

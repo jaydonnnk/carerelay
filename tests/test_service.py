@@ -915,3 +915,72 @@ class TestCallbackReceipts:
             service.receive_callback(
                 EPISODE, "nurse_line", "cb-1", self._ack(), Origin.LOCAL_SIM
             )
+
+
+# ---------------------------------------------------------------------------
+# Slice 7: NF4 -- a recorded confirmation must be a verified fact
+# ---------------------------------------------------------------------------
+
+
+class TestTranscriptConfirmedIsVerified:
+    """NF4. Before Slice 7 the record carried `id is not None`.
+
+    A text or chip round could name any string at all and the restatement row
+    would assert that the patient confirmed a transcript. Only the voice path
+    checked the digest and the stored row, so the ledger could be asked to show a
+    confirmation that never happened. The ledger is produced at Slice 12 and it
+    is read by a judge, so the record had to be settled before it was rendered.
+    """
+
+    def test_a_confirmation_that_was_never_recorded_is_not_claimed(
+        self, assessed: str, service: EpisodeService
+    ) -> None:
+        outcome = service.submit_restatement(
+            EPISODE,
+            CORRECT,
+            "H0",
+            "tc-not-a-real-confirmation",
+            input_mode="text",
+        )
+        row = service._store.get_restatement(outcome.restatement_id)
+        assert row.transcript_confirmed is False
+
+    def test_a_real_confirmation_of_this_text_is_claimed(
+        self, assessed: str, service: EpisodeService
+    ) -> None:
+        """The control: the fix must not make `transcript_confirmed` unreachable."""
+        confirmation_id = service.confirm_transcript(EPISODE, CORRECT)
+        outcome = service.submit_restatement(
+            EPISODE, CORRECT, "H0", confirmation_id, input_mode="text"
+        )
+        row = service._store.get_restatement(outcome.restatement_id)
+        assert row.transcript_confirmed is True
+
+    def test_a_real_confirmation_of_a_different_text_is_not_claimed(
+        self, assessed: str, service: EpisodeService
+    ) -> None:
+        """The swap the digest exists to prevent: confirm one, score another."""
+        confirmation_id = service.confirm_transcript(EPISODE, CORRECT)
+        outcome = service.submit_restatement(
+            EPISODE, WRONG_DAY, "H0", confirmation_id, input_mode="text"
+        )
+        row = service._store.get_restatement(outcome.restatement_id)
+        assert row.transcript_confirmed is False
+
+    def test_no_confirmation_supplied_is_false_not_unknown(
+        self, assessed: str, service: EpisodeService
+    ) -> None:
+        outcome = service.submit_restatement(EPISODE, CORRECT, "H0")
+        row = service._store.get_restatement(outcome.restatement_id)
+        assert row.transcript_confirmed is False
+
+    def test_the_voice_path_is_unchanged(
+        self, assessed: str, service: EpisodeService
+    ) -> None:
+        """Voice already checked both halves; it must still pass them."""
+        confirmation_id = service.confirm_transcript(EPISODE, CORRECT)
+        outcome = service.submit_restatement(
+            EPISODE, CORRECT, "H0", confirmation_id, input_mode="voice"
+        )
+        row = service._store.get_restatement(outcome.restatement_id)
+        assert row.transcript_confirmed is True

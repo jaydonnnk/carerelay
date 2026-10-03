@@ -13,16 +13,30 @@ the project with no rules in it.
 
 `02-architecture.md` 3.1 lists the full route surface. Later slices add routes in
 build order: the API is grown slice by slice, never filled in horizontally.
+
+Slice 7 adds the transport guards the public deployment needs, and nothing else
+in this file changes. **Every `/api` route requires a bearer token when auth is
+armed**, CORS is locked to the origins the deployment names, and the credentials
+flag is off. The two guards are here rather than in `service` because they are
+about who may reach the transport, not about what the record may say; `domain`
+still owns every clinical decision.
+
+Auth is **fail-closed**: if auth is armed and no token is configured, every
+protected route answers 503 rather than serving an open clinical-shaped
+endpoint. That is the R9 stop condition expressed in code, and it is why the
+local demo and the test suite run disarmed instead of the guard being optional.
 """
 
 from __future__ import annotations
 
+import hmac
 import os
 import threading
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -70,6 +84,198 @@ from carerelay.state import (
 )
 from carerelay.tools import McpTools
 
+# ---------------------------------------------------------------------------
+# Slice 7: who may reach the transport
+# ---------------------------------------------------------------------------
+
+#: The prefixes the token guards. `/health` and the fallback patient page stay
+#: open on purpose: a health check that needs a credential cannot be used by the
+#: platform that is checking it, and the fallback page renders the fixture's
+#: static four lines with nothing read from the record.
+GUARDED_PREFIXES: tuple[str, ...] = ("/api", "/ledger")
+
+#: The environment names. Slice 7 keeps them to three so the arming rule is
+#: legible by inspection rather than by reading the code that reads it.
+PUBLIC_ENVS: frozenset[str] = frozenset({"public", "production", "prod"})
+TRUTHY: frozenset[str] = frozenset({"1", "true", "yes", "on"})
+
+API_TOKEN_ENV = "CARERELAY_API_TOKEN"
+REQUIRE_AUTH_ENV = "CARERELAY_REQUIRE_AUTH"
+APP_ENV_ENV = "APP_ENV"
+CORS_ORIGINS_ENV = "CORS_ORIGINS"
+
+
+def _env(name: str) -> str:
+    return (os.getenv(name) or "").strip()
+
+
+def auth_is_armed() -> bool:
+    """Whether the bearer-token dependency is enforcing.
+
+    Three ways to arm it, because a deployment forgets: `APP_ENV` naming a public
+    environment, `CARERELAY_REQUIRE_AUTH` set to yes, or a token being present at
+    all. The last is the safety net: configuring a token is an unambiguous
+    statement that the service expects one, so treating it as decoration would
+    be the one way to publish an open endpoint by mistake.
+
+    Everything else runs disarmed, which is what the local demo and the test
+    suite do. Disarmed is a deliberate local state, not a permissive default for
+    a deployed service: `APP_ENV=public` is set by `render.yaml`, so the
+    deployment is armed without depending on anyone remembering a second flag.
+    """
+    if _env(APP_ENV_ENV).casefold() in PUBLIC_ENVS:
+        return True
+    if _env(REQUIRE_AUTH_ENV).casefold() in TRUTHY:
+        return True
+    return bool(_env(API_TOKEN_ENV))
+
+
+def configured_token() -> str:
+    return _env(API_TOKEN_ENV)
+
+
+def _unauthorized() -> HTTPException:
+    """401 with a `WWW-Authenticate` header, and no hint about the token.
+
+    The detail says what is missing, not what would have been accepted.
+    """
+    return HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="a bearer token is required",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+
+
+def _misconfigured() -> HTTPException:
+    """503: auth is armed but no token exists.
+
+    This is the fail-closed branch, and it is the one that matters. The
+    alternative is to treat a missing token as "no auth needed", which would
+    publish a clinical-shaped endpoint to the open internet and would be risk R9
+    realised by a typo. A deployment that cannot check a credential must not
+    answer, so it answers 503 until someone sets one.
+    """
+    return HTTPException(
+        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+        detail=(
+            f"auth is armed but {API_TOKEN_ENV} is not configured; refusing to "
+            "serve a protected route without a credential to check"
+        ),
+    )
+
+
+def guarded_path(path: str) -> bool:
+    """Whether this request path carries the record, and so needs a token.
+
+    The prefix test is why the guard can be declared once for the whole app
+    instead of 13 times: a route added later under `/api` is covered whether or
+    not anyone remembered to annotate it. `tests/test_api.py` walks the real
+    route table and fails if a path under a guarded prefix escapes, so the
+    blanket cannot quietly stop being one.
+    """
+    return any(
+        path == prefix or path.startswith(prefix + "/") for prefix in GUARDED_PREFIXES
+    )
+
+
+async def require_api_token(request: Request) -> None:
+    """The dependency every protected route takes. Slice 7.
+
+    Comparison is `hmac.compare_digest`, not `==`. A token comparison that leaks
+    its timing turns a public endpoint into an oracle for the very secret that
+    guards it, and the whole point of the guard is that the secret is unguessable.
+
+    The token is read from the environment on every call rather than captured at
+    import, so a test can arm auth without reloading the module.
+    """
+    if not guarded_path(request.url.path):
+        return
+    if not auth_is_armed():
+        return
+    token = configured_token()
+    if not token:
+        raise _misconfigured()
+    header = request.headers.get("authorization", "")
+    scheme, _, presented = header.partition(" ")
+    if scheme.casefold() != "bearer" or not presented.strip():
+        raise _unauthorized()
+    if not hmac.compare_digest(presented.strip(), token):
+        raise _unauthorized()
+
+
+def permitted_cors_origins() -> list[str]:
+    """The allow-list, read from the environment **at request time**.
+
+    Wildcards are refused rather than passed through: an origin of `*` would undo
+    the whole guard, so it is dropped and the service then serves no cross-origin
+    caller at all, which is the safe direction to fail in.
+    """
+    raw = _env(CORS_ORIGINS_ENV)
+    if not raw:
+        return []
+    origins = [item.strip() for item in raw.split(",") if item.strip()]
+    return [origin for origin in origins if origin != "*"]
+
+
+def _cors_headers_for(request: Request) -> dict[str, str]:
+    """The CORS response headers for this request, or none at all.
+
+    The origin is echoed only when it is on the allow-list, so an unnamed origin
+    gets no header rather than a permissive one.
+    """
+    origin = request.headers.get("origin", "").strip()
+    if not origin or origin not in permitted_cors_origins():
+        return {}
+    return {"Access-Control-Allow-Origin": origin, "Vary": "Origin"}
+
+
+def _install_cors() -> None:
+    """Register the CORS middleware. Called after `app` exists, not at import.
+
+    It has to be a function rather than a bare decorator on the module body,
+    because the decorator needs `app` and `app` is defined below the guard
+    helpers. The first attempt put `@app.middleware` above the `app = FastAPI(...)`
+    line and the module failed to import at all.
+    """
+    app.add_middleware(BaseHTTPMiddleware, dispatch=_cors)
+
+
+async def _cors(request: Request, call_next):
+    """Cross-origin access, decided per request. Slice 7.
+
+    **Why this is not `CORSMiddleware`.** Starlette's middleware takes its
+    origins at construction, which happens at import. The first version of this
+    guard did that, and the mutation harness caught the consequence: the CORS
+    tests set the environment *after* import and passed while proving nothing
+    about the configuration, because no middleware existed to be wrong. A guard
+    whose tests cannot see it change is not a guard. Reading the environment per
+    request costs one split on a short string and buys a test that bites.
+
+    **`Access-Control-Allow-Credentials` is never set**, and there is no switch
+    to set it. The token is a bearer credential in a header, so cookie
+    credentials are neither needed nor wanted.
+
+    The surface is deliberately narrow: `GET` and `POST`, with `Authorization`
+    and `Content-Type`. Nothing else is allowed, because nothing else is used.
+    """
+    if request.method == "OPTIONS":
+        headers = _cors_headers_for(request)
+        if not headers:
+            return Response(status_code=204)
+        return Response(
+            status_code=204,
+            headers={
+                **headers,
+                "Access-Control-Allow-Methods": "GET, POST",
+                "Access-Control-Allow-Headers": "Authorization, Content-Type",
+            },
+        )
+    response = await call_next(request)
+    for key, value in _cors_headers_for(request).items():
+        response.headers[key] = value
+    return response
+
+
 app = FastAPI(
     title="CareRelay",
     version=__version__,
@@ -77,7 +283,12 @@ app = FastAPI(
         "SIMULATED RESEARCH DEMONSTRATION — not clinical advice, not a medical "
         "device, not validated for patient use."
     ),
+    # Declared once for the whole app, so a route added later cannot be the one
+    # that forgot. `require_api_token` decides by path which requests it guards.
+    dependencies=[Depends(require_api_token)],
 )
+
+_install_cors()
 
 # Slice 1 renders one patient page that links `/static/style.css`. The file has
 # been a declared Slice 1 deliverable since the tracer bullet, but nothing served
@@ -511,6 +722,11 @@ def submit_restatement(
         raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
     except (NoDispositionYet, UnconfirmedTranscript) as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+    except PolicyViolation as exc:
+        # NF2. A malformed `hint_level` or `input_mode` used to leave `domain` as
+        # an uncaught `ValueError` and answer 500. `domain` now refuses it, and a
+        # refusal is a stop at the human path, not a crash.
+        raise HTTPException(status_code=422, detail=str(exc))
     except StateError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     except CoordinatorUnavailable:
@@ -553,6 +769,8 @@ def repair_restatement(
         StaleRestatement,
     ) as exc:
         raise HTTPException(status_code=409, detail=str(exc))
+    except PolicyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
     except StateError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     except CoordinatorUnavailable:

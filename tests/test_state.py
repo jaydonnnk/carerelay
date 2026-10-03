@@ -1628,3 +1628,73 @@ class TestBarriers:
         )
         kinds = [kind for kind, _payload, _at in seeded.store.list_events(EPISODE_ID)]
         assert "barrier_recorded" in kinds
+
+
+# ---------------------------------------------------------------------------
+# Slice 7: NF1 -- a second episode must not die on the policy foreign key
+# ---------------------------------------------------------------------------
+
+
+class TestPolicyVersionRegistrationIsIdempotent:
+    """NF1. `register_policy_version` was a plain INSERT.
+
+    `service.intake` calls it unconditionally, so the second episode assessed on
+    one database hit the primary key and raised an unhandled
+    `sqlite3.IntegrityError`. It was latent because `POST /api/episodes` can only
+    create the demo episode, but Slice 7 puts the service on a persistent disk
+    where the record outlives one process, which is exactly when a second
+    episode becomes possible.
+
+    The table is append-only, so a repeat cannot be absorbed by an update or a
+    replace: the second registration has to be a no-op.
+    """
+
+    def _register(self, store, version="p-1", content="c", provenance="prov"):
+        store.register_policy_version(
+            version,
+            content=content,
+            provenance=provenance,
+            approved_by=None,
+            now_utc=NOW_UTC,
+        )
+
+    def test_the_same_policy_twice_is_a_no_op(self) -> None:
+        store = state.open_store(":memory:")
+        try:
+            self._register(store)
+            self._register(store)
+            rows = store._conn.execute(
+                "SELECT version FROM policy_versions"
+            ).fetchall()
+            assert len(rows) == 1
+        finally:
+            store.close()
+
+    def test_the_same_policy_twice_does_not_raise(self) -> None:
+        """The regression itself: this was `sqlite3.IntegrityError`."""
+        store = state.open_store(":memory:")
+        try:
+            self._register(store)
+            self._register(store)
+            self._register(store)
+        finally:
+            store.close()
+
+    def test_a_version_reused_for_a_different_policy_is_refused(self) -> None:
+        """Silently keeping the first would make two episodes cite one number."""
+        store = state.open_store(":memory:")
+        try:
+            self._register(store, content="c")
+            with pytest.raises(state.PolicyVersionConflict):
+                self._register(store, content="a different policy")
+        finally:
+            store.close()
+
+    def test_a_version_reused_with_different_provenance_is_refused(self) -> None:
+        store = state.open_store(":memory:")
+        try:
+            self._register(store, provenance="prov")
+            with pytest.raises(state.PolicyVersionConflict):
+                self._register(store, provenance="a different source")
+        finally:
+            store.close()
