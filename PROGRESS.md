@@ -265,3 +265,28 @@ remediation.
   screenshots are still not captured (named location `submission/usage-proof/screenshots/`, named person
   Jaydon) and cannot be reconstructed after the fact; and the Option C source still blocks Slice 5.
   Slice 5 has **not** been started on the user's instruction.
+- 2026-10-03: **Slice 6 is built on `slice-6`, uncommitted.** Action path
+  (`POST /actions`, `POST /callbacks/{route_id}`, `POST /consents`), the
+  simulated provider (`simulated_provider.py`), the MCP tool surface
+  (`tools.py`, three tools each rechecking authorisation, key and consent),
+  `coordinator.execute_tool`, and `OriginNotWired` (a caller-stated origin is
+  checked against the wired path, so `platform` cannot be written by a path
+  that never reached a platform). Gate A proved the transport carries an origin
+  signal, not tool execution; D8 forbids ADP carrying the section 3.3 claim, so
+  `origin = local-sim` everywhere and no external call is wired. F5 split
+  (always-simulated + `care_evidenced`), O2 `LockContention`, O5 `ReceiptOutcome`,
+  NF5 honest boundary claim, all closed. **484 pass** after the two review
+  fixes (482 at build), **11 of 11 mutations RED after the harness was repaired
+  the same day** (the shipped harness silently skipped M11 and its control
+  FAILED, leaving `state.py` dirty: `read_text`/`write_text` newline translation
+  was converting CRLF files to LF, and the `state.py` anchors were CRLF-unaware;
+  the repair makes I/O binary, normalises anchors, treats a missing anchor as a
+  hard failure and verifies the restore by md5), live curl proven
+  (404, 409, 422, 200, origin marker
+  distinguishable by inspection). A live run found a real defect: an unknown
+  episode answered 409 "no attempt on this route" on the callback route, fixed
+  by loading the snapshot first so it answers 404. **A second verification pass
+  the same day confirmed the honesty claim (seven injections all defeated) and
+  the fixes, corrected four record claims, and repaired the mutation harness.**
+  Awaiting the Slice 6 Check.
+  Nothing committed, nothing pushed.
