@@ -97,6 +97,7 @@ from carerelay.domain.models import (
     InputMode,
     Origin,
     PlanComparison,
+    ReceiptDisposition,
     RecallOutcome,
 )
 
@@ -114,6 +115,7 @@ __all__ = [
     "RepairRoundOutOfRange",
     "RestatementNotFound",
     "CallbackReceipt",
+    "ReceiptOutcome",
     "HintEventRecord",
     "RestatementRecord",
     "derive_attempt_key",
@@ -222,6 +224,21 @@ class UnconfirmedTranscript(StateError):
 
 class RepairRoundOutOfRange(StateError):
     """A repair round outside `0..MAX_REPAIR_ROUNDS`. Never written (C6)."""
+
+
+class LockContention(StateError):
+    """The write lock was not acquired before the busy timeout expired.
+
+    **O2, closed at Slice 6.** Until this slice a contended write surfaced as a
+    raw `sqlite3.OperationalError`, which a caller cannot tell apart from any
+    other driver failure. A caller needs to distinguish "retry" from "refuse",
+    and a typed error is the only way to give it that: the action path must not
+    report a lock wait as though the attempt had been refused on policy, because
+    one of those is transient and the other is a stop.
+
+    Nothing is written when this is raised. The refusal is loud, which is the
+    property the docstring at `_write` has claimed since Slice 3.
+    """
 
 
 class RestatementNotFound(StateError):
@@ -519,6 +536,26 @@ class CallbackReceipt:
 
 
 @dataclass(frozen=True)
+class ReceiptOutcome:
+    """What `record_callback_once` did. Slice 6, closing O5.
+
+    The return value is this rather than a `bool` because the action path has to
+    distinguish three states, and a bool collapses two of them into `False`.
+    `applied` is kept as a property so every existing call site that only asked
+    "did it land" still reads the same way, but a caller that needs to know
+    *why* it did not land can now ask without re-reading the table.
+    """
+
+    disposition: ReceiptDisposition
+    receipt_id: int
+    rejection_reason: str | None
+
+    @property
+    def applied(self) -> bool:
+        return self.disposition is ReceiptDisposition.APPLIED
+
+
+@dataclass(frozen=True)
 class HintEventRecord:
     """One hint event, as the judge ledger reads it.
 
@@ -649,11 +686,17 @@ class SqliteEpisodeStore:
         only for `busy_timeout_ms`; past that SQLite raises a raw
         `sqlite3.OperationalError: database is locked` and no receipt is written.
         The failure is loud rather than silent, so no receipt is lost without
-        saying so. Turning it into a typed `StateError`, so a caller can tell
-        "retry" from "refuse", is O2 and belongs at Slice 6, where the action path
-        consumes the result.
+        saying so. **O2, closed at Slice 6:** that raw error is now translated to
+        `LockContention`, so the action path can tell "retry" from "refuse"
+        instead of treating a lock wait as a policy stop.
         """
-        self._conn.execute("BEGIN IMMEDIATE")
+        try:
+            self._conn.execute("BEGIN IMMEDIATE")
+        except sqlite3.OperationalError as exc:
+            raise LockContention(
+                f"the write lock was not acquired within {self.busy_timeout_ms} ms, "
+                f"so nothing was written: {exc}"
+            ) from exc
         try:
             yield self._conn
         except BaseException:
@@ -845,9 +888,14 @@ class SqliteEpisodeStore:
                 "while the attempt was in flight"
             )
 
-    def _require_granted_consent(self, episode_id: str) -> None:
-        """For paths with no attempt to compare against, such as the MCP
-        `record_evidence` tool. The rule is the same: revocation stops recording."""
+    def require_granted_consent(self, episode_id: str) -> None:
+        """For paths with no attempt to compare against: the MCP `record_evidence`
+        tool at Slice 6, and this module's own evidence writer. The rule is the
+        same as an in-flight check: revocation stops recording.
+
+        Public since Slice 6 because the tool surface lives in another module and
+        has to apply the same rule rather than a copy of it.
+        """
         current = self._current_consent(episode_id, CLINICAL_SCOPE)
         if current is None:
             raise ConsentNotCurrent(
@@ -878,6 +926,23 @@ class SqliteEpisodeStore:
                 "while the attempt was in flight"
             )
         return None
+
+    def record_refusal(
+        self, episode_id: str, surface: str, reason: str, *, now_utc: datetime
+    ) -> None:
+        """Record that a surface refused something, and let the caller then raise.
+
+        Slice 6. A refusal that is only raised leaves the ledger unable to say the
+        episode stopped: a reader would see an episode with no attempt and no
+        explanation, and would have to guess whether the request was never made
+        or was made and silently dropped. Writing first and raising second keeps
+        both facts, and the write is what makes "the episode stopped" auditable
+        rather than merely true.
+        """
+        with self._write():
+            self._append_event(
+                episode_id, "refused", f"surface={surface} {reason}", now_utc
+            )
 
     # -- attempts ----------------------------------------------------------
 
@@ -953,6 +1018,21 @@ class SqliteEpisodeStore:
         ).fetchall()
         return tuple(self._attempt_snapshot(row) for row in rows)
 
+    def get_attempt_by_key(self, key: str) -> AttemptSnapshot | None:
+        """The attempt one idempotency key opened, or `None`. Slice 6.
+
+        The MCP tool surface rechecks the attempt key server-side, and it does
+        that against the store rather than against a value the caller also
+        supplied: an attempt key is the only proof that this episode opened this
+        attempt, so it has to be resolved where it was written.
+        """
+        row = self._conn.execute(
+            "SELECT * FROM attempts WHERE idempotency_key = ?", (key,)
+        ).fetchone()
+        if row is None:
+            return None
+        return self._attempt_snapshot(row)
+
     def list_transitions(self, attempt_id: str) -> tuple[AttemptTransition, ...]:
         rows = self._conn.execute(
             "SELECT * FROM attempt_transitions WHERE attempt_id = ? ORDER BY seq",
@@ -989,18 +1069,26 @@ class SqliteEpisodeStore:
         origin: Origin,
         *,
         now_utc: datetime,
-    ) -> bool:
-        """Record one callback receipt. Returns True only for an applied receipt.
+    ) -> ReceiptOutcome:
+        """Record one callback receipt, and say what happened to it.
+
+        **O5, closed at Slice 6.** This returned a bare `bool` from Slice 3. The
+        action path is the first consumer that needs the reason, and a bool
+        cannot carry it: `False` covered both "duplicate, correctly ignored" and
+        "success received and refused because consent moved", which are opposite
+        facts to show a reader. It now returns a `ReceiptOutcome`.
 
         Order of operations, all inside one `BEGIN IMMEDIATE`:
 
         1. look the key up. Present means duplicate: write the duplicate row,
-           append nothing, return `False`.
+           append nothing, return `DUPLICATE`.
         2. otherwise decide whether the receipt may be applied, by re-checking the
            current consent against the version stamped on the attempt. A refusal
-           still writes the row, with `accepted = 0` and a reason.
+           still writes the row, with `accepted = 0` and a reason, and returns
+           `REFUSED`.
         3. when applied, append the terminal transition (first-terminal-wins is
-           `domain.project_attempt`'s job) and any evidence the callback carries.
+           `domain.project_attempt`'s job) and any evidence the callback carries,
+           and return `APPLIED`.
 
         A duplicate makes no transition and cannot advance the episode, which is
         what makes the injected duplicate callback in the demo a visible no-op.
@@ -1025,7 +1113,7 @@ class SqliteEpisodeStore:
                 "SELECT * FROM callbacks WHERE callback_key = ?", (callback_key,)
             ).fetchone()
             if existing is not None:
-                self._insert_receipt(
+                receipt_id = self._insert_receipt(
                     episode_id=attempt["episode_id"],
                     route_id=attempt["route_id"],
                     attempt_id=attempt_id,
@@ -1045,12 +1133,16 @@ class SqliteEpisodeStore:
                     f"route={attempt['route_id']} first_receipt={existing['id']}",
                     now_utc,
                 )
-                return False
+                return ReceiptOutcome(
+                    disposition=ReceiptDisposition.DUPLICATE,
+                    receipt_id=receipt_id,
+                    rejection_reason="duplicate",
+                )
 
             reason = self._consent_rejection_reason(
                 attempt["episode_id"], int(attempt["consent_version"])
             )
-            self._insert_receipt(
+            receipt_id = self._insert_receipt(
                 episode_id=attempt["episode_id"],
                 route_id=attempt["route_id"],
                 attempt_id=attempt_id,
@@ -1071,7 +1163,11 @@ class SqliteEpisodeStore:
                     f"route={attempt['route_id']} reason={reason}",
                     now_utc,
                 )
-                return False
+                return ReceiptOutcome(
+                    disposition=ReceiptDisposition.REFUSED,
+                    receipt_id=receipt_id,
+                    rejection_reason=reason,
+                )
 
             if result.transition is not None:
                 self._append_transition(
@@ -1088,7 +1184,11 @@ class SqliteEpisodeStore:
                 f"{result.transition.value if result.transition else 'evidence-only'}",
                 now_utc,
             )
-            return True
+            return ReceiptOutcome(
+                disposition=ReceiptDisposition.APPLIED,
+                receipt_id=receipt_id,
+                rejection_reason=None,
+            )
 
     def _insert_receipt(
         self,
@@ -1105,8 +1205,13 @@ class SqliteEpisodeStore:
         result: ExecutionStatus | None,
         payload: str,
         now_utc: datetime,
-    ) -> None:
-        self._conn.execute(
+    ) -> int:
+        """Returns the new row's id, so the caller can say which receipt it wrote.
+
+        Slice 6, for O5: a caller that receives a refusal needs to be able to
+        point at the row that records it without searching the table.
+        """
+        cursor = self._conn.execute(
             "INSERT INTO callbacks "
             "(episode_id, route_id, attempt_id, callback_key, callback_key_digest, "
             " duplicate_of, accepted, rejection_reason, origin, result, payload, "
@@ -1126,6 +1231,7 @@ class SqliteEpisodeStore:
                 _iso(now_utc),
             ),
         )
+        return int(cursor.lastrowid)
 
     def list_callbacks(self, episode_id: str) -> tuple[CallbackReceipt, ...]:
         """Every receipt, in arrival order. This is the ledger's dedupe surface."""
@@ -1194,7 +1300,7 @@ class SqliteEpisodeStore:
         two rules that happen to overlap.
         """
         with self._write():
-            self._require_granted_consent(episode_id)
+            self.require_granted_consent(episode_id)
             self._insert_evidence(episode_id, record, now_utc=now_utc)
             self._append_event(
                 episode_id,

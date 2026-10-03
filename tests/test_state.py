@@ -56,6 +56,7 @@ from carerelay.domain.models import (  # noqa: E402
     ExecutionStatus,
     Origin,
     PolicyText,
+    ReceiptDisposition,
 )
 
 # ---------------------------------------------------------------------------
@@ -696,6 +697,55 @@ class TestDispositionsAreAppendOnly:
 # ---------------------------------------------------------------------------
 
 
+class TestLockContention:
+    """O2, closed at Slice 6. A lock wait is a typed, retryable error.
+
+    Until this slice a contended write surfaced as a raw
+    `sqlite3.OperationalError`, which a caller cannot tell apart from any other
+    driver failure. The action path has to distinguish "retry" from "refuse",
+    and it can only do that if the failure has a type of its own.
+
+    The contention here is real: a second connection to the same file holds a
+    write transaction, and the store's own connection loses the race.
+    """
+
+    def test_a_second_writer_that_loses_the_lock_raises_a_typed_error(
+        self, tmp_path: Path
+    ) -> None:
+        path = tmp_path / "contended.sqlite3"
+        store = state.open_store(path, busy_timeout_ms=0)
+        try:
+            store.create_episode("ep-1", "persona", now_utc=NOW_UTC)
+            blocker = sqlite3.connect(str(path), timeout=0.0)
+            try:
+                blocker.execute("BEGIN IMMEDIATE")
+                with pytest.raises(state.LockContention):
+                    store.create_episode("ep-2", "persona", now_utc=NOW_UTC)
+            finally:
+                blocker.close()
+        finally:
+            store.close()
+
+    def test_the_typed_error_is_not_a_policy_stop(self) -> None:
+        """A lock wait must not read as a clinical refusal.
+
+        `LockContention` is a `StateError` and not a `PolicyViolation`, so a
+        caller catching policy stops cannot mistake a transient lock wait for
+        one, and a caller that retries cannot mistake a refusal for a retryable.
+        """
+        assert issubclass(state.LockContention, state.StateError)
+        assert not issubclass(state.LockContention, rules.PolicyViolation)
+
+    def test_an_uncontended_write_still_succeeds(self, tmp_path: Path) -> None:
+        """The control: the translation must not have made every write fail."""
+        store = state.open_store(tmp_path / "calm.sqlite3", busy_timeout_ms=0)
+        try:
+            store.create_episode("ep-1", "persona", now_utc=NOW_UTC)
+            assert store.load_snapshot("ep-1").disposition is None
+        finally:
+            store.close()
+
+
 class TestAttemptOpenAtomicAndDoubleTap:
     def test_attempt_open_atomic_and_double_tap(self, seeded: Seeded) -> None:
         """Gate 4's named test. One attempt and one dispatch for one triple."""
@@ -787,28 +837,27 @@ class TestCallbackDuplicateAndReorder:
         )
         acknowledged = CallbackResult(transition=ExecutionStatus.ACKNOWLEDGED)
 
-        assert (
-            seeded.store.record_callback_once(
-                attempt.attempt_id, "cb-1", failure, Origin.PLATFORM, now_utc=NOW_UTC
-            )
-            is True
+        # O5, Slice 6: the return value names the disposition, so "we ignored a
+        # repeat" and "we refused a success" cannot be confused. The assertion is
+        # on the disposition, not on `.applied`, because `.applied` alone would
+        # still pass if a duplicate and a refusal were collapsed into one state.
+        first = seeded.store.record_callback_once(
+            attempt.attempt_id, "cb-1", failure, Origin.PLATFORM, now_utc=NOW_UTC
         )
+        assert first.disposition is ReceiptDisposition.APPLIED
         # The same key again, this time claiming success. A duplicate, and it
         # cannot reverse the failure.
-        assert (
-            seeded.store.record_callback_once(
-                attempt.attempt_id, "cb-1", acknowledged, Origin.PLATFORM, now_utc=NOW_UTC
-            )
-            is False
+        second = seeded.store.record_callback_once(
+            attempt.attempt_id, "cb-1", acknowledged, Origin.PLATFORM, now_utc=NOW_UTC
         )
+        assert second.disposition is ReceiptDisposition.DUPLICATE
+        assert second.applied is False
         # A different key arriving late, also claiming success. Recorded, and
         # non-winning because its `seq` is higher.
-        assert (
-            seeded.store.record_callback_once(
-                attempt.attempt_id, "cb-2", acknowledged, Origin.PLATFORM, now_utc=NOW_UTC
-            )
-            is True
+        third = seeded.store.record_callback_once(
+            attempt.attempt_id, "cb-2", acknowledged, Origin.PLATFORM, now_utc=NOW_UTC
         )
+        assert third.disposition is ReceiptDisposition.APPLIED
 
         receipts = seeded.store.list_callbacks(EPISODE_ID)
         assert len(receipts) == 3
@@ -833,12 +882,10 @@ class TestCallbackDuplicateAndReorder:
     def test_a_duplicate_makes_no_transition(self, seeded: Seeded) -> None:
         attempt = open_attempt(seeded)
         first = CallbackResult(transition=ExecutionStatus.FAILED)
-        assert (
-            seeded.store.record_callback_once(
-                attempt.attempt_id, "cb-1", first, Origin.PLATFORM, now_utc=NOW_UTC
-            )
-            is True
+        outcome = seeded.store.record_callback_once(
+            attempt.attempt_id, "cb-1", first, Origin.PLATFORM, now_utc=NOW_UTC
         )
+        assert outcome.disposition is ReceiptDisposition.APPLIED
         before = seeded.store.list_transitions(attempt.attempt_id)
         seeded.store.record_callback_once(
             attempt.attempt_id, "cb-1", first, Origin.PLATFORM, now_utc=NOW_UTC
@@ -863,7 +910,11 @@ class TestCallbackDuplicateAndReorder:
             )
             for _ in range(3)
         ]
-        assert outcomes == [True, False, False]
+        assert [outcome.disposition for outcome in outcomes] == [
+            ReceiptDisposition.APPLIED,
+            ReceiptDisposition.DUPLICATE,
+            ReceiptDisposition.DUPLICATE,
+        ]
         receipts = seeded.store.list_callbacks(EPISODE_ID)
         assert len(receipts) == 3
         first = receipts[0].receipt_id
@@ -973,7 +1024,11 @@ class TestCallbackDuplicateAndReorder:
         for thread in threads:
             thread.join(timeout=30)
 
-        assert sorted(outcomes, key=str) == [False, True], outcomes
+        assert sorted(outcome.applied for outcome in outcomes) == [False, True], outcomes
+        assert sorted(outcome.disposition for outcome in outcomes) == [
+            ReceiptDisposition.APPLIED,
+            ReceiptDisposition.DUPLICATE,
+        ], outcomes
         receipts = seeded.store.list_callbacks(EPISODE_ID)
         assert len(receipts) == 2
         accepted = [receipt for receipt in receipts if receipt.accepted]
@@ -1019,7 +1074,11 @@ class TestConsentRevokeInFlight:
             now_utc=NOW_UTC,
         )
 
-        assert applied is False
+        # O5, Slice 6: the point of the new return surface. This receipt was
+        # refused, not duplicated, and a bool would have said only "False".
+        assert applied.disposition is ReceiptDisposition.REFUSED
+        assert applied.applied is False
+        assert "revoked" in (applied.rejection_reason or "")
         receipts = seeded.store.list_callbacks(EPISODE_ID)
         assert len(receipts) == 1, "a refused receipt is still recorded"
         assert receipts[0].accepted is False
@@ -1040,17 +1099,15 @@ class TestConsentRevokeInFlight:
         seeded.store.change_consent(
             EPISODE_ID, state.CLINICAL_SCOPE, granted=True, now_utc=NOW_UTC
         )
-        assert (
-            seeded.store.record_callback_once(
-                attempt.attempt_id,
-                "cb-1",
-                CallbackResult(transition=ExecutionStatus.ACKNOWLEDGED),
-                Origin.PLATFORM,
-                now_utc=NOW_UTC,
-            )
-            is False
+        outcome = seeded.store.record_callback_once(
+            attempt.attempt_id,
+            "cb-1",
+            CallbackResult(transition=ExecutionStatus.ACKNOWLEDGED),
+            Origin.PLATFORM,
+            now_utc=NOW_UTC,
         )
-        reason = seeded.store.list_callbacks(EPISODE_ID)[0].rejection_reason or ""
+        assert outcome.disposition is ReceiptDisposition.REFUSED
+        reason = outcome.rejection_reason or ""
         assert "changed from 1 to 3" in reason
 
     def test_standalone_evidence_recording_is_refused_after_revocation(
