@@ -95,8 +95,10 @@ read "Stage 2 is AUTHORISED by the user on 4 October 2026 and is the next Slice
 lines of stage-2 work across 12 files. `AGENTS.md` makes this file the only
 authority for gate and slice state and calls a stale mirror a blocking finding.
 
-**Remediated.** The Slice 7b section now records stage 2 as BUILT, UNCOMMITTED,
-reviewed and remediated, with the measured counts.
+**Remediated.** The Slice 7b section then recorded stage 2 as BUILT, uncommitted,
+reviewed and remediated, with the measured counts. It has since been committed,
+fast-forwarded into `main` and pushed on the user's instruction of 5 October 2026,
+and that section now says so.
 
 ### F3 SHOULD FIX. The D1 test was flaky, on the project's own default engine
 

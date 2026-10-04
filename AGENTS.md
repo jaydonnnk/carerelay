@@ -91,22 +91,23 @@ Authority rules:
   Contract, the two-axis state model, the design principles and the five HTML
   wireframes. It does not authorise implementation, installs, credentials, external
   calls, recruitment or deployment.
-- Branch state (verified 30 September 2026, after the Slice 3 remediation): `slice-3`
-  holds the Slice 3 work and its remediation in one series of commits (the store's
-  command and result types, the append-only record, the documentation restructure,
-  the record, the ship corrections, the O1 remediation, and the remediation record),
-  and `main` is fast-forwarded to the same commit. `slice-2-domain-core` sits at
-  `80245e4`. `gate-2-architecture` and `care-relay-adversarial-review` no longer
-  exist as branches; their commits remain reachable from `main`. No gate authorises
-  a commit or a push, so the Slice 1, 2 and 3 commits, the Slice 3 remediation, and
-  the Gate 2, 3 and 4 revision-3 amendment were all made on the user's **explicit
-  instruction** of 30 September 2026, as was the push that carried them to
-  `origin`. `origin` holds the branches that hold the work, `main` and `slice-3`,
-  each in sync with its local branch. They do not sit at the same commit: `slice-3`
-  was frozen when its slice closed and `main` has moved on since. A push succeeds
-  when it is asked for, so the credential failures recorded in `tasks/lessons.md`
-  no longer apply. Commit counts and hashes are deliberately not stated here: both
-  have gone stale in this file before.
+- Branch state (verified 5 October 2026, after the Slice 7b stage 2 ship): `main`
+  holds every slice up to and including Slice 7b stage 2 and is in sync with
+  `origin/main`. Each slice also keeps its own branch, frozen at the commit its
+  slice closed on, so those branches sit behind `main` by design and not by
+  accident: `slice-2-domain-core`, `slice-3`, `slice-4`, `slice-4-completion`,
+  `slice-5`, `slice-6`, `slice-7`, `slice-7b` and `slice-7b-stage1-fixes`. Not all
+  of them are published and a published one is not necessarily at its local tip, so
+  `git ls-remote --heads origin` is the only authority for what `origin` holds; this
+  sandbox drops the local tracking refs after a push, which reads like a failed push
+  and is not one. `gate-2-architecture` and `care-relay-adversarial-review` no
+  longer exist as branches; their commits remain reachable from `main`. No gate
+  authorises a commit or a push, so every commit and every push in this repository
+  rests on an explicit user instruction, the most recent being the one of 5 October
+  2026 that shipped Slice 7b stage 2 to `main`. A push succeeds when it is asked
+  for, so the credential failures recorded in `tasks/lessons.md` no longer apply.
+  Commit counts and hashes are deliberately not stated here: both have gone stale in
+  this file before.
 - **Next hard dependency: the Gate A access spike, due 2026-09-26.** Approval of
   Gate 2 authorises the spike only (read-only credential checks and one typed tool
   call), not implementation code. The reversal is pre-recorded: if WorkBuddy access
