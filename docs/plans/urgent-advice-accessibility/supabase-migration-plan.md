@@ -46,7 +46,7 @@ assumed:
 | `api.py` line 343 | `_STORE = open_store(_database_path(), check_same_thread=False)` |
 | `state.py` line 1915 | `open_store(path: str \| Path, **kwargs)` returning `SqliteEpisodeStore` |
 
-### 2.2 The 13 tables, all append-only
+### 2.2 The 14 tables, all append-only
 
 `APPEND_ONLY_TABLES` (state.py lines 143-158) is the full list:
 
@@ -56,9 +56,14 @@ callbacks, evidence, consents, human_acceptances, barriers, escalations,
 expiry_events, restatements, events
 ```
 
-Every one carries a `BEFORE UPDATE` and a `BEFORE DELETE` trigger. Nothing in the
-product has a legitimate UPDATE or DELETE, so the whole schema is protected, not just
-the clinical tables.
+That is **14** tables, not 13: the list above is the count. Every one carries a
+`BEFORE UPDATE` and a `BEFORE DELETE` trigger in SQLite and three triggers in
+Postgres (`BEFORE UPDATE`, `BEFORE DELETE`, `BEFORE TRUNCATE`, the third being the
+one Postgres needs and SQLite cannot express). Nothing in the product has a
+legitimate UPDATE or DELETE, so the whole schema is protected, not just the
+clinical tables. The Postgres port is asserted to have **set-equal** table
+coverage with SQLite, so a Postgres-only table is a test failure rather than a
+silent gap (see the F2 correction below).
 
 ### 2.3 `CHECK` constraints that must survive the port
 
@@ -188,7 +193,7 @@ current Supabase pricing page before relying on it.
 | Phase | [estimate] |
 |---|---|
 | Store protocol split, `SqliteEpisodeStore` renamed, suite green | 2-3 h |
-| `PostgresEpisodeStore` CRUD port, all 13 tables | 4-6 h |
+| `PostgresEpisodeStore` CRUD port, all 14 tables | 4-6 h |
 | `plpgsql` append-only triggers plus the `INSERT OR REPLACE` equivalent | 2-3 h |
 | Concurrency: transaction + unique constraint, plus the O2 test | 2-4 h |
 | Rewritten persistence proof against real Postgres | 3-4 h |
