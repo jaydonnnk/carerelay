@@ -50,7 +50,7 @@ from carerelay.domain.models import (
     PolicyFixture,
 )
 from carerelay.simulated_provider import ProviderPort
-from carerelay.state import SqliteEpisodeStore
+from carerelay.state import EpisodeStore
 
 
 class ToolError(Exception):
@@ -113,7 +113,7 @@ class McpTools:
 
     def __init__(
         self,
-        store: SqliteEpisodeStore,
+        store: EpisodeStore,
         *,
         policy: PolicyFixture,
         provider: ProviderPort,

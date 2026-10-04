@@ -78,8 +78,11 @@ from carerelay.simulated_provider import ScriptedProvider
 from carerelay.state import (
     CLINICAL_SCOPE,
     EpisodeNotFound,
+    EpisodeStore,
     RestatementNotFound,
+    SqliteEpisodeStore,
     StateError,
+    is_postgres_target,
     open_store,
 )
 from carerelay.tools import McpTools
@@ -328,6 +331,10 @@ def _database_path() -> str:
     runs in memory: the record is still real SQL with real triggers and real
     transactions, but it does not survive a restart, and no claim is made that it
     does.
+
+    **Slice 7b: a `postgresql://` value selects the Postgres store** instead of
+    SQLite, which is how the deployment reaches Supabase. No other code path
+    changes, because both stores implement `EpisodeStore`.
     """
     return os.getenv("APP_DATABASE_URL") or ":memory:"
 
@@ -340,7 +347,29 @@ def _database_path() -> str:
 #: genuinely concurrent case, which is a *second connection* to the same file.
 _DB_LOCK = threading.Lock()
 
-_STORE = open_store(_database_path(), check_same_thread=False)
+
+def _open_store() -> SqliteEpisodeStore | EpisodeStore:
+    """Open whichever engine `APP_DATABASE_URL` names. Slice 7b.
+
+    **Why the two branches are explicit rather than one call with a kwarg.**
+    `check_same_thread` is a SQLite connection flag with no Postgres meaning, and
+    `open_store` refuses a keyword the chosen engine does not accept rather than
+    dropping it. Passing it unconditionally would make a Supabase deployment fail
+    at import on an argument that only ever described a local file.
+
+    Either way the store is shared across requests and every use case runs under
+    `_DB_LOCK`, so SQLite's own concurrency limit and Postgres's are both handled
+    in one place. `02-architecture.md` section 4.1's `BEGIN IMMEDIATE`, and its
+    Postgres counterpart `SELECT ... FOR UPDATE`, still handle the genuinely
+    concurrent case, which is a *second connection*.
+    """
+    target = _database_path()
+    if is_postgres_target(target):
+        return open_store(target)
+    return open_store(target, check_same_thread=False)
+
+
+_STORE = _open_store()
 
 #: Slice 6. The coordinator reaches the world only through this surface, and the
 #: surface reaches the provider, which is a labelled local simulation. The

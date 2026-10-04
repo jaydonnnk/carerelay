@@ -72,8 +72,8 @@ from carerelay.state import (
     CLINICAL_SCOPE,
     DEFAULT_KEY_NAMESPACE,
     EpisodeNotFound,
+    EpisodeStore,
     RestatementNotFound,
-    SqliteEpisodeStore,
     derive_attempt_key,
 )
 from carerelay.tools import ToolResult
@@ -356,7 +356,7 @@ class EpisodeService:
 
     def __init__(
         self,
-        store: SqliteEpisodeStore,
+        store: EpisodeStore,
         *,
         coordinator: CoordinatorPort,
         clock: Clock,

@@ -6,10 +6,13 @@
 # token-shaped string ever appears here, so the guarantee is checked rather than
 # promised.
 #
-# The disk is the point of the paid instance. Without it the filesystem is
-# ephemeral: the append-only record that Slice 3 proved would be gone on every
-# restart and every redeploy, and the honest label for that deployment is "no
-# persistence", not "persistent". See `04-slices.md` risk R8.
+# **Slice 7b: the record moved off this filesystem.** It now lives in Postgres on
+# Supabase, reached through `APP_DATABASE_URL` below. That is what closes
+# `04-slices.md` risk R8: a redeploy replaces the container filesystem, and a
+# record that is not on it cannot be lost with it. The disk block below is kept
+# for this deploy only so that the change under review is one change; it is no
+# longer load-bearing, and removing it is what would let this service drop off
+# the paid instance type it exists for. See the open item in `tasks/todo.md`.
 
 services:
   - type: web
@@ -28,8 +31,9 @@ services:
 
     disk:
       name: carerelay-data
-      # Only writes under this path survive a restart or a redeploy. The path is
-      # referenced by `APP_DATABASE_URL` below, and by nothing else.
+      # Slice 7b: nothing writes the record here any more. `APP_DATABASE_URL`
+      # below is a Postgres DSN, so this mount is dead weight carried for one
+      # deploy. Removing it, and the `plan: starter` it forces, is a follow-up.
       mountPath: /var/data
       # 1 GB is the smallest useful size. It can be increased later but never
       # decreased, and this record is a few hundred rows.
@@ -41,10 +45,14 @@ services:
       - key: APP_ENV
         value: public
 
-      # SQLite on the mounted disk. A file that is not under the mount path is
-      # lost on redeploy, which would silently turn the persistence claim false.
+      # Postgres, on Supabase. Slice 7b. The value is a DSN and a DSN carries a
+      # password, so it is set in the dashboard and not here: a DSN committed to
+      # this repository is a credential leak, and `tests/test_deployment.py`
+      # fails if one appears in this file. `src/carerelay/api.py` selects the
+      # Postgres store from the `postgresql://` scheme, so no code change is
+      # needed to move an environment between the two engines.
       - key: APP_DATABASE_URL
-        value: /var/data/carerelay.db
+        sync: false
 
       # The Vercel origin of the Next.js frontend, and nothing else. A wildcard
       # is refused by `api._install_cors`, so this is the whole allow-list.
