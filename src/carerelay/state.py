@@ -69,11 +69,12 @@ import hashlib
 import json
 import sqlite3
 import uuid
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any, Protocol, runtime_checkable
 
 from carerelay.domain import rules
 from carerelay.domain.models import (
@@ -121,6 +122,9 @@ __all__ = [
     "RestatementRecord",
     "derive_attempt_key",
     "transcript_confirmation_id",
+    "EpisodeStore",
+    "POSTGRES_SCHEMES",
+    "is_postgres_target",
     "SqliteEpisodeStore",
     "APPEND_ONLY_TABLES",
     "CLINICAL_SCOPE",
@@ -1468,10 +1472,20 @@ class SqliteEpisodeStore:
             )
         return barrier_id
 
-    def list_barriers(self, episode_id: str) -> tuple[sqlite3.Row, ...]:
-        """Every barrier recorded for an episode, oldest first."""
+    def list_barriers(self, episode_id: str) -> tuple[Mapping[str, Any], ...]:
+        """Every barrier recorded for an episode, oldest first.
+
+        **The rows are plain dictionaries since Slice 7b.** They used to be
+        `sqlite3.Row`, which is a type no other engine has, so the Postgres port
+        could not return the same thing and `EpisodeStore` would have been a
+        protocol that lied about one of its two implementations. `Mapping` is the
+        surface both engines can actually provide: `dict` here, `dict_row` there.
+        Nothing in the product read these rows as `Row`, and the parity test in
+        `tests/test_postgres_stage2.py` now holds both engines to this.
+        """
         return tuple(
-            self._conn.execute(
+            dict(row)
+            for row in self._conn.execute(
                 "SELECT * FROM barriers WHERE episode_id = ? ORDER BY rowid",
                 (episode_id,),
             ).fetchall()
@@ -1866,7 +1880,7 @@ class SqliteEpisodeStore:
             expiry_event_id=expiry["id"] if expiry is not None else None,
         )
 
-    def derive_closure(self, episode_id: str, now_utc: datetime):
+    def derive_closure(self, episode_id: str, now_utc: datetime) -> ClosureProjection:
         """Convenience read: load the snapshot, then derive. Policy stays in `domain`."""
         return rules.derive_closure(self.load_snapshot(episode_id), now_utc)
 
@@ -1912,12 +1926,113 @@ def _restatement_from_row(row: sqlite3.Row) -> RestatementRecord:
     )
 
 
-def open_store(path: str | Path, **kwargs: object) -> SqliteEpisodeStore:
+@runtime_checkable
+class EpisodeStore(Protocol):
+    """The surface both engines implement. Slice 7b.
+
+    **Why this exists rather than a comment.** `service.py` and `tools.py` are
+    annotated against a store, and from Slice 7b that store can be either engine.
+    Without a named surface the annotation has to name one of them, which makes
+    the other a silent impostor: the code would type-check against SQLite and run
+    against Postgres with nothing stating that the two agree.
+
+    **Why the bodies are empty and the signatures are not.** A structural type is
+    only worth having if the signatures are the contract, so the parameters are
+    written out and the bodies are elided. A signature that drifts is caught by
+    `tests/test_postgres_stage2.py::TestTheTwoStoresShareOneSurface`, which
+    compares this protocol against both classes mechanically, rather than by
+    trusting that nobody edited one of the three.
+    """
+
+    def close(self) -> None: ...
+    def create_episode(self, episode_id: str, persona: str, *, now_utc: datetime) -> None: ...
+    def register_policy_version(self, version: str, *, content: str, provenance: str, approved_by: str | None, now_utc: datetime) -> None: ...
+    def insert_disposition(self, disposition: Disposition, *, now_utc: datetime) -> None: ...
+    def list_dispositions(self, episode_id: str) -> tuple[Disposition, ...]: ...
+    def change_consent(self, episode_id: str, scope: str, *, granted: bool, now_utc: datetime) -> int: ...
+    def require_granted_consent(self, episode_id: str) -> None: ...
+    def record_refusal(self, episode_id: str, surface: str, reason: str, *, now_utc: datetime) -> None: ...
+    def open_attempt_once(self, command: AttemptCommand, key: str, *, now_utc: datetime) -> AttemptSnapshot: ...
+    def list_attempts(self, episode_id: str) -> tuple[AttemptSnapshot, ...]: ...
+    def get_attempt_by_key(self, key: str) -> AttemptSnapshot | None: ...
+    def list_transitions(self, attempt_id: str) -> tuple[AttemptTransition, ...]: ...
+    def record_callback_once(self, attempt_id: str, callback_key: str, result: CallbackResult, origin: Origin, *, now_utc: datetime) -> ReceiptOutcome: ...
+    def list_callbacks(self, episode_id: str) -> tuple[CallbackReceipt, ...]: ...
+    def record_evidence(self, episode_id: str, record: EvidenceRecord, *, now_utc: datetime) -> None: ...
+    def list_evidence(self, episode_id: str) -> tuple[EvidenceRecord, ...]: ...
+    def record_human_acceptance(self, episode_id: str, *, accepted_by: str, scope: str, now_utc: datetime) -> str: ...
+    def record_barrier(self, episode_id: str, *, disposition_version: int, barrier_text: str, proposed_route_id: str | None, permitted_route_id: str | None, stopped_at_human_path: bool, now_utc: datetime) -> str: ...
+    def list_barriers(self, episode_id: str) -> tuple[Mapping[str, Any], ...]: ...
+    def record_escalation(self, episode_id: str, *, human_path: str, outcome: str, now_utc: datetime) -> str: ...
+    def record_expiry_once(self, episode_id: str, disposition_version: int, now_utc: datetime) -> bool: ...
+    def list_expiry_events(self, episode_id: str) -> tuple[tuple[int, datetime], ...]: ...
+    def record_restatement(self, episode_id: str, *, disposition_version: int, hint_level: HintLevel, input_mode: InputMode, transcript_confirmed: bool, extracted: ExtractedPlan, comparison: PlanComparison, repair_round: int, outcome: RecallOutcome, dwell_seconds: float | None, now_utc: datetime) -> str: ...
+    def list_restatements(self, episode_id: str) -> tuple[RestatementRecord, ...]: ...
+    def get_restatement(self, restatement_id: str) -> RestatementRecord: ...
+    def record_hint_event(self, episode_id: str, *, hint_level: HintLevel, kind: HintEventKind, dwell_seconds: float | None, now_utc: datetime) -> None: ...
+    def list_hint_events(self, episode_id: str) -> tuple[HintEventRecord, ...]: ...
+    def record_transcript_confirmation(self, episode_id: str, *, text: str, now_utc: datetime) -> str: ...
+    def has_transcript_confirmation(self, episode_id: str, confirmation_id: str) -> bool: ...
+    def load_snapshot(self, episode_id: str) -> EpisodeSnapshot: ...
+    def derive_closure(
+        self, episode_id: str, now_utc: datetime
+    ) -> ClosureProjection: ...
+    def list_events(self, episode_id: str) -> tuple[tuple[str, str, datetime], ...]: ...
+
+
+#: The schemes that mean "Postgres". Anything else is a SQLite path, including
+#: `:memory:`, which is how the local demo and the whole test suite run.
+POSTGRES_SCHEMES: tuple[str, ...] = ("postgresql://", "postgres://")
+
+#: Keyword arguments each engine accepts. `key_namespace` is the one both take;
+#: the rest are engine-specific connection settings and are not silently dropped
+#: when they do not apply, because a caller asking for a busy timeout it will not
+#: get should hear about it rather than be quietly given a different one.
+SQLITE_STORE_KWARGS: frozenset[str] = frozenset({"busy_timeout_ms", "check_same_thread"})
+POSTGRES_STORE_KWARGS: frozenset[str] = frozenset({"connect_timeout_s", "lock_timeout_s"})
+SHARED_STORE_KWARGS: frozenset[str] = frozenset({"key_namespace"})
+
+
+def is_postgres_target(target: str | Path) -> bool:
+    """Whether `target` is a Postgres DSN rather than a SQLite path."""
+    return str(target).startswith(POSTGRES_SCHEMES)
+
+
+def open_store(
+    path: str | Path, **kwargs: object
+) -> SqliteEpisodeStore | "EpisodeStore":
     """Named constructor, so call sites do not repeat keyword defaults.
 
+    **Dispatches on the scheme since Slice 7b.** `postgresql://` (or
+    `postgres://`) builds `PostgresEpisodeStore`, anything else builds the SQLite
+    store exactly as before, so the local demo, `:memory:` and the whole existing
+    test suite are untouched by the port.
+
     Keyword arguments pass straight through, including `check_same_thread`, so
-    `api.py` can open a store that survives FastAPI's thread-pool dispatch.
+    `api.py` can open a store that survives FastAPI's thread-pool dispatch. A
+    keyword the chosen engine does not accept is a `TypeError` rather than being
+    dropped, and the Postgres module is imported lazily, so a SQLite-only process
+    never imports `psycopg`.
     """
+    if is_postgres_target(path):
+        from .postgres_store import PostgresEpisodeStore
+
+        allowed = POSTGRES_STORE_KWARGS | SHARED_STORE_KWARGS
+        unexpected = sorted(set(kwargs) - allowed)
+        if unexpected:
+            raise TypeError(
+                f"the Postgres store does not accept {unexpected}; it takes "
+                f"{sorted(allowed)}"
+            )
+        return PostgresEpisodeStore(str(path), **kwargs)  # type: ignore[arg-type]
+
+    allowed = SQLITE_STORE_KWARGS | SHARED_STORE_KWARGS
+    unexpected = sorted(set(kwargs) - allowed)
+    if unexpected:
+        raise TypeError(
+            f"the SQLite store does not accept {unexpected}; it takes "
+            f"{sorted(allowed)}"
+        )
     return SqliteEpisodeStore(path, **kwargs)  # type: ignore[arg-type]
 
 

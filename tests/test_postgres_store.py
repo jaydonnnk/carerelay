@@ -22,12 +22,23 @@ looks green is worse than no test. Start the container with:
 
     docker run -d --name carerelay-pg \\
         -e POSTGRES_PASSWORD=carerelay_test -e POSTGRES_USER=carerelay \\
-        -e POSTGRES_DB=carerelay -p 55432:5432 postgres:17-alpine
+        -e POSTGRES_DB=carerelay -p 15432:5432 postgres:17-alpine
+
+The port is **15432 and not the more obvious 55432**. Windows reserves ranges
+inside the dynamic port space for Hyper-V and WSL, the reservations move between
+boots, and 55432 fell inside one, so binding it failed with "An attempt was made
+to access a socket in a way forbidden by its access permissions", which reads
+like a Docker fault and is not one. `postgres_store.DEV_DSN` carries the detail
+and the skip reason below takes its port from that constant, so the recipe and
+the default cannot drift apart. If a bind ever fails, check
+`netsh interface ipv4 show excludedportrange protocol=tcp` before debugging the
+daemon.
 
 **What this module does not prove.** It proves the guarantee holds on the
 *local* container. It does not prove it holds on Supabase, where the connection
-is pooled and the server is managed, and it does not prove the rest of the store
-is ported, because stage 1 does not port it. Both are stated rather than implied.
+is pooled and the server is managed. It also does not prove the rest of the
+store is ported: that is `tests/test_postgres_stage2.py`, written at stage 2.
+Both limits are stated rather than implied.
 """
 
 from __future__ import annotations
@@ -41,8 +52,14 @@ import psycopg
 import pytest
 
 from carerelay import postgres_schema, state
-from carerelay.domain.models import CallbackResult, ReceiptDisposition
-from carerelay.postgres_store import PostgresEpisodeStore, probe_dsn
+from carerelay.domain.models import CallbackResult, Origin, ReceiptDisposition
+from carerelay.postgres_store import DEV_DSN, PostgresEpisodeStore, probe_dsn
+
+#: Test support, not product code. The probes were public methods on
+#: `PostgresEpisodeStore` until stage 2's review (finding F7): a method that
+#: writes an arbitrary row into any table, past every guard the store enforces,
+#: does not belong on the public surface of a production class.
+from _postgres_probes import AppendOnlyProbes
 
 NOW = datetime(2026, 10, 4, 12, 0, tzinfo=UTC)
 
@@ -55,11 +72,19 @@ def _reachable() -> bool:
         return False
 
 
+#: The port the default DSN names, read out of it rather than repeated, so this
+#: recipe cannot drift from `DEV_DSN` and tell the next person to bind a port
+#: Windows has reserved.
+_DEV_PORT = DEV_DSN.rsplit(":", 1)[1].split("/")[0]
+
 requires_postgres = pytest.mark.skipif(
     not _reachable(),
     reason=(
-        "no Postgres reachable at CARERELAY_TEST_DSN; start the carerelay-pg "
-        "container. This test is deliberately not silently green."
+        "no Postgres reachable at CARERELAY_TEST_DSN. Start the container the "
+        "default DSN names: docker run -d --name carerelay-pg "
+        "-e POSTGRES_PASSWORD=carerelay_test -e POSTGRES_USER=carerelay "
+        "-e POSTGRES_DB=carerelay -p " + _DEV_PORT + ":5432 postgres:17-alpine. "
+        "This test is deliberately not silently green."
     ),
 )
 
@@ -95,6 +120,18 @@ def store() -> PostgresEpisodeStore:
     s._conn.commit()
     yield s
     s.close()
+
+
+@pytest.fixture()
+def probes(store: PostgresEpisodeStore) -> AppendOnlyProbes:
+    """The append-only probes, on the store's own connection.
+
+    `store._conn` rather than a second connection, on purpose: a refusal then
+    also proves the store's connection is not in some state that bypasses the
+    trigger. A separate connection would prove the guarantee lives in the
+    database and nothing more.
+    """
+    return AppendOnlyProbes(store._conn)
 
 
 def _seed_episode(store: PostgresEpisodeStore, episode_id: str = "ep-1") -> None:
@@ -236,7 +273,9 @@ class TestTheRecordCannotBeAltered:
     keeps this from regressing.
     """
 
-    def test_update_is_refused_on_every_table(self, store: PostgresEpisodeStore) -> None:
+    def test_update_is_refused_on_every_table(
+        self, store: PostgresEpisodeStore, probes: AppendOnlyProbes
+    ) -> None:
         """The row is asserted present **at mutation time**, not merely seeded.
 
         The seed and the mutation are in one statement pair here, and
@@ -251,17 +290,19 @@ class TestTheRecordCannotBeAltered:
         makes the dependency explicit rather than implicit.
         """
         for table in postgres_schema.APPEND_ONLY_TABLES:
-            store.seed_one_row(table)
+            probes.seed_one_row(table)
             assert self._rows(store, table) >= 1, (
                 f"{table}: nothing seeded, so a row-level trigger cannot fire"
             )
             with pytest.raises(psycopg.errors.RestrictViolation) as caught:
-                store.refuse_update(table)
+                probes.refuse_update(table)
             assert "append-only" in str(caught.value), table
             assert "UPDATE is refused" in str(caught.value), table
             store._conn.rollback()
 
-    def test_delete_is_refused_on_every_table(self, store: PostgresEpisodeStore) -> None:
+    def test_delete_is_refused_on_every_table(
+        self, store: PostgresEpisodeStore, probes: AppendOnlyProbes
+    ) -> None:
         """Seeded and asserted on the same iteration, for the reason given above.
 
         This test must not inherit its row from a previous test or a previous
@@ -270,12 +311,12 @@ class TestTheRecordCannotBeAltered:
         seeding were removed or reordered.
         """
         for table in postgres_schema.APPEND_ONLY_TABLES:
-            store.seed_one_row(table)
+            probes.seed_one_row(table)
             assert self._rows(store, table) >= 1, (
                 f"{table}: nothing seeded, so a row-level trigger cannot fire"
             )
             with pytest.raises(psycopg.errors.RestrictViolation) as caught:
-                store.refuse_delete(table)
+                probes.refuse_delete(table)
             assert "DELETE is refused" in str(caught.value), table
             store._conn.rollback()
 
@@ -285,7 +326,9 @@ class TestTheRecordCannotBeAltered:
             cur.execute(f"SELECT count(*) FROM {table}")
             return cur.fetchone()[0]
 
-    def test_truncate_is_refused(self, store: PostgresEpisodeStore) -> None:
+    def test_truncate_is_refused(
+        self, store: PostgresEpisodeStore, probes: AppendOnlyProbes
+    ) -> None:
         """**The test this whole stage exists for.**
 
         Without the `BEFORE TRUNCATE` statement-level trigger this fails, and the
@@ -296,7 +339,7 @@ class TestTheRecordCannotBeAltered:
         _seed_episode(store, "ep-truncate")
         for table in postgres_schema.APPEND_ONLY_TABLES:
             with pytest.raises(psycopg.errors.RestrictViolation) as caught:
-                store.refuse_truncate(table)
+                probes.refuse_truncate(table)
             assert "TRUNCATE is refused" in str(caught.value), table
             store._conn.rollback()
 
@@ -370,7 +413,7 @@ class TestTheProbesReachTheGuard:
     """
 
     def test_a_seeded_row_is_visible_to_a_count(
-        self, store: PostgresEpisodeStore
+        self, store: PostgresEpisodeStore, probes: AppendOnlyProbes
     ) -> None:
         """The seed actually writes a row into the table it is asked about.
 
@@ -383,7 +426,7 @@ class TestTheProbesReachTheGuard:
         """
         for table in postgres_schema.APPEND_ONLY_TABLES:
             before = self._count(store, table)
-            store.seed_one_row(table)
+            probes.seed_one_row(table)
             after = self._count(store, table)
             assert after > before, f"{table}: the seed wrote no row"
             assert after >= 1, f"{table}: the table is empty, so nothing can fire"
@@ -471,8 +514,31 @@ class TestTheCallbackPathOnPostgres:
     """The duplicate-callback race, on an engine with no `BEGIN IMMEDIATE`."""
 
     def _open_attempt(self, store: PostgresEpisodeStore) -> str:
+        """An episode, a granted consent and an attempt on it.
+
+        **The consent row is stage 2's doing, not a bolt-on.** Stage 1's
+        `record_callback_once` was a stub of the callback path; the full port
+        enforces the consent re-check inside the locked transaction, which is the
+        rule the product actually needs (a callback that arrives after a
+        revocation must be refused, not applied). Seeding an attempt with no
+        consent therefore stopped working, and it stopped working *correctly*:
+        the two tests below were passing against a store that had not yet
+        implemented the rule. They now seed what the rule reads.
+        """
         _seed_episode(store, "ep-cb")
         with store._conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO consents (episode_id, scope, state, version,"
+                " recorded_at) VALUES (%s, %s, %s, %s, %s)"
+                " ON CONFLICT (episode_id, scope, version) DO NOTHING",
+                (
+                    "ep-cb",
+                    state.CLINICAL_SCOPE,
+                    "granted",
+                    1,
+                    "2026-10-04T12:00:00+00:00",
+                ),
+            )
             cur.execute(
                 "INSERT INTO attempts (id, episode_id, route_id, purpose_id,"
                 " idempotency_key, consent_version, opened_at)"
@@ -496,7 +562,7 @@ class TestTheCallbackPathOnPostgres:
             attempt_id,
             "cb-key-1",
             CallbackResult(payload="{}", transition=None),
-            "local-sim",
+            Origin.LOCAL_SIM,
             now_utc=NOW,
         )
         assert outcome.disposition is ReceiptDisposition.APPLIED
@@ -509,22 +575,24 @@ class TestTheCallbackPathOnPostgres:
 
         On Postgres the serialisation comes from `SELECT ... FOR UPDATE` on the
         attempt row. This test cannot distinguish the lock from a lucky ordering
-        in a single-threaded run, which is why the concurrency test below exists;
-        what it does prove is that the duplicate is detected and recorded.
+        in a single-threaded run; what it does prove is that the duplicate is
+        detected and recorded. The two-writer case is
+        `tests/test_postgres_stage2.py::TestTwoWritersAtOneKey`, which is where a
+        real race is driven from two connections.
         """
         attempt_id = self._open_attempt(store)
         first = store.record_callback_once(
             attempt_id,
             "cb-key-2",
             CallbackResult(payload="{}", transition=None),
-            "local-sim",
+            Origin.LOCAL_SIM,
             now_utc=NOW,
         )
         second = store.record_callback_once(
             attempt_id,
             "cb-key-2",
             CallbackResult(payload="{}", transition=None),
-            "local-sim",
+            Origin.LOCAL_SIM,
             now_utc=NOW,
         )
         assert first.disposition is ReceiptDisposition.APPLIED
@@ -544,7 +612,7 @@ class TestTheCallbackPathOnPostgres:
                 "no-such-attempt",
                 "cb-key-3",
                 CallbackResult(payload="{}", transition=None),
-                "local-sim",
+                Origin.LOCAL_SIM,
                 now_utc=NOW,
             )
 

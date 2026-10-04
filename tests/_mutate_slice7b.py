@@ -48,6 +48,10 @@ import sys
 REPO = pathlib.Path(__file__).resolve().parents[1]
 SCHEMA = REPO / "src" / "carerelay" / "postgres_schema.py"
 STORE = REPO / "src" / "carerelay" / "postgres_store.py"
+#: P5 and P7 mutate the append-only probes, which moved out of `postgres_store.py`
+#: into this test module at stage 2 (finding F7: test-only surface does not belong
+#: on a production class). Their anchors are unchanged, only the file is.
+PROBES = REPO / "tests" / "_postgres_probes.py"
 PYTHON = sys.executable
 
 ALL_POSTGRES = ["tests/test_postgres_store.py"]
@@ -139,7 +143,7 @@ MUTATIONS = [
     ),
     (
         "P5  the UPDATE probe goes back to `WHERE false`",
-        STORE,
+        PROBES,
         '                sql.SQL("UPDATE {} SET {} = {} WHERE true").format(\n',
         '                sql.SQL("UPDATE {} SET {} = {} WHERE false").format(\n',
         UPDATE_REFUSAL_TEST,
@@ -153,7 +157,7 @@ MUTATIONS = [
     ),
     (
         "P7  the DELETE probe seeds nothing (the empty-table silence returns)",
-        STORE,
+        PROBES,
         '                sql.SQL("DELETE FROM {} WHERE true").format(sql.Identifier(table))\n',
         '                sql.SQL("DELETE FROM {} WHERE false").format(sql.Identifier(table))\n',
         DELETE_REFUSAL_TEST,
@@ -163,7 +167,7 @@ MUTATIONS = [
 
 def main() -> int:
     originals: dict[pathlib.Path, bytes] = {}
-    for path in {SCHEMA, STORE}:
+    for path in {SCHEMA, STORE, PROBES}:
         data = path.read_bytes()
         originals[path] = data
         crlf = data.count(b"\r\n")
