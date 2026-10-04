@@ -136,6 +136,15 @@ becomes **meaningless and must be deleted rather than faked**, and (3) becomes a
 against a real Postgres. Copying the SQLite test across would produce a file that
 passes while proving nothing, which is the A7-1 defect at larger size.
 
+**Stage 2 outcome, 4 October 2026.** All three landed as written. (1) is now two
+subprocesses: one writer interpreter, which exits, and one reader interpreter that
+shares nothing with it but the DSN and an episode id. (2) is deleted, and a test
+asserts the deletion so it cannot come back. (3) moved from a `sqlite3` connection
+to a `psycopg` one and the probe names the episode so a row is actually matched,
+because the stage 1 lesson was that a refusal test which reaches no row proves
+nothing. The SQLite half is kept and relabelled: it is a claim about the local path,
+not about the deployment.
+
 ### 3.4 Connection handling
 
 SQLite opens one connection on a local file. Supabase gives a network endpoint with a
@@ -147,6 +156,17 @@ pooler. Choices that need deciding:
   argument suggests a single shared connection; that does not transfer.
 - Whether the free tier's connection limit is reached by the existing single-worker
   Render command.
+
+**Stage 2 outcome, 4 October 2026: one held connection, no pool.** Measured on
+Supabase in one session: connect plus the 42-trigger DDL **2.51 s**, connect alone
+**1.54 s**, so the DDL costs about **0.97 s**, and a statement on a held connection
+costs **185 ms**. A pool would save the 1.54 s connect, which a process holding one
+connection pays once at startup rather than per request, and it cannot save the DDL,
+which D1 already keeps off the request path after the first construction. It would
+cost `psycopg_pool` (not installed) and a second failure mode. The third question is
+answered by the first two: at one connection per process the free tier's limit is not
+reached. Both pooler ports were verified working at stage 1, so the port choice is
+open to the deployment rather than forced by the code.
 
 ---
 
