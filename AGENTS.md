@@ -445,12 +445,36 @@ watching, or when a gate run is long enough that context will be compacted.
   ADP guide documents none of them. ADP may occupy the **interpretation step only**:
   never the execution path, never the rendering path. The ADP AppKey is a secret:
   names only, never a value, never committed, never in a screenshot.
-- **The public deployment (added 30 September 2026).** The product is publicly
-  deployed on Render with a Next.js frontend on Vercel, behind a shared bearer
-  token. **The deployment region and the processor arrangements are [unknown] and
-  must be recorded** under PDPA before submission. The append-only record's
-  persistence depends on a mounted disk, which is a paid feature and a recurring
-  cost, not a default.
+- **The public deployment (added 30 September 2026, corrected 5 October 2026).**
+  The product is publicly deployed on Render with a Next.js frontend on Vercel,
+  behind a shared bearer token. **The deployment region and the processor
+  arrangements are [unknown] and must be recorded** under PDPA before submission.
+  The append-only record no longer depends on the mounted disk: Slice 7b moved it
+  to Postgres on Supabase, reached through `APP_DATABASE_URL`, and the disk block
+  in `render.yaml` is dead weight carried for one deploy so that the change under
+  review stayed one change. Removing it, and the `plan: starter` it forces, is a
+  recorded follow-up. Until then it is still a paid feature and a recurring cost.
+- **A credential was published on 4 October 2026 and rotated on 5 October.** The
+  working Supabase database password was committed in `710a99c` and pushed to a
+  public `origin/main`, in prose, inside three documents. It is scrubbed from all
+  three and from the git-ignored working logs, and no value of it is written
+  anywhere in this repository now. **It remains in git history at `710a99c`, which
+  is why rotation rather than scrubbing is the fix.** A history rewrite was
+  considered and declined: rewriting and force-pushing a public `main` is the
+  operation class that destroyed this repository's object store once, and after a
+  rotation it buys nothing but tidiness. `tests/test_boundaries.py` now scans
+  every tracked file, via `git ls-files` rather than a hand-written list, for a
+  connection string carrying a credential; the root cause and the residual gap are
+  in `tasks/lessons.md`, 5 October 2026.
+- **The deployment image had no Postgres driver in it, from 4 October to 5
+  October 2026.** `postgres_store.py` imports `psycopg` at module scope and
+  `render.yaml` names a `postgresql://` DSN, but `pyproject.toml` never declared
+  the driver, and the Dockerfile installs the project and nothing else. The image
+  would have failed at the first Postgres request. No test could see it, because
+  no test builds the image and every development machine had the driver for the
+  local container. `psycopg[binary]>=3.3` is now declared, and
+  `tests/test_deployment.py` compares the module-scope import graph under `src/`
+  against the declared runtime dependencies in both directions.
 - The baseline is a first-class external artefact, not an in-app arm. Gate B uses a
   between-subjects comparison against a concise bilingual action card with identical
   clinical wording, identical legitimate options and a direct booking link. CareRelay

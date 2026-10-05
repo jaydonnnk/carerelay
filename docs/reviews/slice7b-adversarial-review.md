@@ -324,12 +324,18 @@ and the no-database pass had both missed.
   (md5 `7e8b9067c3facc01d91c6292886a3098`).
 - **Both pooler ports accept the credential.** The record named port `6543`; this
   pass ran on `5432`. Both work: the session pooler (`5432`) and the transaction
-  pooler (`6543`) are both reachable on `aws-0-ap-southeast-2.pooler.supabase.com`
-  with the same password. This is stated as a verified fact measured on
+  pooler (`6543`) are both reachable on the project's pooler host
+  with the same password. **The host was named here in full until 5 October 2026
+  and is redacted:** a public repository that carries a hostname and a password in
+  the same document carries a connection string in two pieces. This is stated as a verified fact measured on
   4 October 2026, not an inference.
-- **The credential is `((SH1FTW0RK))` with a digit zero.** `((SH1FTWORK))` with a
-  letter O is rejected (`FATAL: password authentication failed`). The
-  distinction matters because the two strings differ by one glyph.
+- **The credential differs from the obvious guess by one glyph: a digit zero where
+  the guess has a letter O,** and the letter-O form is rejected (`FATAL: password
+  authentication failed`). **Both strings were written out here in full until
+  5 October 2026 and are redacted,** because this repository is public and the
+  digit-zero form authenticated successfully on 4 October 2026. The finding stands
+  without the values and is the point of it: a placeholder-shaped string can be the
+  real credential, so the glyph has to be checked rather than the shape.
 
 **The F2 remedy chosen was deletion, not registration, and the reason is worth
 recording.** Registering the table in both engines would have invented a SQLite
