@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import ast
 import json
+import re
 import subprocess
 import sys
 from pathlib import Path
@@ -785,3 +786,103 @@ class TestNoSecretIsCommitted:
         # its own name instead of setting it in the dashboard.
         planted = real + "\nCARERELAY_API_TOKEN: " + "s3cr3t" * 6 + "\n"
         assert scan_for_secrets(planted), "the scanner missed a planted secret"
+
+    def test_no_tracked_file_carries_a_connection_string_with_a_password(self) -> None:
+        """Every tracked file, not just the ten in `VICTIM_FILES`.
+
+        **The leak this exists for.** On 4 October 2026 the working Supabase
+        password reached `origin/main`, in prose, inside `00-status.md`, a review
+        note and `tasks/todo.md`. The scan above did not see it and could not
+        have: it reads only the deployment and frontend files in `VICTIM_FILES`,
+        and `scan_for_secrets` states its own two limits, that it needs an
+        assignment separator and a value of at least 24 characters. A thirteen
+        character password inside backticks in a sentence fails both. Those
+        limits are honest and this does not pretend to remove them; it adds the
+        narrower claim that *can* be checked across the whole repository without
+        turning every discussion of a token into a finding.
+
+        **Why loopback is the exemption and not a filename.** `DEV_DSN` in
+        `postgres_store.py` is a connection string with a password in it,
+        committed deliberately, for a disposable container. Exempting it by path
+        would let any other file off by being renamed, and would make the rule
+        "these files are not scanned". Exempting it by host makes the rule "no
+        credential that reaches a machine other than this one", which is the thing
+        worth failing on, and it cannot be satisfied by moving a line.
+
+        **What this still does not catch.** A bare password with no scheme around
+        it, which is the form that actually leaked. Catching that in prose means
+        either a denylist of known values, which only ever catches the last
+        incident, or a heuristic loose enough to flag every sentence containing
+        the word "password". The open item in `tasks/todo.md` records that gap
+        rather than implying this closes it.
+        """
+        pattern = re.compile(
+            r"(?P<scheme>postgresql|postgres|mysql|mongodb(?:\+srv)?|amqp|redis)://"
+            r"(?P<user>[^\s:/@]+):(?P<password>[^\s/@]+)@(?P<host>[^\s/:@]+)"
+        )
+        loopback = {"127.0.0.1", "localhost", "::1", "[::1]"}
+        completed = subprocess.run(
+            ["git", "ls-files", "--cached"],
+            cwd=REPO_ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        names = [line for line in completed.stdout.splitlines() if line.strip()]
+        assert names, "git ls-files returned nothing, so this test scanned no file"
+        offenders: list[str] = []
+        for name in names:
+            path = REPO_ROOT / name
+            if not path.is_file():
+                continue
+            text = path.read_text(encoding="utf-8", errors="replace")
+            for match in pattern.finditer(text):
+                if match.group("host") in loopback:
+                    continue
+                offenders.append(f"{name}: {match.group('scheme')}://...@{match.group('host')}")
+        assert offenders == [], (
+            "a connection string with a credential in it is tracked, and this "
+            f"repository is public: {offenders}. Set the value in the dashboard "
+            "and declare the name only, the way render.yaml declares "
+            "APP_DATABASE_URL."
+        )
+
+    def test_the_connection_string_guard_can_see_the_leak_it_exists_for(self) -> None:
+        """The self-test, because a whole-repository scan that finds nothing
+        proves only that the scan ran.
+
+        Planted into a copy of the real `render.yaml` in the two forms that
+        matter: a Supabase-shaped pooler host, and the same string with the
+        password percent-encoded, which is how a DSN carrying parentheses
+        actually appears in a configuration file and how this project's own
+        password had to be written to be usable at all.
+
+        **Every needle here is assembled from pieces, and that is not decorative.**
+        The first version wrote them as literals and the guard above failed on
+        this file, because this file is tracked and its needles are real-shaped
+        connection strings. That is the guard working, and it is the same trap the
+        WAL-sidecar test in `tests/test_deployment.py` documents: a file that
+        asserts the absence of a string cannot also contain that string.
+        """
+        real = (REPO_ROOT / "render.yaml").read_text(encoding="utf-8")
+        pattern = re.compile(
+            r"(?:postgresql|postgres)://[^\s:/@]+:[^\s/@]+@"
+            r"(?!127\.0\.0\.1|localhost)[^\s/:@]+"
+        )
+        assert not pattern.search(real), "render.yaml already carries a DSN"
+        scheme = "postgre" + "sql://"
+        pooler = "aws-0-ap-southeast-1.pooler." + "supabase.com"
+        direct = "db.abcde" + "fgh.supa" + "base.co"
+        for needle in (
+            scheme + "postgres.abcdefgh:((S3CRET))@" + pooler + ":5432/postgres",
+            scheme + "postgres.abcdefgh:%28%28S3CRET%29%29@" + direct + ":5432/postgres",
+        ):
+            assert pattern.search(real + "\n" + needle + "\n"), (
+                f"the guard missed a planted DSN ending @{needle.split('@')[1][:24]}"
+            )
+        # And the exemption has to be real, or the guard is always-on noise that
+        # a reader learns to delete. Assembled for the same reason.
+        loopback_dsn = scheme + "carerelay:carerelay_test@" + "127.0.0.1:15432/carerelay"
+        assert not pattern.search(loopback_dsn), (
+            "the loopback exemption does not exempt the local container DSN"
+        )
