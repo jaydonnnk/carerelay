@@ -9,6 +9,21 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.32",
     "pydantic>=2.9",
+    # Slice 7b. `src/carerelay/postgres_store.py` imports `psycopg` at module
+    # scope, and `state.open_store` builds that store for any `postgresql://`
+    # DSN, which is what `render.yaml` now supplies. It was never declared, so
+    # the image the Dockerfile builds (`pip install .`) could not open a store
+    # and the deployed service would have failed at construction with
+    # `ModuleNotFoundError`. Every test stayed green because none of them builds
+    # the image; `tests/test_deployment.py` now fails if an import in `src/` is
+    # undeclared again.
+    #
+    # `[binary]` because the base image is `python:3.13-slim`, which has no
+    # libpq and no compiler, and the Dockerfile deliberately has no build step.
+    # The wheel bundles a prebuilt libpq, so the image stays as boring as its
+    # own comment claims. `>=3.3` is the minor every Slice 7b test ran against
+    # (3.3.6 locally), not a floor chosen from the changelog.
+    "psycopg[binary]>=3.3",
 ]
 
 # Slice 7. `jinja2` was declared from Slice 1 and imported nowhere, and the

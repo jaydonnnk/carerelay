@@ -143,10 +143,11 @@ DEV_DSN = "postgresql://carerelay:carerelay_test@127.0.0.1:15432/carerelay"
 
 
 def probe_dsn() -> str:
-    """The test DSN.
+    """The DSN the tests use: the environment's, or the local container default.
 
     The password in `DEV_DSN` belongs to a disposable container the test session
-    starts on port 55432. It is not a deployment credential and not a secret. A
+    starts on `DEV_DSN`'s own port, which is derived here rather than restated so
+    the two cannot drift. It is not a deployment credential and not a secret. A
     DSN for the real Supabase instance is never written into this repository.
     """
     return os.getenv("CARERELAY_TEST_DSN", DEV_DSN)

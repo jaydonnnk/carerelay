@@ -28,10 +28,13 @@ labelled as what it is: a property of the local path, not of the deployment.
 
 from __future__ import annotations
 
+import ast
 import json
 import os
+import re
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -39,6 +42,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from carerelay.demo import fixture  # noqa: E402
+from carerelay.postgres_store import probe_dsn  # noqa: E402
 from carerelay.service import EpisodeService, ScenarioClock  # noqa: E402
 from carerelay.simulated_provider import ScriptedProvider  # noqa: E402
 from carerelay.state import APPEND_ONLY_TABLES, open_store  # noqa: E402
@@ -50,18 +54,32 @@ EPISODE = fixture.DEMO_EPISODE_ID
 SRC = str(REPO / "src")
 
 
-def _dsn() -> str | None:
-    return os.getenv("CARERELAY_TEST_DSN") or None
+def _dsn() -> str:
+    """The DSN this module's engine-gated tests use.
+
+    **It falls back to the store's own default rather than returning `None`,** and
+    that is a correction, not a convenience. Gating on `CARERELAY_TEST_DSN` alone
+    meant that on a machine with the local container up and no environment
+    variable set, 40 of this project's 42 Postgres-gated tests ran and the two
+    below skipped, because the other two Postgres modules gate on `probe_dsn()`,
+    which has always had the fallback. R8 is the risk this class exists to close,
+    so the one proof that matters most was the one that silently did not run on
+    the project's documented default engine.
+
+    The skip reason it produced was also false. It said "no Postgres reachable at
+    `CARERELAY_TEST_DSN`" while a Postgres was reachable on `DEV_DSN`'s port and
+    the rest of the suite was talking to it. A skip whose reason misdescribes why
+    it skipped is worse than no skip, because it sends the next reader to debug
+    the wrong thing.
+    """
+    return probe_dsn()
 
 
 def _reachable() -> bool:
-    dsn = _dsn()
-    if not dsn:
-        return False
     try:
         import psycopg
 
-        with psycopg.connect(dsn, connect_timeout=2):
+        with psycopg.connect(_dsn(), connect_timeout=2):
             return True
     except Exception:
         return False
@@ -70,11 +88,98 @@ def _reachable() -> bool:
 requires_postgres = pytest.mark.skipif(
     not _reachable(),
     reason=(
-        "no Postgres reachable at CARERELAY_TEST_DSN. The remote persistence "
-        "proof is the whole point of this class, so it skips with a reason rather "
-        "than reporting green without an engine."
+        "no Postgres reachable at CARERELAY_TEST_DSN, nor at the DEV_DSN default "
+        "this module falls back to. The persistence proof is the whole point of "
+        "this class, so it skips with a reason rather than reporting green "
+        "without an engine. The docker run recipe is in the module docstring of "
+        "tests/test_postgres_store.py, and its port is derived from DEV_DSN."
     ),
 )
+
+
+# -- what the image installs, and what src/ imports -------------------------
+
+#: Import roots in `src/` that are satisfied without a line of their own in
+#: `pyproject.toml`, each with the reason it is safe to omit one.
+#:
+#: An entry here is a decision, and the reason is the record of it. `starlette` is
+#: imported directly by `api.py` for its middleware and exception types; declaring
+#: it as well would create a second source of truth for a version `fastapi`
+#: already pins, and the two could drift into an unsatisfiable install.
+_SATISFIED_WITHOUT_A_DECLARATION = {
+    "starlette": (
+        "a hard requirement of the declared `fastapi`, so the resolver supplies it"
+    ),
+}
+
+#: Declared distributions that `src/` never imports, each with the reason. The
+#: control test needs this, because "nothing undeclared" is trivially true of an
+#: empty dependency list and the interesting failure is a declaration deleted by
+#: someone tidying up.
+_INSTALLED_NOT_IMPORTED = {
+    "uvicorn": "the container's CMD; it is executed, never imported",
+}
+
+
+def _distribution_name(requirement: str) -> str:
+    """A requirement string reduced to the name pip compares.
+
+    Extras and version specifiers are dropped and the three separators PEP 503
+    treats as equivalent are folded together, so `psycopg[binary]>=3.3` and an
+    import root of `psycopg` meet on the same string.
+    """
+    return re.split(r"[\[<>=!~;\s]", requirement, maxsplit=1)[0].lower().replace("_", "-")
+
+
+def _declared_runtime_distributions() -> set[str]:
+    """The names the deployed image actually gets.
+
+    Only `project.dependencies`, and not the `test` extra: the Dockerfile runs
+    `pip install --no-cache-dir .` with no extras, so a name declared under
+    `[project.optional-dependencies]` is not present in the image and cannot
+    satisfy an import in `src/`.
+    """
+    data = tomllib.loads((REPO / "pyproject.toml").read_bytes().decode("utf-8"))
+    requirements = data.get("project", {}).get("dependencies", [])
+    assert requirements, (
+        "pyproject.toml declares no runtime dependencies at all, so this check "
+        "would pass against an image that could import nothing"
+    )
+    return {_distribution_name(item) for item in requirements}
+
+
+def _src_module_scope_imports() -> dict[str, set[str]]:
+    """Every third-party root imported at module scope under `src/`, by file.
+
+    Module scope only, because that is what runs when a container first imports
+    the package. `state.py` imports `postgres_store` lazily inside `open_store`
+    so a SQLite-only process never needs `psycopg`, and a function-level scan
+    would report that as a startup dependency it is not.
+    """
+    found: dict[str, set[str]] = {}
+    for path in sorted((REPO / "src").rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in tree.body:
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+                names = [node.module]
+            else:
+                continue
+            for name in names:
+                root = name.split(".")[0]
+                # The stdlib check runs on the **raw** root and the distribution
+                # fold runs after it, and that order is load-bearing. Folding
+                # first turns `__future__` into `--future--`, which is in no
+                # stdlib list and no dependency list, so every module carrying
+                # `from __future__ import annotations` was reported as an
+                # undeclared dependency. Found on this test's first run.
+                if root in sys.stdlib_module_names or root == "carerelay":
+                    continue
+                found.setdefault(_distribution_name(root), set()).add(
+                    path.relative_to(REPO).as_posix()
+                )
+    return found
 
 
 #: Run in a **fresh interpreter**, which is what a restart actually is. Reading
@@ -313,8 +418,18 @@ class TestTheRecordSurvivesAProcessRestartOnTheLocalFile:
 
 
 @requires_postgres
-class TestTheRecordSurvivesAProcessRestartOnTheRemoteDatabase:
+class TestTheRecordSurvivesAProcessRestartOnTheServer:
     """R8, as it now stands: the record is on the server, not in the process.
+
+    **Why "the server" and not "the remote database", which is what this class
+    was called until 5 October 2026.** The property under test is that a separate
+    database process holds the record, and the local container this suite reaches
+    by default is exactly that: another process, another filesystem, nothing
+    shared with the writer. "Remote" described where the engine happened to be
+    rather than what is being proved, and once `_dsn()` gained its fallback the
+    name would have been false on every run that used the default. When
+    `CARERELAY_TEST_DSN` names Supabase the class proves it there too, and the
+    difference is a network path, not a property.
 
     **Why two subprocesses and not two connections.** Two connections in one
     interpreter share memory, a driver cache and any in-flight transaction, which
@@ -500,6 +615,95 @@ class TestTheDeploymentArtefactsAreHonest:
             f"a WAL sidecar assertion is back: {offenders}. The deployment has "
             "no write-ahead log on the container any more; see the module "
             "docstring before restoring anything like this."
+        )
+
+    def test_every_import_in_src_is_a_declared_dependency(self) -> None:
+        """The image installs `pyproject.toml` and nothing else.
+
+        **The defect this exists for, and it was live on `main`.** Slice 7b put
+        `import psycopg` at module scope in `postgres_store.py` and pointed
+        `render.yaml` at a `postgresql://` DSN, but never declared the driver. The
+        Dockerfile runs `pip install --no-cache-dir .`, so the deployed image had
+        no `psycopg` in it, and the first request that made `open_store` see a
+        Postgres scheme would have died with `ModuleNotFoundError`. Observed by
+        blocking the import and calling `open_store("postgresql://...")`: the
+        SQLite path opens fine and the Postgres path raises. Every test stayed
+        green throughout, because no test builds the image and every development
+        machine had the driver installed for the local container.
+
+        **Why module scope only.** A function-level import is reached only on a
+        path a given deployment may never take, and `state.py` imports
+        `postgres_store` lazily *on purpose*, so a SQLite-only process does not
+        need the driver. Module scope is what executes when the package is first
+        imported, which is what a container does at startup.
+
+        **What this does not prove.** It compares import roots to declared
+        distribution names, which works only where the two are spelled alike. They
+        are for everything in `src/` today; a dependency whose import name differs
+        from its distribution name (`PIL` from `Pillow`) would need an entry in
+        `_SATISFIED_WITHOUT_A_DECLARATION` below with its reason, and adding one
+        is a decision that has to be written down. It also says nothing about
+        whether a declared version floor is satisfiable, or about the `test`
+        extra, which the image does not install.
+        """
+        declared = _declared_runtime_distributions()
+        undeclared = [
+            f"{module} (imported at module scope by {', '.join(sorted(files))})"
+            for module, files in sorted(_src_module_scope_imports().items())
+            if module not in declared and module not in _SATISFIED_WITHOUT_A_DECLARATION
+        ]
+        assert undeclared == [], (
+            "the image installs only what `pyproject.toml` declares, so these "
+            f"would fail at container startup: {undeclared}"
+        )
+
+    def test_the_exemption_lists_do_not_outlive_the_dependencies_they_excuse(self) -> None:
+        """The control for the test above, so it cannot pass by declaring less.
+
+        A guard that only ever asks "is anything imported but undeclared?" is
+        satisfied by an empty dependency list, and the mutation worth fearing is
+        someone tidying `pyproject.toml` while the suite stays green.
+
+        **This test's first version did not work, and the mutation check is what
+        showed it.** It asserted that nothing was declared without being
+        imported, exempting `_INSTALLED_NOT_IMPORTED`. Deleting `uvicorn` from
+        `pyproject.toml` therefore changed nothing: the name left `declared` and
+        the exemption was never consulted, so the assertion still held. An
+        exemption list makes a check blind to exactly the entries it excuses,
+        which is why the exemption has to be asserted *present* as well. Measured
+        after the fix: deleting `uvicorn` turns this RED while the guard above
+        stays GREEN, and deleting `psycopg` turns the guard RED while this stays
+        GREEN, so the two are discriminating and not merely both fail-capable.
+        """
+        declared = _declared_runtime_distributions()
+        imported = set(_src_module_scope_imports())
+
+        stale_exemptions = sorted(
+            name
+            for name in _INSTALLED_NOT_IMPORTED
+            if _distribution_name(name) not in declared
+        )
+        assert stale_exemptions == [], (
+            f"exempted from the import check but not declared at all: "
+            f"{stale_exemptions}. Either the declaration was deleted, which the "
+            "image would notice at startup, or the exemption is stale and should "
+            "come out of `_INSTALLED_NOT_IMPORTED`."
+        )
+
+        undeclared_exemptions = sorted(
+            name
+            for name in _SATISFIED_WITHOUT_A_DECLARATION
+            if _distribution_name(name) in declared
+        )
+        assert undeclared_exemptions == [], (
+            f"declared in `pyproject.toml` and still exempted as transitive: "
+            f"{undeclared_exemptions}. The exemption is now redundant and hides "
+            "the declaration from review."
+        )
+
+        assert {"fastapi", "pydantic", "psycopg"} <= imported, (
+            "the runtime imports this project is built around are missing from "
+            f"`src/`: found only {sorted(imported)}"
         )
 
 
