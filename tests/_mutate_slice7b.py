@@ -8,7 +8,8 @@ SURVIVED (it cannot tell "the guard held" from "no guard was run") and exits
 non-zero. That is deliberate: a mutation harness reporting green against a
 skipped suite is the exact failure mode it exists to prevent.
 
-Seven mutations, each of which must be seen RED:
+Seven mutations: six that must each be seen RED, and one that cannot be and is
+counted apart.
 
     P1  the UPDATE trigger is dropped from the DDL
     P2  the DELETE trigger is dropped from the DDL
@@ -21,11 +22,15 @@ Seven mutations, each of which must be seen RED:
 P5 and P7 are the important pair. They reproduce the defect found while writing
 this stage: a probe that reaches nothing looks identical to a guard that holds.
 
-**P4 is RED but non-discriminating, and is kept as documentation.** Postgres
-rejects `FOR EACH ROW` on a `TRUNCATE` trigger at `CREATE TRIGGER` time, so the
-schema becomes unbuildable and every database test errors. That proves the
-row-level form is *illegal*, not that it would fail to guard. It is labelled
-here so "7 of 7" is not read as seven behavioural proofs.
+**P4 is non-discriminating, and is kept as documentation rather than as evidence.**
+Postgres rejects `FOR EACH ROW` on a `TRUNCATE` trigger at `CREATE TRIGGER` time,
+so the schema becomes unbuildable and every database test errors. That proves the
+row-level form is *illegal*, not that it would fail to guard. It was labelled here
+from the start, but the summary still folded it into the RED total, so "7 of 7"
+read as seven behavioural proofs when six were. As of 5 October 2026 the harness
+reports it in its own column and a RED requires a test to have actually failed,
+which is the same rule the Slice 7 harness needed for two mutations it had never
+run. The honest figure is **6 RED plus 1 documented engine constraint**.
 
 Each mutation names the tests it is expected to kill, and the run is narrowed to
 those tests so a failure is attributed rather than inferred from the whole file.
@@ -42,6 +47,7 @@ from __future__ import annotations
 import hashlib
 import os
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -79,6 +85,30 @@ SEED_REACH_TEST = [
 
 def _md5(data: bytes) -> str:
     return hashlib.md5(data).hexdigest()
+
+
+def _purge_bytecode(path: pathlib.Path) -> None:
+    """Delete any cached bytecode compiled from `path`.
+
+    **Why this exists, and what it cost to learn.** Python validates a `.pyc`
+    against the source's *mtime and size only*, never against its content.
+    P7 replaces `WHERE true` with `WHERE false`, and because `_anchor` returns
+    the replacement's plain-LF form while the file is CRLF, the mutated file
+    is **exactly the same length** as the original. When the write and the
+    restore also land inside the same clock second, the stale `.pyc` still
+    matches on both fields, and Python imports the *mutated* bytecode on every
+    later run. On 5 October 2026 that left `refuse_delete` executing
+    `DELETE ... WHERE false` against a source file that read `WHERE true`: the
+    statement matched no row, no row-level trigger fired, and the product's
+    strongest guarantee turned into one red test whose cause was invisible in
+    the source. Restoring the bytes is not enough; the compiled artefact has to
+    go with them.
+    """
+    cache = path.parent / "__pycache__"
+    if not cache.is_dir():
+        return
+    for stale in cache.glob(f"{path.stem}.*.pyc"):
+        stale.unlink()
 
 
 def _anchor(text: str, data: bytes) -> bytes | None:
@@ -178,6 +208,8 @@ def main() -> int:
     failures: list[str] = []
     red = 0
     survived = 0
+    not_proven = 0
+    constraints = 0
 
     for label, target, anchor_text, replacement_text, selectors in MUTATIONS:
         original = originals[target]
@@ -206,6 +238,9 @@ def main() -> int:
         try:
             env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
             env["PYTHONPATH"] = "src"
+            # A `.pyc` compiled from a mutated file is a mutation that outlives
+            # the restore, so no child process may write one.
+            env["PYTHONDONTWRITEBYTECODE"] = "1"
             completed = subprocess.run(
                 [PYTHON, "-m", "pytest", "-o", "addopts=", "-q", *selectors],
                 cwd=REPO,
@@ -216,6 +251,7 @@ def main() -> int:
             )
         finally:
             target.write_bytes(original)
+            _purge_bytecode(target)
 
         output = completed.stdout
         summary = [
@@ -225,18 +261,43 @@ def main() -> int:
         ]
         skipped = " skipped" in output or "no Postgres reachable" in output
 
+        # **A kill is a failed test, and a mutation that stops the schema from
+        # building is not a kill at all.** Both rules were added on 5 October 2026
+        # after the Slice 7 harness was found reporting two mutations it had never
+        # actually run, and the same reading of the exit code lived here. P4 is the
+        # case this file already documented in its docstring and still miscounted:
+        # Postgres rejects a row-level TRUNCATE trigger at CREATE TRIGGER time, so
+        # the schema never builds and fifteen tests error out. That is an engine
+        # constraint worth recording and no evidence at all about a guard, so it is
+        # counted apart from the RED total it was inflating. "7 of 7 RED" read as
+        # seven proven guards when six were.
+        documented_constraint = label.startswith("P4")
+        killed = re.search(r"\d+ failed", output) is not None
         print(f"[RUN ] {label}")
         print(f"       {summary[-1].strip() if summary else '(no summary)'}")
         if skipped:
             print("       *** SURVIVED: the suite skipped, so nothing was proved ***")
             failures.append(f"{label} (suite skipped, no Postgres)")
             survived += 1
-        elif completed.returncode != 0:
+        elif documented_constraint:
+            constraints += 1
+            print(
+                "       *** NOT DISCRIMINATING: the schema does not build, so no "
+                "guard was tested ***"
+            )
+        elif killed:
             red += 1
-        else:
+        elif completed.returncode == 0:
             print("       *** SURVIVED: the guard has no teeth ***")
             failures.append(f"{label} (SURVIVED)")
             survived += 1
+        else:
+            not_proven += 1
+            print(
+                f"       *** NOT PROVEN: exit {completed.returncode} with no test "
+                "failing, so a collection or usage error ***"
+            )
+            failures.append(f"{label} (no test failed, NOT PROVEN)")
 
     print()
     restored_ok = True
@@ -253,12 +314,18 @@ def main() -> int:
         + " byte-identical to baseline"
     )
 
-    print(f"\n=== result: {red} of {len(MUTATIONS)} mutations seen RED ===")
+    print(
+        f"\n=== result: {red} RED, {constraints} documented engine constraint, "
+        f"{not_proven} NOT PROVEN, of {len(MUTATIONS)} mutations ==="
+    )
     if failures:
         for item in failures:
             print(f"  PROBLEM: {item}")
         return 1
-    print("  every mutation was seen RED; the files were restored byte-exact")
+    print(
+        "  every discriminating mutation was seen RED; the files were restored "
+        "byte-exact"
+    )
     return 0
 
 

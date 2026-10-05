@@ -15,6 +15,28 @@ It inherits the two safety fixes that the Slice 6 harness needed:
    once counted as evidence, which is how the Slice 6 record came to claim 11 of
    11 when it was 10 of 11.
 
+And it has a third of its own, added 5 October 2026 after it was caught reporting
+two kills that never happened:
+
+3. **A kill is a failed test, and any other non-zero exit is NOT PROVEN.** The
+   harness used to read the exit code alone, which admits two failures that both
+   look like evidence, and both were live here:
+
+   * **M9 ran nothing.** Slice 7b stage 2 split
+     `TestTheRecordSurvivesAProcessRestart` into `...OnTheLocalFile` and
+     `...OnTheServer` and left M9 pointing at the old name. pytest answered
+     `ERROR: not found` and exited 4, which counted as RED.
+   * **M6 never parsed.** Its anchor covered the opening line of a three-line
+     call, so the replacement left two lines dangling and `service.py` became a
+     `SyntaxError`. `test_service.py` failed to collect, pytest printed
+     `1 error`, and that also counted as RED.
+
+   So the record said 10 of 10 while two of the ten had never been tested. A
+   syntax-breaking mutation is the worse of the two, because it looks like a
+   vigorous failure rather than a missing one. Anchors were already checked for
+   existence and uniqueness; the verdict now requires a test to have actually
+   failed, which catches a stale selector and a broken file at once.
+
 Two mutations here target **test files**, which is unusual and deliberate: the
 secret scanner is itself a guard, and a guard that cannot be seen failing is not
 one. Disabling it must turn its own self-test red.
@@ -24,6 +46,7 @@ from __future__ import annotations
 
 import hashlib
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -32,12 +55,21 @@ SRC = ROOT / "src" / "carerelay"
 TESTS = ROOT / "tests"
 
 
-def run(selectors: list[str]) -> int:
+def run(selectors: list[str]) -> tuple[int, str]:
+    """One pytest run, returning the exit code and everything it printed.
+
+    **The output is returned as well as the code, because the code alone cannot
+    tell a killed mutation from a selector that matched nothing.** pytest exits
+    **4** for a usage error, which includes a node id it cannot find, and a
+    harness that reads any non-zero as RED reports that as a kill. That is not a
+    hypothetical: M9 below was renamed out from under by Slice 7b stage 2 and
+    reported RED for two days on the strength of `ERROR: not found`.
+    """
     cmd = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q", *selectors]
     proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
     tail = [line for line in proc.stdout.strip().splitlines() if line.strip()]
     print("   ", tail[-1] if tail else "(no output)")
-    return proc.returncode
+    return proc.returncode, proc.stdout + proc.stderr
 
 
 def _b(text: str) -> bytes:
@@ -110,7 +142,19 @@ MUTATIONS: list[tuple[str, str, str, str, list[str]]] = [
     (
         "M6  transcript_confirmed is asserted from any supplied id (NF4 returns)",
         "service.py",
-        _b("            transcript_confirmed=self._verified_confirmation(\n"),
+        # The anchor spans the **whole call expression**, and the first version of
+        # it did not. It matched only the opening line, so the replacement left
+        # `episode_id, transcript_confirmation_id, confirmed_text` and the closing
+        # `),` dangling, which is a SyntaxError. `test_service.py` then failed to
+        # collect, pytest printed `1 error`, and a harness reading any non-zero
+        # exit as a kill reported M6 RED. It had never run a test. Found on
+        # 5 October 2026 only because the verdict rule changed to require an
+        # actual failed test; see the docstring's third safety fix.
+        _b(
+            "            transcript_confirmed=self._verified_confirmation(\n"
+            "                episode_id, transcript_confirmation_id, confirmed_text\n"
+            "            ),\n"
+        ),
         _b(
             "            transcript_confirmed=transcript_confirmation_id is not None,  # mutated\n"
         ),
@@ -144,7 +188,19 @@ MUTATIONS: list[tuple[str, str, str, str, list[str]]] = [
         "state.py",
         _b("    for table in APPEND_ONLY_TABLES:\n"),
         _b("    for table in ():  # mutated: no triggers\n"),
-        ["tests/test_deployment.py::TestTheRecordSurvivesAProcessRestart"],
+        # The local-file class only, and that is a correction rather than a
+        # narrowing. M9 mutates `state.py`, which is the SQLite schema; the
+        # Postgres store builds its own triggers from `postgres_schema.py` and
+        # would stay green. Naming both classes would have made this mutation
+        # look weaker than it is and the green half would have been noise.
+        #
+        # This selector read `::TestTheRecordSurvivesAProcessRestart` until
+        # 5 October 2026. Slice 7b stage 2 split that one class into
+        # `...OnTheLocalFile` and `...OnTheServer` and did not update this line,
+        # so pytest answered `ERROR: not found` and exited 4, and the harness
+        # counted that as RED. M9 was therefore unverified from the moment stage
+        # 2 landed, while the record still said 10 of 10.
+        ["tests/test_deployment.py::TestTheRecordSurvivesAProcessRestartOnTheLocalFile"],
     ),
     (
         "M10 the secret scanner reports nothing",
@@ -192,6 +248,7 @@ def main() -> int:
 
     failures: list[str] = []
     red = 0
+    not_proven = 0
 
     for name, filename, old_text, new_text, selectors in MUTATIONS:
         path = _resolve(filename)
@@ -214,12 +271,30 @@ def main() -> int:
         try:
             path.write_bytes(original.replace(old, new, 1))
             print(f"[RUN ] {name}")
-            code = run(selectors)
-            if code == 0:
+            code, output = run(selectors)
+            # **A kill is a failed test, and nothing else counts as one.** Reading
+            # any non-zero exit as a kill admits two failures that both look like
+            # evidence. pytest exits 4 on a node id it cannot find, so a renamed
+            # test class reports RED while running nothing at all: that was M9,
+            # orphaned when Slice 7b stage 2 split its class in two. And a
+            # mutation that breaks the target file's syntax produces a collection
+            # *error*, which is also non-zero and also says nothing about the
+            # guard: that was M6, whose anchor covered one line of a three-line
+            # call. Both were live in this harness and both reported RED.
+            if re.search(r"\d+ failed", output):
+                red += 1
+            elif code == 0:
                 print("    *** SURVIVED: the guard has no teeth ***")
                 failures.append(f"{name} (SURVIVED)")
             else:
-                red += 1
+                not_proven += 1
+                reason = (
+                    "the selector matched no test"
+                    if code == 4 or "no tests ran" in output
+                    else f"exit {code} with no test failing, so a collection error"
+                )
+                print(f"    *** NOT PROVEN: {reason} ***")
+                failures.append(f"{name} ({reason}, NOT PROVEN)")
         finally:
             path.write_bytes(original)
             if _md5(path.read_bytes()) != _md5(original):
@@ -238,12 +313,15 @@ def main() -> int:
             failures.append(f"control: {path.name} not restored")
             path.write_bytes(pristine[path])
     if not failures:
-        code = run(CONTROL)
+        code, _ = run(CONTROL)
         if code != 0:
             print("    *** CONTROL FAILED: a file was not restored ***")
             failures.append("control")
 
-    print(f"\n=== result: {red} of {len(MUTATIONS)} mutations seen RED ===")
+    print(
+        f"\n=== result: {red} RED, {not_proven} NOT PROVEN, "
+        f"of {len(MUTATIONS)} mutations ==="
+    )
     if failures:
         for item in failures:
             print(f"  PROBLEM: {item}")
