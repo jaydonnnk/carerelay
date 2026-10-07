@@ -8,13 +8,14 @@ SURVIVED and exits non-zero. Same rule as the stage 1 harness, same reason: a
 mutation harness reporting green against a skipped suite is the failure mode it
 exists to prevent.
 
-Five mutations, each of which must be seen RED:
+Six mutations, each of which must be seen RED:
 
     S1  `open_attempt_once` goes back to `ON CONFLICT DO UPDATE`
     S2  `record_expiry_once` stops translating `UniqueViolation` into `False`
     S3  `record_callback_once` loses its consent re-check
     S4  `SqliteEpisodeStore.list_barriers` goes back to `sqlite3.Row`
     S5  `has_transcript_confirmation` loses the `IS JSON` guard
+    S6  `record_expiry_once` re-broadens its handler over the audit write
 
 **Why these five.** Stage 2 ported ~40 methods, and the risk in a port is not
 that a method stops working, it is that a method keeps working while dropping the
@@ -126,9 +127,36 @@ NON_JSON = _select("test_a_non_json_event_payload_does_not_break_the_transcript_
 ATTEMPT_RACE = _select(RACE_ATTEMPT, IDEMPOTENT)
 EXPIRY_RACE = _select(RACE_EXPIRY, IDEMPOTENT)
 
+#: S6 selects the one test that pins the handler's scope. It is the only test in
+#: the module that reaches `_append_event` from inside `record_expiry_once`.
+SCOPE = _select(
+    "test_a_duplicate_from_the_audit_write_propagates_instead_of_returning_false"
+)
+
 
 def _md5(data: bytes) -> str:
     return hashlib.md5(data).hexdigest()
+
+
+def _purge_bytecode(path: pathlib.Path) -> None:
+    """Delete any cached bytecode compiled from `path`.
+
+    **Why this is here.** Python validates a `.pyc` against the source's
+    *mtime and size only*, never against its content, so a `.pyc` compiled
+    while a mutation was live can keep being imported long after the source
+    has been restored. On 5 October 2026 one did: `refuse_delete` ran
+    `DELETE ... WHERE false` for a whole session against a file that read
+    `WHERE true`, the statement matched no row, no row-level trigger fired,
+    and the product's strongest guarantee looked broken with no defect
+    anywhere in the source. Restoring the bytes is not enough; the compiled
+    artefact has to go with them. `tests/_mutate_slice7b.py` carries the
+    full account, and `tasks/lessons.md` records it.
+    """
+    cache = path.parent / "__pycache__"
+    if not cache.is_dir():
+        return
+    for stale in cache.glob(f"{path.stem}.*.pyc"):
+        stale.unlink()
 
 
 def _run_pytest(args: list[str]) -> subprocess.CompletedProcess[str]:
@@ -149,6 +177,9 @@ def _run_pytest(args: list[str]) -> subprocess.CompletedProcess[str]:
         )
     env = dict(os.environ)
     env["PYTHONPATH"] = "src"
+    # A `.pyc` compiled from a mutated file outlives the restore, so no
+    # child process may write one.
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
     return subprocess.run(
         [PYTHON, "-m", "pytest", "-o", "addopts=", "-q", *args],
         cwd=REPO,
@@ -205,9 +236,29 @@ MUTATIONS = [
     (
         "S2  record_expiry_once stops translating UniqueViolation into False",
         STORE,
-        '        except psycopg.errors.UniqueViolation:\n            return False\n',
-        '        except psycopg.errors.UniqueViolation:\n            raise\n',
+        '                cur.execute("ROLLBACK TO SAVEPOINT expiry_events_insert")\n'
+        "                return False\n",
+        '                cur.execute("ROLLBACK TO SAVEPOINT expiry_events_insert")\n'
+        "                raise\n",
         EXPIRY_RACE,
+    ),
+    (
+        "S6  record_expiry_once re-broadens its handler over the audit write",
+        STORE,
+        '            cur.execute("RELEASE SAVEPOINT expiry_events_insert")\n'
+        "            self._append_event(\n"
+        '                cur, episode_id, "expiry_recorded", f"version={disposition_version}", now_utc\n'
+        "            )\n"
+        "            return True\n",
+        '            cur.execute("RELEASE SAVEPOINT expiry_events_insert")\n'
+        "            try:\n"
+        "                self._append_event(\n"
+        '                    cur, episode_id, "expiry_recorded", f"version={disposition_version}", now_utc\n'
+        "                )\n"
+        "            except psycopg.errors.UniqueViolation:\n"
+        "                return False\n"
+        "            return True\n",
+        SCOPE,
     ),
     (
         "S3  record_callback_once loses its consent re-check",
@@ -297,6 +348,7 @@ def main() -> int:
             completed = _run_pytest(selectors)
         finally:
             target.write_bytes(original)
+            _purge_bytecode(target)
 
         output = completed.stdout + completed.stderr
         failing = [

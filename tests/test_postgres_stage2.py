@@ -1174,6 +1174,70 @@ class TestTwoWritersAtOneKey:
             )
 
 
+@requires_postgres
+class TestTheDuplicateHandlerCoversOnlyItsOwnDuplicate:
+    """F10, closed: one handler, one statement, and a test that pins the scope.
+
+    **The defect.** `record_expiry_once` wrapped its whole write block in
+    `except psycopg.errors.UniqueViolation: return False`. The block writes two
+    rows, the expiry event and the `events` audit row, so a duplicate raised by
+    the *audit* insert came back as `False`, which means "this expiry is already
+    on record". That is a true-looking answer about a write that did not happen.
+    Finding F10 in `docs/reviews/slice7b-stage2-adversarial-review.md` recorded
+    it and deliberately left it, because `events.id` is a uuid4 primary key and
+    nothing can collide with it. The reasoning is correct, and it is also why the
+    defect survived review: the handler was unreachable, not right.
+
+    **Why it is worth closing anyway.** "Unreachable" is a claim about today's
+    schema, and the handler outlives the schema. One more unique constraint on
+    `events`, or one on a column the audit write sets, turns the swallow into a
+    lost audit row wearing a clean `False`. Narrowing it costs a savepoint and
+    two round trips; leaving it costs the ability to believe the return value.
+    """
+
+    def test_a_duplicate_from_the_audit_write_propagates_instead_of_returning_false(
+        self, store, episode_id: str, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """The audit row's own violation reaches the caller.
+
+        `events.id` is a uuid4 primary key, so no statement in this block can
+        produce a real `UniqueViolation` except the one the handler exists for.
+        The violation is therefore injected at `_append_event`, which is the
+        other write in the block and the one the broad handler used to cover.
+        What this pins is the scope, and it is a discriminating test: under the
+        old code the call returned `False`, and the caller would have been told
+        the expiry was on record when nothing had been written.
+
+        The second assertion is the other half of the same claim. The audit row
+        and the expiry row are one transaction, so a caller that is told the
+        truth by an exception must not also find the half that did succeed.
+        """
+        store.create_episode(episode_id, PERSONA, now_utc=NOW_UTC)
+        store.register_policy_version(
+            POLICY_VERSION,
+            content="{}",
+            provenance=POLICY_PROVENANCE,
+            approved_by=None,
+            now_utc=NOW_UTC,
+        )
+        store.insert_disposition(_disposition(episode_id), now_utc=NOW_UTC)
+
+        def collide(*args: object, **kwargs: object) -> None:
+            raise psycopg.errors.UniqueViolation(
+                'duplicate key value violates unique constraint "events_pkey"'
+            )
+
+        monkeypatch.setattr(store, "_append_event", collide)
+
+        with pytest.raises(psycopg.errors.UniqueViolation):
+            store.record_expiry_once(episode_id, 1, AFTER_DEADLINE_UTC)
+
+        assert store.list_expiry_events(episode_id) == (), (
+            "the expiry row outlived the audit write that failed beside it, so "
+            "the two are not one transaction"
+        )
+
+
 # ---------------------------------------------------------------------------
 # 4. D1 and D2, decided with a measurement
 # ---------------------------------------------------------------------------

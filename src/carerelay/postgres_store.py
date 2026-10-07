@@ -1309,54 +1309,86 @@ class PostgresEpisodeStore:
            passed.
         3. the deadline has not passed: refuse.
 
+        **The duplicate handler is scoped to one statement, not to the method.**
         The `UNIQUE (episode_id, disposition_version)` constraint is the second
-        line of defence behind check 1, and a violation is returned as `False`
-        rather than raised: a concurrent writer recorded the same fact, and
-        "already recorded" is the answer either way.
+        line of defence behind check 1, and a violation of *it* is returned as
+        `False` rather than raised: a concurrent writer recorded the same fact,
+        and "already recorded" is the answer either way. It is caught around the
+        `INSERT INTO expiry_events` alone and not around the block, because the
+        difference is a lie the broader handler tells. That was finding F10 in
+        `docs/reviews/slice7b-stage2-adversarial-review.md`: a handler wrapped
+        around the whole block also catches a violation raised by the audit
+        write into `events` and reports it as "already recorded", which is an
+        answer about a write that did not happen. It is not reachable today,
+        because `events.id` is a uuid4 primary key, which is why reading found
+        it and no failure did.
+
+        **The savepoint is defensive, not load-bearing for today's behaviour.**
+        A statement that fails puts the transaction in the aborted state, in
+        which every later statement fails too. It is tempting to conclude that
+        catching here and carrying on would then fail at the `commit` in
+        `_write` and hand the caller a driver error, but that is wrong: `COMMIT`
+        on an aborted transaction returns the `ROLLBACK` tag and raises nothing,
+        and psycopg 3's `_commit_gen` ignores the result, so the commit
+        succeeds and the whole transaction is silently discarded instead.
+        Nothing is written in this transaction before the INSERT returns, so
+        deleting the rollback changes no observable behaviour today and no test
+        can tell the two apart; that was measured by removing this line and
+        re-running the expiry race, which still passes. The savepoint earns its
+        place the moment a statement is added after the INSERT, because that
+        statement would otherwise run against an aborted transaction. The cost
+        is two extra round trips on any call that reaches the INSERT.
         """
         now_utc = _utc(now_utc)
-        try:
-            with self._write() as cur:
-                cur.execute(
-                    "SELECT id FROM expiry_events WHERE episode_id = %s "
-                    "AND disposition_version = %s",
-                    (episode_id, disposition_version),
-                )
-                if cur.fetchone() is not None:
-                    return False
+        with self._write() as cur:
+            cur.execute(
+                "SELECT id FROM expiry_events WHERE episode_id = %s "
+                "AND disposition_version = %s",
+                (episode_id, disposition_version),
+            )
+            if cur.fetchone() is not None:
+                return False
 
-                cur.execute(
-                    "SELECT clinical_deadline_utc FROM dispositions "
-                    "WHERE episode_id = %s AND version_no = %s",
-                    (episode_id, disposition_version),
+            cur.execute(
+                "SELECT clinical_deadline_utc FROM dispositions "
+                "WHERE episode_id = %s AND version_no = %s",
+                (episode_id, disposition_version),
+            )
+            row = cur.fetchone()
+            if row is None:
+                raise NoDispositionForExpiry(
+                    f"episode {episode_id!r} has no disposition version "
+                    f"{disposition_version}"
                 )
-                row = cur.fetchone()
-                if row is None:
-                    raise NoDispositionForExpiry(
-                        f"episode {episode_id!r} has no disposition version "
-                        f"{disposition_version}"
-                    )
-                deadline = _parse(row["clinical_deadline_utc"])
-                if now_utc < deadline:
-                    raise PrematureExpiry(
-                        f"the deadline for version {disposition_version} is "
-                        f"{deadline.isoformat()}, which has not passed at "
-                        f"{now_utc.isoformat()}"
-                    )
+            deadline = _parse(row["clinical_deadline_utc"])
+            if now_utc < deadline:
+                raise PrematureExpiry(
+                    f"the deadline for version {disposition_version} is "
+                    f"{deadline.isoformat()}, which has not passed at "
+                    f"{now_utc.isoformat()}"
+                )
 
-                event_id = uuid.uuid4().hex
+            event_id = uuid.uuid4().hex
+            cur.execute("SAVEPOINT expiry_events_insert")
+            try:
                 cur.execute(
                     "INSERT INTO expiry_events "
                     "(id, episode_id, disposition_version, occurred_at) "
                     "VALUES (%s, %s, %s, %s)",
                     (event_id, episode_id, disposition_version, _iso(now_utc)),
                 )
-                self._append_event(
-                    cur, episode_id, "expiry_recorded", f"version={disposition_version}", now_utc
-                )
-                return True
-        except psycopg.errors.UniqueViolation:
-            return False
+            except psycopg.errors.UniqueViolation:
+                # See the docstring: this keeps the transaction alive. Without it
+                # the transaction is aborted and `_write` silently discards it
+                # rather than failing, so the rollback guards the statements a
+                # future edit might add after this INSERT, not today's `False`.
+                cur.execute("ROLLBACK TO SAVEPOINT expiry_events_insert")
+                return False
+            cur.execute("RELEASE SAVEPOINT expiry_events_insert")
+            self._append_event(
+                cur, episode_id, "expiry_recorded", f"version={disposition_version}", now_utc
+            )
+            return True
 
     def list_expiry_events(
         self, episode_id: str
