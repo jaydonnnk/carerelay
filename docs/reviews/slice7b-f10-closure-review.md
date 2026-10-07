@@ -91,9 +91,10 @@ docstring does not claim otherwise.
   a review's account of its own session and is left as written.
 - `AGENTS.md` section 3 is stale (Slices 1 to 4 complete, Slice 5 in progress). It
   is a disclosed finding of this review, not this pass's to fix.
-- `00-status.md`'s patient-wording section still reads "Nothing is committed and
-  nothing is pushed" for the 2 October 2026 pass, which the later commits falsified.
-  The tense was made explicit in the record sweep that accompanied this ship.
+- `docs/reviews/patient-wording-pass.md` line 8 and the matching sentence in
+  `00-status.md` both read "Nothing is committed and nothing is pushed" for the 2
+  October 2026 pass, which later commits falsified. Both were given an explicit
+  tense in the record sweep that accompanied this ship.
 
 ## State at the time of review
 

@@ -5,7 +5,7 @@
 **Outcome.** The wording pass was applied, which reopened Gate 1 and Gate 2. The user
 answered the standing question with **"I have read and i re approve both gates"**, so
 both gates are **APPROVED** again and the re-opened Slice 5 Check is **COMPLETE**.
-**Slice 5 closes as of 2 October 2026.** Nothing is committed and nothing is pushed.
+**Slice 5 closes as of 2 October 2026.** At the time of that pass nothing was committed and nothing was pushed; the work was committed afterwards.
 
 The user asked for the patient-facing wording to "sound like a human, and not a
 robotic agent", and initially asked for the tone to be sourced from hospitality
