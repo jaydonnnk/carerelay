@@ -29,6 +29,27 @@ def _md5(data: bytes) -> str:
     return hashlib.md5(data).hexdigest()
 
 
+def _purge_bytecode(path: pathlib.Path) -> None:
+    """Delete any cached bytecode compiled from `path`.
+
+    **Why this is here.** Python validates a `.pyc` against the source's
+    *mtime and size only*, never against its content, so a `.pyc` compiled
+    while a mutation was live can keep being imported long after the source
+    has been restored. On 5 October 2026 one did: `refuse_delete` ran
+    `DELETE ... WHERE false` for a whole session against a file that read
+    `WHERE true`, the statement matched no row, no row-level trigger fired,
+    and the product's strongest guarantee looked broken with no defect
+    anywhere in the source. Restoring the bytes is not enough; the compiled
+    artefact has to go with them. `tests/_mutate_slice7b.py` carries the
+    full account, and `tasks/lessons.md` records it.
+    """
+    cache = path.parent / "__pycache__"
+    if not cache.is_dir():
+        return
+    for stale in cache.glob(f"{path.stem}.*.pyc"):
+        stale.unlink()
+
+
 #: (label, anchor bytes, replacement bytes, selectors)
 MUTATIONS = [
     (
@@ -82,6 +103,9 @@ def main() -> int:
         try:
             env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
             env["PYTHONPATH"] = "src"
+            # A `.pyc` compiled from a mutated file is a mutation that
+            # outlives the restore, so no child process may write one.
+            env["PYTHONDONTWRITEBYTECODE"] = "1"
             completed = subprocess.run(
                 [PYTHON, "-m", "pytest", "-o", "addopts=", "-q", *selectors],
                 cwd=REPO,
@@ -92,6 +116,7 @@ def main() -> int:
             )
         finally:
             TARGET.write_bytes(original)
+            _purge_bytecode(TARGET)
 
         summary = [
             line

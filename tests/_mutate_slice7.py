@@ -45,6 +45,7 @@ one. Disabling it must turn its own self-test red.
 from __future__ import annotations
 
 import hashlib
+import os
 import pathlib
 import re
 import subprocess
@@ -66,7 +67,15 @@ def run(selectors: list[str]) -> tuple[int, str]:
     reported RED for two days on the strength of `ERROR: not found`.
     """
     cmd = [sys.executable, "-m", "pytest", "-o", "addopts=", "-q", *selectors]
-    proc = subprocess.run(cmd, cwd=ROOT, capture_output=True, text=True)
+    proc = subprocess.run(
+        cmd,
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        # A `.pyc` compiled from a mutated file outlives the restore, so
+        # no child process may write one.
+        env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"},
+    )
     tail = [line for line in proc.stdout.strip().splitlines() if line.strip()]
     print("   ", tail[-1] if tail else "(no output)")
     return proc.returncode, proc.stdout + proc.stderr
@@ -229,6 +238,27 @@ def _md5(data: bytes) -> str:
     return hashlib.md5(data).hexdigest()
 
 
+def _purge_bytecode(path: pathlib.Path) -> None:
+    """Delete any cached bytecode compiled from `path`.
+
+    **Why this is here.** Python validates a `.pyc` against the source's
+    *mtime and size only*, never against its content, so a `.pyc` compiled
+    while a mutation was live can keep being imported long after the source
+    has been restored. On 5 October 2026 one did: `refuse_delete` ran
+    `DELETE ... WHERE false` for a whole session against a file that read
+    `WHERE true`, the statement matched no row, no row-level trigger fired,
+    and the product's strongest guarantee looked broken with no defect
+    anywhere in the source. Restoring the bytes is not enough; the compiled
+    artefact has to go with them. `tests/_mutate_slice7b.py` carries the
+    full account, and `tasks/lessons.md` records it.
+    """
+    cache = path.parent / "__pycache__"
+    if not cache.is_dir():
+        return
+    for stale in cache.glob(f"{path.stem}.*.pyc"):
+        stale.unlink()
+
+
 def _endings(data: bytes) -> str:
     crlf = data.count(b"\r\n")
     lone = data.count(b"\n") - crlf
@@ -297,6 +327,7 @@ def main() -> int:
                 failures.append(f"{name} ({reason}, NOT PROVEN)")
         finally:
             path.write_bytes(original)
+            _purge_bytecode(path)
             if _md5(path.read_bytes()) != _md5(original):
                 print(f"    *** RESTORE MISMATCH in {filename}: ABORTING ***")
                 failures.append(f"{name} (restore mismatch)")
