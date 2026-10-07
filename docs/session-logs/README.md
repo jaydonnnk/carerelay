@@ -27,6 +27,11 @@ be rebuilt once the session logs are gone.
 | `2026-09-28.md` | Gate 4 drafted, the kill tests pass, the ADR directory created |
 | `2026-09-30.md` | The git object-store loss and recovery; Slices 1 to 3; the stack reversal; the revision-3 re-approval |
 | `2026-10-01.md` | The Slice 4 adversarial review and its remediation |
+| `2026-10-02.md` | The Gate A access-harness adversarial review |
+| `2026-10-03.md` | B3 closed without a clinical reviewer |
+| `2026-10-04.md` | The Slice 7b stage 1 adversarial review and its two blockers |
+| `2026-10-05.md` | The poisoned bytecode cache and the Slice 7b stage 2 ship |
+| `2026-10-07.md` | The F10 closure review, and the Slice 8 build and remediation |
 | `MEMORY.md` | Curated project notes: working conventions and current state |
 
 ## These are copies
