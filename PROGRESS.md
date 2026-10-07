@@ -162,7 +162,7 @@ builds.** Slices 10 to 12 are replanned if the card wins on the cut rule.
   protocol's design declaration to "within-subjects" and survived, because the guard asserted the phrase
   "between-subjects" appeared somewhere and the rationale paragraph contains it too. The guard now pins
   the declaration. `tasks/lessons.md` carries the entry.
-- 2026-10-07: **Slice 8 remediated after the adversarial review, and the Check is complete.** All seven fixed findings (B1, S1, S2, N1, N2, N3, N5) are in the tree; the harness grew from 15 to **26 mutations, 26 of 26 RED, 0 SURVIVED, 0 NOT PROVEN**, and `tests/test_study.py` from 102 to **126 tests**, so the suite is **740 passed, 0 skipped**. S3 and N4 are deliberately left. The user read the card and the frozen protocol on 7 October 2026, so the slice's Check is complete; the slice shipped to `main` on 7 October 2026 in seven commits.
+- 2026-10-07: **Slice 8 remediated after the adversarial review, and the Check is complete.** All seven fixed findings (B1, S1, S2, N1, N2, N3, N5) are in the tree; the harness grew from 15 to **26 mutations, 26 of 26 RED, 0 SURVIVED, 0 NOT PROVEN**, and `tests/test_study.py` from 102 to **126 tests**, so the suite is **740 passed, 0 skipped**. S3 and N4 are deliberately left. The user read the card and the frozen protocol on 7 October 2026, so the slice's Check is complete; the slice shipped to `main` on 7 October 2026 in coherent commits, one concern at a time.
 
 **Carried into Slice 4 and later:** the Option C source (blocks Slice 5), F5 at Slice 6, F6 at
 Slice 5, F4 and the §2.2 amendment at Slice 10 (Slice 9 before the 30 September 2026
