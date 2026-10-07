@@ -99,7 +99,8 @@ Authority rules:
   slice closed on, so those branches sit behind `main` by design and not by
   accident: `slice-2-domain-core`, `slice-3`, `slice-4`, `slice-4-completion`,
   `slice-5`, `slice-6`, `slice-7`, `slice-7b`, `slice-7b-stage1-fixes` and
-  `slice-8-fixed-card`. Not all
+  `slice-8-fixed-card`. `slice-9` is the next slice branch, created at the Slice 8 ship and
+  level with `main` until Slice 9 begins. Not all
   of them are published and a published one is not necessarily at its local tip, so
   `git ls-remote --heads origin` is the only authority for what `origin` holds; this
   sandbox drops the local tracking refs after a push, which reads like a failed push
