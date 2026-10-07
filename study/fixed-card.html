@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Your plan</title>
+  <!--
+    The fixed card. Condition B of the baseline comparison, Slice 8.
+
+    This is an external artefact, printed or exported to PDF and handed to the
+    participant. It is deliberately NOT an in-app arm: no script, no external
+    stylesheet, no image, no call to any API, and no mention of the application
+    anywhere a participant can see. `tests/test_study.py` fails if any of that
+    changes.
+
+    Every visible string is a mirror of the fixture, not a second source for it.
+    The four lines are `carerelay.demo.fixture.demo_lines()`, the notice is
+    `FIXTURE_LABEL` verbatim, the link text is `ACTION_TEXT` verbatim, and the
+    two route names are `policy_text().route_display_by_id`. The heading "Your
+    plan" is the same heading the application's patient screen uses. The parity
+    test fails if any of them drifts.
+
+    `data-route-id` marks each route the card actually offers, so the offered set
+    can be compared against `policy().permitted_route_ids` mechanically rather
+    than by eye.
+
+    The booking address is under the reserved `.invalid` top-level domain
+    (RFC 2606), so it can never resolve to a real service. It is the card's
+    analogue of the application's action path, and it is the only address here.
+
+    No timer, no countdown, no animation and no auto-advance appears in this
+    file, in print or on screen.
+  -->
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #14181f;
+      --paper: #ffffff;
+      --rule: #4a5361;
+      --notice: #3b4250;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 20px;
+      line-height: 1.6;
+    }
+    .card {
+      max-width: 34rem;
+      margin: 0 auto;
+      padding: 2.5rem 2rem 3rem;
+    }
+    .fixture-label {
+      margin: 0 0 1.75rem;
+      padding: 0.6rem 0.8rem;
+      border: 1px solid var(--rule);
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 0.8rem;
+      line-height: 1.4;
+      letter-spacing: 0.02em;
+      color: var(--notice);
+    }
+    .card-title {
+      margin: 0 0 1.5rem;
+      font-size: 2rem;
+      line-height: 1.25;
+    }
+    .lines {
+      margin: 0 0 2rem;
+      padding: 0;
+      list-style: none;
+    }
+    .line {
+      margin: 0 0 1rem;
+      padding: 0 0 0 0.9rem;
+      border-left: 4px solid var(--rule);
+      font-size: 1.25rem;
+    }
+    .booking {
+      margin: 0 0 1.5rem;
+      padding: 1rem 1.1rem;
+      border: 2px solid var(--ink);
+      font-size: 1.15rem;
+    }
+    .booking-link {
+      color: var(--ink);
+      text-decoration: underline;
+      text-underline-offset: 0.2em;
+      word-break: break-word;
+    }
+    .card-footer {
+      margin: 0;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--rule);
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 0.8rem;
+      color: var(--notice);
+    }
+    @media print {
+      html, body { font-size: 14pt; }
+      .card { max-width: none; padding: 0; }
+      .booking { border-width: 3px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="card" data-instrument="fixed-card-v1">
+    <p class="fixture-label" role="note">SIMULATED — RESEARCH DEMONSTRATION. Not clinical advice.</p>
+    <h1 class="card-title">Your plan</h1>
+    <ol class="lines">
+      <li class="line">No one has agreed to help yet.</li>
+      <li class="line">Please act now.</li>
+      <li class="line">Please do it before 6pm today.</li>
+      <li class="line" data-route-id="nurse_line">If that does not work, call the fictional nurse line.</li>
+    </ol>
+    <p class="booking" data-route-id="fictional_provider">
+      <a class="booking-link" href="https://booking.invalid/demo-same-day-review">Go to the fictional provider's same-day review.</a>
+    </p>
+    <footer class="card-footer">Fixed card, study instrument v1.</footer>
+  </main>
+</body>
+</html>
