@@ -155,14 +155,14 @@ builds.** Slices 10 to 12 are replanned if the card wins on the cut rule.
   pre-registration, frozen before the first dyad), `tests/test_study.py` (**126 tests**), and
   `tests/_mutate_slice8.py` (**26 of 26 mutations RED, 0 SURVIVED, 0 NOT PROVEN**, every file restored
   byte-exact). **740 passed, 0 skipped** against a measured pre-slice baseline of **614 passed,
-  0 skipped**, so the slice adds exactly its own 126 tests. **Not committed and not pushed.** The Check
-  ("the user reads the card and the frozen protocol before any participant sees either") is **COMPLETE**, the user having read both on 7 October 2026, so the slice is complete but not yet shipped. **Operational record only:** `00-status.md` is the
+  0 skipped**, so the slice adds exactly its own 126 tests. **Committed and pushed to `main` 7 October 2026.** The Check
+  ("the user reads the card and the frozen protocol before any participant sees either") is **COMPLETE**, the user having read both on 7 October 2026, so the slice is complete and shipped. **Operational record only:** `00-status.md` is the
   authority for slice state.
 - 2026-10-07: **A mutation survived and the guard was the defect, not the mutation.** P1 flipped the
   protocol's design declaration to "within-subjects" and survived, because the guard asserted the phrase
   "between-subjects" appeared somewhere and the rationale paragraph contains it too. The guard now pins
   the declaration. `tasks/lessons.md` carries the entry.
-- 2026-10-07: **Slice 8 remediated after the adversarial review, and the Check is complete.** All seven fixed findings (B1, S1, S2, N1, N2, N3, N5) are in the tree; the harness grew from 15 to **26 mutations, 26 of 26 RED, 0 SURVIVED, 0 NOT PROVEN**, and `tests/test_study.py` from 102 to **126 tests**, so the suite is **740 passed, 0 skipped**. S3 and N4 are deliberately left. The user read the card and the frozen protocol on 7 October 2026, so the slice's Check is complete; nothing is committed, pushed or staged.
+- 2026-10-07: **Slice 8 remediated after the adversarial review, and the Check is complete.** All seven fixed findings (B1, S1, S2, N1, N2, N3, N5) are in the tree; the harness grew from 15 to **26 mutations, 26 of 26 RED, 0 SURVIVED, 0 NOT PROVEN**, and `tests/test_study.py` from 102 to **126 tests**, so the suite is **740 passed, 0 skipped**. S3 and N4 are deliberately left. The user read the card and the frozen protocol on 7 October 2026, so the slice's Check is complete; the slice shipped to `main` on 7 October 2026 in seven commits.
 
 **Carried into Slice 4 and later:** the Option C source (blocks Slice 5), F5 at Slice 6, F6 at
 Slice 5, F4 and the §2.2 amendment at Slice 10 (Slice 9 before the 30 September 2026

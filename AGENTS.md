@@ -93,20 +93,21 @@ Authority rules:
   Contract, the two-axis state model, the design principles and the five HTML
   wireframes. It does not authorise implementation, installs, credentials, external
   calls, recruitment or deployment.
-- Branch state (verified 5 October 2026, after the Slice 7b stage 2 ship): `main`
-  holds every slice up to and including Slice 7b stage 2 and is in sync with
+- Branch state (verified 7 October 2026, after the Slice 8 ship): `main`
+  holds every slice up to and including Slice 8 and is in sync with
   `origin/main`. Each slice also keeps its own branch, frozen at the commit its
   slice closed on, so those branches sit behind `main` by design and not by
   accident: `slice-2-domain-core`, `slice-3`, `slice-4`, `slice-4-completion`,
-  `slice-5`, `slice-6`, `slice-7`, `slice-7b` and `slice-7b-stage1-fixes`. Not all
+  `slice-5`, `slice-6`, `slice-7`, `slice-7b`, `slice-7b-stage1-fixes` and
+  `slice-8-fixed-card`. Not all
   of them are published and a published one is not necessarily at its local tip, so
   `git ls-remote --heads origin` is the only authority for what `origin` holds; this
   sandbox drops the local tracking refs after a push, which reads like a failed push
   and is not one. `gate-2-architecture` and `care-relay-adversarial-review` no
   longer exist as branches; their commits remain reachable from `main`. No gate
   authorises a commit or a push, so every commit and every push in this repository
-  rests on an explicit user instruction, the most recent being the one of 5 October
-  2026 that shipped Slice 7b stage 2 to `main`. A push succeeds when it is asked
+  rests on an explicit user instruction, the most recent being the one of 7 October
+  2026 that shipped Slice 8 to `main`. A push succeeds when it is asked
   for, so the credential failures recorded in `tasks/lessons.md` no longer apply.
   Commit counts and hashes are deliberately not stated here: both have gone stale in
   this file before.
