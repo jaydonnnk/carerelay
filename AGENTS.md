@@ -83,9 +83,11 @@ Authority rules:
   Plan) are **all APPROVED**. Gates 2, 3 and 4 were reopened on 30 September 2026
   to encode Decisions D-A to D-D and hosting Decision D-1b, and were **re-approved
   the same day**. `00-status.md` records both the reopen and the re-approval.
-  Slices 1, 2, 3 and 4 are complete. **Slice 5 is in progress and is no longer
-  blocked:** Option C was dropped on 1 October 2026, which unblocked the judged
-  fixture and reopened Gate 3 (see below). **Each slice stops
+  Slices 1 to 7b are complete and shipped to `main`. **Slice 8 (the fixed card and
+  the pre-registration) is built on `slice-8-fixed-card`, adversarially reviewed and
+  remediated the same day, and its Check is complete; Slice 9 is next.** Option C was
+  dropped on 1 October 2026, which unblocked
+  the judged fixture and reopened Gate 3 (see below). **Each slice stops
   for the user's "continue, or re-steer?" before the next one begins.**
 - Gate 1 approval covers the reframe, PlanBack, the recall hint ladder, the Closure
   Contract, the two-axis state model, the design principles and the five HTML
