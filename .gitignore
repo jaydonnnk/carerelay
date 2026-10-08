@@ -118,3 +118,13 @@ docker-compose.override.yml
 
 # Frontend build cache
 tsconfig.tsbuildinfo
+
+# ---- Gate B study data ----
+# The raw outcome sheet is participant data. Protocol section 4 requires it
+# to be destroyed 30 days after submission, and it must never reach the
+# clinical database, so it never reaches the repository either. The
+# instrument that writes it (src/carerelay/study/) is tracked; its output is
+# not.
+study/outcomes.jsonl
+study/consent.jsonl
+study/second-scorer.jsonl
