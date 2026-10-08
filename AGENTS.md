@@ -89,7 +89,10 @@ Authority rules:
   7 October 2026. Slice 9 (Gate B) is built on `slice-9` and CUT as a run on 8 October 2026
   (Gate 4 reopened and re-approved the same day): the response path the sessions would have
   been scored with is built, but no dyad was recruited, so there is no Gate B result
-  and no human-centred validation claim is made.** Option C was
+  and no human-centred validation claim is made. Slice 10 (the Closure Contract
+  in full) is built on `slice-10` and shipped to `main` on 8 October 2026, with
+  F4, F6 and F6-render closed by the approved closure renderings, and Slice 11
+  (the fault harness and the seven sequences) is next.** Option C was
   dropped on 1 October 2026, which unblocked
   the judged fixture and reopened Gate 3 (see below). **Each slice stops
   for the user's "continue, or re-steer?" before the next one begins.
@@ -108,31 +111,32 @@ Authority rules:
   Contract, the two-axis state model, the design principles and the seven HTML
   wireframes. It does not authorise implementation, installs, credentials, external
   calls, recruitment or deployment.
-- Branch state (verified 8 October 2026, after the Slice 9 ship): `main`
-  holds every slice up to and including Slice 9 and is in sync with
+- Branch state (verified 8 October 2026, after the Slice 10 ship): `main`
+  holds every slice up to and including Slice 10 and is in sync with
   `origin/main`. Each slice also keeps its own branch, frozen at the commit its
   slice closed on, so those branches sit behind `main` by design and not by
   accident: `slice-2-domain-core`, `slice-3`, `slice-4`, `slice-4-completion`,
-  `slice-5`, `slice-6`, `slice-7`, `slice-7b`, `slice-7b-stage1-fixes` and
-  `slice-8-fixed-card`. `slice-9` is the Slice 9 branch, cut from `main` at the
-  Slice 8 ship and holding the Slice 9 work, which is committed to `main`. Not all
-  of them are published and a published one is not necessarily at its local tip, so
-  `git ls-remote --heads origin` is the only authority for what `origin` holds; this
-  sandbox drops the local tracking refs after a push, which reads like a failed push
-  and is not one. `gate-2-architecture` and `care-relay-adversarial-review` no
-  longer exist as branches; their commits remain reachable from `main`. No gate
-  authorises a commit or a push, so every commit and every push in this repository
-  rests on an explicit user instruction, the most recent being the one of 7 October
-  2026 that shipped Slice 8 to `main`. A push succeeds when it is asked
-  for, so the credential failures recorded in `tasks/lessons.md` no longer apply.
-  Commit counts and hashes are deliberately not stated here: both have gone stale in
-  this file before.
-- **Next hard dependency: the Gate A access spike, due 2026-09-26.** Approval of
-  Gate 2 authorises the spike only (read-only credential checks and one typed tool
-  call), not implementation code. The reversal is pre-recorded: if WorkBuddy access
-  fails, fall back to labelled local simulation, carry the mandatory usage proof
-  through genuine CodeBuddy development history, and weaken the platform-advantage
-  claim accordingly.
+  `slice-5`, `slice-6`, `slice-7`, `slice-7b`, `slice-7b-stage1-fixes`,
+  `slice-8-fixed-card`, `slice-9` and `slice-10`. `slice-9` holds the Slice 9 work,
+  cut as a run, and `slice-10` holds the Slice 10 work; both are committed to
+  `main`. Not all of them are published and a published one is not necessarily at
+  its local tip, so `git ls-remote --heads origin` is the only authority for what
+  `origin` holds; this sandbox drops the local tracking refs after a push, which
+  reads like a failed push and is not one. `gate-2-architecture` and
+  `care-relay-adversarial-review` no longer exist as branches; their commits remain
+  reachable from `main`. No gate authorises a commit or a push, so every commit and
+  every push in this repository rests on an explicit user instruction, the most
+  recent being the ones of 8 October 2026 that shipped the Slice 9 cut and Slice 10
+  to `main`. A push succeeds when it is asked for, so the credential failures
+  recorded in `tasks/lessons.md` no longer apply. Commit counts and hashes are
+  deliberately not stated here: both have gone stale in this file before.
+- **Gate A access spike: RAN AND PASSED 2 October 2026.** All three questions were
+  answered from observation (reachability, a caller-supplied session id honoured
+  across two calls, a platform-owned failure trace), so the pre-recorded reversal
+  does not apply. What it proves is the transport: tool execution is not wired,
+  `origin` stays `local-sim`, and D8 forbids ADP carrying the section 3.3 claim.
+  Approval of Gate 2 authorised the spike only (read-only credential checks and one
+  typed tool call), not implementation code.
 - **Stack (revised 30 September 2026).** Backend: Python 3.13 + FastAPI + SQLite
   (WAL, busy timeout) on **Render** (Docker, paid plan, mounted persistent disk),
   with the SQLite path supplied by `APP_DATABASE_URL`. Frontend: a **Next.js

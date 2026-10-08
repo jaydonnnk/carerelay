@@ -154,7 +154,21 @@ restored byte-exact. **The user decided on 8 October 2026 that no dyads will run
 will be named, so the run is cut and the project makes no human-centred validation claim.** This is the
 plan's own pre-recorded cut (`04-slices.md` section 6 item 1; section 7 stop condition 4), not a failed
 recruitment, and the build stands as design evidence. Gate 4 was reopened on 8 October 2026 and re-approved the same day; see
-`00-status.md`. Slice 10 is next.
+`00-status.md`.
+
+**Slice 10: the Closure Contract in full. BUILT 8 October 2026 on `slice-10` and SHIPPED to `main`
+the same day** (from `main` at `04846ac`; committed in coherent batches, fast-forwarded into `main`
+and pushed to `origin` on the user's instruction, with `slice-10` itself not pushed). `POST
+/api/episodes/{id}/acceptances`, the expiry read-path in `service.project_patient` (derive first,
+record `record_expiry_once` only when the derivation says `expired_unresolved`), the JSON-only
+`src/carerelay/presentation.py`, `GET /api/episodes/{id}` deriving from `domain.patient_lines`
+instead of a literal, and `domain.rules.validate_owner`. The closure renderings arrived the same
+day: the user's decision was that the product must show that help is arranged, Gates 1 and 2 were
+reopened and re-approved, `mockups/06-resolved-handoff.html` and `07-escalated-to-human.html` were
+created, and all four closure states now render. Evidence: suite **890 passed, 0 skipped**;
+`tests/_mutate_slice10.py` **16 of 16 RED, 0 SURVIVED, 0 NOT PROVEN**; the `slice6`/`slice7`/`slice8`
+harnesses re-run clean; all five screens rendered through live `curl`. **F4, F6 and F6-render are
+CLOSED.** **Slice 11 (the fault harness and the seven sequences) is next.**
 
 ### Slice 8: the fixed card and the pre-registration (built 2026-10-07)
 
