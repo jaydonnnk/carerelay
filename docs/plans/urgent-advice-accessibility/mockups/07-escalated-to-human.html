@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CareRelay: Handed to a human path wireframe</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font: 18px/1.45 system-ui, sans-serif; color: #111; background: #eee; }
+    main { max-width: 760px; margin: 32px auto; padding: 24px; background: #fff; border: 2px solid #111; }
+    section { margin-bottom: 24px; padding: 18px; border: 2px solid #555; }
+    .eyebrow { font-size: 14px; text-transform: uppercase; letter-spacing: .08em; }
+    .notice { padding: 12px; border: 2px dashed #555; background: #f5f5f5; font-size: 16px; }
+    h1, h2, h3, p { margin-top: 0; }
+    h1 { font-size: 30px; }
+    h2 { font-size: 23px; }
+    .patient { padding: 24px; border: 5px solid #111; }
+    .patient ol { margin: 0; padding-left: 26px; font-size: 24px; line-height: 1.6; }
+    .patient li { margin-bottom: 10px; }
+    .axes { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .axes div { padding: 14px; border: 2px solid #111; }
+    .axes .label { display: block; font-size: 14px; text-transform: uppercase; letter-spacing: .06em; }
+    .axes .value { display: block; margin-top: 6px; font-size: 19px; font-weight: 700; }
+    .trace { font-size: 15px; font-family: ui-monospace, Menlo, monospace; padding: 14px; border: 2px solid #555; background: #f5f5f5; white-space: pre-wrap; }
+    button { min-height: 48px; margin: 6px 8px 6px 0; padding: 10px 16px; border: 2px solid #111; background: #fff; font: inherit; font-weight: 700; }
+    button.primary { background: #111; color: #fff; }
+    .rules { font-size: 15px; }
+    .rules li { margin-bottom: 6px; }
+    @media (max-width: 600px) { main { margin: 0; border-width: 0; } .axes { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<main>
+  <div class="eyebrow">Wireframe 7 of 7 · handed to a human path</div>
+  <h1>We have passed this to Riverwood Community Clinic.</h1>
+  <div class="notice">Research demonstration. Named human path: <strong>Riverwood Community Clinic</strong> (fictional). The handoff record is simulated. Not a real service.</div>
+
+  <section class="patient">
+    <div class="eyebrow">Patient view · four lines, nothing else</div>
+    <ol>
+      <li><strong>We have passed this to Riverwood Community Clinic.</strong></li>
+      <li><strong>You do not need to act now.</strong></li>
+      <li><strong>It is set for 6:00 PM today.</strong></li>
+      <li>If that does not work, <strong>call 6262 6262</strong>.</li>
+    </ol>
+    <button class="primary">Show my plan · 显示我的计划</button>
+    <button>Call a person · 联系人工服务</button>
+  </section>
+
+  <section>
+    <div class="eyebrow">Judge-facing evidence · not the patient's screen</div>
+    <h2>The acting party follows the handoff</h2>
+    <div class="axes">
+      <div><span class="label">Closure</span><span class="value">escalated_to_human</span></div>
+      <div><span class="label">Evidence</span><span class="value">none</span></div>
+    </div>
+    <div class="trace">closure             = escalated_to_human
+action_owner        = the named human path (escalation target)
+care_evidenced      = false
+deadline            = unchanged by the handoff
+escalation[0]       = handed_off
+line 1              = "We have passed this to [named human path]."</div>
+    <p><small>F6: once an escalation is recorded, the product never tells the patient to act on a plan that has been handed away. An escalation that names no path is refused rather than falling back to the patient.</small></p>
+  </section>
+
+  <section>
+    <div class="eyebrow">What must hold under fault</div>
+    <ul class="rules">
+      <li><strong>I4 Named owner.</strong> Exactly one party acts: after the handoff it is the named human path, and line 1 says so.</li>
+      <li><strong>Copy rule 6, no invented capability.</strong> Line 1 reports the handoff that happened; it promises nothing further.</li>
+      <li><strong>Copy rule 4.</strong> Line 4 still names the ordinary route, and copy rule 5 keeps the deadline on line 3.</li>
+    </ul>
+    <p>Mandarin for this screen follows the same native-review gate as every other screen; no draft is shown here.</p>
+  </section>
+</main>
+</body>
+</html>

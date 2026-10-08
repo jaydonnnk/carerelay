@@ -21,7 +21,7 @@ or imply a gate approval. Everything else is supporting.
 |---|---|---|
 | repo root | `AGENTS.md` (execution rules), `PROGRESS.md` (operational memory), three historical case-study inputs | `AGENTS.md` binds how work is done; the case studies are context, not scope |
 | `docs/` | the official challenge rules and the plan: `CHALLENGE_REQUIREMENTS_JUDGING.md`, `ADDITIONAL_CHALLENGE_INFO.md`, `PLAN.md`, `DESIGN_PRINCIPLES.md`, `organiser-tech-load-bearing-audit.html` | official rules and primary sources override any stored summary |
-| `docs/plans/urgent-advice-accessibility/` | the four gate documents, their supporting notes and the five HTML mockups | the gate documents; `00-status.md` is the only state authority |
+| `docs/plans/urgent-advice-accessibility/` | the four gate documents, their supporting notes and the seven HTML mockups | the gate documents; `00-status.md` is the only state authority |
 | `docs/reviews/` | adversarial reviews and the review briefs handed to independent reviewers | a review is authoritative for nothing; it is evidence about a slice or a gate |
 | `docs/adr/` | dated decisions that outlive the feature | summarises a decision; never overrides a gate document |
 

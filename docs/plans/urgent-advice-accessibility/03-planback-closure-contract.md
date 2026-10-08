@@ -146,6 +146,23 @@ Episode closure:
 
 `attempted` + evidence `none` is the honest rendering of "we tried and nobody said yes." It is the core of the product.
 
+**Precedence, stated because two rows can both be true (added 8 October 2026).**
+The `closed_with_evidence` and `expired_unresolved` rows overlap on exactly one
+combination: a recorded human acceptance plus a deadline that has passed with no
+evidence. This note previously stated no order and left the implementation to
+choose, which is the documentary form of finding F4.
+
+The order is **expiry first**. A human acceptance is a promise, not evidence that
+care happened, so an episode whose deadline passed with nothing to show for it is
+`expired_unresolved` even when an acceptance is recorded. Choosing the other
+order would let a scripted acceptance report a resolved episode whose deadline
+went by, which is invariant I2. The order is implemented in
+`domain.rules.derive_closure` and is proven by the closure tests there.
+
+Documented, non-simulated evidence still outranks both: with evidence the episode
+is `closed_with_evidence`, and a previously recorded expiry event stays in the
+ledger as a fact without changing the closure.
+
 ### 2.3 Part B — five invariants
 
 These are the rules that must hold under fault. They are what makes the contract a *contract* and not a status widget.
@@ -198,6 +215,21 @@ The review is blunt that the full ladder is emotionally cold (`docs/reviews/gate
 **Reworded 2 October 2026** to read like a person rather than an agent. The
 normative table, the five copy rules and the change record live in
 `02-architecture.md` section 7; this list mirrors them and is not the authority.
+
+**The closure renderings, approved 8 October 2026.** The other two closure states
+had no approved words, so `domain.patient_lines` refused for `closed_with_evidence`
+and fell through to the unresolved screen for `escalated_to_human`. Mirrored from
+`02-architecture.md` section 7, which is the authority:
+
+- **Resolved, care documented:** "Help is arranged." / "Nothing more is needed from
+  you." / "It is set for [deadline]." / "If that does not happen, call [approved
+  human route]."
+- **Resolved, someone agreed:** "Someone has agreed to help." / "You do not need to
+  act now." / "It is set for [deadline]." / "If that does not happen, call [approved
+  human route]."
+- **Handed to a human path:** "We have passed this to [named human path]." / "You do
+  not need to act now." / "It is set for [deadline]." / "If that does not work, call
+  [approved human route]."
 
 The two-axis ledger is **judge-facing evidence**, shown in the walkthrough and the failure-inspection view. It is not the patient's screen. This split is the single highest-leverage design decision in the reframe: it keeps the technical integrity visible to judges without turning the product into audit software.
 

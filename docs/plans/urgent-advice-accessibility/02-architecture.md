@@ -267,6 +267,25 @@ No real healthcare endpoints exist anywhere. Adapter callbacks are local-only. *
 - **The deadline stays visible.** Removing it would erase the fact the product exists to preserve.
 - **No invented capability.** Added 2 October 2026: the copy may not offer an action the system cannot take and has no consent to take. The user proposed adding "I'll contact your emergency contact" to line 1; it was rejected because CareRelay holds no emergency contact, has no channel to reach one and no consent record, so the sentence would promise a dispatch that cannot occur and would create the false completion the product exists to prevent. A question on line 1 ("do you want me to alert...") was rejected for the same reason plus I4: it moves the obligation back to the patient instead of naming the acting party.
 
+**The three closure renderings, approved 8 October 2026.** This section fixed the
+unresolved and expired screens. The other two closure states had no approved words:
+`domain.patient_lines` refused for `closed_with_evidence`, and `escalated_to_human`
+fell through to the unresolved screen with the wrong owner. The approved forms are:
+
+| Line | Resolved, care documented | Resolved, someone agreed | Handed to a human path |
+|---|---|---|---|
+| 1 | Help is arranged. | Someone has agreed to help. | We have passed this to *[named human path]*. |
+| 2 | Nothing more is needed from you. | You do not need to act now. | You do not need to act now. |
+| 3 | It is set for *[deadline]*. | It is set for *[deadline]*. | It is set for *[deadline]*. |
+| 4 | If that does not happen, call *[approved human route]*. | If that does not happen, call *[approved human route]*. | If that does not work, call *[approved human route]*. |
+
+**The two resolved cases do not share line 1.** A recorded human acceptance is a
+promise, not evidence that care happened (Closure Contract section 2.2), so line 1
+says "arranged" only when the evidence axis is `documented` and "agreed" when only
+an acceptance exists. All three obey the copy rules above: no exclamation mark, no
+reproach, no invented capability, a real route on line 4, and the deadline visible
+on line 3.
+
 ---
 
 ## 8. Non-functional surfaces (added — all were absent from revision 1)

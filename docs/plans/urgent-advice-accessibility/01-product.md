@@ -67,6 +67,34 @@ The expired rendering substitutes "You can still do this." on line 2, "It is pas
 [deadline]. Please go now." on line 3, and "Call [approved human route]. They can
 help from here." on line 4. Line 1 is unchanged between the two renderings.
 
+**The three closure renderings, approved 8 October 2026.** The unresolved and
+expired screens above cover two of the four closure states. The other two,
+`closed_with_evidence` and `escalated_to_human`, had no approved words, so
+`domain.patient_lines` refused rather than print the unresolved lines over a
+resolved episode, and an escalated episode fell through to the unresolved screen
+with the wrong owner. `02-architecture.md` section 7 carries the full table and the
+copy rules; the approved forms are:
+
+- **Resolved, care documented** (`closed_with_evidence`, evidence `documented`):
+  line 1 **"Help is arranged."**, line 2 **"Nothing more is needed from you."**,
+  line 3 **"It is set for [deadline]."**, line 4 **"If that does not happen, call
+  [approved human route]."**
+- **Resolved, someone agreed** (`closed_with_evidence`, no evidence yet): line 1
+  **"Someone has agreed to help."**, line 2 **"You do not need to act now."**, line
+  3 **"It is set for [deadline]."**, line 4 **"If that does not happen, call
+  [approved human route]."**
+- **Handed to a human path** (`escalated_to_human`): line 1 **"We have passed this
+  to [named human path]."**, line 2 **"You do not need to act now."**, line 3 **"It
+  is set for [deadline]."**, line 4 **"If that does not work, call [approved human
+  route]."**
+
+**Why the two resolved cases do not share line 1.** F4, settled at Slice 10: a
+recorded human acceptance is a promise, not evidence that care happened
+(`03-planback-closure-contract.md` section 2.2). Line 1 therefore says "arranged"
+only when the evidence axis is `documented`, and "agreed" when only an acceptance
+exists. Both binding rules apply unchanged: no exclamation marks, and no invented
+capability.
+
 **Two rules constrain every one of these strings**, and both were made explicit on
 2 October 2026:
 

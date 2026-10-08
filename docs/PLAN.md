@@ -366,6 +366,13 @@ The Closure Contract is the rule set that makes the two axes hold **under fault*
 **Reworded 2 October 2026** for plain human tone. The normative table, the five copy
 rules and the change record are in `02-architecture.md` section 7.
 
+**Closure renderings, added 8 October 2026.** The four lines above are the
+unresolved screen. The resolved and escalated states have their own approved forms,
+carried in `01-product.md` and `02-architecture.md` section 7: "Help is arranged."
+when care is documented, "Someone has agreed to help." when only an acceptance
+exists, and "We have passed this to [named human path]." when the episode is handed
+to a human path. The deadline stays visible on line 3 in all three.
+
 The two-axis ledger is **judge-facing evidence**, shown in the walkthrough and the failure-inspection view. It is not the patient's screen. Keeping that split is what stops a safety mechanism from reading as audit software.
 
 ### Proposed tech stack
