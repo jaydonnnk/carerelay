@@ -46,7 +46,11 @@ from carerelay.coordinator import (
     LocalSimulationCoordinator,
 )
 from carerelay.demo import fixture
-from carerelay.domain.rules import PolicyViolation, UnpermittedTransition
+from carerelay.domain.rules import (
+    NoDispositionToRender,
+    PolicyViolation,
+    UnpermittedTransition,
+)
 from carerelay.domain.models import (
     CallbackResult,
     EvidenceLevel,
@@ -55,6 +59,7 @@ from carerelay.domain.models import (
     Origin,
 )
 from carerelay.service import (
+    AcceptanceOutcome,
     ActionOutcome,
     BarrierOutcome,
     CallbackOutcome,
@@ -382,6 +387,7 @@ _SERVICE = EpisodeService(
     coordinator=LocalSimulationCoordinator(_TOOLS),
     clock=_clock(),
     policy=fixture.policy(),
+    policy_text=fixture.policy_text(),
     display_tz=fixture.DISPLAY_TZ,
     disposition_factory=fixture.disposition,
     bound_complaint=fixture.BOUND_COMPLAINT,
@@ -428,10 +434,18 @@ class PatientProjection(BaseModel):
     `simulated` and `fixture_label` are inside the projection on purpose, not in
     page chrome: D11 requires the simulated label to travel with the clinical
     data, because a projection that omits it is a false-completion path.
+
+    Slice 10 adds `closure` and `care_evidenced`. The frontend needs the closure
+    state to choose which approved rendering to show, and `care_evidenced` is
+    carried beside it so a caller can tell a resolved episode from one where a
+    human accepted a handoff without re-deriving either. The two are independent
+    axes (F5) and neither is inferred from the other here.
     """
 
     episode_id: str
     lines: list[str]
+    closure: str
+    care_evidenced: bool
     simulated: bool
     fixture_label: str
 
@@ -479,16 +493,47 @@ def create_episode(
     response_model=PatientProjection,
     tags=["episodes"],
 )
-def get_episode(episode_id: str) -> PatientProjection:
-    """The patient projection — four lines and the simulated label."""
+def get_episode(
+    episode_id: str,
+    service: EpisodeService = Depends(get_service),
+) -> PatientProjection:
+    """The patient projection: four lines and the simulated label.
+
+    Slice 10 derives this from `domain.patient_lines` against the two axes,
+    instead of returning a fixed literal, and runs the **expiry read-path**
+    first: the first read after an unresolved deadline records the expiry event
+    once, so an episode whose deadline passed while nobody looked is reported as
+    expired the moment somebody reads it. There is no scheduler behind this.
+
+    **The pre-assessment fallback.** `POST /api/episodes` writes no disposition
+    (`02-architecture.md` 3.1), so before assessment there is no plan, no owner,
+    no route and no deadline for `domain.patient_lines` to name. The Slice 1
+    tracer bullet rendered a fixed four-line placeholder for that case and this
+    route keeps it rather than inventing a plan. The literal lives in
+    `demo/fixture.py` and is used only here; the moment a disposition exists the
+    derivation takes over.
+
+    **Every closure state renders its approved wording.** The three closure
+    renderings were approved on 8 October 2026, so `domain.patient_lines` now
+    covers all four states the Closure Contract can derive and this route no
+    longer needs a refusal branch for a resolved episode.
+    """
     if episode_id not in _OPEN_EPISODES:
         raise HTTPException(status_code=404, detail="episode not found")
-    return PatientProjection(
-        episode_id=episode_id,
-        lines=list(fixture.demo_lines().as_tuple()),
-        simulated=True,
-        fixture_label=fixture.FIXTURE_LABEL,
-    )
+    with _DB_LOCK:
+        try:
+            surface = service.project_patient(episode_id)
+        except NoDispositionToRender:
+            lines = fixture.demo_lines()
+            return PatientProjection(
+                episode_id=episode_id,
+                lines=list(lines.as_tuple()),
+                closure="open",
+                care_evidenced=False,
+                simulated=True,
+                fixture_label=fixture.FIXTURE_LABEL,
+            )
+    return PatientProjection(**surface.as_dict())
 
 
 @app.get("/", response_class=HTMLResponse, tags=["ui"])
@@ -843,6 +888,36 @@ class EscalationResponse(BaseModel):
     fixture_label: str
 
 
+class AcceptanceRequest(BaseModel):
+    """A named human acceptance of the handoff, and the scope it covers.
+
+    `accepted_by` is a permitted owner id, validated in `domain`. It is not free
+    text: the ledger names a party this policy can display (I4).
+    """
+
+    accepted_by: str
+    accepted_scope: str = "handoff"
+
+
+class AcceptanceResponse(BaseModel):
+    """The recorded acceptance, and the closure it produced.
+
+    `care_evidenced` is always `false` on this path, and that is the point: an
+    acceptance closes the handoff obligation, it is never evidence that care
+    happened (`03-program-design.md` section 3). The field is serialised rather
+    than omitted so the claim is checkable from the response alone.
+    """
+
+    episode_id: str
+    acceptance_id: str
+    accepted_by: str
+    scope: str
+    closure: str
+    care_evidenced: bool
+    simulated: bool
+    fixture_label: str
+
+
 class ReassessmentRequest(BaseModel):
     """A closed-vocabulary change code, or nothing.
 
@@ -940,6 +1015,47 @@ def record_escalation(
         escalation_id=outcome.escalation_id,
         human_path=outcome.human_path,
         outcome=outcome.outcome,
+        simulated=outcome.simulated,
+        fixture_label=fixture.FIXTURE_LABEL,
+    )
+
+
+@app.post(
+    "/api/episodes/{episode_id}/acceptances",
+    response_model=AcceptanceResponse,
+    tags=["planback"],
+)
+def record_acceptance(
+    episode_id: str,
+    body: AcceptanceRequest,
+    service: EpisodeService = Depends(get_service),
+) -> AcceptanceResponse:
+    """Record a named human acceptance of the handoff. A D4 closure input.
+
+    The acceptance closes the handoff obligation and **never** evidences care:
+    it is not written to `evidence`, so `care_evidenced` stays false and no
+    surface may say care happened because somebody accepted the case. A 409 when
+    the episode has no plan yet, a 422 when the accepting party is not one the
+    policy permits, and a 404 when the episode does not exist.
+    """
+    try:
+        with _DB_LOCK:
+            outcome: AcceptanceOutcome = service.record_human_acceptance(
+                episode_id, body.accepted_by, body.accepted_scope
+            )
+    except EpisodeNotFound:
+        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
+    except NoDispositionYet as exc:
+        raise HTTPException(status_code=409, detail=str(exc))
+    except PolicyViolation as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return AcceptanceResponse(
+        episode_id=episode_id,
+        acceptance_id=outcome.acceptance_id,
+        accepted_by=outcome.accepted_by,
+        scope=outcome.scope,
+        closure=outcome.closure.closure.value,
+        care_evidenced=outcome.closure.care_evidenced,
         simulated=outcome.simulated,
         fixture_label=fixture.FIXTURE_LABEL,
     )

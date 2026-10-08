@@ -55,6 +55,8 @@ from carerelay.domain.models import (
     RECALL_OUTCOME_BY_LEVEL,
     AttemptCommand,
     CallbackResult,
+    ClosureProjection,
+    ClosureState,
     Disposition,
     ExecutionStatus,
     HintEvent,
@@ -65,9 +67,11 @@ from carerelay.domain.models import (
     Origin,
     PlanComparison,
     PolicyFixture,
+    PolicyText,
     ReassessmentOutcome,
     RecallOutcome,
 )
+from carerelay.presentation import PatientSurface, patient_surface
 from carerelay.state import (
     CLINICAL_SCOPE,
     DEFAULT_KEY_NAMESPACE,
@@ -270,6 +274,30 @@ class EscalationOutcome:
 
 
 @dataclass(frozen=True)
+class AcceptanceOutcome:
+    """The recorded human acceptance, and the closure it produced.
+
+    **Why this carries the id as well as the closure.** Gate 3 pins
+    `record_human_acceptance(...) -> ClosureProjection`, and the closure is what
+    the caller needs to see the state change. The id is here for the same reason
+    `EscalationOutcome` carries `escalation_id`: a response that cannot name the
+    record it just wrote cannot be used to check the ledger later. The deviation
+    from the pinned signature is stated rather than silent, and it matches the
+    precedent `escalate` already set.
+
+    `closure` is derived after the write, so it is the state the acceptance
+    produced, not a prediction of it.
+    """
+
+    acceptance_id: str
+    episode_id: str
+    accepted_by: str
+    scope: str
+    closure: ClosureProjection
+    simulated: bool
+
+
+@dataclass(frozen=True)
 class ActionOutcome:
     """One opened attempt, and what the coordinator's tool call returned.
 
@@ -361,6 +389,7 @@ class EpisodeService:
         coordinator: CoordinatorPort,
         clock: Clock,
         policy: PolicyFixture,
+        policy_text: PolicyText,
         display_tz: tzinfo,
         disposition_factory: Callable[[str, datetime], Disposition],
         bound_complaint: str,
@@ -371,6 +400,10 @@ class EpisodeService:
         self._coordinator = coordinator
         self._clock = clock
         self._policy = policy
+        # Slice 10. The wording half of the same policy. `domain.patient_lines`
+        # renders from this value and from nothing else, so the service can
+        # project a patient surface without any layer above it composing words.
+        self._policy_text = policy_text
         self._display_tz = display_tz
         self._disposition_factory = disposition_factory
         self._bound_complaint = bound_complaint
@@ -707,6 +740,93 @@ class EpisodeService:
             human_path=validated,
             outcome=outcome,
             simulated=True,
+        )
+
+    def record_human_acceptance(
+        self,
+        episode_id: str,
+        accepted_by: str,
+        accepted_scope: str,
+    ) -> AcceptanceOutcome:
+        """Record a named human acceptance, then derive the closure it produced.
+
+        The acceptance closes the **handoff obligation**. It is never written to
+        `evidence`, so it cannot make `care_evidenced` true, and no surface may
+        say care happened because a human accepted a handoff
+        (`03-program-design.md` section 3). This is the narrow reading of D4 and
+        D11, and it is why the acceptance path and the evidence path are
+        separate writes rather than one.
+
+        `accepted_by` is validated against the policy's permitted owner ids, for
+        the same reason `escalate` validates the human path: the ledger names a
+        party this policy can display, not arbitrary free text. An acceptance by
+        an unknown party raises a `PolicyViolation`, which the route maps to 422.
+
+        **The closure is derived after the write, not predicted.** With the
+        deadline already passed and no evidence, that derivation is
+        `expired_unresolved`, not `closed_with_evidence`: expiry outranks an
+        acceptance on purpose (see `rules.derive_closure`), because a promise is
+        not evidence. The caller is told so rather than shown a resolved
+        episode whose deadline went by with nothing to show for it.
+        """
+        snapshot = self._store.load_snapshot(episode_id)
+        if snapshot.disposition is None:
+            raise NoDispositionYet(
+                f"episode {episode_id!r} has no disposition, so there is no "
+                "handoff obligation for an acceptance to close"
+            )
+        validated = rules.validate_owner(accepted_by, self._policy.permitted_owner_ids)
+        acceptance_id = self._store.record_human_acceptance(
+            episode_id,
+            accepted_by=validated,
+            scope=accepted_scope,
+            now_utc=self._clock.now_utc(),
+        )
+        closure = self._store.derive_closure(episode_id, self._clock.now_utc())
+        return AcceptanceOutcome(
+            acceptance_id=acceptance_id,
+            episode_id=episode_id,
+            accepted_by=validated,
+            scope=accepted_scope,
+            closure=closure,
+            simulated=True,
+        )
+
+    def project_patient(self, episode_id: str) -> PatientSurface:
+        """The patient's four lines, derived, with the expiry read-path first.
+
+        **The expiry read-path.** The first patient read after an unresolved
+        deadline records the expiry event, once, before projecting
+        (`03-program-design.md` section 3). There is no scheduler: the read *is*
+        the trigger, so nothing urgent waits on a background job, and an episode
+        whose deadline passed while nobody looked is still reported honestly the
+        moment somebody does.
+
+        **Derive first, then record.** The event is written only when the
+        derivation says `expired_unresolved`. That ordering is what keeps a
+        resolved episode from recording a spurious expiry: with documented
+        evidence the closure is `closed_with_evidence`, so no event is written
+        and a later read cannot resurrect one. It also keeps
+        `state.record_expiry_once` from raising `PrematureExpiry`, because the
+        only remaining branch is "the deadline has passed and no care is
+        evidenced".
+        """
+        now_utc = self._clock.now_utc()
+        snapshot = self._store.load_snapshot(episode_id)
+        closure = rules.derive_closure(snapshot, now_utc)
+        if (
+            snapshot.disposition is not None
+            and snapshot.expiry_event_id is None
+            and closure.closure is ClosureState.EXPIRED_UNRESOLVED
+        ):
+            self._store.record_expiry_once(
+                episode_id, snapshot.disposition.version, now_utc
+            )
+            snapshot = self._store.load_snapshot(episode_id)
+            closure = rules.derive_closure(snapshot, now_utc)
+        lines = rules.patient_lines(snapshot, closure, self._policy_text)
+        return patient_surface(
+            episode_id, lines, closure, self._policy_text.fixture_label
         )
 
     def reassess(

@@ -326,6 +326,7 @@ def _write_a_real_record(path: Path) -> None:
             ),
             clock=ScenarioClock(fixture.SCENARIO_NOW_UTC),
             policy=fixture.policy(),
+            policy_text=fixture.policy_text(),
             display_tz=fixture.DISPLAY_TZ,
             disposition_factory=fixture.disposition,
             bound_complaint=fixture.BOUND_COMPLAINT,

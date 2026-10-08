@@ -8,8 +8,10 @@ assertions are not vacuous.
 
 from __future__ import annotations
 
+import json
 import sys
 from collections.abc import Iterator
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -24,7 +26,7 @@ from carerelay.coordinator import (  # noqa: E402
     LocalSimulationCoordinator,
 )
 from carerelay.demo import fixture  # noqa: E402
-from carerelay.domain.models import ExtractedPlan  # noqa: E402
+from carerelay.domain.models import EvidenceLevel, EvidenceRecord, ExtractedPlan  # noqa: E402
 from carerelay.service import EpisodeService, ScenarioClock  # noqa: E402
 from carerelay.simulated_provider import ScriptedProvider  # noqa: E402
 from carerelay.state import open_store  # noqa: E402
@@ -66,6 +68,7 @@ def planback_client() -> Iterator[TestClient]:
         coordinator=LocalSimulationCoordinator(_tools(store)),
         clock=ScenarioClock(fixture.SCENARIO_NOW_UTC),
         policy=fixture.policy(),
+        policy_text=fixture.policy_text(),
         display_tz=fixture.DISPLAY_TZ,
         disposition_factory=fixture.disposition,
         bound_complaint=fixture.BOUND_COMPLAINT,
@@ -230,6 +233,7 @@ def _service_with(store, coordinator) -> EpisodeService:
         coordinator=coordinator,
         clock=ScenarioClock(fixture.SCENARIO_NOW_UTC),
         policy=fixture.policy(),
+        policy_text=fixture.policy_text(),
         display_tz=fixture.DISPLAY_TZ,
         disposition_factory=fixture.disposition,
         bound_complaint=fixture.BOUND_COMPLAINT,
@@ -1136,3 +1140,251 @@ class TestMalformedEnumsAreTypedRefusals:
         )
         assert response.status_code == 200
         assert response.json()["card_visible"] is True
+
+
+# ---------------------------------------------------------------------------
+# Slice 10: the Closure Contract in full
+# ---------------------------------------------------------------------------
+
+#: 19:00 SGT on the scenario day, so the fixture's 18:00 deadline has passed.
+#: The fixture derives the deadline from the clock's own local day, so one fixed
+#: post-deadline instant is enough to make an assessed episode overdue.
+AFTER_DEADLINE_UTC = datetime(2026, 9, 30, 11, 0, tzinfo=timezone.utc)
+
+
+@pytest.fixture()
+def overdue_client() -> Iterator[tuple[TestClient, object]]:
+    """A client whose clock is past the fixture's 18:00 SGT deadline.
+
+    The store is yielded alongside the client so a test can count the expiry
+    events the read-path wrote. That count is the only way to tell "recorded
+    once" from "recorded on every read", and the difference is D12.
+    """
+    store = open_store(":memory:", check_same_thread=False)
+    service = EpisodeService(
+        store,
+        coordinator=LocalSimulationCoordinator(_tools(store)),
+        clock=ScenarioClock(AFTER_DEADLINE_UTC),
+        policy=fixture.policy(),
+        policy_text=fixture.policy_text(),
+        display_tz=fixture.DISPLAY_TZ,
+        disposition_factory=fixture.disposition,
+        bound_complaint=fixture.BOUND_COMPLAINT,
+        policy_provenance="test: provisional",
+    )
+    app.dependency_overrides[get_service] = lambda: service
+    yield TestClient(app), store
+    app.dependency_overrides.clear()
+    store.close()
+
+
+class TestExpiryReadPath:
+    """The read is the trigger; no scheduler is implied (`03-program-design.md` 3)."""
+
+    def test_the_first_read_after_an_unresolved_deadline_records_expiry_once(
+        self, overdue_client: tuple[TestClient, object]
+    ) -> None:
+        """A patient read is what turns an overdue deadline into a recorded fact."""
+        client, store = overdue_client
+        client.post("/api/episodes")
+        client.post(
+            f"/api/episodes/{EPISODE}/intake",
+            json={"confirmed_text": fixture.BOUND_COMPLAINT},
+        )
+        assert store.list_expiry_events(EPISODE) == (), "nothing has read the episode"
+
+        body = client.get(f"/api/episodes/{EPISODE}").json()
+        assert body["closure"] == "expired_unresolved"
+        assert len(store.list_expiry_events(EPISODE)) == 1
+
+        client.get(f"/api/episodes/{EPISODE}")
+        assert len(store.list_expiry_events(EPISODE)) == 1, (
+            "the second read recorded a second expiry event"
+        )
+
+    def test_before_the_deadline_the_read_returns_the_unresolved_screen(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        """The control, at the same route: nothing is recorded early."""
+        body = planback_client.get(f"/api/episodes/{EPISODE}").json()
+        assert body["closure"] == "open"
+        assert "It is past" not in body["lines"][2]
+
+    def test_the_expired_screen_keeps_the_deadline_and_names_the_route(
+        self, overdue_client: tuple[TestClient, object]
+    ) -> None:
+        """Copy rules 4 and 5: the route is named and the deadline stays visible."""
+        client, _ = overdue_client
+        client.post("/api/episodes")
+        client.post(
+            f"/api/episodes/{EPISODE}/intake",
+            json={"confirmed_text": fixture.BOUND_COMPLAINT},
+        )
+        lines = client.get(f"/api/episodes/{EPISODE}").json()["lines"]
+        assert len(lines) == 4
+        assert fixture.DEADLINE_DISPLAY in lines[2]
+        assert fixture.FALLBACK_ROUTE_TEXT in lines[3]
+        assert "It is past" in lines[2]
+        assert "!" not in " ".join(lines), "an exclamation mark alarms (copy rule 2)"
+
+
+class TestSerializedPatientAndLedgerLabels:
+    """Gate 4's named Slice 10 test."""
+
+    def test_serialized_patient_and_ledger_labels(
+        self, overdue_client: tuple[TestClient, object]
+    ) -> None:
+        """The expired copy carries the deadline and the named fallback, and the
+        simulated label travels **inside** the serialized patient surface rather
+        than only in page chrome (D11)."""
+        client, _ = overdue_client
+        client.post("/api/episodes")
+        client.post(
+            f"/api/episodes/{EPISODE}/intake",
+            json={"confirmed_text": fixture.BOUND_COMPLAINT},
+        )
+        body = client.get(f"/api/episodes/{EPISODE}").json()
+
+        assert fixture.DEADLINE_DISPLAY in body["lines"][2]
+        assert fixture.FALLBACK_ROUTE_TEXT in body["lines"][3]
+
+        # The label is in the same serialized object that carries the four lines.
+        assert body["simulated"] is True
+        assert body["fixture_label"] == fixture.FIXTURE_LABEL
+        serialized = json.dumps(body, ensure_ascii=False)
+        assert fixture.FIXTURE_LABEL in serialized
+
+    def test_the_label_check_would_catch_a_projection_that_dropped_it(self) -> None:
+        """A negative scan that has never detected its needle is not evidence."""
+        assert fixture.FIXTURE_LABEL in json.dumps(
+            {"simulated": True, "fixture_label": fixture.FIXTURE_LABEL},
+            ensure_ascii=False,
+        )
+
+
+class TestAcceptanceClosesTheHandoffAndNeverEvidencesCare:
+    """`POST /acceptances`. A D4 closure input that is not evidence."""
+
+    def test_acceptance_is_not_care(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        """Gate 4's named Slice 10 test. A named acceptance closes the handoff
+        obligation and never sets `care_evidenced`."""
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/acceptances",
+            json={"accepted_by": "caregiver", "accepted_scope": "handoff"},
+        )
+        assert response.status_code == 200
+        body = response.json()
+        assert body["closure"] == "closed_with_evidence"
+        assert body["care_evidenced"] is False, "an acceptance became evidence"
+        assert body["accepted_by"] == "caregiver"
+        assert body["simulated"] is True
+
+    def test_the_resolved_screen_renders_the_agreed_lines(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        """F4, closed 8 October 2026. The derived screen serves the approved
+        resolved rendering, and an acceptance alone says "agreed": it never
+        sets `care_evidenced`, so line 1 never claims care happened."""
+        planback_client.post(
+            f"/api/episodes/{EPISODE}/acceptances", json={"accepted_by": "caregiver"}
+        )
+        body = planback_client.get(f"/api/episodes/{EPISODE}").json()
+        assert body["closure"] == "closed_with_evidence"
+        assert body["care_evidenced"] is False
+        assert body["lines"][0] == "Someone has agreed to help."
+        assert body["lines"][1] == "You do not need to act now."
+        assert fixture.DEADLINE_DISPLAY in body["lines"][2]
+        assert fixture.FALLBACK_ROUTE_TEXT in body["lines"][3]
+        assert "does not happen" in body["lines"][3]
+        assert "!" not in " ".join(body["lines"]), "an exclamation mark alarms"
+
+    def test_an_unknown_party_is_refused_not_recorded(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        """I4: the ledger names a party the policy can display, not free text."""
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/acceptances",
+            json={"accepted_by": "a stranger"},
+        )
+        assert response.status_code == 422
+
+    def test_an_acceptance_before_a_plan_is_a_409(
+        self, planback_client: TestClient
+    ) -> None:
+        """There is no handoff obligation to close before there is a plan."""
+        planback_client.post("/api/episodes")
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/acceptances",
+            json={"accepted_by": "caregiver"},
+        )
+        assert response.status_code == 409
+
+    def test_an_unknown_episode_is_a_404(self, planback_client: TestClient) -> None:
+        response = planback_client.post(
+            "/api/episodes/does-not-exist/acceptances",
+            json={"accepted_by": "caregiver"},
+        )
+        assert response.status_code == 404
+
+
+class TestClosureRenderingsThroughTheDerivedRoute:
+    """The remaining closure renderings, served by `GET /api/episodes/{id}`.
+
+    F4 and F6-render, closed 8 October 2026: the approved wording now exists for
+    every closure state, so the resolved and escalated screens render through the
+    same derived path the unresolved and expired screens already used. The
+    acceptance path ("Someone has agreed to help.") is pinned beside the
+    acceptance route, in `TestAcceptanceClosesTheHandoffAndNeverEvidencesCare`.
+    """
+
+    def test_documented_evidence_renders_the_care_documented_lines(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        """The derived path for documented, non-simulated evidence.
+
+        The demo stack cannot produce this through its tool surface: every
+        execution it runs is simulated, and a simulated receipt is never evidence
+        (F5). So the row is written to the store directly, the way
+        `state.record_callback_once` writes a real one, and the route must serve
+        "Help is arranged." from it.
+        """
+        planback_client.post(f"/api/episodes/{EPISODE}/consents", json={"granted": True})
+        service = app.dependency_overrides[get_service]()
+        service._store.record_evidence(
+            EPISODE,
+            EvidenceRecord(
+                level=EvidenceLevel.DOCUMENTED,
+                simulated=False,
+                provenance="fictional provider receipt",
+                source_ref="receipt-0001",
+            ),
+            now_utc=fixture.SCENARIO_NOW_UTC,
+        )
+        body = planback_client.get(f"/api/episodes/{EPISODE}").json()
+        assert body["closure"] == "closed_with_evidence"
+        assert body["care_evidenced"] is True
+        assert body["lines"][0] == "Help is arranged."
+        assert body["lines"][1] == "Nothing more is needed from you."
+        assert fixture.DEADLINE_DISPLAY in body["lines"][2]
+        assert fixture.FALLBACK_ROUTE_TEXT in body["lines"][3]
+        assert "does not happen" in body["lines"][3]
+
+    def test_an_escalation_renders_the_handed_to_a_human_lines(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        """F6-render through the HTTP surface: the screen names the human path
+        the handoff went to, and never tells the patient to act."""
+        response = planback_client.post(
+            f"/api/episodes/{EPISODE}/escalations", json={"human_path": "nurse_line"}
+        )
+        assert response.status_code == 200
+        body = planback_client.get(f"/api/episodes/{EPISODE}").json()
+        assert body["closure"] == "escalated_to_human"
+        assert body["lines"][0] == (
+            f"We have passed this to {fixture.FALLBACK_ROUTE_TEXT}."
+        )
+        assert body["lines"][1] == "You do not need to act now."
+        assert fixture.DEADLINE_DISPLAY in body["lines"][2]
+        assert "Please act now" not in " ".join(body["lines"])

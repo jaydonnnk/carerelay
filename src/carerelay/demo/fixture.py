@@ -69,7 +69,7 @@ class PatientLines:
 
     Order is part of the contract: line 3 carries the deadline, line 4 names the
     fallback route. The expired rendering (`02-architecture.md` 7) is a different
-    set of four lines and arrives with the Closure Contract in Slice 10.
+    set of four lines and **arrived at Slice 10**, in `domain.patient_lines`.
     """
 
     line_1: str
@@ -85,8 +85,13 @@ class PatientLines:
 def demo_lines() -> PatientLines:
     """The unresolved rendering: 'we tried and nobody said yes.'
 
-    Hardcoded for Slice 1. Slice 10 derives this from `domain.patient_lines`
-    against the two axes, so the wording stops being a literal.
+    Hardcoded for Slice 1. **Slice 10 replaced this literal on the assessed
+    path:** `GET /api/episodes/{id}` now derives its lines from
+    `domain.patient_lines` against the two axes. What remains here is the
+    **pre-assessment fallback only**, for the episode `POST /api/episodes`
+    creates before any disposition exists. `patient_lines` needs an owner, a
+    route and a deadline to name, and an un-assessed episode has none, so the
+    route keeps this fixed placeholder rather than inventing a plan.
 
     **Line 2 note.** `PLAN.md` 6.1, `02-architecture.md` 7 and `01-product.md` all
     rendered line 2 as "You or *[named person]* must act now." Taken literally with
@@ -103,8 +108,9 @@ def demo_lines() -> PatientLines:
     **The divergence from three approved documents was closed on 2 October 2026,
     not carried further.** The wording pass re-approved all three documents to
     the "Please act now." form, so the fixture and `domain.patient_lines` now
-    agree with them rather than diverging. Slice 10 still replaces this fixture
-    with `domain.patient_lines`; this line is not the authority.
+    agree with them rather than diverging. **Slice 10 replaced this fixture on
+    the assessed path**, so this literal now serves the pre-assessment fallback
+    only and is not the authority for anything a patient sees after assessment.
     """
     return PatientLines(
         line_1="No one has agreed to help yet.",
