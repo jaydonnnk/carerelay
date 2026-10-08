@@ -644,6 +644,42 @@ class TestClosedVocabularyAndMissingIsNotNegative:
             assert decision.disposition is None, f"{code!r} produced a disposition"
 
 
+class TestOwnerValidation:
+    """Slice 10. `validate_owner` is the acting-party twin of `validate_route`.
+
+    A recorded human acceptance names the party that took the handoff on, and I4
+    requires that party to be one the policy can display. Without this check an
+    acceptance could name anybody, and the ledger would carry a name no screen
+    can render and no route can reach.
+    """
+
+    def test_a_permitted_owner_is_returned(self) -> None:
+        assert (
+            rules.validate_owner("caregiver", POLICY.permitted_owner_ids)
+            == "caregiver"
+        )
+
+    def test_an_unknown_owner_is_refused(self) -> None:
+        with pytest.raises(rules.UnpermittedOwnerId):
+            rules.validate_owner("a stranger", POLICY.permitted_owner_ids)
+
+    def test_the_refusal_is_a_policy_violation_not_a_value_error(self) -> None:
+        """NF2's rule: an out-of-vocabulary value stops at the human path."""
+        with pytest.raises(rules.PolicyViolation):
+            rules.validate_owner("a stranger", POLICY.permitted_owner_ids)
+
+    def test_the_refusal_names_the_permitted_set(self) -> None:
+        with pytest.raises(rules.UnpermittedOwnerId) as caught:
+            rules.validate_owner("a stranger", POLICY.permitted_owner_ids)
+        assert "caregiver" in str(caught.value)
+
+    def test_the_owner_check_is_not_the_route_check(self) -> None:
+        """A permitted route is not automatically a permitted owner."""
+        assert "nurse_line" in POLICY.permitted_route_ids
+        with pytest.raises(rules.UnpermittedOwnerId):
+            rules.validate_owner("nurse_line", POLICY.permitted_owner_ids)
+
+
 # ---------------------------------------------------------------------------
 # The deadline is append-only
 # ---------------------------------------------------------------------------
@@ -1467,7 +1503,12 @@ class TestPatientLines:
         """
         before = self._lines(empty_snapshot())
         after = self._lines(empty_snapshot(), local_deadline() + timedelta(minutes=1))
-        for rendering in (before, after):
+        documented = self._lines(empty_snapshot(evidence=(DOCUMENTED_REAL,)))
+        agreed = self._lines(empty_snapshot(human_acceptance_id="acceptance-1"))
+        escalated = self._lines(
+            empty_snapshot(escalation_id="escalation-1", escalated_human_path="nurse_line")
+        )
+        for rendering in (before, after, documented, agreed, escalated):
             for line in rendering:
                 assert "!" not in line, f"alarm punctuation in {line!r}"
 
@@ -1481,7 +1522,12 @@ class TestPatientLines:
         """
         before = self._lines(empty_snapshot())
         after = self._lines(empty_snapshot(), local_deadline() + timedelta(minutes=1))
-        joined = " ".join(before + after).casefold()
+        documented = self._lines(empty_snapshot(evidence=(DOCUMENTED_REAL,)))
+        agreed = self._lines(empty_snapshot(human_acceptance_id="acceptance-1"))
+        escalated = self._lines(
+            empty_snapshot(escalation_id="escalation-1", escalated_human_path="nurse_line")
+        )
+        joined = " ".join(before + after + documented + agreed + escalated).casefold()
         for banned in (
             "i'll contact",
             "i will contact",
@@ -1494,13 +1540,64 @@ class TestPatientLines:
         ):
             assert banned not in joined, f"unbuilt capability promised by {banned!r}"
 
-    def test_no_approved_wording_exists_for_a_resolved_episode(self) -> None:
-        """Refusing is safer than printing "No one has agreed to help yet." over a
-        resolved episode. The Closure Contract rendering arrives in Slice 10."""
+    def test_the_resolved_screen_renders_the_care_documented_lines(self) -> None:
+        """F4, closed 8 October 2026. The approved table now fixes a resolved
+        rendering, and "arranged" appears only when the evidence axis is
+        `documented` (`02-architecture.md` section 7)."""
         snapshot = empty_snapshot(evidence=(DOCUMENTED_REAL,))
         closure = rules.derive_closure(snapshot, SCENARIO_NOW_UTC)
         assert closure.closure is ClosureState.CLOSED_WITH_EVIDENCE
-        with pytest.raises(rules.NoApprovedPatientWording):
+        assert closure.care_evidenced is True
+        lines = rules.patient_lines(snapshot, closure, POLICY_TEXT)
+        assert lines[0] == "Help is arranged."
+        assert lines[1] == "Nothing more is needed from you."
+        assert POLICY_TEXT.deadline_display_by_version[1] in lines[2]
+        assert "does not happen" in lines[3]
+        assert "does not work" not in lines[3]
+        assert POLICY_TEXT.route_display_by_id[FALLBACK_ROUTE_ID] in lines[3]
+
+    def test_the_resolved_screen_renders_the_someone_agreed_lines(self) -> None:
+        """A recorded acceptance with no documented evidence. The two resolved
+        cases must not share line 1 (F4): a promise is not evidence, so an
+        acceptance alone never says care happened."""
+        snapshot = empty_snapshot(human_acceptance_id="acceptance-1")
+        closure = rules.derive_closure(snapshot, SCENARIO_NOW_UTC)
+        assert closure.closure is ClosureState.CLOSED_WITH_EVIDENCE
+        assert closure.care_evidenced is False
+        lines = rules.patient_lines(snapshot, closure, POLICY_TEXT)
+        assert lines[0] == "Someone has agreed to help."
+        assert lines[1] == "You do not need to act now."
+        assert POLICY_TEXT.deadline_display_by_version[1] in lines[2]
+        assert "does not happen" in lines[3]
+        assert POLICY_TEXT.route_display_by_id[FALLBACK_ROUTE_ID] in lines[3]
+
+    def test_the_escalated_screen_names_the_human_path_and_the_deadline(self) -> None:
+        """F6-render, closed 8 October 2026. Line 1 names the human path the
+        handoff went to, which `derive_closure` carries as `action_owner_id`;
+        the patient is never told to act on a plan that has been handed away."""
+        snapshot = empty_snapshot(
+            escalation_id="escalation-1", escalated_human_path="nurse_line"
+        )
+        closure = rules.derive_closure(snapshot, SCENARIO_NOW_UTC)
+        assert closure.closure is ClosureState.ESCALATED_TO_HUMAN
+        assert closure.action_owner_id == "nurse_line"
+        lines = rules.patient_lines(snapshot, closure, POLICY_TEXT)
+        assert lines[0] == "We have passed this to the fictional nurse line."
+        assert lines[1] == "You do not need to act now."
+        assert POLICY_TEXT.deadline_display_by_version[1] in lines[2]
+        assert "does not work" in lines[3]
+        assert POLICY_TEXT.route_display_by_id[FALLBACK_ROUTE_ID] in lines[3]
+        assert "Please act now" not in " ".join(lines)
+
+    def test_an_escalated_human_path_with_no_approved_display_is_refused(self) -> None:
+        """No internal identifier may reach the patient surface. An escalated
+        human path the policy cannot display refuses rather than printing it."""
+        snapshot = empty_snapshot(
+            escalation_id="escalation-1", escalated_human_path="route-9"
+        )
+        closure = rules.derive_closure(snapshot, SCENARIO_NOW_UTC)
+        assert closure.closure is ClosureState.ESCALATED_TO_HUMAN
+        with pytest.raises(rules.MissingDisplayText):
             rules.patient_lines(snapshot, closure, POLICY_TEXT)
 
     def test_an_id_with_no_approved_display_is_refused_not_printed(self) -> None:

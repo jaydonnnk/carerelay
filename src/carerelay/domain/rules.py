@@ -30,9 +30,13 @@ the Slice 2 entry so they can be corrected:
    must act now." With a patient owner that is malformed, which Slice 1 found by
    inspection and flagged. Here the sentence is composed by owner: "You must act
    now." when the owner is the patient, and the approved sentence otherwise.
-3. No approved wording exists for `closed_with_evidence`. `patient_lines` raises
-   rather than render "Help is not arranged." over a resolved episode. Slice 10
-   owns the Closure Contract rendering.
+3. `closed_with_evidence` had no approved wording until the Gate 1 re-approval
+   of 8 October 2026 supplied the closure renderings. `patient_lines` refused
+   rather than render "No one has agreed to help yet." over a resolved
+   episode, and it now renders all four closure states. The two resolved
+   cases do not share line 1: a recorded acceptance is a promise, not
+   evidence, so "Someone has agreed to help." is what an acceptance alone
+   produces and "Help is arranged." waits for `care_evidenced` (F4).
 
 The tenth function, `may_score_restatement`, is here for the same reason as
 `hint_transition`: Gate 1's transcript-confirmation ordering rule is only a real
@@ -45,6 +49,13 @@ service layer called the enum constructors directly, so a malformed value left
 `domain` as an uncaught `ValueError` and the API answered 500 (finding NF2). The
 rule is the same one `validate_route` already enforces for route ids: an
 out-of-vocabulary value stops at the human path, it does not crash.
+
+Slice 10 adds `validate_owner`. It is the same fail-closed check `validate_route`
+already applies, aimed at the acting party instead of the route: a recorded human
+acceptance names the party that took the handoff on, and I4 requires that party
+to be one the policy can display. It lives here rather than in `service` for the
+same reason `validate_route` does, because "who is allowed to act" is a safety
+decision and D2 keeps safety decisions in the module that cannot do I/O.
 """
 
 from __future__ import annotations
@@ -84,14 +95,15 @@ __all__ = [
     "DomainError",
     "PolicyViolation",
     "UnpermittedRouteId",
+    "UnpermittedOwnerId",
     "UnpermittedChangeCode",
     "UnpermittedTransition",
     "UnpermittedHintEvent",
     "MissingDisplayText",
     "NoDispositionToRender",
-    "NoApprovedPatientWording",
     "normalise",
     "validate_route",
+    "validate_owner",
     "validate_change",
     "compare_plan",
     "next_repair",
@@ -136,6 +148,16 @@ class UnpermittedRouteId(PolicyViolation):
     """A route id outside `permitted_route_ids`. Hallucinated routes stop here."""
 
 
+class UnpermittedOwnerId(PolicyViolation):
+    """An acting party outside `permitted_owner_ids`.
+
+    Slice 10. A recorded human acceptance names the party that took the handoff
+    on, and I4 requires that party to be one the policy can display. An
+    acceptance by an unknown party would put a name in the ledger that no screen
+    can render and no route can reach, so it stops here rather than being stored.
+    """
+
+
 class UnpermittedChangeCode(PolicyViolation):
     """A symptom-change code outside the policy's closed vocabulary."""
 
@@ -159,10 +181,6 @@ class NoDispositionToRender(DomainError):
     """`patient_lines` was called before any plan existed."""
 
 
-class NoApprovedPatientWording(DomainError):
-    """No approved patient rendering exists for this closure state yet."""
-
-
 # ---------------------------------------------------------------------------
 # Closed-vocabulary validation
 # ---------------------------------------------------------------------------
@@ -178,6 +196,19 @@ def validate_route(route_id: str, permitted_route_ids: frozenset[str]) -> str:
     if route_id not in permitted_route_ids:
         raise UnpermittedRouteId(route_id, sorted(permitted_route_ids))
     return route_id
+
+
+def validate_owner(owner_id: str, permitted_owner_ids: frozenset[str]) -> str:
+    """Return `owner_id` if the policy permits it, otherwise refuse.
+
+    Slice 10. The same fail-closed rule `validate_route` applies to routes, for
+    the party that acts rather than the route that is called. A recorded human
+    acceptance is a named party taking the handoff on, and I4 says that party
+    must be one the product can name.
+    """
+    if owner_id not in permitted_owner_ids:
+        raise UnpermittedOwnerId(owner_id, sorted(permitted_owner_ids))
+    return owner_id
 
 
 def validate_change(
@@ -538,10 +569,12 @@ def patient_lines(
     describe the wrong instant; a version with no approved wording raises rather
     than printing a stale deadline.
 
-    `02-architecture.md` section 7 fixes two approved renderings, the unresolved
-    one and the expired one. There is no approved rendering for a resolved
-    episode, so this refuses instead of printing "No one has agreed to help yet."
-    over an episode where care is evidenced.
+    All four closure states have approved renderings in `02-architecture.md`
+    section 7: the unresolved and expired screens (re-approved 2 October 2026)
+    and the three closure renderings (approved 8 October 2026). The two resolved
+    cases do not share line 1: a recorded acceptance is a promise, not evidence
+    (F4), so "Help is arranged." waits for `care_evidenced` and an acceptance
+    alone says "Someone has agreed to help.".
     """
     disposition = snapshot.disposition
     if disposition is None:
@@ -575,9 +608,38 @@ def patient_lines(
         )
 
     if closure.closure is ClosureState.CLOSED_WITH_EVIDENCE:
-        raise NoApprovedPatientWording(
-            "no approved patient rendering exists for closed_with_evidence; "
-            "the Closure Contract rendering arrives in Slice 10"
+        if closure.care_evidenced:
+            # Quoted from `02-architecture.md` section 7, approved 8 October 2026.
+            # "Arranged" appears only when the evidence axis is documented.
+            return (
+                "Help is arranged.",
+                "Nothing more is needed from you.",
+                f"It is set for {deadline_display}.",
+                f"If that does not happen, call {route_display}.",
+            )
+        # A recorded human acceptance with no documented evidence. Same approval:
+        # the acceptance is the promise, so line 1 says "agreed", and only the
+        # evidence axis lets a surface say care happened (F4, Closure s2.2).
+        return (
+            "Someone has agreed to help.",
+            "You do not need to act now.",
+            f"It is set for {deadline_display}.",
+            f"If that does not happen, call {route_display}.",
+        )
+
+    if closure.closure is ClosureState.ESCALATED_TO_HUMAN:
+        # Quoted from `02-architecture.md` section 7, approved 8 October 2026.
+        # F6: line 1 names the human path the handoff went to, which
+        # `derive_closure` carries as `action_owner_id`. An id with no approved
+        # display refuses rather than printing an internal identifier.
+        human_path_display = policy_text.route_display_by_id.get(closure.action_owner_id)
+        if human_path_display is None:
+            raise MissingDisplayText(closure.action_owner_id)
+        return (
+            f"We have passed this to {human_path_display}.",
+            "You do not need to act now.",
+            f"It is set for {deadline_display}.",
+            f"If that does not work, call {route_display}.",
         )
 
     if disposition.next_owner_id == policy_text.self_owner_id:
