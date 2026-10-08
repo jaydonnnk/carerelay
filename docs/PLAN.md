@@ -386,7 +386,7 @@ The two-axis ledger is **judge-facing evidence**, shown in the walkthrough and t
 - Frozen clinician-reviewed case suite with a fixed random seed; development and evaluation cases kept separate.
 - Non-LLM seeded fault-sequence tests: timeout, stale availability, duplicate and reordered callbacks, restart, clock change, expired deadline, consent revocation.
 - Baselines with identical clinical content and legitimate recovery options: action card plus directory, structured checklist, and CareRelay.
-- Formative sessions with 6–8 older-adult/caregiver dyads.
+- Formative sessions with 6–8 older-adult/caregiver dyads. **CUT 8 October 2026:** no dyad was recruited, so the participant run is removed and no human-centred validation claim is made.
 - Subgroup and variation analysis where numbers permit.
 
 **Optional, only with measured need**
@@ -407,7 +407,7 @@ Weights shown are **our planning judgment** of what each ten-point dimension req
 | # | Dimension | What earns the marks | Our proof | Planned effort | Risk |
 |---|---|---|---|---|---|
 | 1 | **Impact & Relevance** (10) | Real problem, meaningful value | Verified Singapore health-literacy evidence; documented user episodes; honest bounded claims | 12–18 + recruitment | Exact problem frequency [unknown]; may not be the dominant failure |
-| 2 | **Human-Centered Design** (10) | Designed for real users | Observed dyad sessions; revised interface after critical breakdowns | 12–20 | Participants must be recruited; small sample is formative only |
+| 2 | **Human-Centered Design** (10) | Designed for real users | Interface designed for the target population; **the observed-dyad-session evidence is cut 8 October 2026** (no participant recruited), so the claim rests on design and accessibility work, not on sessions | 12–20 | Participants must be recruited; the sessions were cut, so no human-centred validation claim is made |
 | 3 | **AI Interaction** (10) | Quality and depth of AI use | Adaptive clarification, native coordinator, MCP tools, failure recovery — and evidence it beats a simple checklist | 16–24 | If a checklist performs equally, the AI claim collapses |
 | 4 | **Technical Execution** (10) | Technical quality and completeness | Versioned policy, persisted deadlines, permission enforcement, stale/duplicate handling, restart recovery, tests | 28–40 | Adapter contracts and reconciliation are substantial work |
 | 5 | **Feasibility** (10) | Realistic and scalable beyond the hackathon | Access spike passed; named owners; measured cost/latency; honest simulated boundary | 8–12 early | External access and clinical sign-off can gate everything |
@@ -422,7 +422,7 @@ Weights shown are **our planning judgment** of what each ten-point dimension req
 
 ### The critical path changed
 
-The **card-versus-PlanBack baseline comparison is a kill test, not a nice-to-have.** The project rests on one untested assumption: that a clear bilingual instruction card plus a direct booking link plus a NurseFirst fallback does **not** perform equally. If it does, PlanBack is cut and the reframe collapses. Run this on a clickable text prototype **before** building voice, booking or caregiver features.
+The **card-versus-PlanBack baseline comparison is a kill test, not a nice-to-have.** The project rests on one untested assumption: that a clear bilingual instruction card plus a direct booking link plus a NurseFirst fallback does **not** perform equally. If it does, PlanBack is cut and the reframe collapses. Run this on a clickable text prototype **before** building voice, booking or caregiver features. **CUT 8 October 2026:** no dyad was recruited, so the run is removed and the assumption stays untested. The project makes no human-centred validation claim and must never imply the comparison was run.
 
 **Effort for the two new mechanisms** (see `03-planback-closure-contract.md` §3):
 
@@ -432,12 +432,12 @@ The **card-versus-PlanBack baseline comparison is a kill test, not a nice-to-hav
 | Closure Contract — two-axis schema, deadline immutability, closure rules, idempotency, restart recovery | 26–40 |
 | Fault harness — 7 seeded sequences | 12–19 |
 | **Build subtotal** | **56–89** |
-| Baseline comparison — 3–6 dyads, counterbalanced, analysis | 20–35 |
+| Baseline comparison — 3–6 dyads, counterbalanced, analysis (**CUT 8 October 2026**) | 0 |
 | **Total** | **76–124** |
 
 **This does not fit the 16 October deadline alongside the current full scope.** Scope must be cut. Candidate cuts, all already deferred in the 21 September review: Mandarin voice, broad respiratory intake, patient-facing ledger detail, caregiver orchestration beyond one channel, and booking integration. None is on the critical path to a scoring submission.
 
-**Deployment and hosting effort (added 30 September 2026).** The public deployment, the Next.js clinical frontend and auth add **20 to 34 hours [hypothesis]**, and they sit on the critical path to a public link rather than beside it. That takes the plan-level total recorded in `04-slices.md` section 5 from 102–169 hours to **122–203 hours**, against 128 hours available at 8 h/day across the 16 days from 30 September to 16 October. **The lower bound only fits with zero slack, and the upper bound does not fit at all.** The honest consequence is that the study (Slices 8 and 9, 20 to 34 hours) is the first cut if no dyad is recruited by about 5 October.
+**Deployment and hosting effort (added 30 September 2026).** The public deployment, the Next.js clinical frontend and auth add **20 to 34 hours [hypothesis]**, and they sit on the critical path to a public link rather than beside it. That takes the plan-level total recorded in `04-slices.md` section 5 from 102–169 hours to **122–203 hours**, against 128 hours available at 8 h/day across the 16 days from 30 September to 16 October. **The lower bound only fits with zero slack, and the upper bound does not fit at all.** The honest consequence is that the study (Slices 8 and 9, 20 to 34 hours) is the first cut if no dyad is recruited by about 5 October. **That cut fired on 8 October 2026:** no dyad was recruited, so the participant run is removed and no human-centred validation claim is made.
 
 ### Capacity and schedule
 
@@ -480,9 +480,9 @@ Non-negotiable:
 
 **Gate A — Native access (first 48 hours).** Authenticate from the intended host; stream an interaction; invoke a typed tool; observe a tool failure; resume after restart; deny consent; handle a duplicate. Record versions, request IDs, latency and usage. Failure → reconsider platform-led approach; do not disguise build-only usage as equivalent.
 
-**Gate B — Patient advantage (continuous).** Compare against clear instructions and structured checks using identical content and options. Measure misunderstanding, unresolved barriers, repetition burden and false beliefs about whether help is arranged. Record the **hint level** for every PlanBack outcome, or the result cannot distinguish recall from reading. Failure → simplify the interaction or change direction.
+**Gate B — Patient advantage (continuous).** Compare against clear instructions and structured checks using identical content and options. Measure misunderstanding, unresolved barriers, repetition burden and false beliefs about whether help is arranged. Record the **hint level** for every PlanBack outcome, or the result cannot distinguish recall from reading. Failure → simplify the interaction or change direction. **CUT 8 October 2026:** no participant dyad was recruited, so this gate was not run and no result exists.
 
-**Gate B is now the primary kill test**, with pre-registered conditions decided before results are seen:
+**Gate B is the primary kill test.** **CUT 8 October 2026: the run was removed from the plan** (no dyad recruited), so the pre-registered conditions below were never applied. They remain the record of what would have decided the gate.
 
 - PlanBack is cut if the fixed card achieves equal action/deadline recall with lower burden; **or** any critical correct statement is falsely flagged as a mismatch; **or** emergency guidance is delayed by the read-back.
 - The Closure Contract is cut if a failed or unacknowledged action ever renders as resolved; **or** a duplicate callback or restart advances state; **or** an operational retry changes the clinical deadline.

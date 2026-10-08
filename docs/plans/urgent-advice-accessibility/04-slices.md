@@ -2,6 +2,8 @@
 
 **Gate 4: RE-APPROVED 30 September 2026.** The plan was approved on 28 September 2026 with the single instruction "continue", reopened on 30 September 2026, and **re-approved the same day**. The restructure is now the plan of record: the tail is renumbered from thirteen slices to fourteen (Slice 0 to Slice 13), one slice is merged, one required slice is added and one conditional slice is added. Authority for gate and slice state is `00-status.md`; this document is the plan, not the state record.
 
+**Gate 4 reopened 8 October 2026: the Gate B run is cut, and re-approval is pending.** Stop condition section 7 item 4 fired (no participant dyad by 5 October) and cut order section 6 item 1 was executed, so the participant run of the study is removed from the plan. The card, the pre-registration and the response-path instrument stay as built work, and the plan makes **no human-centred validation claim**. Slices 10 to 13 no longer wait on a kill-test result. The reopen and its limits are recorded in `00-status.md`.
+
 **Approval authorises:** implementation code, slice by slice, in the order below. **It does not authorise:** installs beyond the declared test dependencies, credentials, recruitment, external calls, deployments, or a push. Each slice still stops for the user's "continue, or re-steer?" before the next one starts. The re-approval question was answered yes on 30 September 2026; the record is in section 8.
 
 Read first: `00-status.md`, `03-program-design.md` (APPROVED 26 Sep, re-approved 30 Sep), `02-architecture.md` (APPROVED 25 Sep revision 2; revision 3 re-approved 30 Sep), `PLAN.md` §7 and §9, `clinical-review-blocker.md`.
@@ -15,7 +17,7 @@ Read first: `00-status.md`, `03-program-design.md` (APPROVED 26 Sep, re-approved
 | **Scope** | **Full Gate 3 scope.** The user directed on 28 September 2026 that scope is **not** cut to fit the schedule. Every capability in `03-program-design.md` §2 is sequenced. |
 | **Capacity** | Solo. No second contributor is recorded. |
 | **Honest consequence, stated up front** | Gate 3 §7 estimates **90–150 h** build plus **20–35 h** baseline (110–185 h combined). **Revised 30 September 2026.** The plan now carries **122–203 h** across Slices 0 to 12, which is the previously recorded 102–169 h **plus 20–34 h for the new Slice 7** (the public deployment, the Next.js clinical frontend under Decision D-1b, and auth). From 30 September to the 16 October submission is **16 calendar days**: 128 h at 8 h/day, and **96 h at a realistic 6 h/day**. **The remaining Slices 4 to 12 are 93–156 h.** The lower bound fits only at a sustained 8 h/day with zero slack; **the upper bound does not fit at all.** This is not a reason to cut scope (the user's instruction), and it is not something this plan will hide. It is the plan's **primary risk**, recorded as R1 in §6 and as the plan-level stop condition in §7. |
-| **Restructured 30 September 2026** | The tail is renumbered to **fourteen entries, Slice 0 to Slice 13**. Old Slice 7 becomes **8**, old 8 becomes **9**, old 9 becomes **10**, old 10 becomes **11**, and old Slices **11 and 12 merge into Slice 12**. **Slice 7 is new** (public deployment, the Next.js frontend and auth) and **Slice 13 is new and conditional** (the ADP interpretation surface, default do not run). Constraint **C1 is intact**: the external card (Slice 8) and the Gate B run (Slice 9) still precede the Closure Contract build (Slice 10). |
+| **Restructured 30 September 2026** | The tail is renumbered to **fourteen entries, Slice 0 to Slice 13**. Old Slice 7 becomes **8**, old 8 becomes **9**, old 9 becomes **10**, old 10 becomes **11**, and old Slices **11 and 12 merge into Slice 12**. **Slice 7 is new** (public deployment, the Next.js frontend and auth) and **Slice 13 is new and conditional** (the ADP interpretation surface, default do not run). Constraint **C1 is amended 8 October 2026**: the external card (Slice 8) is built and the Gate B run (Slice 9) is **cut**, so the Closure Contract build (Slice 10) follows the build directly and no human-centred validation claim is made. |
 | **What the plan does instead of cutting** | It sequences the full scope so that the **highest-risk, highest-value work lands first** and so that a partial build is still a coherent submission. If the schedule fails, it fails with a working demonstration and an honest record, not with six half-built layers. |
 | **Not authorised by this restructure** | The restructure itself authorises nothing. Approval authorises implementation code slice by slice. Installs beyond the declared test dependencies, credentials, recruitment, external calls, deployments and pushes remain unauthorised. |
 
@@ -40,7 +42,7 @@ These are carried forward from approved gates. None is negotiable here; changing
 
 | # | Constraint | Source |
 |---|---|---|
-| C1 | **The baseline comparison is sequenced before the Closure Contract build.** | `02-architecture.md` §12; round-2 review; `PLAN.md` §7 currently has the wrong order |
+| C1 | **The baseline comparison is sequenced before the Closure Contract build. Amended 8 October 2026:** the comparison's participant run was cut, so the ordering is satisfied by the baseline **instrument** (Slice 8, built) preceding the Closure Contract build (Slice 10), and **no human-centred validation claim is made**. | `02-architecture.md` §12; round-2 review; `PLAN.md` §7 currently has the wrong order |
 | C2 | **The two §6.1 kill conditions run first**, before any participant work, with no reviewer and no Gate A. | `03-program-design.md` §6.1 |
 | C3 | **Slice 1 is the tracer bullet** — hardcoded endpoint plus stubbed UI, wired end to end, runs, and the user can see it. | software-factory Gate 4 rules |
 | C4 | **No horizontal building.** No "all the database, then all services, then all the API". | software-factory Gate 4 rules |
@@ -215,28 +217,25 @@ This document previously named `src/carerelay/templates/patient.html` (Slices 1 
 | **Stop condition** | If the card cannot be made content-neutral while staying a fair comparison, stop and re-read the Gate 2 D6 backtrack. A clinical comparator re-imports the reviewer dependency the whole Option A decision removed. |
 | **Check** | The user reads the card and the frozen protocol before any participant sees either. |
 
-### Slice 9: Gate B, run the comparison
+### Slice 9: Gate B, the comparison (**CUT 8 October 2026, not run**)
 
-**Dates:** 8–10 Oct. **Effort:** 15–25 h (sessions + analysis). **Build order:** tenth, **before** Slice 10.
+**Was:** 8–10 Oct, 15–25 h (sessions + analysis). **Cut order section 6 item 1; stop condition section 7 item 4.**
 
 | | |
 |---|---|
-| **Goal** | Run the primary kill test on real dyads. |
-| **Deliverable** | Sessions run; raw outcomes recorded; the pre-registered cut rule applied; results written down **including adverse reactions to read-back**. |
-| **Primary outcome** | **False completion** — each participant's uncoached yes/no answer to whether care has been arranged after the failed or unconfirmed attempt. |
-| **What it measures, stated honestly** | The **mechanism** — does read-back plus truthful status change comprehension, burden and false-completion belief. It does **not** validate clinical advice, and the submission must say so. |
-| **Cut rule (pre-registered, from `02-architecture.md` §9)** | PlanBack is cut if the card achieves equal action/deadline recall with **lower burden**; **or** any critical correct statement is flagged as a mismatch; **or** emergency guidance is delayed by read-back. The latter two already passed offline in Slice 0 — this run tests the first. |
-| **Blinding** | The scorer sees the answer key and the response, not the project hypothesis. No percentages below n=10. |
-| **Stop condition** | **If the card wins on the pre-registered rule, stop. PlanBack is cut and Slices 10 to 12 are replanned.** That is the plan working as designed, not failing. A simpler card may genuinely win; §6 of the programme design predicts this is the primary kill test for a reason. |
-| **Check** | Show the user the raw outcome sheet, not a summary statistic. |
+| **Status** | **CUT, not run.** No participant dyad was recruited, so the run is removed from the plan and the project makes **no human-centred validation claim**. This is the plan's own pre-recorded honest cut, not a failure. |
+| **What stays built** | `study/fixed-card.html` (Slice 8, shipped), `study/protocol.md` (the pre-registration), and the response-path instrument in `src/carerelay/study/`. They are kept as design evidence; the instrument is not a deliverable. |
+| **What was removed** | The participant run, the cut-rule application, and the human-centred claim that depended on them. The pre-registration records a study that was not run, and nothing may imply a Gate B result. |
+| **Why** | No dyads and no second scorer, on a fixed hackathon deadline. The cut order names the study as the first and honest cut, and the consequence (no human-centred claim, raw counts or nothing) is pre-recorded in R3. |
+| **Check** | None: there is no result to show. The instrument's own suite and its mutation harness are the build evidence. |
 
-### Slice 10: The Closure Contract in full (C1 satisfied: it starts after the kill test)
+### Slice 10: The Closure Contract in full (C1 amended: the kill test was cut, not passed)
 
 **Dates:** 10–12 Oct. **Effort:** 8–14 h. **Build order:** eleventh.
 
 | | |
 |---|---|
-| **Goal** | The second mechanism, built **only because the baseline did not falsify the first**. |
+| **Goal** | The second mechanism. **C1 as originally written is void:** the Gate B run was cut on 8 October 2026, so this slice is built on the plan's default rather than on a surviving baseline, and the project makes no human-centred validation claim. |
 | **Deliverable** | `derive_closure` complete: two independent axes, `closed_with_evidence` / `escalated_to_human` / `expired_unresolved` / `open`; `POST /acceptances`; the expiry read-path (`record_expiry_once` before projecting, no scheduler); the four-line unresolved and expired renderings from `02-architecture.md` §7, with the five copy rules. |
 | **Files** | `src/carerelay/domain/rules.py` (`derive_closure`, `patient_lines`), `src/carerelay/presentation.py` (JSON only), `tests/test_domain.py`, `tests/test_api.py`. **Corrected 30 September 2026:** `src/carerelay/templates/patient.html` is removed from this row; the screen is a Next.js component from Slice 7. |
 | **Tests that must be fail-capable** | `test_acceptance_is_not_care` (a named acceptance closes the handoff obligation and never sets `care_evidenced`); `test_serialized_patient_and_ledger_labels` (unresolved/expired copy contains the original deadline and the named fallback; the simulated label is **inside** the serialized patient lines); `test_expiry_sticky_after_clock_regression`. |
@@ -292,6 +291,8 @@ This document previously named `src/carerelay/templates/patient.html` (Slices 1 
 
 ## 3. The critical path
 
+**Amended 8 October 2026: Slice 9 (the Gate B run) is CUT. Read the diagram below with the Gate B run removed: Slice 10 follows the completed build directly and no longer waits on a kill-test result.**
+
 ```
 Slice 0  K1/K2 (PASS) + Option C source ──┐
                                           │
@@ -318,7 +319,7 @@ Slice 8  external card (PARALLEL) ────────┘                   
 
 **The two things that can change this plan:**
 
-1. **Slice 9 falsifies PlanBack.** Then Slices 10 to 13 are replanned around the surviving mechanism and the submission is smaller and honest. This is designed-in, not failure.
+1. ~~**Slice 9 falsifies PlanBack.**~~ **FIRED 8 October 2026, in its cut form:** no dyad was recruited, so the run was cut rather than falsifying PlanBack. The plan's pre-recorded honest cut (section 6 item 1) executed, and Slices 10 to 13 proceed without a kill-test result.
 2. **Gate A never passes.** Then Slice 6 takes the recorded fallback: `local-sim`, weakened platform claim, CodeBuddy history as the usage proof.
 
 **A third, added 30 September 2026.** **Slice 7 is now the largest single block in the plan and it sits on the critical path to a public link.** If it overruns, the honest response is to cut the study (Slices 8 and 9), not to deploy without auth and not to cut the fault harness.
@@ -349,16 +350,16 @@ Non-negotiable, from the standing rules:
 | 6: action path + platform | 10–16 | 3–5 Oct |
 | **7: public deployment + Next.js frontend + auth (NEW)** | **20–34** | 5–8 Oct |
 | 8: external card (parallel, was Slice 7) | 5–9 | 3–8 Oct |
-| 9: Gate B run (was Slice 8) | 15–25 | 8–10 Oct |
+| 9: Gate B run (was Slice 8) | **CUT 8 Oct 2026** | not run |
 | 10: Closure Contract (was Slice 9) | 8–14 | 10–12 Oct |
 | 11: fault harness (was Slice 10) | 8–14 | 12–14 Oct |
 | 12: ledger + submission assets + usage proof (**merge of old 11 and 12**) | 14–22 | 14–16 Oct |
-| **Total, Slices 0 to 12** | **122–203** | |
+| **Total, Slices 0 to 12** | **107–178** | after the 8 October 2026 cut of Slice 9 (15–25 h) |
 | *13: ADP interpretation surface (CONDITIONAL, excluded from the total)* | *6–10* | *only if switched on* |
 
 **The arithmetic, recomputed 30 September 2026.** The old total was **102–169 h**. The new total is **122–203 h**, which is the old figure **plus Slice 7's 20–34 h** and nothing else: the merge of old Slices 11 and 12 adds the two old rows together (6–10 plus 8–12 becomes 14–22) rather than saving work, and every other slice keeps its previous estimate.
 
-**Compare with the capacity.** Solo, 30 Sep to 16 Oct is **16 days**. At 8 h/day that is **128 h**; at a realistic 6 h/day it is **96 h**. Neither figure allows for lost days, Gate A retries, recruitment slippage, the Option C source check, submission-form debugging, or rest. **The remaining Slices 4 to 12 are 93–156 h.** The lower bound fits only at a sustained 8 h/day with zero slack; **the upper bound does not fit at all.**
+**Compare with the capacity.** Solo, 30 Sep to 16 Oct is **16 days**. At 8 h/day that is **128 h**; at a realistic 6 h/day it is **96 h**. Neither figure allows for lost days, Gate A retries, recruitment slippage, the Option C source check, submission-form debugging, or rest. **Reduced 8 October 2026:** the cut of Slice 9 (15 to 25 h) takes the plan total to **107 to 178 h**. **The remaining Slices 4 to 12 are 93–156 h.** The lower bound fits only at a sustained 8 h/day with zero slack; **the upper bound does not fit at all.**
 
 This paragraph exists because `03-program-design.md` §7 warned that "the upper build range plus the baseline is unlikely to fit a solo schedule" and that Gate 4 "must not silently remove the Closure Contract tests to make the schedule look green". **No Closure Contract test has been removed and nothing has been cut.** The user's instructions of 28 September 2026 (keep the full scope) and 30 September 2026 (take the Vercel deployment, Decision D-1b) are both complied with, and the arithmetic above is the price of them, recorded rather than hidden.
 
@@ -370,7 +371,7 @@ This paragraph exists because `03-program-design.md` §7 warned that "the upper 
 |---|---|---|---|---|
 | **R1** | **Schedule does not fit.** 122–203 h against 128 h available. | Arithmetic in §5. Solo, full scope, 16 days, and Decision D-1b added 20–34 h on 30 September 2026. | Front-load the kill tests (Slice 0) and the kill test run (Slice 9) so a partial build is still coherent; sequence so Slices 0 to 7 alone are a demonstrable, publicly reachable product with the headline mechanism working. | Any slice overruns its window by more than 50% → replan, and tell the user before cutting anything. |
 | **R2** | **Gate A never passes.** Platform path unproven. | The spike has been overdue since 26 Sep. Re-verified 28 Sep: no credentials in the environment, no `.env`, no SDK package installed. | Slice 6 builds `CoordinatorPort` with two labelled implementations; the fallback is pre-recorded in Gate 2 §3.3/§6. | No credentials by 11 Oct → take the fallback, weaken the platform claim, state it as weakened. |
-| **R3** | **Recruitment fails.** No dyads means no Gate B. | No participant exists. Target 6 per condition, minimum 3. | Slice 8 targets 6 per condition and can run with 3; the protocol is frozen before the first session. | Fewer than 3 per condition → make **no** HCD validation claim, report raw counts only. |
+| **R3** | **Recruitment fails.** No dyads means no Gate B. **FIRED 8 October 2026: no dyad, so the run is cut and no human-centred validation claim is made.** | No participant exists. Target 6 per condition, minimum 3. | Slice 8 targets 6 per condition and can run with 3; the protocol is frozen before the first session. | Fewer than 3 per condition → make **no** HCD validation claim, report raw counts only. |
 | **R4** | **Option C source cannot be cleared.** Licensing or Singapore applicability fails. | Unchecked. `CareRelay.md` records that wholesale copying of licensed Schmitt–Thompson protocols is out of scope. | Slice 0 front-loads the check; Option B (one reviewer) is the recorded fallback. | No cleared source by 2 Oct → Option B, or escalate. Do not author clinical wording. |
 | **R5** | **Reading B is the real contract.** Canonicalisation happens in the model. | The spike's K1 result assumes Reading A. | §1.1 pins Reading A and requires the user's acknowledgment; the residual under B is recorded. | If the coordinator cannot return raw spans → K1 weakens to "the deterministic layer is correct given correct extraction", and the claim is stated at that strength. |
 | **R6** | **Callback atomicity fails.** Duplicates lost. | `03-program-design.md` §8 item 4 is an acknowledged hypothesis. | Slice 3 proves it under two concurrent writers and a crash. **Proven 30 September 2026; R6 is closed.** | Cannot be made atomic → backtrack Gate 2, do not ship a lossy representation. |
@@ -380,7 +381,7 @@ This paragraph exists because `03-program-design.md` §7 warned that "the upper 
 
 **The cut order (updated 30 September 2026), first to last:**
 
-1. **The study, Slices 8 and 9 (20 to 34 h), if no dyad is recruited by about 5 October.** It frees the largest single block and the plan already pre-records the consequence (R3: no HCD validation claim, raw counts only). This is the honest cut.
+1. ~~**The study, Slices 8 and 9 (20 to 34 h), if no dyad is recruited by about 5 October.**~~ **EXECUTED 8 October 2026.** No dyad was recruited, so the participant run of the study is cut and the plan makes no human-centred validation claim. Slice 8 is built and shipped and the instrument is built; only the run is removed. This is the honest cut the plan pre-recorded.
 2. **Never adopt Decision D-1b.** **VOID as of 30 September 2026:** the user took D-1b explicitly, so this line no longer applies and the Next.js frontend is not a cut candidate. It is retained so the supersession is visible rather than silent.
 3. **Keep the Closure Contract (Slice 10) and the fault harness (Slice 11).** They carry the demo's honesty and two scored dimensions, and they are not cut candidates.
 
@@ -393,7 +394,7 @@ This paragraph exists because `03-program-design.md` §7 warned that "the upper 
 1. **Slice 0 fails K1 or K2** → PlanBack is cut; replan before Slice 1.
 2. **Slice 9 falsifies PlanBack** → cut it; replan Slices 10 to 13 around the survivor.
 3. **Any Closure Contract invariant fails** → stop feature work and repair it (`PLAN.md` §9).
-4. **No participant dyad by 5 October** → cut the study (Slices 8 and 9); make no HCD validation claim; report raw counts or nothing.
+4. **No participant dyad by 5 October** → cut the study (Slices 8 and 9); make no HCD validation claim; report raw counts or nothing. **FIRED 8 October 2026: the run is cut.**
 5. **No Gate A by 11 October** → take the recorded local-simulation fallback and weaken the platform claim.
 6. **No usage proof** → the project does not proceed to scoring. Its capture starts at Slice 4 and is checked at every slice, not only at Slice 12. Escalate, do not paper over it.
 7. **R1 fires (any slice >50% over its window)** → tell the user and replan. Do **not** absorb the overrun by quietly dropping tests.
@@ -405,11 +406,11 @@ This paragraph exists because `03-program-design.md` §7 warned that "the upper 
 ## 8. Compacted decisions a fresh session must know
 
 - **Gates 2, 3 and 4 were reopened and re-approved on 30 September 2026.** No code until the user re-approved, which happened the same day. Approval is the user saying yes in chat, not this document existing.
-- **Full scope, no cuts** — user instruction, 28 Sep 2026. The schedule risk is recorded in §5/R1 rather than resolved by cutting.
+- **Full scope, no cuts** — user instruction, 28 Sep 2026. The schedule risk is recorded in §5/R1 rather than resolved by cutting. **Superseded 8 October 2026:** the plan's pre-recorded cut order fired (no dyad by 5 October), so the study run is cut. This is the plan's own honest cut, not a new scope decision.
 - **The stack is Render plus Vercel** (Decision D-1b, 30 Sep 2026): Python and FastAPI on Render behind a shared bearer token, and a Next.js clinical frontend on Vercel. The server-rendered HTML and vanilla JS presentation is retired. This is why **Gate 3 reopened** as well as Gates 2 and 4.
 - **ADP is additive only** (Decision D-A): the interpretation step, never the execution path and never the rendering path. **Slice 13 is conditional and defaults to off.**
 - **K1 and K2 already pass** (spike, 15/15, Python 3.13.14). That is a deterministic-layer spike result, not an implementation result.
-- **C1 is honoured:** the external card (Slice 8) completes before the Closure Contract build (Slice 10), and the kill test (Slice 9) runs between them.
+- **C1 is amended 8 October 2026:** the external card (Slice 8) is built, the Gate B run (Slice 9) is **cut and not run**, and the Closure Contract build (Slice 10) follows directly with no human-centred validation claim.
 - **Reading A** is adopted for `compare_plan` and pins canonicalisation in `domain`. `ExtractedPlan` must carry the raw span **and** `uncertain_fields`.
 - **The Option C source is the only thing blocking the judged fixture.** Everything before Slice 5 can proceed without it.
 - **The usage proof starts at Slice 4.** It is the one artefact whose absence blocks scoring, and it cannot be reconstructed once the session logs are gone.

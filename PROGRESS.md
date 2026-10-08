@@ -142,11 +142,19 @@ Both mechanisms are now written into `PLAN.md`. The single-ladder state model wa
 
 ### Next
 
-**Slice 9: Gate B, run the comparison (the kill test).** Run the pre-registered protocol in
-`study/protocol.md` on real dyads, record the raw outcome sheet, apply the pre-registered cut rule, and
-write the results down including adverse reactions to read-back. **Slice 9 must also lift the
-small-sample reporting and scoring rules out of `tests/test_study.py` into the response path it
-builds.** Slices 10 to 12 are replanned if the card wins on the cut rule.
+**Slice 9: Gate B, run the comparison (the kill test). BUILT 7 October 2026 on `slice-9`; CUT as a run on 8 October 2026, not run.**
+The response path was built: `src/carerelay/study/` owns the frozen allocation, the outcome row, the
+pre-registered cut rule and the reporting rules, and the small-sample reporting and scoring rules were
+lifted out of `tests/test_study.py` (which imports them, its 126 tests unchanged). The recruitment
+preparation was built as well: consent recorded before the task and kept out of the clinical record, a
+named and blinded second scorer's intake, and the facilitator's script with every frozen line pinned to
+the protocol. Evidence after the 8 October instrument change: suite **870 passed, 0 skipped**;
+`tests/_mutate_slice9.py` **46 of 46 RED**; `tests/_mutate_slice8.py` **26 of 26 RED**; every target
+restored byte-exact. **The user decided on 8 October 2026 that no dyads will run and no second scorer
+will be named, so the run is cut and the project makes no human-centred validation claim.** This is the
+plan's own pre-recorded cut (`04-slices.md` section 6 item 1; section 7 stop condition 4), not a failed
+recruitment, and the build stands as design evidence. Gate 4 was reopened on 8 October 2026 and re-approved the same day; see
+`00-status.md`. Slice 10 is next.
 
 ### Slice 8: the fixed card and the pre-registration (built 2026-10-07)
 

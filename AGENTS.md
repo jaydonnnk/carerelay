@@ -85,7 +85,11 @@ Authority rules:
   the same day**. `00-status.md` records both the reopen and the re-approval.
   Slices 1 to 7b are complete and shipped to `main`. **Slice 8 (the fixed card and
   the pre-registration) is built on `slice-8-fixed-card`, adversarially reviewed and
-  remediated the same day, and its Check is complete; Slice 9 is next.** Option C was
+  remediated the same day, its Check is complete, and it shipped to `main` on
+  7 October 2026. Slice 9 (Gate B) is built on `slice-9` and CUT as a run on 8 October 2026
+  (Gate 4 reopened and re-approved the same day): the response path the sessions would have
+  been scored with is built, but no dyad was recruited, so there is no Gate B result
+  and no human-centred validation claim is made.** Option C was
   dropped on 1 October 2026, which unblocked
   the judged fixture and reopened Gate 3 (see below). **Each slice stops
   for the user's "continue, or re-steer?" before the next one begins.**
@@ -93,14 +97,14 @@ Authority rules:
   Contract, the two-axis state model, the design principles and the five HTML
   wireframes. It does not authorise implementation, installs, credentials, external
   calls, recruitment or deployment.
-- Branch state (verified 7 October 2026, after the Slice 8 ship): `main`
-  holds every slice up to and including Slice 8 and is in sync with
+- Branch state (verified 8 October 2026, after the Slice 9 ship): `main`
+  holds every slice up to and including Slice 9 and is in sync with
   `origin/main`. Each slice also keeps its own branch, frozen at the commit its
   slice closed on, so those branches sit behind `main` by design and not by
   accident: `slice-2-domain-core`, `slice-3`, `slice-4`, `slice-4-completion`,
   `slice-5`, `slice-6`, `slice-7`, `slice-7b`, `slice-7b-stage1-fixes` and
-  `slice-8-fixed-card`. `slice-9` is the next slice branch, created at the Slice 8 ship and
-  level with `main` until Slice 9 begins. Not all
+  `slice-8-fixed-card`. `slice-9` is the Slice 9 branch, cut from `main` at the
+  Slice 8 ship and holding the Slice 9 work, which is committed to `main`. Not all
   of them are published and a published one is not necessarily at its local tip, so
   `git ls-remote --heads origin` is the only authority for what `origin` holds; this
   sandbox drops the local tracking refs after a push, which reads like a failed push
@@ -144,8 +148,11 @@ and remain live inputs to Gate 3:
 - **No qualified clinical reviewer and no authorised protocol.** The prototype must
   remain a labelled research demonstration on scripted fixtures.
 - **The load-bearing assumption is untested:** that a fixed bilingual card plus a
-  direct booking link plus a NurseFirst fallback does not perform equally. This is
-  the primary kill test and must run first.
+  direct booking link plus a NurseFirst fallback does not perform equally. This was
+  the primary kill test. **The run was CUT on 8 October 2026** (Gate 4 reopened): no
+  dyad was recruited, so the assumption stays untested and the project makes no
+  human-centred validation claim. It is not a null result and must never be implied
+  to be one.
 - **Neither mechanism requires WorkBuddy.** WorkBuddy's genuine dependency is the
   coordinator, the real tool call, its real failure event and session resume.
 - **Mandarin voice is a gated TRTC spike only.** No account access and no clinical
