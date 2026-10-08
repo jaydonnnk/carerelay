@@ -22,6 +22,12 @@ construction and could not be seen to drift. So the duplication is the risk, and
 these tests are the control: change a line on the card and the card stops matching
 the fixture the application renders.
 
+**Where the scoring rules live now.** Slice 9 lifted `render_outcome_report`,
+`hcd_claim_supported` and the three scorers out of this module and into
+`carerelay.study`, because a rule that exists only inside a test cannot score a
+real response. They are imported back in, so the guards here read the same
+values and the move changed no assertion.
+
 **The stated limit of the content scan.** `scan_clinical_content` catches a named
 marker from a fixed vocabulary, and a number followed by a clinical unit. It does
 not catch a clinical statement phrased with none of those words. It is a guard
@@ -33,7 +39,6 @@ from __future__ import annotations
 
 import re
 import sys
-from collections.abc import Mapping
 from pathlib import Path
 
 import pytest
@@ -41,7 +46,23 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from carerelay.demo import fixture  # noqa: E402
-from carerelay.domain import rules  # noqa: E402
+from carerelay.study.outcomes import (  # noqa: E402
+    MIN_DYADS_PER_CONDITION,
+    MIN_PARTICIPANTS_FOR_PERCENTAGES,
+    hcd_claim_supported,
+    render_outcome_report,
+)
+from carerelay.study.scoring import (  # noqa: E402
+    DIFFERENT_ACTION_FORMS,
+    DIFFERENT_DEADLINE_FORMS,
+    FIXTURE_ACTION_FORMS,
+    FIXTURE_DEADLINE_FORMS,
+    PROTOCOL_DEADLINE_FORMS,
+    UnclassifiableResponse,
+    score_action_recall,
+    score_deadline_recall,
+    score_false_completion,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CARD_PATH = REPO_ROOT / "study" / "fixed-card.html"
@@ -200,102 +221,11 @@ CLINICAL_THRESHOLD_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
-#: The protocol's frozen reporting rule, in code. Gate 3 names no study module and
-#: Gate 4 names three files for this slice, so the rule is implemented here as the
-#: reference meaning of `study/protocol.md` section 15 until Slice 9 builds the
-#: response endpoint that consumes it.
-MIN_PARTICIPANTS_FOR_PERCENTAGES = 10
-MIN_DYADS_PER_CONDITION = 3
-
-#: Scoring vocabularies, all derived from the fixture and never hand-typed.
-#:
-#: Finding B1 of the Slice 8 review: the accepted lists used to be written out
-#: here, and they disagreed with the product they measure. Four of the six
-#: deadline forms the application resolves to 18:00 scored incorrect, and all
-#: seven action aliases the application resolves to the keyed action scored
-#: incorrect, which deflates condition A specifically, because condition A
-#: participants talk to the alias-accepting application while condition B
-#: participants read the card verbatim. Deriving the sets makes the disagreement
-#: unrepresentable rather than merely unlikely.
-
-#: The keyed deadline instant. Protocol section 10: the answer key is the
-#: fixture's value, so the key is derived rather than restated.
-KEYED_DEADLINE_INSTANT: tuple[int, str] = (0, fixture.DEADLINE_LOCAL_HHMM)
-
-#: Every deadline form the **application** resolves to the keyed instant.
-FIXTURE_DEADLINE_FORMS: tuple[str, ...] = tuple(
-    sorted(
-        form
-        for form, instant in fixture.DEADLINE_FORMS.items()
-        if instant == KEYED_DEADLINE_INSTANT
-    )
-)
-
-#: Every deadline form the application resolves to a **different** instant. A
-#: known wrong value must be scored incorrect, never uncertain: that is kill
-#: condition K1 and protocol section 10.
-DIFFERENT_DEADLINE_FORMS: tuple[str, ...] = tuple(
-    sorted(
-        form
-        for form, instant in fixture.DEADLINE_FORMS.items()
-        if instant != KEYED_DEADLINE_INSTANT
-    )
-)
-
-#: Paraphrases the frozen protocol names in section 10 that the fixture's own
-#: resolver does not carry. They are kept because section 17 freezes section 10,
-#: and `test_the_protocol_names_the_deadline_forms_the_scorer_accepts` pins each
-#: one against the document, so they cannot drift from it silently.
-PROTOCOL_DEADLINE_FORMS: tuple[str, ...] = (
-    "18:00",
-    "6pm",
-    "six in the evening",
-    "6pm today",
-)
-
-ACCEPTED_DEADLINE_FORMS: tuple[str, ...] = tuple(
-    sorted(
-        set(FIXTURE_DEADLINE_FORMS)
-        | set(PROTOCOL_DEADLINE_FORMS)
-        | {fixture.DEADLINE_DISPLAY, fixture.DEADLINE_LOCAL_HHMM}
-    )
-)
-
-#: Every alias the application resolves to the keyed action, read from
-#: `policy().action_aliases` rather than written out.
-FIXTURE_ACTION_FORMS: tuple[str, ...] = tuple(
-    sorted(
-        alias
-        for alias, action_id in fixture.policy().action_aliases.items()
-        if action_id == fixture.ACTION_ID
-    )
-)
-
-#: Aliases the application resolves to a **different permitted** action. This is
-#: empty today and the emptiness is derived, not assumed: `fixture.ACTION_ALIASES`
-#: carries aliases for the keyed action only, so the fixture has no vocabulary
-#: for a known-wrong action. No alias is invented to fill it.
-#: `test_no_fixture_alias_resolves_to_a_different_action` fails the moment one
-#: arrives, which is the open item carried forward to Slice 9.
-DIFFERENT_ACTION_FORMS: tuple[str, ...] = tuple(
-    sorted(
-        alias
-        for alias, action_id in fixture.policy().action_aliases.items()
-        if action_id in fixture.policy().permitted_action_ids
-        and action_id != fixture.ACTION_ID
-    )
-)
-
-ACCEPTED_ACTION_FORMS: tuple[str, ...] = tuple(
-    sorted(set(FIXTURE_ACTION_FORMS) | {fixture.ACTION_TEXT})
-)
-
-AFFIRMATIVE_ANSWERS: frozenset[str] = frozenset(
-    {"yes", "y", "yeah", "yep", "yes i have", "yes it has", "i have"}
-)
-NEGATIVE_ANSWERS: frozenset[str] = frozenset(
-    {"no", "n", "nope", "no i have not", "no it has not", "not yet"}
-)
+#: The scoring vocabularies and thresholds that used to be declared here now
+#: live in `carerelay.study`, where Slice 9 lifted them: `scoring` owns the
+#: vocabularies, `outcomes` owns the two reporting thresholds. They are
+#: imported at the top of this module, so every guard below still reads
+#: exactly the value it read before the move.
 
 
 # ---------------------------------------------------------------------------
@@ -382,82 +312,12 @@ def scan_clinical_content(payload: str) -> list[str]:
     return sorted(set(found))
 
 
-def render_outcome_report(counts: Mapping[str, int]) -> list[str]:
-    """Render outcome counts under the protocol's frozen reporting rule.
-
-    Raw counts are always reported. A percentage is added only when the total
-    reaches `MIN_PARTICIPANTS_FOR_PERCENTAGES`, because a percentage over a
-    smaller sample states more than the sample can carry.
-    """
-    if not counts:
-        raise ValueError("no counts to report")
-    ordered = sorted(counts.items())
-    lines = [f"{condition}: {n} dyads" for condition, n in ordered]
-    total = sum(counts.values())
-    if total >= MIN_PARTICIPANTS_FOR_PERCENTAGES:
-        lines.extend(
-            f"{condition}: {n / total:.0%} of {total}" for condition, n in ordered
-        )
-    return lines
-
-
-def hcd_claim_supported(counts: Mapping[str, int]) -> bool:
-    """Whether a sample supports a human-centred validation claim.
-
-    Protocol section 15: fewer than three dyads in either condition means no such
-    claim. An empty condition is a zero, not an exemption.
-    """
-    if not counts:
-        return False
-    return min(counts.values()) >= MIN_DYADS_PER_CONDITION
-
-
-def score_false_completion(answer: str) -> bool:
-    """Score the primary outcome from the participant's uncoached answer.
-
-    A yes is a false completion, because the status is unresolved and no care is
-    arranged. An answer that is neither a yes nor a no is not scored here: the
-    protocol records it verbatim and the second scorer resolves it.
-    """
-    normalised = rules.normalise(answer)
-    if normalised in AFFIRMATIVE_ANSWERS:
-        return True
-    if normalised in NEGATIVE_ANSWERS:
-        return False
-    raise ValueError(f"unclassifiable answer, record verbatim: {answer!r}")
-
-
-def score_action_recall(restated: str) -> bool:
-    """Three-way, like `score_false_completion`, and for the same reason.
-
-    Correct when the fixture resolves the restatement to the keyed action;
-    incorrect when it resolves it to a different permitted action; and a refusal
-    when it resolves to nothing, because protocol section 11 sends an
-    unclassifiable response to the second scorer instead of letting the first
-    scorer guess. Returning `False` for that third case was finding B1: it
-    recorded a guess as if it were a score.
-    """
-    normalised = rules.normalise(restated)
-    if normalised in {rules.normalise(form) for form in ACCEPTED_ACTION_FORMS}:
-        return True
-    if normalised in {rules.normalise(form) for form in DIFFERENT_ACTION_FORMS}:
-        return False
-    raise ValueError(f"unclassifiable restated action, record verbatim: {restated!r}")
-
-
-def score_deadline_recall(restated: str) -> bool:
-    """Three-way, like `score_false_completion`.
-
-    Correct for any surface form of the keyed instant, incorrect for a form the
-    fixture resolves to a different instant (never uncertain, protocol section
-    10), and a refusal for a restatement the fixture resolves to nothing at all.
-    """
-    normalised = rules.normalise(restated)
-    if normalised in {rules.normalise(form) for form in ACCEPTED_DEADLINE_FORMS}:
-        return True
-    if normalised in {rules.normalise(form) for form in DIFFERENT_DEADLINE_FORMS}:
-        return False
-    raise ValueError(f"unclassifiable restated deadline, record verbatim: {restated!r}")
+# The five functions that used to be defined here now live in
+# `carerelay.study`: `render_outcome_report` and `hcd_claim_supported` in
+# `outcomes`, and the three scorers in `scoring`. Slice 9 lifted them,
+# because a rule that exists only inside a test cannot score a real
+# response. They are imported at the top of this module, unchanged in
+# behaviour, and every guard below tests them where it always did.
 
 
 # ---------------------------------------------------------------------------

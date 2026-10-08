@@ -27,6 +27,12 @@ answer once:
 
 Every file is restored byte-identically and its cached bytecode purged, because a
 `.pyc` compiled while a mutation was live can outlive the restore.
+
+**Repointed 7 October 2026.** Slice 9 lifted the reporting rule and the three
+scorers out of `tests/test_study.py` into `src/carerelay/study/`, so eight
+mutations now patch their new home instead of the test module. The guards they
+must kill are unchanged and still live in `tests/test_study.py`, so every test
+node id below is untouched: only the file being broken moved.
 """
 
 from __future__ import annotations
@@ -46,11 +52,20 @@ PROTOCOL = "study/protocol.md"
 TESTS = "tests/test_study.py"
 API = "src/carerelay/api.py"
 
+#: Added 7 October 2026. Slice 9 lifted the reporting rule and the three scorers
+#: out of `tests/test_study.py` and into the study package, so the mutations that
+#: used to land in the test module now have to land where the code went. The test
+#: node ids are unchanged: the guards still run from `tests/test_study.py`.
+SCORING_MODULE = "src/carerelay/study/scoring.py"
+REPORTING_MODULE = "src/carerelay/study/outcomes.py"
+
 TARGETS = {
     CARD: REPO / "study" / "fixed-card.html",
     PROTOCOL: REPO / "study" / "protocol.md",
     TESTS: REPO / "tests" / "test_study.py",
     API: REPO / "src" / "carerelay" / "api.py",
+    SCORING_MODULE: REPO / "src" / "carerelay" / "study" / "scoring.py",
+    REPORTING_MODULE: REPO / "src" / "carerelay" / "study" / "outcomes.py",
 }
 
 STANDALONE = "tests/test_study.py::TestTheCardIsAStandaloneExternalArtefact"
@@ -146,23 +161,32 @@ MUTATIONS: list[tuple[str, str, bytes, bytes, list[str]]] = [
         b"**Design: within-subjects.**",
         [f"{PROTO}::test_the_design_is_between_subjects_with_no_crossover"],
     ),
+    # Repointed a second time on 8 October 2026. The amendment that closed the
+    # two recall questions rewrote section 17's freeze line, so the 7 October
+    # anchor no longer exists and the mutation failed as NOT PROVEN rather than
+    # SURVIVED. A harness that anchors into moved text goes quietly blind, so
+    # the anchor moved with the sentence.
     (
         "P2  the protocol stops freezing itself before the first dyad",
         PROTOCOL,
-        b"**Frozen on 7 October 2026, before the first dyad.**",
+        b"**Frozen on 7 October 2026, before the first dyad. Amended twice, still "
+        b"before the\n"
+        b"first dyad: section 13 on 7 October 2026, and sections 5 to 7, 10 and 11 "
+        b"on\n"
+        b"8 October 2026. Both amendments are recorded below.**",
         b"**To be confirmed.**",
         [f"{PROTO}::test_the_protocol_freezes_itself_before_the_first_dyad"],
     ),
     (
         "T1  the reporting rule loses its ten-participant floor",
-        TESTS,
+        REPORTING_MODULE,
         b"    if total >= MIN_PARTICIPANTS_FOR_PERCENTAGES:\n",
         b"    if total >= 0:\n",
         [f"{REPORT}::test_no_percentage_appears_below_ten_participants"],
     ),
     (
         "T2  the no-claim rule loses its three-dyad floor",
-        TESTS,
+        REPORTING_MODULE,
         b"    return min(counts.values()) >= MIN_DYADS_PER_CONDITION\n",
         b"    return True\n",
         [
@@ -176,7 +200,7 @@ MUTATIONS: list[tuple[str, str, bytes, bytes, list[str]]] = [
         # in meaning, a deadline the fixture resolves to a different instant
         # scored as correct, and it now lands on the case-2 branch.
         "T3  the deadline scorer stops rejecting a different instant",
-        TESTS,
+        SCORING_MODULE,
         b"    if normalised in {rules.normalise(form) for form in "
         b"DIFFERENT_DEADLINE_FORMS}:\n        return False\n",
         b"    if normalised in {rules.normalise(form) for form in "
@@ -185,8 +209,9 @@ MUTATIONS: list[tuple[str, str, bytes, bytes, list[str]]] = [
     ),
     (
         "T4  an unclassifiable answer is guessed as a no",
-        TESTS,
-        b'    raise ValueError(f"unclassifiable answer, record verbatim: {answer!r}")\n',
+        SCORING_MODULE,
+        b'    raise UnclassifiableResponse(f"unclassifiable answer, record verbatim: '
+        b'{answer!r}")\n',
         b"    return False\n",
         [f"{SCORING}::test_an_unclassifiable_answer_is_refused_not_guessed"],
     ),
@@ -196,7 +221,7 @@ MUTATIONS: list[tuple[str, str, bytes, bytes, list[str]]] = [
     # an unclassifiable action, refuse an unclassifiable deadline.
     (
         "B1a the scorer stops withdrawing the fixture's action vocabulary",
-        TESTS,
+        SCORING_MODULE,
         b"    sorted(set(FIXTURE_ACTION_FORMS) | {fixture.ACTION_TEXT})",
         b"    sorted(set() | {fixture.ACTION_TEXT})",
         [
@@ -207,7 +232,7 @@ MUTATIONS: list[tuple[str, str, bytes, bytes, list[str]]] = [
     ),
     (
         "B1b the scorer stops withdrawing the fixture's deadline vocabulary",
-        TESTS,
+        SCORING_MODULE,
         b"        set(FIXTURE_DEADLINE_FORMS)",
         b"        set()",
         [
@@ -218,17 +243,19 @@ MUTATIONS: list[tuple[str, str, bytes, bytes, list[str]]] = [
     ),
     (
         "B1c the action scorer guesses on an unclassifiable action",
-        TESTS,
-        b'    raise ValueError(f"unclassifiable restated action, '
-        b'record verbatim: {restated!r}")\n',
+        SCORING_MODULE,
+        b"    raise UnclassifiableResponse(\n"
+        b'        f"unclassifiable restated action, record verbatim: {restated!r}"\n'
+        b"    )\n",
         b"    return False\n",
         [f"{SCORING}::test_an_unclassifiable_action_is_refused_not_guessed"],
     ),
     (
         "B1d the deadline scorer guesses on an unclassifiable instant",
-        TESTS,
-        b'    raise ValueError(f"unclassifiable restated deadline, '
-        b'record verbatim: {restated!r}")\n',
+        SCORING_MODULE,
+        b"    raise UnclassifiableResponse(\n"
+        b'        f"unclassifiable restated deadline, record verbatim: {restated!r}"\n'
+        b"    )\n",
         b"    return False\n",
         [f"{SCORING}::test_an_unclassifiable_deadline_is_refused_not_guessed"],
     ),
