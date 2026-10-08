@@ -92,9 +92,20 @@ Authority rules:
   and no human-centred validation claim is made.** Option C was
   dropped on 1 October 2026, which unblocked
   the judged fixture and reopened Gate 3 (see below). **Each slice stops
-  for the user's "continue, or re-steer?" before the next one begins.**
+  for the user's "continue, or re-steer?" before the next one begins.
+- **8 October 2026: both gates are RE-APPROVED, Gate 2 immediately and Gate 1
+  the same day when its mockups were created.** Both were reopened to add the closure
+  patient renderings
+  (`closed_with_evidence` and `escalated_to_human`), which had no approved words.
+  The user approved both on 8 October 2026 and instructed that Gate 2 be recorded
+  as re-approved immediately, while **Gate 1 closes when the mockups for the two
+  new screens exist** (one plain `.html` wireframe per screen); the user's instruction
+  is that **creating these mockups completes the re-approval**, and
+  `06-resolved-handoff.html` and `07-escalated-to-human.html` were created the same
+  day. Gates 3 and 4 are untouched, so the slice plan stays authorised.
+  `00-status.md` records both.
 - Gate 1 approval covers the reframe, PlanBack, the recall hint ladder, the Closure
-  Contract, the two-axis state model, the design principles and the five HTML
+  Contract, the two-axis state model, the design principles and the seven HTML
   wireframes. It does not authorise implementation, installs, credentials, external
   calls, recruitment or deployment.
 - Branch state (verified 8 October 2026, after the Slice 9 ship): `main`
