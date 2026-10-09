@@ -78,4 +78,8 @@ Everything else measured in that section was accurate: 902 passed against a 890 
 
 ## Outstanding corrections, not applied
 
-This review wrote no record file. R4 and R5 need edits to the Slice 11 section, the O8 row and the "Crash atomicity" row of `00-status.md`, plus mirrors in `PROGRESS.md` and `tasks/todo.md`. Those edits are a separate step and need their own instruction.
+At the time of review this review had written no record file. R4 and R5 needed edits to the Slice 11 section, the O8 row and the "Crash atomicity" row of `00-status.md`, plus mirrors in `PROGRESS.md` and `tasks/todo.md`, and those edits were a separate step that needed its own instruction.
+
+**Addendum, 9 October 2026.** The instruction came, and both are now applied. The slice was committed to `main` in six coherent batches and pushed to `origin`; the record sweep that ship made necessary, and the R4 and R5 corrections, landed together in the commit after it. R4 is corrected in the Slice 11 contract table of `00-status.md`, which now carries the per-sequence counts, and in the module docstring of `tests/test_fault_sequences.py`. R5 is corrected in the Slice 11 section, the O8 row, the Crash atomicity row, the Slices paragraph, the Slice 11 checklist row, `PROGRESS.md`, `tasks/todo.md` and `AGENTS.md`, all of which now say the closure is SQLite-scoped. R3 is documented in the same table and in `_assert_healthy_surface`'s docstring, but not fixed in code.
+
+R1, R2, R6 and R7 remain open and are deliberately not fixed here. They are findings against the two new scanners rather than against the record: widening the noun match to inflected forms, and deciding whether the unexercised denylist entries are pinned by a needle or declared anticipatory, are choices about what the scanner should catch, and a record sweep is not the place to make them. R8 needs nothing.

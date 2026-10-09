@@ -93,8 +93,8 @@ Authority rules:
   in full) is built on `slice-10` and shipped to `main` on 8 October 2026, with
   F4, F6 and F6-render closed by the approved closure renderings. **Slice 11
   (the fault harness and the seven sequences) is built on `slice-11-fault-harness`,
-  its Check is complete, and it is NOT committed: the commit needs its own
-  instruction. Slice 12 (the judge ledger and the submission assets) is next.** Option C was
+  its Check is complete, and it SHIPPED to `main` on 9 October 2026; the slice
+  branch itself is unpublished. Slice 12 (the judge ledger and the submission assets) is next.** Option C was
   dropped on 1 October 2026, which unblocked
   the judged fixture and reopened Gate 3 (see below). **Each slice stops
   for the user's "continue, or re-steer?" before the next one begins.
@@ -113,16 +113,17 @@ Authority rules:
   Contract, the two-axis state model, the design principles and the seven HTML
   wireframes. It does not authorise implementation, installs, credentials, external
   calls, recruitment or deployment.
-- Branch state (verified 8 October 2026, after the Slice 10 ship): `main`
-  holds every slice up to and including Slice 10 and is in sync with
+- Branch state (verified 9 October 2026, after the Slice 11 ship): `main`
+  holds every slice up to and including Slice 11 and is in sync with
   `origin/main`. Each slice also keeps its own branch, frozen at the commit its
   slice closed on, so those branches sit behind `main` by design and not by
   accident: `slice-2-domain-core`, `slice-3`, `slice-4`, `slice-4-completion`,
   `slice-5`, `slice-6`, `slice-7`, `slice-7b`, `slice-7b-stage1-fixes`,
-  `slice-8-fixed-card`, `slice-9` and `slice-10`. `slice-9` holds the Slice 9 work,
-  cut as a run, and `slice-10` holds the Slice 10 work; both are committed to
-  `main`. `slice-11-fault-harness` holds the Slice 11 work, which is tests only and
-  not yet committed. Not all of them are published and a published one is not necessarily at
+  `slice-8-fixed-card`, `slice-9`, `slice-10` and `slice-11-fault-harness`.
+  `slice-9` holds the Slice 9 work, cut as a run, and `slice-10` holds the Slice 10
+  work; both are committed to `main`. `slice-11-fault-harness` holds the Slice 11
+  work, which is tests only with no `src/` change, and it is committed to `main`
+  but unpublished, like `slice-9` and `slice-10`. Not all of them are published and a published one is not necessarily at
   its local tip, so `git ls-remote --heads origin` is the only authority for what
   `origin` holds; this sandbox drops the local tracking refs after a push, which
   reads like a failed push and is not one. `gate-2-architecture` and

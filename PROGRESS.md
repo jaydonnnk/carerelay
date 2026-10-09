@@ -170,7 +170,7 @@ created, and all four closure states now render. Evidence: suite **890 passed, 0
 harnesses re-run clean; all five screens rendered through live `curl`. **F4, F6 and F6-render are
 CLOSED.**
 
-**Slice 11: the fault harness and the seven sequences. BUILT 8 October 2026 on `slice-11-fault-harness`, its Check complete, and NOT committed (the commit needs its own instruction).** `tests/test_fault_sequences.py` (11 tests over the seven sequences), `tests/_mutate_slice11.py` (**7 of 7 mutations RED, 0 SURVIVED, 0 NOT PROVEN**, selectors pinned per sequence), and `test_scanner_detects_injected_needle` in `tests/test_boundaries.py`. **902 passed, 0 skipped** against the measured baseline of **890**. **No `src/` change was needed**; the restart sequence's child-process kill test proves the existing single transaction and closes **O8**. Live `curl` proof: attempted, then applied, then duplicate, then refused, the four approved lines at `closure=open`, and 422/404/409. **Slice 12 (the judge ledger and the submission assets) is next.**
+**Slice 11: the fault harness and the seven sequences. BUILT 8 October 2026 on `slice-11-fault-harness`, its Check complete, adversarially reviewed the same day with a SOUND verdict, and SHIPPED to `main` on 9 October 2026 (the slice branch itself is unpublished, as `slice-9` and `slice-10` are).** `tests/test_fault_sequences.py` (11 tests over the seven sequences), `tests/_mutate_slice11.py` (**7 of 7 mutations RED, 0 SURVIVED, 0 NOT PROVEN**, selectors pinned per sequence), and `test_scanner_detects_injected_needle` in `tests/test_boundaries.py`. **902 passed, 0 skipped** against the measured baseline of **890**. **No `src/` change was needed**; the restart sequence's child-process kill test proves the existing single transaction and closes **O8 for the SQLite store**. It does not close O8 for the deployment store: the record moved to Postgres on Supabase at Slice 7b, `PostgresEpisodeStore.record_callback_once` is a separate implementation using `SELECT ... FOR UPDATE`, and no fault sequence runs against it. Live `curl` proof: attempted, then applied, then duplicate, then refused, the four approved lines at `closure=open`, and 422/404/409. **Slice 12 (the judge ledger and the submission assets) is next.**
 
 ### Slice 8: the fixed card and the pre-registration (built 2026-10-07)
 
@@ -192,7 +192,9 @@ CLOSED.**
 Slice 5, F4 and the §2.2 amendment at Slice 10 (Slice 9 before the 30 September 2026
 renumber), and Gate A (still unrun, fallback recorded for
 Slice 6). From the Slice 3 review: O2's typed lock error and O5 at Slice 6, O7 at Slice 5, O8 at
-Slice 11 (Slice 10 before the renumber); both O7 and O8 are now closed. O1, O3, O4 and O6 were closed by the remediation below
+Slice 11 (Slice 10 before the renumber); both O7 and O8 are now closed, **O8 for the SQLite
+store only**: the seven fault sequences run on SQLite, and the Postgres store the deployment
+uses carries its own `record_callback_once` that no sequence exercises. O1, O3, O4 and O6 were closed by the remediation below
 and O2's docstring half with them.
 Slice 3 is **committed** on branch `slice-3` and fast-forwarded into `main`, as is the
 remediation.

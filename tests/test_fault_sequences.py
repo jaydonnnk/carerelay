@@ -3,7 +3,12 @@
 `04-slices.md` names the seven: timeout, stale availability, duplicate callback,
 reordered callback, restart mid-episode, clock change and consent revocation.
 Each one drives the running product into a fault through the public API, then
-asserts the five invariants at the serialized surfaces:
+asserts at the serialized surfaces whichever of the five invariants that fault
+can falsify. **The coverage is per sequence, not uniform, and is stated rather
+than averaged:** I2 and I4 hold in all seven, because the approved tuple below
+is asserted by equality; I3 in three (timeout, duplicate, restart); I5 in three
+(timeout, stale, consent); and I1's stored-instant half in two (timeout, clock),
+its deadline-wording half riding on line 3 of the same tuple. The five are:
 
 * I1, the deadline: the approved line 3 wording carries it, and the stored
   instant is never derived from a later clock read.
@@ -348,6 +353,12 @@ def _assert_healthy_surface(
     scanner self-test lives in `tests/test_boundaries.py`
     (`test_scanner_detects_injected_needle`): a negative scan without it is
     not evidence.
+
+    **Only the JSON projection is content-asserted.** The page at `/` is the
+    Slice 1 tracer bullet: it renders `fixture.demo_lines()` and never reads
+    its `episode_id`, so it is a constant and the harness asserts `200` plus
+    the scanners on it. That limit is recorded in the Slice 11 section of
+    `00-status.md` rather than papered over here.
     """
     projected = world.client.get(f"/api/episodes/{EPISODE}")
     assert projected.status_code == 200, projected.text
