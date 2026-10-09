@@ -886,3 +886,194 @@ class TestNoSecretIsCommitted:
         assert not pattern.search(loopback_dsn), (
             "the loopback exemption does not exempt the local container DSN"
         )
+
+# ---------------------------------------------------------------------------
+# Slice 11: the surfaces a fault sequence must not leak through
+# ---------------------------------------------------------------------------
+
+#: Institutional nouns, which is the shape a real facility's name is built
+#: around. The Gate 1 rule is that no asset may name a real healthcare
+#: facility, ward or clinician; a denylist of the names we happen to know only
+#: ever catches the last incident, so this scans for the noun instead.
+#:
+#: "clinic" is deliberately not in the list. It is generic, and this product's
+#: own accepted input vocabulary contains "the clinic" and "the polyclinic" as
+#: surface forms a patient may say (`fixture.ACTION_ALIASES`), so a scan that
+#: fired when the product echoed a patient's own words would be noise a reader
+#: learns to delete. "polyclinic" is kept: it is an institutional noun in the
+#: domains this product talks to, and a polyclinic named in a patient
+#: rendering or a deployment file is the finding, not a patient saying it.
+FACILITY_NOUNS: tuple[str, ...] = (
+    "hospital",
+    "polyclinic",
+    "nursing home",
+    "hospice",
+    "medical centre",
+    "medical center",
+    "casualty",
+    "a&e",
+    "ward",
+)
+
+#: The sanctioned placeholder form: "fictional X" is how this project names a
+#: route that must exist for the demo and must not be a real one.
+_FICTIONAL_MARKER = "fictional"
+
+
+def scan_for_facility_names(payload: str) -> list[str]:
+    """Return the institutional nouns in a payload that are not placeholders.
+
+    Slice 11. The fault harness runs this against every serialized surface it
+    asserts, so a fixture, a template or a response that carried a real
+    facility's name fails the sequence it appeared in instead of passing
+    unnoticed. The noun is exempt when "fictional" appears shortly before it,
+    because that is the one sanctioned way this project is allowed to mention
+    an institution at all.
+
+    **Its limit, stated rather than papered over.** It catches the noun, so a
+    bare proper name with no institutional noun in it ("Khoo Teck Puat"
+    alone) is not caught, and a name split across two records is not caught.
+    What it does catch is the shape every real facility name in this domain
+    has, on the surfaces where a leak would actually be serialized.
+    """
+    lowered = payload.casefold()
+    found: list[str] = []
+    for noun in FACILITY_NOUNS:
+        for match in re.finditer(rf"\b{re.escape(noun)}\b", lowered):
+            before = lowered[max(0, match.start() - 16) : match.start()]
+            if _FICTIONAL_MARKER in before:
+                continue
+            found.append(noun)
+    return sorted(set(found))
+
+
+#: Receipt-shaped keys: fields that name something that allegedly happened in
+#: the world. D11 requires every simulated artefact to be labelled simulated
+#: in the data that carries it, so a payload carrying one of these keys with
+#: no `simulated: true` marker anywhere is the defect this scans for.
+RECEIPT_KEYS: tuple[str, ...] = ("provider_ref", "source_ref", "receipt_id")
+
+_SIMULATED_TRUE = re.compile(r"simulated['\"]?\s*[:=]\s*true", re.IGNORECASE)
+
+
+def scan_for_unlabelled_receipts(payload: str) -> list[str]:
+    """Return the receipt keys in a payload that carries no simulated label.
+
+    Slice 11. The check is whole-payload and coarse on purpose: over HTML
+    there is no structure to parse, and a stanza-level version over JSON would
+    be a second parser with its own failure modes. The coarse direction is the
+    safe one for this defect: a payload with a receipt in it and no label
+    anywhere is a finding even when the label was merely dropped from the one
+    stanza that needed it.
+
+    **Its limit, stated rather than papered over.** A payload carrying one
+    labelled receipt and one unlabelled receipt is not caught, because one
+    true marker exempts the whole payload. It is a floor, not a proof, and the
+    receipt keys it knows are the ones this codebase serializes today.
+    """
+    lowered = payload.casefold()
+    present = sorted({key for key in RECEIPT_KEYS if key in lowered})
+    if not present:
+        return []
+    if _SIMULATED_TRUE.search(payload):
+        return []
+    return present
+
+
+def test_scanner_detects_injected_needle() -> None:
+    """The Slice 11 exit check: a negative scan without this is not evidence.
+
+    Three needles are injected into representative serialized surfaces: a
+    forbidden facility's name, an unlabelled simulated receipt, and a
+    credential. The surfaces are the real ones (the approved patient page, the
+    projection model's own serialization, the action response model's own
+    serialization), not toy dictionaries: a scanner that only works on a
+    string it was written next to proves nothing about the surface it is
+    pointed at.
+
+    **Every needle is assembled from pieces.** This file is tracked, and a
+    file that asserts the absence of a string cannot also contain that string;
+    the DSN guard in this same file learned that on 5 October 2026. The
+    pieces are also why no real facility name is written anywhere in the
+    repository even as a test literal.
+
+    **The credential limb runs the three forms the rule names:** raw
+    (backslash), forward-slash, and the JSON-escaped form a Windows path
+    serializes into. A scanner that matched only one of them would be blind
+    on the surface it is meant to police, because the API serializes through
+    JSON.
+    """
+    from fastapi.testclient import TestClient
+
+    from carerelay.api import ActionResponse, PatientProjection, app
+    from carerelay.demo import fixture
+
+    projection = PatientProjection(
+        episode_id=fixture.DEMO_EPISODE_ID,
+        lines=list(fixture.demo_lines().as_tuple()),
+        closure="open",
+        care_evidenced=False,
+        simulated=True,
+        fixture_label=fixture.FIXTURE_LABEL,
+    ).model_dump_json()
+    page = TestClient(app).get("/").text
+
+    # The controls: the real surfaces are clean before anything is injected,
+    # or a scanner that fires on everything would read as a passing guard.
+    for surface in (projection, page):
+        assert scan_for_facility_names(surface) == []
+        assert scan_for_unlabelled_receipts(surface) == []
+        assert scan_for_secrets(surface) == []
+
+    # 1. A forbidden facility name, in the two serialized forms.
+    real_name = "Ng Te" + "ng Fong Gen" + "eral Hosp" + "ital"
+    for surface in (projection, page):
+        found = scan_for_facility_names(surface + real_name)
+        assert "hospital" in found, "the scanner missed a facility name"
+    # The sanctioned placeholder form stays clean, or the exemption would be
+    # decoration: a name this project is allowed to write must not fail.
+    assert (
+        scan_for_facility_names("the fictional provider, and a fictional hospice")
+        == []
+    )
+
+    # 2. An unlabelled simulated receipt. The representative JSON is the
+    # action response shape, serialized by its own model; the needle is that
+    # body with the label dropped, which is the defect D11 forbids.
+    body = ActionResponse(
+        episode_id=fixture.DEMO_EPISODE_ID,
+        attempt_id="attempt-0001",
+        idempotency_key="key-0001",
+        route_id="fictional_provider",
+        purpose_id="book_transport",
+        disposition_version=1,
+        consent_version=1,
+        execution="attempted",
+        duplicate=False,
+        origin="local-sim",
+        outcome="failed",
+        provider_ref="simulated:local-only:carerelay-demo",
+        payload="the simulated provider returned failed; no real one was contacted",
+        simulated=True,
+        fixture_label=fixture.FIXTURE_LABEL,
+    ).model_dump_json()
+    assert scan_for_unlabelled_receipts(body) == []
+    unlabelled = re.sub(r'"simulated"\s*:\s*true\s*,', "", body)
+    assert unlabelled != body, "the label was never in the serialized body"
+    assert "provider_ref" in scan_for_unlabelled_receipts(unlabelled)
+    # The HTML limb: the page carries no label marker at all, so a receipt
+    # injected into it is the unlabelled case.
+    assert "receipt_id" in scan_for_unlabelled_receipts(
+        page + '{"receipt_id": "SIM-0001"}'
+    )
+
+    # 3. A credential inside a path, in the raw, forward-slash and
+    # JSON-escaped forms.
+    value = "k9w2m4p7" * 4
+    marker = "carerelay_api_" + "token="
+    raw = "C:\\Users\\investigator\\" + marker + value
+    forward = "C:/Users/investigator/" + marker + value
+    escaped = json.dumps({"path": raw})
+    assert scan_for_secrets(page + raw), "the scanner missed the raw form"
+    assert scan_for_secrets(projection + forward), "the scanner missed the forward form"
+    assert scan_for_secrets(escaped), "the scanner missed the JSON-escaped form"
