@@ -94,7 +94,7 @@ Authority rules:
   F4, F6 and F6-render closed by the approved closure renderings. **Slice 11
   (the fault harness and the seven sequences) is built on `slice-11-fault-harness`,
   its Check is complete, and it SHIPPED to `main` on 9 October 2026; the slice
-  branch itself is unpublished. Slice 12 (the judge ledger and the submission assets) is next.** Option C was
+  branch itself is unpublished. Slice 12 (the judge ledger, the submission assets and the usage proof) has its CODE HALF BUILT on `slice-12-ledger`, uncommitted: `GET /api/episodes/{id}/ledger` and `/options`, the JSON-only surfaces, the ledger view at `frontend/app/ledger/`, 927 passed with 0 skipped, and an 8-of-8 mutation harness. Its submission-asset half is NOT STARTED.** Option C was
   dropped on 1 October 2026, which unblocked
   the judged fixture and reopened Gate 3 (see below). **Each slice stops
   for the user's "continue, or re-steer?" before the next one begins.
