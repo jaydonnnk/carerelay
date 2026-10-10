@@ -552,6 +552,7 @@ VICTIM_FILES: tuple[tuple[str, str], ...] = (
     ("frontend server action", "frontend/app/actions.ts"),
     ("frontend server layout", "frontend/app/layout.tsx"),
     ("frontend page", "frontend/app/page.tsx"),
+    ("frontend ledger page", "frontend/app/ledger/page.tsx"),
     ("frontend component", "frontend/components/HintCard.tsx"),
     ("frontend build config", "frontend/next.config.mjs"),
     ("frontend manifest", "frontend/package.json"),
