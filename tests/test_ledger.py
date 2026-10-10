@@ -5,7 +5,9 @@
 and for `GET /options`. Both are served at the paths `02-architecture.md` 3.1
 names, so `/ledger` in the slice row is shorthand for
 `/api/episodes/{id}/ledger`; the record says so rather than leaving a reader to
-reconcile the two.
+reconcile the two. **Since 10 October 2026 the shorthand is also a real path:**
+the same handler is registered at `/ledger/{episode_id}`, which is what makes the
+auth row in section 12 true. `/options` has no such twin on purpose.
 
 **Every assertion here must be able to fail**, which is why
 `tests/_mutate_slice12.py` exists: one mutation per claim below, each seen RED.
@@ -377,3 +379,60 @@ class TestTheLedgerLeaksNothing:
         response = client.get(f"/api/episodes/{assessed}/ledger")
         assert response.status_code == 200
         json.dumps(response.json())
+
+
+class TestTheLedgerAliasUnderTheGuardedPrefix:
+    """The alias that makes the auth row in `02-architecture.md` section 12 true.
+
+    That row says the bearer dependency enforces on every `/api` route **and on
+    `/ledger`**, and `/ledger` already sat in `GUARDED_PREFIXES`, so the prefix
+    was guarded while no route lived under it: the sentence was aspirational.
+    Registering the same handler under `/ledger` is what makes it true, and
+    stacking the decorators is what keeps the two paths from drifting.
+
+    Two of the three claims below are about the alias itself, and one is about
+    what was deliberately *not* aliased.
+    """
+
+    def test_the_alias_serves_the_same_body_as_the_canonical_path(
+        self, client: TestClient, assessed
+    ):
+        """One implementation, two paths. A second copy would be a second thing
+        to keep in step, so this asserts they return the same document."""
+        canonical = client.get(f"/api/episodes/{assessed}/ledger").json()
+        alias = client.get(f"/ledger/{assessed}").json()
+        assert alias == canonical
+
+    def test_the_alias_is_guarded_when_auth_is_armed(
+        self, client: TestClient, assessed, monkeypatch: pytest.MonkeyPatch
+    ):
+        """The reason the alias is safe to add at all.
+
+        `/ledger` is a guarded prefix, so the dependency declared once on the app
+        covers this route without anyone annotating it. A 200 here with no token
+        would mean the blanket has a hole in exactly the place section 12 names.
+        """
+        monkeypatch.setenv("CARERELAY_API_TOKEN", "t" * 32)
+        assert client.get(f"/ledger/{assessed}").status_code == 401
+        admitted = client.get(
+            f"/ledger/{assessed}", headers={"Authorization": "Bearer " + "t" * 32}
+        )
+        assert admitted.status_code == 200
+
+    def test_the_alias_404s_for_an_unknown_episode(self, client: TestClient):
+        assert client.get("/ledger/does-not-exist").status_code == 404
+
+    def test_the_permitted_route_surface_has_no_twin_outside_the_guard(
+        self, client: TestClient
+    ):
+        """The asymmetry is deliberate, so it is asserted rather than explained.
+
+        `/options` is **not** a guarded prefix, so a top-level copy of the
+        permitted-route surface would be open. This reads the real route table
+        instead of trusting the docstring that says so.
+        """
+        from carerelay.api import GUARDED_PREFIXES
+
+        assert "/ledger" in GUARDED_PREFIXES
+        assert "/options" not in GUARDED_PREFIXES
+        assert [r.path for r in app.routes if r.path.startswith("/options")] == []

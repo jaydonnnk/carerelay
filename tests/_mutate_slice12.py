@@ -60,6 +60,11 @@ ROUTESET = f"{LEDGER}::TestPermittedOptions::test_the_route_set_is_exactly_the_p
 NOTFOUND = f"{LEDGER}::TestLedgerCarriesTheTwoAxes::test_an_unknown_episode_is_404"
 I3FALSE = f"{LEDGER}::TestTheFaultAssertions::test_i3_reports_false_when_two_terminal_transitions_exist"
 
+ALIAS_SAME = f"{LEDGER}::TestTheLedgerAliasUnderTheGuardedPrefix::test_the_alias_serves_the_same_body_as_the_canonical_path"
+ALIAS_GUARD = f"{LEDGER}::TestTheLedgerAliasUnderTheGuardedPrefix::test_the_alias_is_guarded_when_auth_is_armed"
+ALIAS_404 = f"{LEDGER}::TestTheLedgerAliasUnderTheGuardedPrefix::test_the_alias_404s_for_an_unknown_episode"
+ALIAS_NOTWIN = f"{LEDGER}::TestTheLedgerAliasUnderTheGuardedPrefix::test_the_permitted_route_surface_has_no_twin_outside_the_guard"
+
 #: (label, target, anchor, replacement, selectors). Every one must be RED.
 MUTATIONS: list[tuple[str, str, bytes, bytes, list[str]]] = [
     (
@@ -143,6 +148,20 @@ MUTATIONS: list[tuple[str, str, bytes, bytes, list[str]]] = [
         b"    with _DB_LOCK:\n"
         b"        return service.project_ledger(episode_id).as_dict()\n",
         [NOTFOUND],
+    ),
+    (
+        "L9  the /ledger alias is not registered",
+        API,
+        b'@app.get("/ledger/{episode_id}", tags=["ledger"])\n',
+        b"",
+        [ALIAS_SAME, ALIAS_GUARD, ALIAS_404],
+    ),
+    (
+        "L10 the /ledger prefix stops being guarded",
+        API,
+        b'GUARDED_PREFIXES: tuple[str, ...] = ("/api", "/ledger")',
+        b'GUARDED_PREFIXES: tuple[str, ...] = ("/api",)',
+        [ALIAS_GUARD, ALIAS_NOTWIN],
     ),
 ]
 

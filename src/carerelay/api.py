@@ -560,6 +560,7 @@ def get_options(
         return service.permitted_options(episode_id).as_dict()
 
 
+@app.get("/ledger/{episode_id}", tags=["ledger"])
 @app.get("/api/episodes/{episode_id}/ledger", tags=["episodes"])
 def get_ledger(
     episode_id: str,
@@ -572,6 +573,16 @@ def get_ledger(
     with its **failure-event origin**, the expiry rows, the simulated label, the
     five fault assertions as verdicts over stored rows, and `dwell_seconds` on
     the rows that record it.
+
+    **It is served at two paths, and the second one is the point.** The auth row
+    in section 12 of `02-architecture.md` says the bearer dependency enforces on
+    every `/api` route **and on `/ledger`**, and `/ledger` sits in
+    `GUARDED_PREFIXES`, so the prefix was already guarded while no route lived
+    under it: the sentence was aspirational. Registering the same handler under
+    `/ledger` makes it true, and stacking the two decorators on one function is
+    what keeps them from drifting, since there is only one implementation.
+    `/options` is deliberately **not** aliased: `/options` is not a guarded
+    prefix, so a top-level copy of it would be open.
 
     **It never writes.** The patient projection runs the expiry read-path
     because a patient read is the trigger that records an expiry; a judge
