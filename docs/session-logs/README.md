@@ -33,6 +33,8 @@ be rebuilt once the session logs are gone.
 | `2026-10-05.md` | The poisoned bytecode cache and the Slice 7b stage 2 ship |
 | `2026-10-07.md` | The F10 closure review, and the Slice 8 build and remediation |
 | `2026-10-08.md` | Slice 9 cut as a run and shipped; Slice 10 built, shipped and F4/F6/F6-render closed; Slice 11 built and adversarially reviewed |
+| `2026-10-09.md` | Slice 11 shipped to `main` and the record sweep after it; the log re-sync and the file-map entry; Slice 12's code half built |
+| `2026-10-10.md` | Slice 12's code half committed, merged and pushed; the `/ledger` alias; the `psycopg` environment regression |
 | `MEMORY.md` | Curated project notes: working conventions and current state |
 
 ## These are copies
