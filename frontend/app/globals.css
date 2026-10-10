@@ -91,3 +91,60 @@ p.unavailable {
   padding: 1rem;
   font-size: 1rem;
 }
+
+/*
+ * Slice 12. The judge ledger. It is a different reader from the patient screen,
+ * so it takes a smaller type and a monospace origin column, and it inherits the
+ * same rule: nothing animates, nothing auto-advances, nothing hides itself.
+ */
+h2.section-title {
+  font-size: 1.1rem;
+  margin: 2rem 0 0.5rem;
+  border-bottom: 2px solid var(--rule);
+  padding-bottom: 0.3rem;
+}
+
+table.ledger {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+table.ledger th,
+table.ledger td {
+  text-align: left;
+  vertical-align: top;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--rule);
+}
+
+table.ledger th {
+  font-weight: 600;
+}
+
+code.origin {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.8rem;
+}
+
+p.holds-true {
+  border-left: 4px solid var(--accent);
+  padding-left: 0.6rem;
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+}
+
+p.holds-false {
+  border-left: 4px solid var(--ink);
+  padding-left: 0.6rem;
+  margin: 0.5rem 0;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+p.ledger-note {
+  font-size: 0.85rem;
+  border: 1px solid var(--rule);
+  background: var(--label-bg);
+  padding: 0.6rem 0.8rem;
+}

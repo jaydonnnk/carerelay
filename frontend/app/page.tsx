@@ -10,9 +10,10 @@ import { HintCard } from "@/components/HintCard";
  * service produced is precisely the false completion this product exists to
  * prevent.
  *
- * The judge ledger view is deliberately absent: `GET /ledger` is a Slice 12
- * deliverable and does not exist yet, so a ledger page here would be a mock
- * dressed as a feature.
+ * The judge ledger is a separate page at `/ledger`, added at Slice 12. It is
+ * not linked from here and it is not shown to a patient: the ledger carries
+ * `dwell_seconds` and internal ids, and the two surfaces exist for two
+ * different readers.
  */
 export default async function PatientPage() {
   // The tracer bullet only serves an episode it has opened, so the demo episode

@@ -112,3 +112,79 @@ export async function recordHintEvent(
     },
   );
 }
+
+/**
+ * The judge ledger. A read of the record, and deliberately not the patient
+ * screen: it shows the two axes, every transition with its failure-event
+ * origin, the expiry rows, the five fault assertions and the dwell times.
+ *
+ * Nothing here is derived in the browser. `hold` is the server's verdict over
+ * stored rows and `evidence` is the values it was taken from, so the page can
+ * show both and a reader can disagree with the verdict.
+ */
+export type FaultAssertion = {
+  invariant: string;
+  holds: boolean;
+  evidence: string;
+};
+
+export type LedgerTransition = {
+  seq: number;
+  kind: string;
+  origin: string;
+  recorded_at: string;
+};
+
+export type LedgerAttempt = {
+  attempt_id: string;
+  route_id: string;
+  consent_version: number;
+  execution: string;
+  transitions: LedgerTransition[];
+};
+
+export type LedgerCallback = {
+  receipt_id: number;
+  route_id: string;
+  accepted: boolean;
+  rejection_reason: string | null;
+  origin: string;
+  result: string | null;
+};
+
+export type Ledger = {
+  episode_id: string;
+  axes: Record<string, string | boolean | null>;
+  disposition_version: number | null;
+  attempts: LedgerAttempt[];
+  callbacks: LedgerCallback[];
+  expiry: { disposition_version: number; recorded_at: string }[];
+  hint_events: {
+    hint_level: string;
+    kind: string;
+    dwell_seconds: number | null;
+  }[];
+  restatements: {
+    outcome: string;
+    repair_round: number;
+    hint_level: string;
+    dwell_seconds: number | null;
+  }[];
+  escalation: { escalation_id: string; human_path: string | null } | null;
+  acceptance: { acceptance_id: string } | null;
+  origins: string[];
+  dwell_seconds_total: number | null;
+  fault_assertions: FaultAssertion[];
+  simulated: boolean;
+  fixture_label: string;
+};
+
+/**
+ * Read the ledger for one episode.
+ *
+ * If this fails the page says so rather than drawing an empty ledger: an empty
+ * table reads as "nothing happened", which is a claim, and one no service made.
+ */
+export async function getLedger(episodeId: string): Promise<Result<Ledger>> {
+  return call<Ledger>(`/api/episodes/${encodeURIComponent(episodeId)}/ledger`);
+}
