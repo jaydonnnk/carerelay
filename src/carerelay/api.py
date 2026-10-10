@@ -536,6 +536,59 @@ def get_episode(
     return PatientProjection(**surface.as_dict())
 
 
+@app.get("/api/episodes/{episode_id}/options", tags=["episodes"])
+def get_options(
+    episode_id: str,
+    service: EpisodeService = Depends(get_service),
+) -> dict[str, object]:
+    """The routes this episode's disposition permits, in the policy's words.
+
+    `02-architecture.md` 3.1 calls this "permitted routes for this disposition,
+    rendered from policy", and it exists because revision 1 held the permitted
+    set only as an MCP tool, so a screen had nothing to display. Both halves
+    are policy data and neither is decided here: the ids are
+    `PolicyFixture.permitted_route_ids` and the words are
+    `PolicyText.route_display_by_id`.
+
+    **The route id is never rendered unnamed.** A permitted route with no
+    approved display text raises rather than printing its internal identifier,
+    which is the same rule `domain.patient_lines` applies to a route name.
+    """
+    if episode_id not in _OPEN_EPISODES:
+        raise HTTPException(status_code=404, detail="episode not found")
+    with _DB_LOCK:
+        return service.permitted_options(episode_id).as_dict()
+
+
+@app.get("/api/episodes/{episode_id}/ledger", tags=["episodes"])
+def get_ledger(
+    episode_id: str,
+    service: EpisodeService = Depends(get_service),
+) -> dict[str, object]:
+    """The judge-facing ledger for one episode.
+
+    This is the surface `04-slices.md` Slice 12 asks for, at the path
+    `02-architecture.md` 3.1 names. It carries the two axes, every transition
+    with its **failure-event origin**, the expiry rows, the simulated label, the
+    five fault assertions as verdicts over stored rows, and `dwell_seconds` on
+    the rows that record it.
+
+    **It never writes.** The patient projection runs the expiry read-path
+    because a patient read is the trigger that records an expiry; a judge
+    reading the evidence is not a clinical event, so this route is read-only by
+    design and says so.
+
+    **`dwell_seconds` lives here and only here.** It is judge-facing evidence
+    about how long a patient spent with the card, and it must never reach the
+    patient surface (`PLAN.md` 5.2.1, constraint C8), which is why the hint
+    response above has no such field.
+    """
+    if episode_id not in _OPEN_EPISODES:
+        raise HTTPException(status_code=404, detail="episode not found")
+    with _DB_LOCK:
+        return service.project_ledger(episode_id).as_dict()
+
+
 @app.get("/", response_class=HTMLResponse, tags=["ui"])
 def patient_page(episode_id: str = fixture.DEMO_EPISODE_ID) -> HTMLResponse:
     """The patient screen. Server-rendered, text-first, no build step.

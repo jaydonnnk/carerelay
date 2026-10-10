@@ -58,6 +58,7 @@ from carerelay.domain.models import (
     ClosureProjection,
     ClosureState,
     Disposition,
+    EvidenceLevel,
     ExecutionStatus,
     HintEvent,
     HintEventKind,
@@ -70,8 +71,16 @@ from carerelay.domain.models import (
     PolicyText,
     ReassessmentOutcome,
     RecallOutcome,
+    TERMINAL_TRANSITIONS,
 )
-from carerelay.presentation import PatientSurface, patient_surface
+from carerelay.presentation import (
+    FaultAssertion,
+    LedgerSurface,
+    OptionsSurface,
+    PatientSurface,
+    RouteOption,
+    patient_surface,
+)
 from carerelay.state import (
     CLINICAL_SCOPE,
     DEFAULT_KEY_NAMESPACE,
@@ -828,6 +837,310 @@ class EpisodeService:
         return patient_surface(
             episode_id, lines, closure, self._policy_text.fixture_label
         )
+
+    # -- Slice 12: the judge ledger and the permitted routes ----------------
+
+    def permitted_options(self, episode_id: str) -> OptionsSurface:
+        """The routes this episode's disposition permits, in the policy's words.
+
+        `02-architecture.md` 3.1 gives the UI this read because revision 1 held
+        the permitted set only as an MCP tool, so a screen had nothing to show.
+        Both halves are policy data: the ids come from
+        `PolicyFixture.permitted_route_ids`, the words from
+        `PolicyText.route_display_by_id`. A permitted route with no display text
+        is a policy defect and raises rather than rendering the raw id, which is
+        the rule `domain.patient_lines` already applies to a route it renders.
+        """
+        snapshot = self._store.load_snapshot(episode_id)
+        routes: list[RouteOption] = []
+        for route_id in sorted(self._policy.permitted_route_ids):
+            display = self._policy_text.route_display_by_id.get(route_id)
+            if display is None:
+                raise rules.MissingDisplayText(
+                    f"route {route_id!r} is permitted by the policy but carries "
+                    "no approved display text"
+                )
+            routes.append(RouteOption(route_id=route_id, display=display))
+        return OptionsSurface(
+            episode_id=episode_id,
+            disposition_version=(
+                snapshot.disposition.version
+                if snapshot.disposition is not None
+                else None
+            ),
+            routes=tuple(routes),
+            available_origin=self._origin.value,
+            simulated=self._policy_text.simulated,
+            fixture_label=self._policy_text.fixture_label,
+        )
+
+    def project_ledger(self, episode_id: str) -> LedgerSurface:
+        """The judge-facing read projection for one episode.
+
+        **It runs no expiry read-path, and that is deliberate.** The patient
+        projection does, because a patient read is the trigger that records an
+        expiry. A judge opening the ledger is not a clinical event, so this
+        method reads and never writes: the evidence must not be changed by the
+        act of inspecting it. The consequence is stated rather than hidden: the
+        ledger can show `open` for an episode whose deadline has passed until
+        somebody reads the patient surface, and the `expiry` rows below make
+        that visible when it has happened.
+
+        **Every row is a stored row, not a summary.** The ledger exists so a
+        reader can check a claim rather than take it, so a transition keeps its
+        origin, a receipt keeps its rejection reason, and a restatement keeps
+        its hint level and its dwell time.
+
+        **The five fault assertions are reporting, not control.** No rule in
+        `domain` and no write path reads them, so a wrong verdict cannot move an
+        episode. Each carries the values it was taken from.
+        """
+        now_utc = self._clock.now_utc()
+        snapshot = self._store.load_snapshot(episode_id)
+        closure = rules.derive_closure(snapshot, now_utc)
+
+        origin_set: set[str] = set()
+        terminal_counts: dict[str, int] = {}
+        attempts: list[dict[str, object]] = []
+        for attempt in self._store.list_attempts(episode_id):
+            rows = self._store.list_transitions(attempt.attempt_id)
+            terminal_counts[attempt.attempt_id] = sum(
+                1 for t in rows if t.kind in TERMINAL_TRANSITIONS
+            )
+            for row in rows:
+                origin_set.add(row.origin.value)
+            attempts.append(
+                {
+                    "attempt_id": attempt.attempt_id,
+                    "route_id": attempt.route_id,
+                    "consent_version": attempt.consent_version,
+                    "execution": attempt.execution.value,
+                    "transitions": [
+                        {
+                            "seq": t.seq,
+                            "kind": t.kind.value,
+                            "origin": t.origin.value,
+                            "recorded_at": t.recorded_at.isoformat(),
+                        }
+                        for t in rows
+                    ],
+                }
+            )
+
+        # The idempotency key is deliberately absent. D5 derives it from a
+        # server-held secret, so publishing it in a judge surface would publish
+        # part of the derivation. The dedupe is still visible through
+        # `callback_key_digest` and `duplicate_of`.
+        callbacks: list[dict[str, object]] = []
+        for receipt in self._store.list_callbacks(episode_id):
+            origin_set.add(receipt.origin.value)
+            callbacks.append(
+                {
+                    "receipt_id": receipt.receipt_id,
+                    "route_id": receipt.route_id,
+                    "attempt_id": receipt.attempt_id,
+                    "callback_key_digest": receipt.callback_key_digest,
+                    "duplicate_of": receipt.duplicate_of,
+                    "accepted": receipt.accepted,
+                    "rejection_reason": receipt.rejection_reason,
+                    "origin": receipt.origin.value,
+                    "result": (
+                        receipt.result.value if receipt.result is not None else None
+                    ),
+                    "received_at": receipt.received_at.isoformat(),
+                }
+            )
+
+        stored_evidence = self._store.list_evidence(episode_id)
+        evidence = [
+            {
+                "level": e.level.value,
+                "simulated": e.simulated,
+                "provenance": e.provenance,
+                "source_ref": e.source_ref,
+            }
+            for e in stored_evidence
+        ]
+        events = [
+            {"kind": kind, "payload": payload, "recorded_at": at.isoformat()}
+            for kind, payload, at in self._store.list_events(episode_id)
+        ]
+        expiry = [
+            {"disposition_version": version, "recorded_at": at.isoformat()}
+            for version, at in self._store.list_expiry_events(episode_id)
+        ]
+        restatements = [
+            {
+                "restatement_id": r.restatement_id,
+                "disposition_version": r.disposition_version,
+                "hint_level": r.hint_level.value,
+                "input_mode": r.input_mode.value,
+                "transcript_confirmed": r.transcript_confirmed,
+                "outcome": r.outcome.value,
+                "repair_round": r.repair_round,
+                "dwell_seconds": r.dwell_seconds,
+                "created_at": r.created_at.isoformat(),
+            }
+            for r in self._store.list_restatements(episode_id)
+        ]
+        hint_events = [
+            {
+                "hint_level": h.level.value,
+                "kind": h.kind.value,
+                "dwell_seconds": h.dwell_seconds,
+                "recorded_at": h.recorded_at.isoformat(),
+            }
+            for h in self._store.list_hint_events(episode_id)
+        ]
+        barriers: list[dict[str, object]] = []
+        for row in self._store.list_barriers(episode_id):
+            barriers.append(
+                {
+                    key: (value.isoformat() if isinstance(value, datetime) else value)
+                    for key, value in row.items()
+                }
+            )
+
+        escalation = None
+        if snapshot.escalation_id is not None:
+            escalation = {
+                "escalation_id": snapshot.escalation_id,
+                "human_path": snapshot.escalated_human_path,
+            }
+        acceptance = None
+        if snapshot.human_acceptance_id is not None:
+            acceptance = {"acceptance_id": snapshot.human_acceptance_id}
+
+        dwell_values = [
+            value
+            for value in [h["dwell_seconds"] for h in hint_events]
+            + [r["dwell_seconds"] for r in restatements]
+            if value is not None
+        ]
+        dwell_total = sum(dwell_values) if dwell_values else None
+
+        fault_assertions = self._fault_assertions(
+            episode_id,
+            closure=closure,
+            terminal_counts=terminal_counts,
+            attempts=attempts,
+            documented_evidence=sum(
+                1
+                for e in stored_evidence
+                if e.level is EvidenceLevel.DOCUMENTED and not e.simulated
+            ),
+            has_acceptance=acceptance is not None,
+        )
+
+        return LedgerSurface(
+            episode_id=episode_id,
+            axes={
+                "execution": closure.execution.value,
+                "evidence": closure.evidence.value,
+                "closure": closure.closure.value,
+                "action_owner_id": closure.action_owner_id,
+                "care_evidenced": closure.care_evidenced,
+                "simulated": closure.simulated,
+            },
+            disposition_version=(
+                snapshot.disposition.version
+                if snapshot.disposition is not None
+                else None
+            ),
+            attempts=tuple(attempts),
+            callbacks=tuple(callbacks),
+            evidence=tuple(evidence),
+            events=tuple(events),
+            expiry=tuple(expiry),
+            restatements=tuple(restatements),
+            hint_events=tuple(hint_events),
+            barriers=tuple(barriers),
+            escalation=escalation,
+            acceptance=acceptance,
+            origins=tuple(sorted(origin_set)),
+            dwell_seconds_total=dwell_total,
+            fault_assertions=fault_assertions,
+            simulated=closure.simulated,
+            fixture_label=self._policy_text.fixture_label,
+        )
+
+    def _fault_assertions(
+        self,
+        episode_id: str,
+        *,
+        closure: ClosureProjection,
+        terminal_counts: dict[str, int],
+        attempts: list[dict[str, object]],
+        documented_evidence: int,
+        has_acceptance: bool,
+    ) -> tuple[FaultAssertion, ...]:
+        """The five invariants, as verdicts over this episode's record.
+
+        These are the I1 to I5 of `tests/test_fault_sequences.py`, reported
+        against real stored rows rather than re-asserted. They are reporting
+        only: nothing in `domain` and no write path reads them.
+        """
+        deadlines = [
+            (d.version, d.clinical_deadline_utc)
+            for d in self._store.list_dispositions(episode_id)
+        ]
+        monotonic = all(
+            later >= earlier
+            for (_, earlier), (_, later) in zip(deadlines, deadlines[1:])
+        )
+        i1 = FaultAssertion(
+            invariant="I1",
+            holds=monotonic,
+            evidence="deadlines by version: "
+            + (", ".join(f"v{v} {t.isoformat()}" for v, t in deadlines) or "none"),
+        )
+        closes = closure.closure is ClosureState.CLOSED_WITH_EVIDENCE
+        i2 = FaultAssertion(
+            invariant="I2",
+            holds=(not closes) or documented_evidence > 0 or has_acceptance,
+            evidence=(
+                f"closure={closure.closure.value}; documented non-simulated "
+                f"evidence rows={documented_evidence}; acceptance="
+                f"{'yes' if has_acceptance else 'no'}"
+            ),
+        )
+        i3 = FaultAssertion(
+            invariant="I3",
+            holds=all(count <= 1 for count in terminal_counts.values()),
+            evidence="terminal transitions per attempt: "
+            + (
+                ", ".join(f"{k}={v}" for k, v in sorted(terminal_counts.items()))
+                or "none"
+            ),
+        )
+        resolved = closure.closure in (
+            ClosureState.CLOSED_WITH_EVIDENCE,
+            ClosureState.ESCALATED_TO_HUMAN,
+        )
+        i4 = FaultAssertion(
+            invariant="I4",
+            holds=(not resolved) or closure.action_owner_id is not None,
+            evidence=(
+                f"closure={closure.closure.value}; action_owner_id="
+                f"{closure.action_owner_id or 'none'}"
+            ),
+        )
+        failed_without_row = [
+            str(a["attempt_id"])
+            for a in attempts
+            if a["execution"] == ExecutionStatus.FAILED.value
+            and not any(
+                t["kind"] == ExecutionStatus.FAILED.value
+                for t in a["transitions"]  # type: ignore[union-attr]
+            )
+        ]
+        i5 = FaultAssertion(
+            invariant="I5",
+            holds=not failed_without_row,
+            evidence="attempts reading failed with no recorded failure: "
+            + (", ".join(failed_without_row) or "none"),
+        )
+        return (i1, i2, i3, i4, i5)
 
     def reassess(
         self, episode_id: str, confirmed_change_code: str | None
