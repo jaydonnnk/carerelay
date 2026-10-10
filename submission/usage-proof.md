@@ -21,9 +21,13 @@ refreshed when a slice ships. Its own `README.md` records that rule.
 
 Two disclosures, made rather than left for a reader to find:
 
-- The imported logs carry **136 em dashes**. `AGENTS.md` section 6 bans em dashes
-  in *new writing*; these are historical records, and rewriting them would falsify
-  the evidence, so they are published as written.
+- The imported logs carry **155 em dashes**, counted across `docs/session-logs/` on
+  9 October 2026. `AGENTS.md` section 6 bans em dashes in *new writing*; these are
+  historical records, and rewriting them would falsify the evidence, so they are
+  published as written. They are concentrated in the first week: `2026-09-30.md`
+  alone carries 65, and `2026-10-01.md` to `2026-10-05.md` carry none. The figure
+  here read 136 until 9 October 2026, when a re-sync of `2026-10-08.md` and
+  `MEMORY.md` moved the count and the stale number was corrected rather than left.
 - The logs contain the Windows username inside a handful of absolute paths. No
   token, key, credential, email address or real institution name appears in them.
 

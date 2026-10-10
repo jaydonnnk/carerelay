@@ -32,6 +32,7 @@ be rebuilt once the session logs are gone.
 | `2026-10-04.md` | The Slice 7b stage 1 adversarial review and its two blockers |
 | `2026-10-05.md` | The poisoned bytecode cache and the Slice 7b stage 2 ship |
 | `2026-10-07.md` | The F10 closure review, and the Slice 8 build and remediation |
+| `2026-10-08.md` | Slice 9 cut as a run and shipped; Slice 10 built, shipped and F4/F6/F6-render closed; Slice 11 built and adversarially reviewed |
 | `MEMORY.md` | Curated project notes: working conventions and current state |
 
 ## These are copies
