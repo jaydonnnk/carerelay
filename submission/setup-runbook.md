@@ -41,6 +41,13 @@ a manual one.
      savepoints and `SELECT ... FOR UPDATE`, all of which want session state. Both
      pooler ports were verified working at Slice 7b stage 1, so either connects
      (`supabase-migration-plan.md:153-169`).
+   - **Do not use the Direct connection string.** Supabase maps every direct
+     connection to an IPv6 address, and Render is IPv4-only: Supabase's own
+     troubleshooting page names Render in the list of platforms that only accept
+     IPv4 connections. A DSN taken from the "Direct connection" tab therefore fails
+     at connect from this deployment. The session pooler is the IPv4 route, not
+     merely the tidier one. The alternative, Supabase's dedicated IPv4 add-on,
+     costs about 4 US dollars a month and needs a Pro organisation.
    - **Percent-encode the password.** The Slice 7b lesson is recorded: the password
      contains parentheses, and a URI userinfo component requires them encoded. Any
      DSN assembled from a user-supplied password goes through
