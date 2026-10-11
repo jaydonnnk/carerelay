@@ -9,10 +9,9 @@
 # **Slice 7b: the record moved off this filesystem.** It now lives in Postgres on
 # Supabase, reached through `APP_DATABASE_URL` below. That is what closes
 # `04-slices.md` risk R8: a redeploy replaces the container filesystem, and a
-# record that is not on it cannot be lost with it. The disk block below is kept
-# for this deploy only so that the change under review is one change; it is no
-# longer load-bearing, and removing it is what would let this service drop off
-# the paid instance type it exists for. See the open item in `tasks/todo.md`.
+# record that is not on it cannot be lost with it. The disk that used to be
+# declared here was removed on 11 October 2026, at Slice 12, together with the
+# paid instance type that existed only to hold it.
 
 services:
   - type: web
@@ -20,24 +19,15 @@ services:
     runtime: docker
     region: singapore
 
-    # A persistent disk requires a **paid instance type**. The workspace plan
-    # (`Hobby`, $0/mo) is not what is being paid for here; the compute instance
-    # is. `plan: starter` is the cheapest tier that can hold a disk. Confirm the
-    # exact tier name in the dashboard when the service is created, because
-    # Render has renamed these.
-    plan: starter
-
+    # Slice 12, 11 October 2026: the disk block and `plan: starter` are gone.
+    # Slice 7b moved the record to Postgres on Supabase, reached through
+    # `APP_DATABASE_URL` below, so the 1 GB mount was dead weight and the paid
+    # instance type existed only to hold it. With no disk the service runs on
+    # the free tier, which spins down when idle: warm it before anyone opens
+    # the live link. `tests/test_deployment.py` fails if a local database file
+    # is named in this file again, which is the check that keeps the record off
+    # an ephemeral filesystem.
     healthCheckPath: /health
-
-    disk:
-      name: carerelay-data
-      # Slice 7b: nothing writes the record here any more. `APP_DATABASE_URL`
-      # below is a Postgres DSN, so this mount is dead weight carried for one
-      # deploy. Removing it, and the `plan: starter` it forces, is a follow-up.
-      mountPath: /var/data
-      # 1 GB is the smallest useful size. It can be increased later but never
-      # decreased, and this record is a few hundred rows.
-      sizeGB: 1
 
     envVars:
       # Arms the bearer-token dependency. With this set and no token configured,

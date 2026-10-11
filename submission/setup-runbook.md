@@ -20,17 +20,27 @@ a manual one.
 1. **Sign in to Render** and choose **New, then Blueprint**. Connect
    `github.com/jaydonnnk/carerelay`. Render reads `render.yaml` and proposes one web
    service named `carerelay`, Docker runtime, Singapore region.
-   - The file asks for `plan: starter` only because it still declares a disk. Slice 7b
-     moved the record to Postgres, so the disk is dead weight. If you are willing to
-     delete the `disk:` block and the `plan:` line from `render.yaml` first, the
-     service can run on the free tier. That is a repository edit and can be done
-     before the deploy.
+   - **Already done, 11 October 2026.** `render.yaml` no longer declares a disk or
+     `plan: starter`, so the service runs on the free tier. The 1 GB mount was dead
+     weight after Slice 7b moved the record to Postgres, and the paid instance type
+     existed only to hold it. `tests/test_deployment.py` passes on the edited file
+     (17 passed, 2 skipped).
+   - The free tier spins down when idle. Warm the service before a judge opens the
+     link.
 2. **Set the two secret values in the dashboard, not in the file.** Both are declared
    with `sync: false`, so Render expects them there:
    - `APP_DATABASE_URL`: the Supabase Postgres DSN.
    - `CARERELAY_API_TOKEN`: a fresh random token. With `APP_ENV=public` set and no
      token configured, every protected route answers **503** rather than serving an
      open endpoint, so a missing token fails closed (`src/carerelay/api.py:170`).
+   - **Where the DSN comes from:** Supabase dashboard, **Project Settings, then
+     Database, then Connection string, then URI** (or the **Connect** button). Copy
+     the `postgresql://postgres.<ref>:<password>@<host>:<port>/postgres` string.
+   - **Prefer the session pooler, port 5432, over the transaction pooler, 6543.**
+     The store holds one connection per process, applies its DDL once, and uses
+     savepoints and `SELECT ... FOR UPDATE`, all of which want session state. Both
+     pooler ports were verified working at Slice 7b stage 1, so either connects
+     (`supabase-migration-plan.md:153-169`).
    - **Percent-encode the password.** The Slice 7b lesson is recorded: the password
      contains parentheses, and a URI userinfo component requires them encoded. Any
      DSN assembled from a user-supplied password goes through
