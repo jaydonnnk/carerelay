@@ -137,13 +137,15 @@ the slice that would wire it in (Slice 13) is conditional and was not run
 `https://adp.tencentcloud.com/webim_exp/#/chat/GkTbUc`, recorded in the links table of
 `submission/description.md`. Steps 1 to 3 below are historical. **The host answering
 200 is not evidence that the agent is configured as this runbook requires**: everything
-after the `#` is a fragment the server never receives, so the refusal behaviour and the
-knowledge-base contents have to be checked in the console rather than by fetching the
-link. Step 2's three constraints are what to check.
+after the `#` is a fragment the server never receives, so the link cannot show the
+refusal behaviour or the knowledge-base contents. The instruction text that was actually
+pasted in, and the two clinical probes the agent was observed to refuse, are recorded in
+`submission/adp-agent-instruction.md`.
 
 1. **Sign in to Tencent Cloud ADP** and create an agent.
 2. **Constrain it, in this order, and keep the constraints in the agent's own
-   configuration:**
+   configuration.** The text that was actually used is reproduced in
+   `submission/adp-agent-instruction.md` section 1:
    - Knowledge base limited to the non-clinical fixture. No clinical corpus, no
      symptom lists, no guidance documents.
    - A system instruction that refuses clinical advice and returns only structured
@@ -191,4 +193,5 @@ console task. It needs Slice 13 switched on, which reopens Gate 2
 |---|---|
 | Render URL | `submission/description.md` links table; `docs/PLAN.md` section 10 |
 | ADP Experience URL | `submission/description.md` links table; `docs/PLAN.md` section 10 |
+| The ADP agent's instruction text and its observed behaviour | `submission/adp-agent-instruction.md` |
 | Neither URL | any approved gate document |
