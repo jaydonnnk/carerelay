@@ -14,7 +14,7 @@ writing rule bans em dashes in new content; the label is an approved wire-format
 string and is shown exactly as the server returns it. The Slice 8 comparator card
 carried the same em dash with the same disclosure.
 
-**Two ways to show it.** Either open `https://carerelay.vercel.app` and drive the
+**Two ways to show it.** Either open `https://carerelay-self.vercel.app` and drive the
 patient screen, or run the commands below and show the JSON. The JSON is the stronger
 evidence, because it is the same surface the tests assert against.
 

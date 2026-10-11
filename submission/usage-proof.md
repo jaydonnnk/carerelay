@@ -88,7 +88,7 @@ is a placeholder, not a claim.
 | Line 152, architecture and trust-boundary diagram with trade-offs | `submission/architecture-trust-boundaries.svg` and `submission/architecture-trust-boundaries.png` |
 | Honest-claims statement | `submission/honest-claims.md` |
 | Submission runbook (Render and ADP) | `submission/setup-runbook.md` |
-| Project link | Vercel frontend `https://carerelay.vercel.app`; Render and ADP URLs are recorded in `submission/setup-runbook.md` when published |
+| Project link | Vercel frontend `https://carerelay-self.vercel.app`; Render API `https://carerelay-dzt3.onrender.com`; the ADP URL is recorded in `submission/setup-runbook.md` when published |
 
 ## 6. Confirmation that nothing here contradicts a claim
 

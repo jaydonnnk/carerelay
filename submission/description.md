@@ -135,7 +135,7 @@ reachable through projection bugs, which is why the fault harness exists.
   dependency on the guarded prefixes `/api` and `/ledger`. If auth is armed and no
   token is configured, a protected route answers **503** rather than serving an open
   endpoint (`src/carerelay/api.py:103`, `:170`, `:189-237`).
-- **CORS** is read per request from one allow-list, `https://carerelay.vercel.app`.
+- **CORS** is read per request from one allow-list, `https://carerelay-self.vercel.app`.
   Wildcards are refused and credentials are never allowed
   (`src/carerelay/api.py:262-264`; `render.yaml:59-60`).
 - **The coordinator is scoped.** It receives permitted surface forms only and returns
@@ -264,7 +264,7 @@ survive the hackathon".
 | Item | Value |
 |---|---|
 | Source | `https://github.com/jaydonnnk/carerelay.git` (public) |
-| Live frontend | `https://carerelay.vercel.app` |
-| Live API on Render | Not yet published. The service definition is `render.yaml`; the hostname is created when the service is deployed. See `setup-runbook.md` |
+| Live frontend | `https://carerelay-self.vercel.app` |
+| Live API on Render | `https://carerelay-dzt3.onrender.com`. Bearer-token protected: `/health` is open, every `/api` and `/ledger` route answers 401 without the token. Runs on Render's free plan, so it spins down after 15 idle minutes and takes about a minute to answer the first request again |
 | ADP Experience URL | Not yet published. The ADP surface is conditional and was not run. See `setup-runbook.md` |
 | Demo video | Not produced. Optional in the requirements |

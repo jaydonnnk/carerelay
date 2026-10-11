@@ -63,8 +63,16 @@ services:
 
       # The Vercel origin of the Next.js frontend, and nothing else. A wildcard
       # is refused by `api._install_cors`, so this is the whole allow-list.
+      #
+      # **`carerelay-self`, not `carerelay`.** `https://carerelay.vercel.app`
+      # does resolve, but it is a different project: it answers with the title
+      # `CareRelay` and the words `Hospital Staff Portal`, and it belongs to
+      # someone else. An earlier version of this file named it as this
+      # deployment's frontend, so the allow-list named a stranger and the
+      # submission's live link pointed at one. Both hosts were fetched on
+      # 11 October 2026 to tell them apart.
       - key: CORS_ORIGINS
-        value: https://carerelay.vercel.app
+        value: https://carerelay-self.vercel.app
 
       # The scenario clock keeps the demo's "6pm today" deadline stable instead
       # of drifting with the real date, so a judge sees the fixture as scripted.

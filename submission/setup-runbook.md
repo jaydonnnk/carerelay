@@ -66,7 +66,7 @@ a manual one.
      DSN assembled from a user-supplied password goes through
      `urllib.parse.quote(pw, safe="")` (`00-status.md`, Slice 7b section).
 3. **Confirm the non-secret values** Render read from the file:
-   `APP_ENV=public`, `CORS_ORIGINS=https://carerelay.vercel.app`, `APP_CLOCK=scenario`.
+   `APP_ENV=public`, `CORS_ORIGINS=https://carerelay-self.vercel.app`, `APP_CLOCK=scenario`.
    A wildcard in `CORS_ORIGINS` is refused by the app, so leave it as the single
    origin.
    - **Do not hand-edit these three in the dashboard.** They carry a `value:` in
@@ -88,12 +88,31 @@ a manual one.
    curl -s https://<render-host>/health
    # expect {"status":"ok","version":"0.1.0"}  - /health is deliberately unguarded
 
-   curl -s -o /dev/null -w '%{http_code}\n' https://<render-host>/api/episodes
-   # expect 401 or 503, never 200
+   curl -s -o /dev/null -w '%{http_code}\n' -X POST \
+     -H 'Content-Type: application/json' -d '{}' https://<render-host>/api/episodes
+   # expect 401. This is the check that the guard is armed.
 
-   curl -s -H 'authorization: Bearer <token>' https://<render-host>/api/episodes
-   # expect 200 and the fixture label
+   curl -s -o /dev/null -w '%{http_code}\n' https://<render-host>/ledger/demo-episode-001
+   # expect 401. /ledger is guarded as well, and it is a GET, so no body is needed.
+
+   curl -s -X POST -H "authorization: Bearer <token>" \
+     -H 'Content-Type: application/json' -d '{}' https://<render-host>/api/episodes
+   # expect 200. This POST is also what registers the episode in the running process.
+
+   curl -s -H "authorization: Bearer <token>" \
+     https://<render-host>/api/episodes/demo-episode-001
+   # expect 200 and the four lines
    ```
+   - **Do not check the guard with `GET /api/episodes`.** `/api/episodes` is POST-only,
+     so a GET answers **405** whether auth is armed or not, and an earlier version of
+     this step read that 405 as a pass. Measured on the live service on 11 October
+     2026: the guard is armed, and `GET /api/episodes` still answers 405.
+   - **The episode lives in process memory, not in the store.** `api.py:312` holds
+     `_OPEN_EPISODES` as a module-level `set`, and only `POST /api/episodes` adds to
+     it. After a redeploy or a spin-down the set is empty, so a GET answers **404**
+     until something POSTs. The Vercel patient page calls `createEpisode()` before
+     `getEpisode()`, so the demo recovers by itself; a bare GET straight after a cold
+     start does not.
 6. **Point Vercel at it.** In the Vercel project settings, set
    `CARERELAY_API_URL` to the Render URL and `CARERELAY_API_TOKEN` to the same token,
    then redeploy. The frontend reads both server-side only; the token must never reach
