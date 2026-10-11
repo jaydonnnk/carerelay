@@ -133,6 +133,14 @@ repository's code**, and it must not: ADP occupies the interpretation step only,
 the slice that would wire it in (Slice 13) is conditional and was not run
 (`00-status.md:551`).
 
+**Already done, 11 October 2026.** The agent is published, and its Experience URL is
+`https://adp.tencentcloud.com/webim_exp/#/chat/GkTbUc`, recorded in the links table of
+`submission/description.md`. Steps 1 to 3 below are historical. **The host answering
+200 is not evidence that the agent is configured as this runbook requires**: everything
+after the `#` is a fragment the server never receives, so the refusal behaviour and the
+knowledge-base contents have to be checked in the console rather than by fetching the
+link. Step 2's three constraints are what to check.
+
 1. **Sign in to Tencent Cloud ADP** and create an agent.
 2. **Constrain it, in this order, and keep the constraints in the agent's own
    configuration:**

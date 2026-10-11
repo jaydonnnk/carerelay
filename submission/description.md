@@ -266,5 +266,5 @@ survive the hackathon".
 | Source | `https://github.com/jaydonnnk/carerelay.git` (public) |
 | Live frontend | `https://carerelay-self.vercel.app` |
 | Live API on Render | `https://carerelay-dzt3.onrender.com`. Bearer-token protected: `/health` is open, every `/api` and `/ledger` route answers 401 without the token. Runs on Render's free plan, so it spins down after 15 idle minutes and takes about a minute to answer the first request again |
-| ADP Experience URL | Not yet published. The ADP surface is conditional and was not run. See `setup-runbook.md` |
+| ADP Experience URL | `https://adp.tencentcloud.com/webim_exp/#/chat/GkTbUc`. Shareable. The ADP agent is an **additive interpretation surface only** (Decision D-A): it is not wired into this repository's code, and Slice 13 was not run. The AppKey is a separate artefact and is deliberately not recorded anywhere |
 | Demo video | Not produced. Optional in the requirements |

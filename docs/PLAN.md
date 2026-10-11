@@ -517,7 +517,7 @@ Seven seeded fault sequences are explicit pass/fail cases, not narrative: timeou
 - [x] Architecture and trust-boundary diagram with trade-offs (`submission/architecture-trust-boundaries.svg` and `.png`)
 - [x] **Honest-claims statement: what the project can and cannot be said to have done** (`submission/honest-claims.md`, part of the submission rather than an appendix to it)
 - [x] **The production link (Decision D-C): the Render backend and the Vercel clinical frontend, behind the shared bearer token.** Live and verified 11 October 2026: the API is `https://carerelay-dzt3.onrender.com` (`/health` answers 200, `/api` and `/ledger` answer 401 without the token and 200 with it), and the frontend is `https://carerelay-self.vercel.app`, rendering the four lines fetched from that API. **Risk R8 stays open**: no disposition written on Render has yet been read back after a real redeploy.
-- [ ] **The ADP Experience URL (Decision D-B), with the agent constrained to refuse clinical advice and its knowledge base limited to the non-clinical fixture**
+- [x] **The ADP Experience URL (Decision D-B): `https://adp.tencentcloud.com/webim_exp/#/chat/GkTbUc`.** Recorded 11 October 2026. **What ticking this does not assert:** the constraint clauses that used to sit in this row describe how the agent was configured in the ADP console, and that configuration is not observable from this repository. The host answers 200, but everything after the `#` is a fragment the server never receives, so a fetch can confirm neither that the agent exists nor that it refuses clinical advice. Those clauses are `[hypothesis]` until someone exercises the agent and records what it did.
 
 **Optional**
 - [ ] 5–8-minute video (overview, core agent features, honest build reflection)
