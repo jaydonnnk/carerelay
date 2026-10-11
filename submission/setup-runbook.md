@@ -20,13 +20,20 @@ a manual one.
 1. **Sign in to Render** and choose **New, then Blueprint**. Connect
    `github.com/jaydonnnk/carerelay`. Render reads `render.yaml` and proposes one web
    service named `carerelay`, Docker runtime, Singapore region.
-   - **Already done, 11 October 2026.** `render.yaml` no longer declares a disk or
-     `plan: starter`, so the service runs on the free tier. The 1 GB mount was dead
-     weight after Slice 7b moved the record to Postgres, and the paid instance type
-     existed only to hold it. `tests/test_deployment.py` passes on the edited file
-     (17 passed, 2 skipped).
-   - The free tier spins down when idle. Warm the service before a judge opens the
-     link.
+   - **Already done, 11 October 2026.** `render.yaml` no longer declares a disk, and
+     it now declares `plan: free` explicitly. The 1 GB mount was dead weight after
+     Slice 7b moved the record to Postgres, and the paid instance type existed only
+     to hold it.
+   - **The free plan has to be named, not omitted.** Render's blueprint reference
+     states that when `plan` is omitted it uses `0.5c-512mb` for a new web service,
+     which is the **$7/month** tier rather than the free one. Removing
+     `plan: starter` without adding `plan: free` therefore left the service on a
+     paid plan. **Confirm the instance type reads Free** in the service's settings
+     after the first deploy. Render keeps the existing plan for a service that
+     already exists, so a service created before this fix stays on whatever it was
+     created with.
+   - The free tier spins down after 15 idle minutes and takes about a minute to come
+     back. Warm the service before a judge opens the link.
 2. **Set the two secret values in the dashboard, not in the file.** Both are declared
    with `sync: false`, so Render expects them there:
    - `APP_DATABASE_URL`: the Supabase Postgres DSN.
@@ -62,6 +69,17 @@ a manual one.
    `APP_ENV=public`, `CORS_ORIGINS=https://carerelay.vercel.app`, `APP_CLOCK=scenario`.
    A wildcard in `CORS_ORIGINS` is refused by the app, so leave it as the single
    origin.
+   - **Do not hand-edit these three in the dashboard.** They carry a `value:` in
+     `render.yaml`, so the file is their source of truth and the next Blueprint sync
+     reverts a dashboard edit. Change the file instead. Only the two `sync: false`
+     variables in step 2 are dashboard-owned.
+   - **If the service is created manually instead of from the Blueprint**, the file is
+     not read at all and all five variables must be set by hand: the three above plus
+     `APP_DATABASE_URL` and `CARERELAY_API_TOKEN`. That is the whole difference
+     between the two routes, and it is why the Blueprint route is less work rather
+     than more. A manually created service also needs the Docker runtime, the
+     Singapore region, the `/health` health check path and the **Free** instance type
+     set by hand, since nothing in the repository supplies them.
 4. **Deploy.** The health check path is `/health`. Render assigns the hostname, of the
    form `https://carerelay.onrender.com`. **That string is the Render URL** and it is
    not written anywhere in the repository today.
@@ -83,8 +101,9 @@ a manual one.
 7. **Record it.** Update the links table in `submission/description.md` and tick the
    production-link row in `docs/PLAN.md` section 10.
 
-**Cold start.** The Render free tier spins down when idle and the first request after
-that takes seconds. Warm the service before a judge opens the link.
+**Cold start.** The Render free tier spins down after 15 idle minutes, and the first
+request after that takes about a minute, during which Render shows a loading page to
+the browser. Warm the service before a judge opens the link.
 
 ---
 

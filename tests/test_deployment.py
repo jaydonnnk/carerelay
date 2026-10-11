@@ -576,6 +576,39 @@ class TestTheDeploymentArtefactsAreHonest:
         assert "key: APP_ENV" in text
         assert "value: public" in text
 
+    def test_the_free_plan_is_declared_rather_than_omitted(self) -> None:
+        """Omitting `plan` does not mean free, so this line is load-bearing.
+
+        Render's blueprint reference states that when `plan` is omitted it uses
+        `0.5c-512mb` for a new web service, which is the **$7/month** tier and not
+        the free one. The free plan has to be named.
+
+        **The defect this exists for, and it was live on `main`.** An earlier
+        version of `render.yaml` deleted `plan: starter`, kept the disk removal
+        that motivated the edit, and said in a comment that the service therefore
+        ran on the free tier. It would not have: the plan was merely omitted, so
+        Render would have created the service on `0.5c-512mb`. The comment was the
+        only thing asserting otherwise, and a comment cannot fail. Measured before
+        this test existed: deleting the `plan: free` line left every test green.
+
+        **Why the whole list and not a substring.** `"plan: free" in text` would
+        pass on a file that also carried a second, later `plan:` line, and YAML
+        takes the last one. Requiring the list to be exactly `["plan: free"]` also
+        catches a revert to a named paid plan, which is the shape the next
+        regression would take.
+        """
+        text = (REPO / "render.yaml").read_text(encoding="utf-8")
+        plans = [
+            line.strip()
+            for line in text.splitlines()
+            if line.strip().startswith("plan:")
+        ]
+        assert plans == ["plan: free"], (
+            f"render.yaml declares {plans}, so the service would not be created on "
+            "the free tier. Render defaults an omitted plan to `0.5c-512mb`, which "
+            "is the $7/month tier, so the plan has to be named."
+        )
+
     def test_cors_names_an_origin_and_not_a_wildcard(self) -> None:
         text = (REPO / "render.yaml").read_text(encoding="utf-8")
         assert "CORS_ORIGINS" in text

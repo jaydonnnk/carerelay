@@ -22,11 +22,28 @@ services:
     # Slice 12, 11 October 2026: the disk block and `plan: starter` are gone.
     # Slice 7b moved the record to Postgres on Supabase, reached through
     # `APP_DATABASE_URL` below, so the 1 GB mount was dead weight and the paid
-    # instance type existed only to hold it. With no disk the service runs on
-    # the free tier, which spins down when idle: warm it before anyone opens
-    # the live link. `tests/test_deployment.py` fails if a local database file
-    # is named in this file again, which is the check that keeps the record off
-    # an ephemeral filesystem.
+    # instance type existed only to hold it.
+    #
+    # **`plan: free` is declared rather than omitted, and that distinction is the
+    # whole correction.** Render's blueprint reference states that when `plan` is
+    # omitted it uses `0.5c-512mb` for a new web service, which is the $7/month
+    # tier and not the free one. Removing `plan: starter` and stopping there
+    # therefore left the service on a paid plan while an earlier version of this
+    # comment claimed it ran free. The free plan has to be named: `free` is
+    # 0.1 CPU and 512 MB at no charge. Render keeps the existing plan for a
+    # service that already exists, so this only bites on a fresh Blueprint
+    # deploy.
+    #
+    # Free spins down after 15 idle minutes and takes about a minute to come
+    # back, so warm it before anyone opens the live link. Free also cannot hold
+    # a persistent disk, which no longer matters because the record is not on
+    # this filesystem.
+    #
+    # `tests/test_deployment.py` fails if a local database file is named in this
+    # file again, which is the check that keeps the record off an ephemeral
+    # filesystem.
+    plan: free
+
     healthCheckPath: /health
 
     envVars:
