@@ -109,14 +109,28 @@ the slice that would wire it in (Slice 13) is conditional and was not run
    - the **Experience URL**, which is shareable and is the one that goes in the
      submission;
    - the **AppKey**, which is a secret.
-4. **Handle the AppKey as `AGENTS.md` section 8 requires.** Environment variable only.
+4. **You do not need the Tencent Cloud API Secret.** The AppKey is the whole
+   credential for the HTTP SSE chat API. `spike/gate_a/probe.py:14-19` records the
+   finding: authentication is the `AppKey` request-body field, the only documented
+   header is `Content-Type: application/json`, and "there is no signature header and
+   no second secret, so no `ADP_API_SECRET` is consumed by this API". The API Secret
+   exists for the WebSocket transport, which no part of this project uses. Creating
+   one would put an account-level credential in play for no benefit: a Tencent Cloud
+   `SecretKey` from CAM can manage the whole account, which is a far wider blast
+   radius than a single ADP AppKey.
+5. **Handle the AppKey as `AGENTS.md` section 8 requires.** Environment variable only.
    Never committed, never logged, never screenshotted. The secret scanner in this
    repository cannot catch a bare value written in prose (`tasks/todo.md:144`), so the
    operative control is that no value is written down at all.
-5. **Optional: the AppKey call log.** It is a **supplement** to the usage proof, not a
-   substitute. The mandatory proof is CodeBuddy or WorkBuddy usage, and that is
-   already complete (`submission/usage-proof.md`).
-6. **Record it.** Enter the Experience URL in the links table of
+6. **Optional: the AppKey call log.** It is a **supplement** to the usage proof, not a
+   substitute; the mandatory proof is CodeBuddy or WorkBuddy usage, and that is already
+   complete (`submission/usage-proof.md`). The repository already carries the harness
+   that produces one: with `ADP_APPKEY` exported,
+   `python spike/gate_a/probe.py --no-write` sends the three Gate A probes against the
+   published agent and the calls appear in the ADP console's log. It fails closed with
+   `BLOCKED_NO_CREDENTIAL` when no AppKey is set, and it redacts the credential from
+   anything it prints. `--no-write` keeps `gate_a_result.json` out of the tree.
+7. **Record it.** Enter the Experience URL in the links table of
    `submission/description.md` and tick the ADP row in `docs/PLAN.md` section 10.
 
 **If you later want the agent in the actual interpretation path**, that is not a
