@@ -34,8 +34,14 @@ a manual one.
      token configured, every protected route answers **503** rather than serving an
      open endpoint, so a missing token fails closed (`src/carerelay/api.py:170`).
    - **Where the DSN comes from:** Supabase dashboard, **Project Settings, then
-     Database, then Connection string, then URI** (or the **Connect** button). Copy
-     the `postgresql://postgres.<ref>:<password>@<host>:<port>/postgres` string.
+     Database, then Connection string, then URI** (or the **Connect** button).
+     Take the **Session pooler** entry and paste it whole. Its five fields are, in
+     order: scheme `postgresql`, user `postgres.<project-ref>`, the password, the
+     pooler host `aws-0-<region>.pooler.supabase.com`, and port `5432`, with
+     database `postgres` at the end. The string is not reproduced here in full,
+     because `tests/test_boundaries.py` fails on any tracked file that carries a
+     credential-bearing connection string, and that check is worth more than a
+     copy-paste convenience.
    - **Prefer the session pooler, port 5432, over the transaction pooler, 6543.**
      The store holds one connection per process, applies its DDL once, and uses
      savepoints and `SELECT ... FOR UPDATE`, all of which want session state. Both
