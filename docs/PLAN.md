@@ -505,7 +505,7 @@ Seven seeded fault sequences are explicit pass/fail cases, not narrative: timeou
 ## 10. Submission readiness
 
 **Required or treat as required**
-- [ ] **Genuine CodeBuddy/WorkBuddy development history, and at least three development-chat screenshots (redacted). This is the scoring blocker, and it moves to the top of this list: capture started at Slice 4, not on the last day.** **Half met as of 1 October 2026:** the written history is published at `docs/session-logs/`, which satisfies the "written development-process description". **The three screenshots are still not captured.** Named location `submission/usage-proof/screenshots/`, named person Jaydon. `.gitignore` excludes `.codebuddy/` and `.workbuddy-ai/`, and a screenshot cannot be reconstructed later
+- [x] **Genuine CodeBuddy/WorkBuddy development history, and at least three development-chat screenshots (redacted).** **MET.** The written history is published at `docs/session-logs/`, one file per working day from 30 September to 11 October 2026, which satisfies the "written development-process description". The three screenshots were captured on 1 October 2026 into `submission/usage-proof/screenshots/`, with their manifest and redaction check in that folder's `README.md`. `submission/usage-proof.md` rows 128 and 164 record both as **MET**. An earlier version of this line said "the three screenshots are still not captured" and called this the scoring blocker; that was true when written and is not true now.
 - [ ] Confirm team eligibility, registration and healthcare-specific criteria
 - [ ] Declare Challenge 1 at presentation start
 - [x] Project title (**CareRelay**, `submission/description.md`)
