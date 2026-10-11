@@ -508,13 +508,14 @@ Seven seeded fault sequences are explicit pass/fail cases, not narrative: timeou
 - [ ] **Genuine CodeBuddy/WorkBuddy development history, and at least three development-chat screenshots (redacted). This is the scoring blocker, and it moves to the top of this list: capture started at Slice 4, not on the last day.** **Half met as of 1 October 2026:** the written history is published at `docs/session-logs/`, which satisfies the "written development-process description". **The three screenshots are still not captured.** Named location `submission/usage-proof/screenshots/`, named person Jaydon. `.gitignore` excludes `.codebuddy/` and `.workbuddy-ai/`, and a screenshot cannot be reconstructed later
 - [ ] Confirm team eligibility, registration and healthcare-specific criteria
 - [ ] Declare Challenge 1 at presentation start
-- [ ] Project title
-- [ ] Blurb **under ten words** (candidate: "Understand care advice. Find a feasible next step.")
-- [ ] Description: users, pain-point evidence, architecture, prompt role, bounded impact
-- [ ] True 16:9 cover image
+- [x] Project title (**CareRelay**, `submission/description.md`)
+- [x] Blurb **under ten words** ("Understand care advice. Find a feasible next step.", 8 words)
+- [x] Description: users, pain-point evidence, architecture, prompt role, bounded impact (`submission/description.md`)
+- [x] True 16:9 cover image (`submission/cover-16x9.svg` and `.png`, 1920x1080)
 - [ ] Complete GitHub source
-- [ ] Live walkthrough
-- [ ] Architecture and trust-boundary diagram with trade-offs
+- [x] Live walkthrough (`submission/demo-walkthrough.md`, captured against `uvicorn` on `127.0.0.1:8137`)
+- [x] Architecture and trust-boundary diagram with trade-offs (`submission/architecture-trust-boundaries.svg` and `.png`)
+- [x] **Honest-claims statement: what the project can and cannot be said to have done** (`submission/honest-claims.md`, part of the submission rather than an appendix to it)
 - [ ] **The production link (Decision D-C): the Render backend and the Vercel clinical frontend, behind the shared bearer token**
 - [ ] **The ADP Experience URL (Decision D-B), with the agent constrained to refuse clinical advice and its knowledge base limited to the non-clinical fixture**
 

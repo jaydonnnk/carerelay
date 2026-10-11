@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1920 1080" width="1920" height="1080" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1920" height="1080" fill="#fbfdff"/>
+  <rect x="0" y="0" width="1920" height="16" fill="#12557f"/>
+
+  <text x="120" y="320" font-size="156" font-weight="700" fill="#0f2f4f" letter-spacing="-3">CareRelay</text>
+  <rect x="124" y="358" width="124" height="9" fill="#12557f"/>
+
+  <text x="120" y="442" font-size="50" fill="#0f2f4f">Understand care advice.</text>
+  <text x="120" y="500" font-size="50" fill="#0f2f4f">Find a feasible next step.</text>
+
+  <text x="120" y="592" font-size="28" fill="#475569">A patient-facing handoff that refuses to say help is arranged</text>
+  <text x="120" y="630" font-size="28" fill="#475569">until someone has agreed and the evidence says so.</text>
+
+  <text x="120" y="730" font-size="28" font-weight="700" fill="#0f2f4f">PlanBack   ·   Closure Contract   ·   four lines, nothing else</text>
+  <text x="120" y="776" font-size="24" fill="#64748b">Built with WorkBuddy and CodeBuddy. 931 tests, 7 seeded fault</text>
+  <text x="120" y="810" font-size="24" fill="#64748b">sequences, every provider response simulated.</text>
+
+  <!-- the four lines card -->
+  <rect x="1140" y="240" width="680" height="600" rx="18" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+  <rect x="1140" y="240" width="680" height="86" rx="18" fill="#12557f"/>
+  <rect x="1140" y="296" width="680" height="30" fill="#12557f"/>
+  <text x="1178" y="298" font-size="30" font-weight="700" fill="#ffffff">What the patient sees</text>
+
+  <text x="1178" y="388" font-size="34" fill="#0f172a">No one has agreed to help yet.</text>
+  <text x="1178" y="456" font-size="34" fill="#0f172a">Please act now.</text>
+  <text x="1178" y="524" font-size="34" fill="#0f172a">Please do it before 6pm today.</text>
+  <text x="1178" y="592" font-size="34" fill="#0f172a">If that does not work, call the</text>
+  <text x="1178" y="634" font-size="34" fill="#0f172a">fictional nurse line.</text>
+
+  <line x1="1178" y1="690" x2="1782" y2="690" stroke="#e2e8f0" stroke-width="2"/>
+  <text x="1178" y="730" font-size="22" fill="#64748b">Every episode, every provider response and every</text>
+  <text x="1178" y="760" font-size="22" fill="#64748b">screen carries the simulated label. Research</text>
+  <text x="1178" y="790" font-size="22" fill="#64748b">demonstration, not clinical advice.</text>
+
+  <rect x="0" y="1000" width="1920" height="80" fill="#0f2f4f"/>
+  <text x="120" y="1050" font-size="26" fill="#e2e8f0">AI for Good Hackathon Singapore 2026   ·   Challenge 1: AI Grandma Knows Best   ·   github.com/jaydonnnk/carerelay</text>
+</svg>

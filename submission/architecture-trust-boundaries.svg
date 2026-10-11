@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1020" width="1600" height="1020" font-family="Helvetica, Arial, sans-serif">
+  <rect width="1600" height="1020" fill="#ffffff"/>
+
+  <text x="40" y="46" font-size="30" font-weight="700" fill="#0f172a">CareRelay: architecture, trust boundaries and the trade-offs that shaped them</text>
+  <text x="40" y="74" font-size="16" fill="#475569">Challenge 1, AI Grandma Knows Best. Research demonstration: every provider response is simulated. Solid arrows are built; dashed grey is designed but not wired.</text>
+
+  <!-- readers -->
+  <rect x="40" y="120" width="220" height="92" rx="10" fill="#eef2ff" stroke="#334155" stroke-width="2"/>
+  <text x="56" y="150" font-size="17" font-weight="700" fill="#0f172a">Patient browser</text>
+  <text x="56" y="174" font-size="14" fill="#334155">Four lines, nothing else</text>
+  <text x="56" y="196" font-size="14" fill="#334155">No timers, no animation</text>
+
+  <rect x="40" y="240" width="220" height="92" rx="10" fill="#eef2ff" stroke="#334155" stroke-width="2"/>
+  <text x="56" y="270" font-size="17" font-weight="700" fill="#0f172a">Judge or engineer</text>
+  <text x="56" y="294" font-size="14" fill="#334155">Ledger: two axes, origins,</text>
+  <text x="56" y="316" font-size="14" fill="#334155">fault assertions, dwell time</text>
+
+  <!-- vercel -->
+  <rect x="330" y="110" width="300" height="230" rx="12" fill="#f8fafc" stroke="#334155" stroke-width="2"/>
+  <text x="348" y="140" font-size="18" font-weight="700" fill="#0f172a">Next.js on Vercel</text>
+  <text x="348" y="160" font-size="13" fill="#475569">https://carerelay.vercel.app</text>
+  <rect x="348" y="176" width="264" height="72" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+  <text x="362" y="200" font-size="14" font-weight="700" fill="#0f172a">Patient screen</text>
+  <text x="362" y="220" font-size="12.5" fill="#334155">Renders the approved four lines.</text>
+  <text x="362" y="238" font-size="12.5" fill="#334155">Never invents them if the API is down.</text>
+  <rect x="348" y="256" width="264" height="72" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+  <text x="362" y="280" font-size="14" font-weight="700" fill="#0f172a">Ledger view</text>
+  <text x="362" y="300" font-size="12.5" fill="#334155">Judge-facing. Carries internal ids,</text>
+  <text x="362" y="318" font-size="12.5" fill="#334155">so it is not linked from the patient screen.</text>
+
+  <!-- api -->
+  <rect x="700" y="100" width="430" height="470" rx="12" fill="#f8fafc" stroke="#334155" stroke-width="2.5"/>
+  <text x="720" y="132" font-size="19" font-weight="700" fill="#0f172a">FastAPI on Render</text>
+  <text x="720" y="152" font-size="13" fill="#475569">The authorisation boundary. One bearer token on /api and /ledger.</text>
+
+  <rect x="720" y="168" width="390" height="76" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+  <text x="736" y="192" font-size="14" font-weight="700" fill="#0f172a">Route layer</text>
+  <text x="736" y="212" font-size="12.5" fill="#334155">Validates input, calls one use case, maps typed errors to HTTP.</text>
+  <text x="736" y="230" font-size="12.5" fill="#334155">Fails closed: armed with no token, a protected route answers 503.</text>
+
+  <rect x="720" y="256" width="390" height="76" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+  <text x="736" y="280" font-size="14" font-weight="700" fill="#0f172a">Domain (pure)</text>
+  <text x="736" y="300" font-size="12.5" fill="#334155">Decides and renders. No network, no model client, no wall clock.</text>
+  <text x="736" y="318" font-size="12.5" fill="#334155">Enforced by a scanner with one detector per forbidden import.</text>
+
+  <rect x="720" y="344" width="390" height="96" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+  <text x="736" y="368" font-size="14" font-weight="700" fill="#0f172a">Coordinator: the interpretation step</text>
+  <text x="736" y="388" font-size="12.5" fill="#334155">Receives permitted surface forms only. No transcript, no Disposition.</text>
+  <text x="736" y="406" font-size="12.5" fill="#334155">Returns raw spans plus a ToolRequest. Today: a deterministic scanner,</text>
+  <text x="736" y="424" font-size="12.5" fill="#334155">labelled simulated. The only step a model is ever allowed to occupy.</text>
+
+  <rect x="720" y="452" width="390" height="76" rx="8" fill="#ffffff" stroke="#64748b" stroke-width="1.5"/>
+  <text x="736" y="476" font-size="14" font-weight="700" fill="#0f172a">Service and record writes</text>
+  <text x="736" y="496" font-size="12.5" fill="#334155">Closure is derived, never stored. Expiry is evaluated on read:</text>
+  <text x="736" y="514" font-size="12.5" fill="#334155">there is no scheduler, so nothing can time out unobserved.</text>
+
+  <!-- postgres -->
+  <rect x="1210" y="110" width="330" height="150" rx="12" fill="#eefbf4" stroke="#334155" stroke-width="2"/>
+  <text x="1228" y="140" font-size="18" font-weight="700" fill="#0f172a">Postgres on Supabase</text>
+  <text x="1228" y="164" font-size="12.5" fill="#334155">14 tables, 42 triggers. UPDATE, DELETE</text>
+  <text x="1228" y="182" font-size="12.5" fill="#334155">and TRUNCATE refused on every table.</text>
+  <text x="1228" y="206" font-size="12.5" fill="#334155">SQLite is the test engine; both are</text>
+  <text x="1228" y="224" font-size="12.5" fill="#334155">held to one parity test.</text>
+  <text x="1228" y="248" font-size="12.5" fill="#0f766e" font-weight="700">Fixture data only. No real patient data.</text>
+
+  <!-- tools -->
+  <rect x="1210" y="290" width="330" height="140" rx="12" fill="#fefce8" stroke="#334155" stroke-width="2"/>
+  <text x="1228" y="320" font-size="18" font-weight="700" fill="#0f172a">MCP tool surface</text>
+  <text x="1228" y="344" font-size="12.5" fill="#334155">Three tools, three rechecks each.</text>
+  <text x="1228" y="362" font-size="12.5" fill="#334155">The simulated provider fails on every</text>
+  <text x="1228" y="380" font-size="12.5" fill="#334155">route by default, so the demo can</text>
+  <text x="1228" y="398" font-size="12.5" fill="#334155">never manufacture a success.</text>
+  <text x="1228" y="420" font-size="12.5" fill="#a16207" font-weight="700">Every result carries origin = local-sim</text>
+
+  <!-- ADP -->
+  <rect x="1210" y="460" width="330" height="110" rx="12" fill="#ffffff" stroke="#94a3b8" stroke-width="2" stroke-dasharray="7 5"/>
+  <text x="1228" y="490" font-size="18" font-weight="700" fill="#64748b">ADP (designed, not wired)</text>
+  <text x="1228" y="514" font-size="12.5" fill="#64748b">Interpretation only. Never the execution</text>
+  <text x="1228" y="532" font-size="12.5" fill="#64748b">path, never the rendering path.</text>
+  <text x="1228" y="556" font-size="12.5" fill="#64748b">Gate A proved transport, not use.</text>
+
+  <!-- arrows: browsers to vercel -->
+  <line x1="260" y1="166" x2="326" y2="190" stroke="#0f172a" stroke-width="2"/>
+  <polygon points="326,190 314,184 314,196" fill="#0f172a"/>
+  <line x1="260" y1="286" x2="326" y2="270" stroke="#0f172a" stroke-width="2"/>
+  <polygon points="326,270 314,264 314,276" fill="#0f172a"/>
+
+  <!-- arrow vercel to api -->
+  <line x1="630" y1="225" x2="696" y2="225" stroke="#0f172a" stroke-width="2.5"/>
+  <polygon points="696,225 684,219 684,231" fill="#0f172a"/>
+  <text x="640" y="215" font-size="12" fill="#0f172a" font-weight="700">bearer</text>
+
+  <!-- arrow api to postgres -->
+  <line x1="1130" y1="185" x2="1206" y2="185" stroke="#0f172a" stroke-width="2.5"/>
+  <polygon points="1206,185 1194,179 1194,191" fill="#0f172a"/>
+
+  <!-- arrow api to tools -->
+  <line x1="1130" y1="360" x2="1206" y2="360" stroke="#0f172a" stroke-width="2.5"/>
+  <polygon points="1206,360 1194,354 1194,366" fill="#0f172a"/>
+
+  <!-- arrow api to adp dashed -->
+  <line x1="1130" y1="515" x2="1206" y2="515" stroke="#94a3b8" stroke-width="2" stroke-dasharray="7 5"/>
+  <polygon points="1206,515 1194,509 1194,521" fill="#94a3b8"/>
+
+  <!-- trust boundaries -->
+  <line x1="310" y1="96" x2="310" y2="640" stroke="#c2410c" stroke-width="2" stroke-dasharray="9 6"/>
+  <text x="268" y="660" font-size="12.5" fill="#c2410c" font-weight="700">TB1 public internet</text>
+
+  <line x1="672" y1="96" x2="672" y2="640" stroke="#c2410c" stroke-width="2" stroke-dasharray="9 6"/>
+  <text x="596" y="660" font-size="12.5" fill="#c2410c" font-weight="700">TB2 bearer token, CORS allow-list</text>
+
+  <line x1="1172" y1="96" x2="1172" y2="640" stroke="#c2410c" stroke-width="2" stroke-dasharray="9 6"/>
+  <text x="1076" y="660" font-size="12.5" fill="#c2410c" font-weight="700">TB3 scoped snapshot out, structured values back</text>
+
+  <!-- the rule box -->
+  <rect x="40" y="360" width="220" height="270" rx="10" fill="#fff7ed" stroke="#c2410c" stroke-width="2"/>
+  <text x="56" y="390" font-size="16" font-weight="700" fill="#9a3412">The rule the diagram exists to protect</text>
+  <text x="56" y="416" font-size="12.5" fill="#7c2d12">A model may propose which span</text>
+  <text x="56" y="434" font-size="12.5" fill="#7c2d12">looks like a deadline.</text>
+  <text x="56" y="458" font-size="12.5" fill="#7c2d12">It may not decide the deadline,</text>
+  <text x="56" y="476" font-size="12.5" fill="#7c2d12">and it may never write line 1.</text>
+  <text x="56" y="500" font-size="12.5" fill="#7c2d12">No model-generated text reaches</text>
+  <text x="56" y="518" font-size="12.5" fill="#7c2d12">the patient, in any configuration.</text>
+  <text x="56" y="548" font-size="12.5" fill="#7c2d12">Closure is derived from two axes,</text>
+  <text x="56" y="566" font-size="12.5" fill="#7c2d12">never stored, so there is no write</text>
+  <text x="56" y="584" font-size="12.5" fill="#7c2d12">path to a false completion.</text>
+  <text x="56" y="614" font-size="12.5" fill="#7c2d12" font-weight="700">An attempt that fails leaves the</text>
+  <text x="56" y="632" font-size="12.5" fill="#7c2d12" font-weight="700">words and the deadline unchanged.</text>
+
+  <!-- trade-offs -->
+  <rect x="40" y="700" width="1500" height="290" rx="12" fill="#f8fafc" stroke="#334155" stroke-width="2"/>
+  <text x="60" y="732" font-size="20" font-weight="700" fill="#0f172a">Key design trade-offs, with their costs as recorded in the project's own documents</text>
+
+  <text x="60" y="766" font-size="14" font-weight="700" fill="#0f172a">Trust boundary is a module boundary</text>
+  <text x="60" y="786" font-size="12.5" fill="#475569">Buys a checkable rule. Costs: it must be machine-enforced, or it is a convention with a diagram. (02-architecture.md, D2)</text>
+
+  <text x="60" y="814" font-size="14" font-weight="700" fill="#0f172a">Closure derived, never stored</text>
+  <text x="60" y="834" font-size="12.5" fill="#475569">Removes the write path to false completion. Costs: projection bugs can still lie, which is why the fault harness exists. (02-architecture.md, D4)</text>
+
+  <text x="60" y="862" font-size="14" font-weight="700" fill="#0f172a">Deterministic comparison, model allowed on interpretation only</text>
+  <text x="60" y="882" font-size="12.5" fill="#475569">Buys: no model text reaches a patient. Costs: the AI-interaction claim is weaker than a chat demo, and deliberately so.</text>
+
+  <text x="60" y="910" font-size="14" font-weight="700" fill="#0f172a">Next.js on Vercel instead of server-rendered HTML</text>
+  <text x="60" y="930" font-size="12.5" fill="#475569">Costs an estimated 20 to 34 person-hours and two extra network boundaries, and makes UX and accessibility work to defend. (02-architecture.md, D-1b)</text>
+
+  <text x="60" y="958" font-size="14" font-weight="700" fill="#0f172a">Scheduled reassessment dropped (D9), and the fixture authored rather than sourced (Option C dropped)</text>
+  <text x="60" y="978" font-size="12.5" fill="#475569">Costs: the monitored episode is not delivered, and the fixture asserts no clinical claim at all. Both were chosen over a claim the project could not support.</text>
+</svg>
