@@ -1,5 +1,104 @@
 # Product: CareRelay urgent-advice accessibility
 
+## Patient experience amendment: RE-APPROVED 12 October 2026
+
+**[verified] Gate 1 was explicitly RE-APPROVED 12 October 2026.** The user
+answered "Yep approve gate 1" and authorised committing the working tree and
+pushing to main. The concise visual revision below and its exact copy inventory
+are approved design content. Gates 2, 3 and 4 retain their prior scope; the new
+journey still requires its architecture, program design and build plan.
+
+### User correction incorporated: concise visual revision
+
+[verified user instruction] Reduce wording and boxed panels for older adults;
+use images or diagrams where helpful. [hypothesis] The revised mockups use flat
+icon-and-text rows, one primary action, shorter questions, and a single compact
+demonstration label. Reviewer detail is collapsed and the preview opens directly
+on the plan. Icons support the words, never replace critical instructions.
+[unknown] Suitability for older adults remains untested with target users.
+
+[verified] ADP is currently absent from the patient application. [hypothesis]
+Its proposed place is interpreting the patient's confirmed read-back before
+CareRelay checks it against the stored plan. This will be an explicit Gate 2
+integration decision and a separately tested build step, not a feature implied
+by approving these screens. `adp.html` explains the boundary to the reviewer.
+
+### Problem and proposed result
+
+[hypothesis] A person should not have to infer their next action from a status
+sentence or guess whether a failed request means someone is helping. The proposed
+experience makes the action, deadline, responsible person and current outcome
+readable, then asks one question at a time.
+
+[hypothesis] Proposed demonstration announcement: CareRelay shows your supplied
+example plan and lets you put it in your own words. You can look at it again at
+any time. A practical difficulty leads to a specific permission request, and a
+failed request keeps the original plan visible. A stopped conversation never
+means someone has been contacted.
+
+### Approved decisions
+
+1. [verified user choice] Oat `#eee8dd`, plum `#542c48`, tangerine `#ee965e`.
+   [hypothesis] Retain the preview's warm-white surfaces, readable text, visible
+   focus and larger-text control. Tangerine carries no meaning by itself.
+2. [hypothesis] The recommendation may show a labelled action, deadline and owner
+   in addition to its unresolved status. This is the explicit proposed exception
+   to the historical rule that the patient sees only four lines. Outcome screens
+   retain the existing four approved sentences and their order; the judge ledger
+   remains separate. No closure or deadline rule changes.
+3. [hypothesis] Separate read-back, timing repair, practical barrier and permission
+   into individual screens. Never display the answer during unaided read-back.
+   Revealing the plan makes the attempt cued; no timer hides it. Uncertain words
+   invite correction rather than being called wrong. No third repair is offered.
+4. [hypothesis] Show no-plan, loading, unavailable, declined permission, waiting,
+   failed, stopped, expired, accepted and successful-handoff states explicitly.
+   A resume returns to the recorded state, including a stop. A connection failure
+   never produces a guessed plan or a new request.
+5. [hypothesis] Approve the surrounding non-clinical wording listed in
+   `patient-experience-copy.md` and rendered in the linked mockups. Existing
+   action/deadline/fallback fixture wording and four-line outcome copy are reused.
+   No symptoms, clinical thresholds, new clinical advice, voice, messaging or real
+   care capability is added. All services and responses remain visibly simulated.
+
+### Success and claim limits
+
+[hypothesis] Proposed implementation acceptance target: zero false-success
+renderings across the defined no-plan, unknown, waiting, failed, stopped,
+expired, accepted and handoff examples; zero deadline changes caused by retry or
+resume; all critical flows usable by keyboard, at 320 CSS pixels and with larger
+text. These are engineering targets, not evidence of clinical safety or benefit.
+
+[verified] The six-dyad metric below is historical: Gate 4 cut the participant run
+on 8 October. No result exists. [unknown] Whether this experience reduces false
+completion beliefs or burden compared with the fixed card remains untested.
+Actual target-user research, with an authorised protocol, is required for that
+claim. This amendment does not silently restart recruitment or the cut study.
+
+### Reviewable screens
+
+The plain HTML review starts at
+[patient journey review](../../../design/mocks/patient-journey/index.html).
+Each screen is a separate HTML file; none is production application code.
+
+
+- `00-start.html`: No invented action or deadline.
+- `01-plan.html`: Action, time, owner and unresolved status.
+- `02-readback.html`: Review your draft; explore uncertainty or an unavailable check.
+- `03-repair.html`: Only the timing is re-asked.
+- `04-barrier.html`: Appointment help stays separate from transport.
+- `05-permission.html`: Unchecked permission, decline and waiting states.
+- `06-unresolved.html`: Nobody has agreed. The original deadline remains.
+- `07-stop.html`: No third repair and no implied handoff.
+- `08-recovery.html`: Loading, unavailable and a stopped record on return.
+- `09-expired.html`: Approved expiry wording, without extending the time.
+- `10-accepted.html`: Simulated caregiver responsibility; no care evidence.
+- `11-handoff.html`: Separate from attempted or failed contact.
+
+**[verified] Approval recorded:** the user explicitly approved Gate 1 on 12 October 2026. `00-status.md` carries the approval history and shipping authority.
+
+---
+
+
 ## Problem
 
 An older adult may receive the right care advice and still fail to act because the timing was misunderstood, the next step is impractical, or a booking or handoff attempt failed. Current interfaces can make a recommendation or click look like progress even when nobody has accepted responsibility and no care has occurred. Language and typing barriers can make that failure worse.

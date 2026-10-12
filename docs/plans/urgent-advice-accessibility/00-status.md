@@ -1,15 +1,111 @@
 # Status: CareRelay urgent-advice accessibility
 
-- Gate 1: Product, **RE-APPROVED 8 October 2026** (re-approved 2 October 2026; re-approved 1 October 2026; approved 25 September 2026). Reopened the same day by the closure-rendering copy and re-approved when its standing condition was met: per the user's instruction of 8 October 2026, creating the mockups for the two new screens **completed** the re-approval, and `mockups/06-resolved-handoff.html` and `mockups/07-escalated-to-human.html` now exist. See the "Gate 1 and Gate 2 reopen" section below
-- Gate 2: Architecture, **RE-APPROVED 8 October 2026** (re-approved 2 October 2026; revision 3 re-approved 30 September 2026; revision 2 was approved 25 September 2026). Reopened and re-approved the same day by the closure-rendering table in `02-architecture.md` section 7; see the "Gate 1 and Gate 2 reopen" section below
+- Gate 1: Product, **RE-APPROVED 12 October 2026** for the revised concise patient journey, visual cues and copy in `01-product.md` and `patient-experience-copy.md`. The user explicitly approved Gate 1 and authorised committing the working tree and pushing to main. Previous approval: 8 October 2026.
+- Gate 2: Architecture, **RE-APPROVED 12 October 2026**, narrow amendment to section 5.2 separating a durable flow stop from a completed human handoff. The user answered "Approve Gate 2 amendment" in chat the same day. Prior approval: 8 October 2026.
 - Gate 3: Program Design, **RE-APPROVED 1 October 2026** (reopened and re-approved the same day; re-approved 30 September 2026; first approved 26 September 2026). The reopen was one paragraph of section 6.2, dropping Option C, and section 8 item 3 was reconciled to the post-drop state in the same pass; see the Gate 3 re-approval below
 - Gate 4: Slice plan, **RE-APPROVED 8 October 2026** (reopened and re-approved the same day; re-approved 30 September 2026; first approved 28 September 2026). Reopened to execute the plan's own pre-recorded cut of the Gate B run, and re-approved so Slice 10 can begin; see the section below
 
-**All four gates are APPROVED as of 8 October 2026: Gate 2 was re-approved immediately and Gate 1 was re-approved when its two closure mockups were created the same day.** Before that reopen all four gates were approved as of 2 October 2026: Gates 1 and 2 were reopened that day by the patient wording pass and **re-approved the same day** ("I have read and i re approve both gates"), which also completed the re-opened Slice 5 Check. **Slice 5 closes as of 2 October 2026.** Gate 4 was untouched by the pass, so implementation stayed authorised throughout. At the time that pass was written nothing from it was committed or pushed; the gate amendments and the Slice 5 work have both shipped since, and the branch state as it stands now is in section 3 of `AGENTS.md` rather than here.
+**Historical state before the 12 October reopen: all four gates were APPROVED as of 8 October 2026: Gate 2 was re-approved immediately and Gate 1 was re-approved when its two closure mockups were created the same day.** Before that reopen all four gates were approved as of 2 October 2026: Gates 1 and 2 were reopened that day by the patient wording pass and **re-approved the same day** ("I have read and i re approve both gates"), which also completed the re-opened Slice 5 Check. **Slice 5 closes as of 2 October 2026.** Gate 4 was untouched by the pass, so implementation stayed authorised throughout. At the time that pass was written nothing from it was committed or pushed; the gate amendments and the Slice 5 work have both shipped since, and the branch state as it stands now is in section 3 of `AGENTS.md` rather than here.
 
 **The submission-asset half of Slice 12 was completed on 11 October 2026 and shipped the same day.**
 
 **All three reopened gates were re-approved on 30 September 2026.** Implementation is authorised again, slice by slice, in the order `04-slices.md` gives.
+
+## Patient experience Gate 1 reopen: 12 October 2026
+
+[verified] Revision after user feedback the same day: the first proposal was
+rejected as too wordy and boxy. The HTML now uses concise copy, flat layouts,
+labelled icons and collapsed reviewer controls. `patient-experience-copy.md`
+reflects the revision. The separate `design/mocks/patient-journey/adp.html`
+diagram explains the proposed interpretation step and its currently unintegrated
+state. Gate 1 was explicitly re-approved later the same day; Gate 2 integration is not enabled.
+
+[verified] The user requested execution of the MVP handoff, step by step. The
+committed design proposal at `design-patient-plan-preview` (`70bc49a`) contains
+seven journey screens, beyond the single-screen snapshot in the handoff. Those
+screens are reused, with additional entry, unavailable/resume, expired, accepted
+and successful-handoff examples. The selected palette is retained.
+
+[verified] `01-product.md` now contains a proposed narrow amendment: expanded
+recommendation hierarchy, separate flow steps, explicit state recovery and a
+non-clinical copy inventory. Editing Gate 1 reopens it. No clinical policy, closure
+rule or implementation is changed. Gates 2, 3 and 4 retain their prior scope;
+the upgrade requires its own subsequent design and slice approvals.
+
+- [x] Reconcile the old handoff with the repair report and current source.
+- [x] Prepare Gate 1 decisions, separate HTML screens and copy inventory.
+- [x] Obtain explicit Gate 1 re-approval for the patient experience amendment: user approval, 12 October 2026.
+- [ ] After approval, prepare the upgrade's Gate 2 integration amendment.
+
+Approval history: **12 October 2026, Gate 1 REOPENED and RE-APPROVED the same day.**
+The user's execution request is not recorded as approval of unseen copy. The
+12 October Gate 2 durable-stop approval remains in force. The inherited repairs were uncommitted at that design checkpoint. Shipping is
+now explicitly authorised by the user, as recorded below. See `patient-experience-upgrade.md` for reconciliation,
+verification and manual dependencies. Current branch:
+`codex/patient-experience-gate1`, carrying the unchanged inherited repair work.
+
+### Gate 1 re-approval and shipping authority: 12 October 2026
+
+[verified] The user answered: "Yep approve gate 1, please commit the working ree and push to main so that we can start on the next step".
+Gate 1 is RE-APPROVED for the revised layout, concise wording, labelled icons,
+complete patient journey and exact copy inventory. The initial wordy proposal is
+superseded. Clinical boundaries and the four-line outcome rules remain in force.
+
+[verified] This instruction explicitly authorises committing the current working
+tree, including the inherited truthfulness repairs and approved design, and
+fast-forwarding and pushing it to `main`. No new dependency install, clinical
+content, ADP runtime integration or participant outreach is authorised.
+Gate 2 preparation is next; Gates 2, 3 and 4 retain their previous scope, which
+does not authorise implementing this upgrade yet.
+
+[verified] Fresh pre-ship full suite: 945 passed, 46 Postgres checks skipped,
+one existing warning. This matches the repair result; Postgres proof remains
+unavailable. Shipping completion will be recorded after Git verification.
+
+## Truthfulness repairs and Gate 2 reopen: 12 October 2026
+
+[verified] The user authorised four bounded backend repairs on a separate branch,
+without commits, merges, pushes, installs or deployment. Branch:
+`codex/truthfulness-repairs`, from `main`. The committed design-preview branch is
+preserved and remains a proposal. Fresh baseline: 889 passed, 43 Postgres skips.
+SQLite probes reproduce false failed-handoff reassurance, fabricated evidence,
+unrelated acceptance, negated read-back and stop bypasses.
+
+[verified] Gate 2 section 5.2 is amended because its previous post-stop rule called
+a stop a completed handoff, contradicting I2 and the approved closure copy. The
+concrete replacement separates a versioned durable stop from closure, blocks
+alternate automation paths, retains the approved unresolved copy and deadline, and
+permits reopening only through an authorised new disposition version.
+
+- [x] Reproduce the stop defects before editing implementation.
+- [x] Prepare the concrete Gate 2 amendment in `02-architecture.md` section 5.2.
+- [x] Obtain explicit Gate 2 re-approval for this amendment: "Approve Gate 2 amendment", 12 October 2026.
+- [x] Implement and prove the amended durable-stop behaviour after approval: authenticated API and fresh-process SQLite regressions, with Postgres execution explicitly skipped.
+
+Approval history: **12 October 2026, REOPENED and RE-APPROVED the same day.**
+The user explicitly answered "Approve Gate 2 amendment". At that repair approval, all four gates were
+approved; Gates 1, 3 and 4 were untouched. The bounded durable-stop repair may
+proceed. This approval authorises no commit, merge, push, install or deployment.
+
+### Repair evidence: 12 October 2026
+
+[verified] The bounded repairs are complete and committed in `b652de0`. Fresh baseline:
+889 passed, 43 Postgres skips. Final suite: 945 passed, 46 Postgres skips, one
+existing deprecation warning. New truthfulness mutation harness: 39/39 RED,
+passing pre/post controls and byte-exact restores. Authenticated live curl shows
+failed handoff as open, patient-owned and not care-evidenced, with the exact
+original scenario deadline preserved; patient and ledger JSON survive a real
+server restart unchanged. Full evidence and limits:
+`docs/reviews/truthfulness-repairs-2026-10-12.md`.
+
+[verified] These counterexamples narrow the earlier closure-review claims:
+those earlier passing fixtures did not prove outcome-sensitive escalation,
+evidence authenticity, relevant acceptance or durable stops. Real artefact
+verification is not implemented; the simulated ingestion boundaries now refuse
+caller-labelled real evidence. The existing low-level repository is trusted.
+[unknown] Postgres runtime proof and multi-worker stop/dispatch ordering remain
+unestablished. No deployed-store, general language or clinical-validation claim
+follows from the local SQLite results. The preview branch is unchanged.
 
 ## Gate 1 and Gate 2 reopen: the closure renderings, 8 October 2026
 
@@ -1114,6 +1210,9 @@ The map spans three folders, reorganised on 30 September 2026 so that a review a
 | `research-workarounds.md` | supporting note | which blockers are workaroundable and which are hard gates. Listed here for the first time: it was named in `AGENTS.md` section 2 but was missing from this map |
 | `adp-and-deployment-impact.md` | supporting note | DRAFT, 30 Sep: what the ADP hackathon guide changes, where ADP collides with the §8 model-generated-text boundary and the D8 execution-substrate claim, and the Vercel/Render deployment assessment. Authorises nothing |
 | `mockups/` | Gate 1 assets | seven plain-HTML screens, throwaway by design |
+| `patient-experience-copy.md` | Gate 1 proposed copy | [verified] Exact main/dialog text from the twelve patient experience mockups; approved 12 October 2026 |
+| `patient-experience-upgrade.md` | supporting execution note | [verified] Handoff reconciliation, incremental order, verification and manual dependencies |
+| `design/mocks/patient-journey/` (repo root) | Gate 1 proposed assets | [verified] Twelve separate patient screens and review index, plain HTML; approved 12 October 2026 |
 
 **`docs/reviews/`**
 
