@@ -97,8 +97,15 @@ The user explicitly requested committing the working tree and pushing to main.
 - [x] Commit backend repair contracts and proof: `b652de0`.
 - [x] Commit approved HTML journey and Gate 1 copy: `735299a`.
 - [x] Prepare execution and evidence records for the documentation commit.
-- [ ] Fast-forward main, push and verify the remote hash and clean worktree.
+- [x] Fast-forward main, push and verify the remote hash and clean worktree.
+  First verified push: `2486236`; receipt committed separately in this run.
 
 Suite log: `/tmp/carerelay-gate1-ship-20261012.log`; JUnit:
 `/tmp/carerelay-gate1-ship-20261012.xml`. Next step: prepare the Gate 2 amendment
 for authoritative no-plan/resume data and bounded ADP interpretation.
+
+
+Shipping result: the authorised repair and design working tree is on main and
+its first push is verified against GitHub. Gate 1 is re-approved in the authority
+record. The receipt commit is pushed as the final bookkeeping step. No credentials
+or installation are needed for shipping. Postgres execution remains skipped.

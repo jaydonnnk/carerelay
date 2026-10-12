@@ -60,7 +60,22 @@ does not authorise implementing this upgrade yet.
 
 [verified] Fresh pre-ship full suite: 945 passed, 46 Postgres checks skipped,
 one existing warning. This matches the repair result; Postgres proof remains
-unavailable. Shipping completion will be recorded after Git verification.
+unavailable. Shipping completion is verified in the receipt below.
+
+### Shipping receipt: 12 October 2026
+
+[verified] The authorised working tree was committed in coherent batches:
+`b652de0`, backend truthfulness contracts and regression proof; `735299a`, the
+approved concise HTML journey and copy; `2486236`, reconciled execution records.
+Local main was advanced as a verified fast-forward. The first push succeeded,
+and `git ls-remote --heads origin main` matched local main at `2486236`.
+The working tree was clean. This receipt is a subsequent documentation commit
+within the same authorised shipping request.
+
+[verified] Full pre-ship suite: 945 passed, 46 Postgres skips, one existing
+warning. Staged boundary and repository credential checks passed. No Postgres
+runtime or ADP integration proof is implied. The next step is the Gate 2
+architecture amendment; no new patient-journey implementation has begun.
 
 ## Truthfulness repairs and Gate 2 reopen: 12 October 2026
 

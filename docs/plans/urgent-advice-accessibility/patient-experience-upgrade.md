@@ -1,5 +1,11 @@
 # Patient experience upgrade: 12 October 2026
 
+[verified] Gate 1 was explicitly approved and the working tree committed and
+pushed to main on 12 October 2026. The first verified remote tip was `2486236`;
+`00-status.md` carries the shipping receipt. The subsequent receipt commit is
+part of the same authorised request. Gate 2 architecture is the next checkpoint.
+
+
 [verified] First checkpoint: a reviewable Gate 1 amendment, not completion of the
 whole MVP upgrade. Gate 1 is now re-approved. Authority: `00-status.md`; product decisions:
 `01-product.md`; exact proposed text: `patient-experience-copy.md`.
