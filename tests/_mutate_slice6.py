@@ -31,6 +31,7 @@ from __future__ import annotations
 import hashlib
 import os
 import pathlib
+import re
 import subprocess
 import sys
 
@@ -53,6 +54,8 @@ def run(selectors: list[str]) -> int:
     )
     tail = [line for line in proc.stdout.strip().splitlines() if line.strip()]
     print("   ", tail[-1] if tail else "(no output)")
+    if proc.returncode and not re.search(r"\b[1-9][0-9]* failed\b", proc.stdout):
+        return 2  # collection/runtime harness failure, not a killed mutation
     return proc.returncode
 
 
@@ -247,6 +250,8 @@ def main() -> int:
     for name, filename, old, new, selectors in MUTATIONS:
         path = SRC / filename
         original = path.read_bytes()
+        if b"\r\n" not in original:
+            old, new = old.replace(b"\r\n", b"\n"), new.replace(b"\r\n", b"\n")
 
         # A skipped mutation is a failure, not a note: it means the record's
         # "seen RED" figure is wrong.
@@ -269,6 +274,8 @@ def main() -> int:
             if code == 0:
                 print("    *** SURVIVED: the guard has no teeth ***")
                 failures.append(f"{name} (SURVIVED)")
+            elif code != 1:
+                failures.append(f"{name} (NOT PROVEN: no failed test)")
         finally:
             path.write_bytes(original)
             _purge_bytecode(path)

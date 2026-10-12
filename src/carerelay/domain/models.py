@@ -284,6 +284,7 @@ class AttemptSnapshot:
     route_id: str
     consent_version: int
     execution: ExecutionStatus
+    disposition_version: int | None = None
 
 
 @dataclass(frozen=True)
@@ -359,6 +360,10 @@ class EpisodeSnapshot:
     #: escalation exists. `None` whenever `escalation_id` is `None`.
     #: Defaulted, and therefore last, so every existing construction still holds.
     escalated_human_path: str | None = None
+    escalation_outcome: str | None = None
+    accepted_by: str | None = None
+    accepted_scope: str | None = None
+    flow_stop_reason: str | None = None
 
 
 @dataclass(frozen=True)

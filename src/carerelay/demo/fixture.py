@@ -156,6 +156,7 @@ PERMITTED_CHANGE_CODES: frozenset[str] = frozenset()
 #: Surface phrases the resolver accepts, not clinical content. Carried from the
 #: Slice 0 kill-test spike, which is where the K1 corpus was proved.
 ACTION_ALIASES = {
+    ACTION_TEXT.rstrip(".").casefold(): ACTION_ID,
     "go to the clinic": ACTION_ID,
     "attend the clinic": ACTION_ID,
     "go down to the clinic": ACTION_ID,
@@ -179,6 +180,7 @@ OWNER_ALIASES = {
 DEADLINE_FORMS = {
     "today before 18:00": (0, "18:00"),
     "today before 6pm": (0, "18:00"),
+    "before 6pm today": (0, "18:00"),
     "today before six": (0, "18:00"),
     "before six today": (0, "18:00"),
     "by 6 today": (0, "18:00"),

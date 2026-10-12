@@ -146,7 +146,11 @@ MUTATIONS: list[tuple[str, str, bytes, bytes, list[str]]] = [
     (
         "P1  the patient projection drops the simulated label",
         PRESENTATION,
+        b'            "care_evidenced": self.care_evidenced,\n'
+        b'            "simulated": self.simulated,\n'
         b'            "fixture_label": self.fixture_label,\n',
+        b'            "care_evidenced": self.care_evidenced,\n'
+        b'            "simulated": self.simulated,\n'
         b'            "fixture_label": "",\n',
         [
             f"{LABELS}::test_serialized_patient_and_ledger_labels",

@@ -1,6 +1,8 @@
 # Architecture: CareRelay urgent-advice accessibility
 
-**Gate 2: APPROVED 30 September 2026 (revision 3).** Revision 2 was approved on 25 September 2026. Revision 3 amends **D1**, amends **D8** and adds **D13**, encoding four user decisions of 30 September 2026 (D-A to D-D) and Decision **D-1b**. **Revision 3 was re-approved on 30 September 2026.** Authority for the gate state is `00-status.md`.
+**Gate 2: RE-APPROVED 12 October 2026**, narrow truthfulness amendment. The user explicitly approved the section 5.2 amendment the same day; `00-status.md` records the approval and its limits.
+
+**Historical approval: APPROVED 30 September 2026 (revision 3).** Revision 2 was approved on 25 September 2026. Revision 3 amends **D1**, amends **D8** and adds **D13**, encoding four user decisions of 30 September 2026 (D-A to D-D) and Decision **D-1b**. **Revision 3 was re-approved on 30 September 2026.** Authority for the gate state is `00-status.md`.
 
 **Revision 2 incorporated the independent adversarial review at `docs/reviews/gate2-adversarial-review-thorough.md` (verdict: APPROVE WITH CHANGES).** Every blocking change in that review's §5 was applied or explicitly resolved. §11 is the change log.
 
@@ -195,7 +197,35 @@ SQLite (WAL, busy timeout) behind repository interfaces. Clinical tables INSERT-
 
 Symptom-change input → **closed-vocabulary classification (D7)** → `domain` abstention policy → either the emergency/human stop screen renders synchronously, **or** a versioned reassessment inserts disposition v2 — the only code path that may set a new deadline, never rewriting v1.
 
-**Post-stop state (revision 1 left this unreachable and unexitable):** an emergency stop writes an `escalations` row and leaves the episode `escalated_to_human`. That is **terminal for the conversational flow** — re-opening requires a new reassessment, which writes a new disposition version. There is no silent resume.
+**Post-stop state, amendment RE-APPROVED 12 October 2026.**
+[verified] The former rule conflated stopping the automated flow with completing a
+human handoff. The local probes show that no recipient need have accepted anything.
+A stop therefore does not establish `escalated_to_human` or transfer responsibility.
+
+- Persist a `flow_stopped` audit event identifying the current disposition version,
+  reason and approved fallback route. No new table is required. Existing H3,
+  exhausted-repair and barrier-stop records also remain authoritative stop evidence
+  on reload, including records written before this repair.
+- A two-repair stop, H3, refused barrier route or reassessment abstention stops
+  automated restatement scoring, barrier progression and action dispatch for that
+  version. A fresh restatement cannot restart an unfinished repair ladder. Guards
+  apply at service and MCP entry points and survive process restart.
+- Showing or hiding the plan, reading patient/ledger projections, recording consent
+  or revocation, and recording a valid human handoff remain available. They do not
+  clear the stop. In-flight success/evidence callbacks are recorded as refused and
+  cannot progress the stopped plan; failure and duplicate audit records remain.
+- Closure and conversational permission are independent. Without a completed
+  handoff or qualifying evidence/acceptance, retain the approved unresolved (or
+  expired) four lines, the original acting party and original deadline. Only an
+  explicit successful handoff outcome transfers responsibility to its named path.
+- Reopening requires the existing reviewer-authorised reassessment path to write a
+  new disposition version. Earlier stops stay visible in the ledger and cannot
+  stop that new version. Old restatements and action keys cannot authorise it.
+  The demonstration fixture still has no authorised reassessment branch.
+
+[verified] This amendment changes no patient string, clinical threshold, route,
+platform integration or deployment authority. Gate 1 copy is reused. The user
+re-approved this amendment on 12 October 2026; its bounded repair is authorised.
 
 ### 5.3 Scheduled path
 

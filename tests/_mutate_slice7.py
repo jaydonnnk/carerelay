@@ -214,8 +214,8 @@ MUTATIONS: list[tuple[str, str, str, str, list[str]]] = [
     (
         "M10 the secret scanner reports nothing",
         "test_boundaries.py",
-        _b("    return sorted(set(found))\n"),
-        _b("    return []  # mutated: the scanner is blind\n"),
+        _b("    return sorted(set(found))\n\n\ndef _assigned_value(line: str) -> str:\n"),
+        _b("    return []  # mutated: the scanner is blind\n\n\ndef _assigned_value(line: str) -> str:\n"),
         [
             "tests/test_boundaries.py::TestSecretsNeverReachASerializedSurface",
             "tests/test_boundaries.py::TestNoSecretIsCommitted",

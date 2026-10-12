@@ -105,6 +105,9 @@ from .state import (
     DispositionVersionConflict,
     EpisodeNotFound,
     EvidenceProvenanceViolation,
+    FlowStopped,
+    _derive_flow_stop,
+    _attempt_version,
     HintEventRecord,
     IdempotencyKeyCollision,
     LockContention,
@@ -628,6 +631,35 @@ class PostgresEpisodeStore:
                 cur, episode_id, "refused", f"surface={surface} {reason}", now_utc
             )
 
+    def _flow_stop_reason(self, cur, episode_id, version):
+        cur.execute("SELECT disposition_version, hint_level, outcome, repair_round FROM restatements WHERE episode_id = %s", (episode_id,))
+        rounds = cur.fetchall()
+        cur.execute("SELECT disposition_version, stopped_at_human_path FROM barriers WHERE episode_id = %s", (episode_id,))
+        barriers = cur.fetchall()
+        cur.execute("SELECT payload FROM events WHERE episode_id = %s AND kind = 'flow_stopped' ORDER BY id", (episode_id,))
+        events = cur.fetchall()
+        return _derive_flow_stop(version, rounds, barriers, events)
+
+    def _stop_payload(self, cur, episode_id, version, reason):
+        cur.execute("SELECT fallback_route_id FROM dispositions WHERE episode_id = %s AND version_no = %s", (episode_id, version))
+        disposition = cur.fetchone()
+        return json.dumps({"disposition_version": version, "reason": reason,
+                           "human_path": disposition["fallback_route_id"]})
+
+    def record_flow_stop(self, episode_id: str, disposition_version: int, reason: str,
+                         human_path: str, *, now_utc: datetime) -> None:
+        """Persist a versioned stop without claiming a responsibility transfer."""
+        payload = json.dumps({"disposition_version": disposition_version,
+                              "reason": reason, "human_path": human_path})
+        with self._write() as cur:
+            self._append_event(cur, episode_id, "flow_stopped", payload, now_utc)
+
+    def require_active_flow(self, episode_id: str) -> None:
+        snapshot = self.load_snapshot(episode_id)
+        if snapshot.flow_stop_reason is not None:
+            raise FlowStopped(f"disposition {snapshot.disposition.version} stopped: "
+                              f"{snapshot.flow_stop_reason}; authorised reassessment required")
+
     # -- attempts ----------------------------------------------------------
 
     def open_attempt_once(
@@ -792,12 +824,16 @@ class PostgresEpisodeStore:
         is describing.
         """
         transitions = self._list_transitions(cur, row["id"])
+        cur.execute("SELECT kind, payload FROM events WHERE episode_id = %s "
+                    "AND kind IN ('disposition_recorded', 'attempt_opened') ORDER BY id", (row["episode_id"],))
+        version = _attempt_version(row["id"], cur.fetchall())
         return AttemptSnapshot(
             attempt_id=row["id"],
             idempotency_key=row["idempotency_key"],
             route_id=row["route_id"],
             consent_version=int(row["consent_version"]),
             execution=rules.project_attempt(transitions),
+            disposition_version=version,
         )
 
     # -- callbacks ---------------------------------------------------------
@@ -849,7 +885,7 @@ class PostgresEpisodeStore:
             with self._write() as cur:
                 attempt = self._lock_or_absent(
                     cur,
-                    "SELECT id, episode_id, route_id, consent_version FROM attempts "
+                    "SELECT id, episode_id, route_id, consent_version, idempotency_key FROM attempts "
                     "WHERE id = %s FOR UPDATE",
                     (attempt_id,),
                 )
@@ -900,6 +936,13 @@ class PostgresEpisodeStore:
                 reason = self._consent_rejection_reason(
                     cur, episode_id, int(attempt["consent_version"])
                 )
+                cur.execute("SELECT MAX(version_no) AS version FROM dispositions WHERE episode_id = %s", (episode_id,))
+                version = cur.fetchone()["version"]
+                stop_reason = self._flow_stop_reason(cur, episode_id, version)
+                if self._attempt_snapshot(cur, attempt).disposition_version != version:
+                    stop_reason = "superseded disposition"
+                if stop_reason is not None and (result.transition is ExecutionStatus.ACKNOWLEDGED or result.evidence is not None):
+                    reason = "flow stopped: " + stop_reason
                 receipt_id = self._insert_receipt(
                     cur,
                     episode_id=episode_id,
@@ -1189,6 +1232,7 @@ class PostgresEpisodeStore:
         """
         acceptance_id = uuid.uuid4().hex
         with self._write() as cur:
+            self._require_granted_consent(cur, episode_id)
             cur.execute(
                 "INSERT INTO human_acceptances "
                 "(id, episode_id, accepted_by, scope, recorded_at) "
@@ -1247,6 +1291,8 @@ class PostgresEpisodeStore:
                 f"stopped_at_human_path={int(stopped_at_human_path)}",
                 now_utc,
             )
+            if stopped_at_human_path:
+                self._append_event(cur, episode_id, "flow_stopped", self._stop_payload(cur, episode_id, disposition_version, "barrier_stop"), now_utc)
         return barrier_id
 
     def list_barriers(self, episode_id: str) -> tuple[Mapping[str, Any], ...]:
@@ -1501,6 +1547,8 @@ class PostgresEpisodeStore:
                 f"outcome={outcome.value}",
                 now_utc,
             )
+            if rules.restatement_stops(hint_level, outcome, repair_round):
+                self._append_event(cur, episode_id, "flow_stopped", self._stop_payload(cur, episode_id, disposition_version, "planback_stop"), now_utc)
             return restatement_id
 
     def list_restatements(
@@ -1676,13 +1724,13 @@ class PostgresEpisodeStore:
 
             consent = self._fetch_consent(cur, episode_id, CLINICAL_SCOPE)
             cur.execute(
-                "SELECT id FROM human_acceptances WHERE episode_id = %s "
+                "SELECT id, accepted_by, scope FROM human_acceptances WHERE episode_id = %s "
                 "ORDER BY recorded_at DESC, id DESC LIMIT 1",
                 (episode_id,),
             )
             acceptance = cur.fetchone()
             cur.execute(
-                "SELECT id, human_path FROM escalations WHERE episode_id = %s "
+                "SELECT id, human_path, outcome FROM escalations WHERE episode_id = %s "
                 "ORDER BY recorded_at DESC, id DESC LIMIT 1",
                 (episode_id,),
             )
@@ -1697,6 +1745,7 @@ class PostgresEpisodeStore:
                 )
                 expiry = cur.fetchone()
             evidence = self._list_evidence(cur, episode_id)
+            stop_reason = self._flow_stop_reason(cur, episode_id, disposition.version) if disposition else None
 
         return EpisodeSnapshot(
             disposition=disposition,
@@ -1704,7 +1753,11 @@ class PostgresEpisodeStore:
             evidence=evidence,
             consent_version=consent[0] if consent is not None else None,
             human_acceptance_id=acceptance["id"] if acceptance is not None else None,
+            accepted_by=acceptance["accepted_by"] if acceptance is not None else None,
+            accepted_scope=acceptance["scope"] if acceptance is not None else None,
+            flow_stop_reason=stop_reason,
             escalation_id=escalation["id"] if escalation is not None else None,
+            escalation_outcome=escalation["outcome"] if escalation is not None else None,
             escalated_human_path=(
                 escalation["human_path"] if escalation is not None else None
             ),

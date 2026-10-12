@@ -192,6 +192,13 @@ class McpTools:
                 f"{attempt.route_id!r}, not on {route_id!r}"
             )
 
+        self._store.require_active_flow(episode_id)
+        snapshot = self._store.load_snapshot(episode_id)
+        if (snapshot.disposition is None
+                or attempt.disposition_version != snapshot.disposition.version
+                or attempt.attempt_id not in {a.attempt_id for a in self._store.list_attempts(episode_id)}):
+            self._refuse(episode_id, "submit_simulated_request", "attempt is not bound to the current episode/version", now_utc)
+            raise UnknownAttemptKey("attempt is not bound to the current episode/version")
         self._recheck_consent(episode_id, "submit_simulated_request", now_utc)
 
         response = self._provider.submit_request(route_id, attempt_key)
@@ -215,7 +222,13 @@ class McpTools:
         D11 still governs what may be recorded: the store refuses a `documented`
         row that is simulated or unsourced, so a scripted 200 cannot close care.
         """
+        self._store.require_active_flow(episode_id)
         self._recheck_consent(episode_id, "record_evidence", now_utc)
+        try:
+            rules.validate_adapter_evidence(record)
+        except rules.PolicyViolation as exc:
+            self._refuse(episode_id, "record_evidence", str(exc), now_utc)
+            raise
         self._store.record_evidence(episode_id, record, now_utc=now_utc)
         return record.level
 

@@ -39,6 +39,8 @@ it back. Both halves are stated below rather than the flattering one.
 
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Protocol
@@ -154,10 +156,10 @@ class LocalSimulationCoordinator(CoordinatorPort):
 
     Two honest limits, stated rather than hidden:
 
-    * **It never flags doubt.** `ExtractedPlan.uncertain_fields` exists for a
-      coordinator that half-heard an answer; this one either recognises a form
-      or returns `None`, so its `uncertain_fields` is always empty. The field
-      stays in the type because the real coordinator is expected to use it.
+    * **Negation and doubt are conservative uncertainty.** Known forms inside
+      a negated, conditional, alternative or questioning sentence cannot prove
+      understanding. This scanner does not resolve linguistic scope or corrections;
+      it marks affected fields uncertain, never a definite patient mistake.
     * **It recognises only known forms.** A paraphrase outside the policy's
       tables resolves to nothing, and `domain` will call it `uncertain`, never
       a mismatch. That is the correct behaviour for an unknown span, and it is
@@ -184,11 +186,27 @@ class LocalSimulationCoordinator(CoordinatorPort):
     def extract_plan(
         self, confirmed_text: str, allowed_values: AllowedPlanValues
     ) -> ExtractedPlan:
-        text = rules.normalise(confirmed_text)
+        text = rules.normalise(confirmed_text).replace("’", "'")
+        forms = {
+            "action_id": allowed_values.action_forms,
+            "deadline_utc": allowed_values.deadline_forms,
+            "next_owner_id": allowed_values.owner_forms,
+        }
+        spans = {field: _longest_form(text, values) for field, values in forms.items()}
+        uncertain = set()
+        # Keep question marks so a question containing the whole answer cannot pass.
+        for sentence in re.findall(r"[^.!?;]+[.!?;]?", text):
+            if _DOUBT.search(sentence):
+                if _PLAN_REFERENCE.search(sentence):
+                    uncertain.update(forms)
+                for field, values in forms.items():
+                    if _longest_form(sentence, values) is not None:
+                        uncertain.add(field)
         return ExtractedPlan(
-            action_span=_longest_form(text, allowed_values.action_forms),
-            deadline_span=_longest_form(text, allowed_values.deadline_forms),
-            next_owner_span=_longest_form(text, allowed_values.owner_forms),
+            action_span=spans["action_id"],
+            deadline_span=spans["deadline_utc"],
+            next_owner_span=spans["next_owner_id"],
+            uncertain_fields=frozenset(uncertain),
         )
 
     def execute_tool(self, request: ToolRequest, *, now_utc: datetime) -> ToolResult:
@@ -207,6 +225,18 @@ class LocalSimulationCoordinator(CoordinatorPort):
         )
 
 
+# A correction can negate the prior sentence without repeating its fields.
+_PLAN_REFERENCE = re.compile(
+    r"\b(?:it|that|this|actually|will not|won't|do not|don't|cannot|can't|should not|shouldn't)\b"
+    r"|^\s*(?:no|not|never)\s*[.!?;]?\s*$"
+)
+
+_DOUBT = re.compile(
+    r"\b(?:not|no|never|cannot|unsure|uncertain|maybe|perhaps|might|may|could|would|if|or)\b"
+    r"|\b\w+n't\b|\?|不|没|未"
+)
+
+
 def _longest_form(text: str, forms: frozenset[str]) -> str | None:
     """The longest known form appearing in `text`, or `None`.
 
@@ -217,7 +247,14 @@ def _longest_form(text: str, forms: frozenset[str]) -> str | None:
     best: str | None = None
     for form in forms:
         candidate = rules.normalise(form)
-        if candidate and candidate in text:
+        # Latin words must be whole words: "me" inside "appointment" is no owner.
+        # Chinese forms have no spaces between words, so retain their literal match.
+        pattern = re.escape(candidate)
+        if candidate and candidate[0].isascii() and candidate[0].isalnum():
+            pattern = r"(?<!\w)" + pattern
+        if candidate and candidate[-1].isascii() and candidate[-1].isalnum():
+            pattern += r"(?!\w)"
+        if candidate and re.search(pattern, text):
             if best is None or len(candidate) > len(best):
                 best = candidate
     return best

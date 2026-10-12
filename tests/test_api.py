@@ -1270,6 +1270,7 @@ class TestAcceptanceClosesTheHandoffAndNeverEvidencesCare:
     ) -> None:
         """Gate 4's named Slice 10 test. A named acceptance closes the handoff
         obligation and never sets `care_evidenced`."""
+        planback_client.post(f"/api/episodes/{EPISODE}/consents", json={"granted": True})
         response = planback_client.post(
             f"/api/episodes/{EPISODE}/acceptances",
             json={"accepted_by": "caregiver", "accepted_scope": "handoff"},
@@ -1287,6 +1288,7 @@ class TestAcceptanceClosesTheHandoffAndNeverEvidencesCare:
         """F4, closed 8 October 2026. The derived screen serves the approved
         resolved rendering, and an acceptance alone says "agreed": it never
         sets `care_evidenced`, so line 1 never claims care happened."""
+        planback_client.post(f"/api/episodes/{EPISODE}/consents", json={"granted": True})
         planback_client.post(
             f"/api/episodes/{EPISODE}/acceptances", json={"accepted_by": "caregiver"}
         )

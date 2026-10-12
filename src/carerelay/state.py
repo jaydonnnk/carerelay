@@ -187,6 +187,41 @@ class ConsentNotCurrent(StateError):
     """
 
 
+class FlowStopped(StateError):
+    """The current disposition cannot resume automated work without reassessment."""
+
+
+def _attempt_version(attempt_id, events):
+    """Bind an existing attempt using the atomically written ordered audit log.
+
+    Event ids, unlike timestamps or UUIDs, retain insertion order on both stores.
+    This also covers pre-repair attempts without guessing from the current plan.
+    """
+    version = None
+    for event in events:
+        if event["kind"] == "disposition_recorded":
+            version = int(event["payload"].split()[0].removeprefix("version="))
+        elif event["payload"].startswith(f"attempt={attempt_id} "):
+            return version
+    return None
+
+
+def _derive_flow_stop(version, rounds, barriers, events):
+    for row in events:
+        payload = json.loads(row["payload"])
+        if payload["disposition_version"] == version:
+            return payload["reason"]
+    for row in rounds:
+        if row["disposition_version"] == version and rules.restatement_stops(
+            HintLevel(row["hint_level"]), RecallOutcome(row["outcome"]), row["repair_round"]
+        ):
+            return "planback_stop"
+    for row in barriers:
+        if row["disposition_version"] == version and row["stopped_at_human_path"]:
+            return "barrier_stop"
+    return None
+
+
 class EvidenceProvenanceViolation(StateError):
     """A row claiming `documented` without a non-simulated, sourced artefact (D11)."""
 
@@ -988,6 +1023,31 @@ class SqliteEpisodeStore:
                 episode_id, "refused", f"surface={surface} {reason}", now_utc
             )
 
+    def _flow_stop_reason(self, episode_id, version):
+        rounds = self._conn.execute("SELECT disposition_version, hint_level, outcome, repair_round FROM restatements WHERE episode_id = ?", (episode_id,)).fetchall()
+        barriers = self._conn.execute("SELECT disposition_version, stopped_at_human_path FROM barriers WHERE episode_id = ?", (episode_id,)).fetchall()
+        events = self._conn.execute("SELECT payload FROM events WHERE episode_id = ? AND kind = 'flow_stopped' ORDER BY id", (episode_id,)).fetchall()
+        return _derive_flow_stop(version, rounds, barriers, events)
+
+    def _stop_payload(self, episode_id, version, reason):
+        disposition = self._conn.execute("SELECT fallback_route_id FROM dispositions WHERE episode_id = ? AND version_no = ?", (episode_id, version)).fetchone()
+        return json.dumps({"disposition_version": version, "reason": reason,
+                           "human_path": disposition["fallback_route_id"]})
+
+    def record_flow_stop(self, episode_id: str, disposition_version: int, reason: str,
+                         human_path: str, *, now_utc: datetime) -> None:
+        """Persist a versioned stop without claiming a responsibility transfer."""
+        payload = json.dumps({"disposition_version": disposition_version,
+                              "reason": reason, "human_path": human_path})
+        with self._write():
+            self._append_event(episode_id, "flow_stopped", payload, now_utc)
+
+    def require_active_flow(self, episode_id: str) -> None:
+        snapshot = self.load_snapshot(episode_id)
+        if snapshot.flow_stop_reason is not None:
+            raise FlowStopped(f"disposition {snapshot.disposition.version} stopped: "
+                              f"{snapshot.flow_stop_reason}; authorised reassessment required")
+
     # -- attempts ----------------------------------------------------------
 
     def open_attempt_once(
@@ -1095,12 +1155,16 @@ class SqliteEpisodeStore:
 
     def _attempt_snapshot(self, row: sqlite3.Row) -> AttemptSnapshot:
         transitions = self.list_transitions(row["id"])
+        events = self._conn.execute("SELECT kind, payload FROM events WHERE episode_id = ? "
+                                    "AND kind IN ('disposition_recorded', 'attempt_opened') ORDER BY id", (row["episode_id"],)).fetchall()
+        version = _attempt_version(row["id"], events)
         return AttemptSnapshot(
             attempt_id=row["id"],
             idempotency_key=row["idempotency_key"],
             route_id=row["route_id"],
             consent_version=int(row["consent_version"]),
             execution=rules.project_attempt(transitions),
+            disposition_version=version,
         )
 
     # -- callbacks ---------------------------------------------------------
@@ -1186,6 +1250,12 @@ class SqliteEpisodeStore:
             reason = self._consent_rejection_reason(
                 attempt["episode_id"], int(attempt["consent_version"])
             )
+            version = self._conn.execute("SELECT MAX(version_no) FROM dispositions WHERE episode_id = ?", (attempt["episode_id"],)).fetchone()[0]
+            stop_reason = self._flow_stop_reason(attempt["episode_id"], version)
+            if self._attempt_snapshot(attempt).disposition_version != version:
+                stop_reason = "superseded disposition"
+            if stop_reason is not None and (result.transition is ExecutionStatus.ACKNOWLEDGED or result.evidence is not None):
+                reason = "flow stopped: " + stop_reason
             receipt_id = self._insert_receipt(
                 episode_id=attempt["episode_id"],
                 route_id=attempt["route_id"],
@@ -1411,6 +1481,7 @@ class SqliteEpisodeStore:
         """
         acceptance_id = uuid.uuid4().hex
         with self._write():
+            self.require_granted_consent(episode_id)
             self._conn.execute(
                 "INSERT INTO human_acceptances "
                 "(id, episode_id, accepted_by, scope, recorded_at) VALUES (?, ?, ?, ?, ?)",
@@ -1470,6 +1541,8 @@ class SqliteEpisodeStore:
                 f"stopped_at_human_path={int(stopped_at_human_path)}",
                 now_utc,
             )
+            if stopped_at_human_path:
+                self._append_event(episode_id, "flow_stopped", self._stop_payload(episode_id, disposition_version, "barrier_stop"), now_utc)
         return barrier_id
 
     def list_barriers(self, episode_id: str) -> tuple[Mapping[str, Any], ...]:
@@ -1698,6 +1771,8 @@ class SqliteEpisodeStore:
                 f"outcome={outcome.value}",
                 now_utc,
             )
+            if rules.restatement_stops(hint_level, outcome, repair_round):
+                self._append_event(episode_id, "flow_stopped", self._stop_payload(episode_id, disposition_version, "planback_stop"), now_utc)
             return restatement_id
 
     def list_restatements(
@@ -1847,13 +1922,14 @@ class SqliteEpisodeStore:
         )
 
         current = self._current_consent(episode_id, CLINICAL_SCOPE)
+        stop_reason = self._flow_stop_reason(episode_id, disposition.version) if disposition else None
         acceptance = self._conn.execute(
-            "SELECT id FROM human_acceptances WHERE episode_id = ? "
+            "SELECT id, accepted_by, scope FROM human_acceptances WHERE episode_id = ? "
             "ORDER BY rowid DESC LIMIT 1",
             (episode_id,),
         ).fetchone()
         escalation = self._conn.execute(
-            "SELECT id, human_path FROM escalations WHERE episode_id = ? "
+            "SELECT id, human_path, outcome FROM escalations WHERE episode_id = ? "
             "ORDER BY rowid DESC LIMIT 1",
             (episode_id,),
         ).fetchone()
@@ -1873,7 +1949,11 @@ class SqliteEpisodeStore:
             evidence=self.list_evidence(episode_id),
             consent_version=current[0] if current is not None else None,
             human_acceptance_id=acceptance["id"] if acceptance is not None else None,
+            accepted_by=acceptance["accepted_by"] if acceptance is not None else None,
+            accepted_scope=acceptance["scope"] if acceptance is not None else None,
+            flow_stop_reason=stop_reason,
             escalation_id=escalation["id"] if escalation is not None else None,
+            escalation_outcome=escalation["outcome"] if escalation is not None else None,
             escalated_human_path=(
                 escalation["human_path"] if escalation is not None else None
             ),
@@ -1960,6 +2040,8 @@ class EpisodeStore(Protocol):
     def list_callbacks(self, episode_id: str) -> tuple[CallbackReceipt, ...]: ...
     def record_evidence(self, episode_id: str, record: EvidenceRecord, *, now_utc: datetime) -> None: ...
     def list_evidence(self, episode_id: str) -> tuple[EvidenceRecord, ...]: ...
+    def record_flow_stop(self, episode_id: str, disposition_version: int, reason: str, human_path: str, *, now_utc: datetime) -> None: ...
+    def require_active_flow(self, episode_id: str) -> None: ...
     def record_human_acceptance(self, episode_id: str, *, accepted_by: str, scope: str, now_utc: datetime) -> str: ...
     def record_barrier(self, episode_id: str, *, disposition_version: int, barrier_text: str, proposed_route_id: str | None, permitted_route_id: str | None, stopped_at_human_path: bool, now_utc: datetime) -> str: ...
     def list_barriers(self, episode_id: str) -> tuple[Mapping[str, Any], ...]: ...

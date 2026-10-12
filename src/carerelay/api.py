@@ -35,7 +35,7 @@ import threading
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -49,7 +49,6 @@ from carerelay.demo import fixture
 from carerelay.domain.rules import (
     NoDispositionToRender,
     PolicyViolation,
-    UnpermittedTransition,
 )
 from carerelay.domain.models import (
     CallbackResult,
@@ -308,8 +307,10 @@ app.mount(
     name="static",
 )
 
-# Slice 1 only: one in-memory episode, used by the two tracer-bullet routes.
-_OPEN_EPISODES: set[str] = set()
+@app.exception_handler(EpisodeNotFound)
+async def episode_not_found(request: Request, exc: EpisodeNotFound) -> JSONResponse:
+    """The durable record, not a process-local registry, owns episode existence."""
+    return JSONResponse(status_code=404, content={"detail": "episode not found"})
 
 
 # ---------------------------------------------------------------------------
@@ -469,7 +470,6 @@ def create_episode(
     episode to exist as real state. That is idempotent, and it still writes no
     disposition.
     """
-    _OPEN_EPISODES.add(fixture.DEMO_EPISODE_ID)
     with _DB_LOCK:
         service.ensure_episode(fixture.DEMO_EPISODE_ID, "fictional older adult")
     return EpisodeCreated(
@@ -518,8 +518,6 @@ def get_episode(
     covers all four states the Closure Contract can derive and this route no
     longer needs a refusal branch for a resolved episode.
     """
-    if episode_id not in _OPEN_EPISODES:
-        raise HTTPException(status_code=404, detail="episode not found")
     with _DB_LOCK:
         try:
             surface = service.project_patient(episode_id)
@@ -554,8 +552,6 @@ def get_options(
     approved display text raises rather than printing its internal identifier,
     which is the same rule `domain.patient_lines` applies to a route name.
     """
-    if episode_id not in _OPEN_EPISODES:
-        raise HTTPException(status_code=404, detail="episode not found")
     with _DB_LOCK:
         return service.permitted_options(episode_id).as_dict()
 
@@ -594,8 +590,6 @@ def get_ledger(
     patient surface (`PLAN.md` 5.2.1, constraint C8), which is why the hint
     response above has no such field.
     """
-    if episode_id not in _OPEN_EPISODES:
-        raise HTTPException(status_code=404, detail="episode not found")
     with _DB_LOCK:
         return service.project_ledger(episode_id).as_dict()
 
@@ -1025,7 +1019,7 @@ def record_barrier(
             )
     except EpisodeNotFound:
         raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
-    except NoDispositionYet as exc:
+    except (NoDispositionYet, StateError) as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     except PolicyViolation as exc:
         raise HTTPException(
@@ -1109,7 +1103,7 @@ def record_acceptance(
             )
     except EpisodeNotFound:
         raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
-    except NoDispositionYet as exc:
+    except (NoDispositionYet, StateError) as exc:
         raise HTTPException(status_code=409, detail=str(exc))
     except PolicyViolation as exc:
         raise HTTPException(status_code=422, detail=str(exc))
@@ -1399,7 +1393,7 @@ def receive_callback(
         )
     except StateError as exc:
         raise HTTPException(status_code=409, detail=str(exc))
-    except UnpermittedTransition as exc:
+    except PolicyViolation as exc:
         raise HTTPException(status_code=422, detail=str(exc))
     return CallbackResponse(
         episode_id=episode_id,

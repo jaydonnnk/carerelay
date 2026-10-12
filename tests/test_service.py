@@ -256,7 +256,8 @@ class TestRecordedOutcomes:
     def test_h3_is_not_recalled_even_when_its_comparison_is_clean(self, service, assessed):
         """The plan was revealed. That is never a comprehension pass (C6)."""
         outcome = service.submit_restatement(assessed, CORRECT, HintLevel.H3)
-        assert outcome.understood is True
+        assert outcome.understood is False
+        assert outcome.routes_to_human_path is True
         assert outcome.outcome is RecallOutcome.NOT_RECALLED
 
     def test_a_mismatched_round_records_not_recalled(
@@ -495,6 +496,9 @@ class TestGuardsHaveTeeth:
     ) -> None:
         monkeypatch.setattr(service_module, "MAX_REPAIR_ROUNDS", 5)
         monkeypatch.setattr(state_module, "MAX_REPAIR_ROUNDS", 5)
+        # The durable-stop rule now owns the same cap in domain. Mutate all
+        # three copies for this deliberately broken-cap control.
+        monkeypatch.setattr(rules, "MAX_REPAIR_ROUNDS", 5)
         service = _build(store)
         outcome = service.submit_restatement(assessed, WRONG_DAY, HintLevel.H0)
         first = service.repair_restatement(outcome.restatement_id, WRONG_DAY, HintLevel.H0)

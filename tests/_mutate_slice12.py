@@ -141,12 +141,8 @@ MUTATIONS: list[tuple[str, str, bytes, bytes, list[str]]] = [
     (
         "L8  the ledger route loses its 404 guard",
         API,
-        b"    if episode_id not in _OPEN_EPISODES:\n"
-        b'        raise HTTPException(status_code=404, detail="episode not found")\n'
-        b"    with _DB_LOCK:\n"
-        b"        return service.project_ledger(episode_id).as_dict()\n",
-        b"    with _DB_LOCK:\n"
-        b"        return service.project_ledger(episode_id).as_dict()\n",
+        b'    return JSONResponse(status_code=404, content={"detail": "episode not found"})\n',
+        b'    return JSONResponse(status_code=200, content={"detail": "episode not found"})\n',
         [NOTFOUND],
     ),
     (

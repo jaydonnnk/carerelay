@@ -1118,7 +1118,7 @@ class TestClosureDerivation:
 
     def test_a_human_acceptance_before_the_deadline_closes_the_handoff_only(self) -> None:
         projection = rules.derive_closure(
-            empty_snapshot(human_acceptance_id="accept-1"), SCENARIO_NOW_UTC
+            empty_snapshot(human_acceptance_id="accept-1", accepted_by="caregiver", accepted_scope="handoff"), SCENARIO_NOW_UTC
         )
         assert projection.closure is ClosureState.CLOSED_WITH_EVIDENCE
         assert projection.care_evidenced is False
@@ -1127,7 +1127,7 @@ class TestClosureDerivation:
     def test_an_escalation_before_the_deadline_is_escalated_to_human(self) -> None:
         projection = rules.derive_closure(
             empty_snapshot(
-                escalation_id="escalation-1", escalated_human_path="nurse_line"
+                escalation_id="escalation-1", escalation_outcome="handed_off", escalated_human_path="nurse_line"
             ),
             SCENARIO_NOW_UTC,
         )
@@ -1141,7 +1141,7 @@ class TestClosureDerivation:
         after = local_deadline() + timedelta(minutes=1)
         projection = rules.derive_closure(
             empty_snapshot(
-                escalation_id="escalation-1", escalated_human_path="nurse_line"
+                escalation_id="escalation-1", escalation_outcome="handed_off", escalated_human_path="nurse_line"
             ),
             after,
         )
@@ -1156,7 +1156,7 @@ class TestClosureDerivation:
         """
         with pytest.raises(rules.DomainError, match="names no human path"):
             rules.derive_closure(
-                empty_snapshot(escalation_id="escalation-1"), SCENARIO_NOW_UTC
+                empty_snapshot(escalation_id="escalation-1", escalation_outcome="handed_off"), SCENARIO_NOW_UTC
             )
 
     def test_a_non_escalated_episode_still_names_the_patient(self) -> None:
@@ -1174,7 +1174,7 @@ class TestClosureDerivation:
         """
         after = local_deadline() + timedelta(minutes=1)
         projection = rules.derive_closure(
-            empty_snapshot(human_acceptance_id="accept-1"), after
+            empty_snapshot(human_acceptance_id="accept-1", accepted_by="caregiver", accepted_scope="handoff"), after
         )
         assert projection.closure is ClosureState.EXPIRED_UNRESOLVED
         assert projection.care_evidenced is False
@@ -1504,9 +1504,9 @@ class TestPatientLines:
         before = self._lines(empty_snapshot())
         after = self._lines(empty_snapshot(), local_deadline() + timedelta(minutes=1))
         documented = self._lines(empty_snapshot(evidence=(DOCUMENTED_REAL,)))
-        agreed = self._lines(empty_snapshot(human_acceptance_id="acceptance-1"))
+        agreed = self._lines(empty_snapshot(human_acceptance_id="acceptance-1", accepted_by="caregiver", accepted_scope="handoff"))
         escalated = self._lines(
-            empty_snapshot(escalation_id="escalation-1", escalated_human_path="nurse_line")
+            empty_snapshot(escalation_id="escalation-1", escalation_outcome="handed_off", escalated_human_path="nurse_line")
         )
         for rendering in (before, after, documented, agreed, escalated):
             for line in rendering:
@@ -1523,9 +1523,9 @@ class TestPatientLines:
         before = self._lines(empty_snapshot())
         after = self._lines(empty_snapshot(), local_deadline() + timedelta(minutes=1))
         documented = self._lines(empty_snapshot(evidence=(DOCUMENTED_REAL,)))
-        agreed = self._lines(empty_snapshot(human_acceptance_id="acceptance-1"))
+        agreed = self._lines(empty_snapshot(human_acceptance_id="acceptance-1", accepted_by="caregiver", accepted_scope="handoff"))
         escalated = self._lines(
-            empty_snapshot(escalation_id="escalation-1", escalated_human_path="nurse_line")
+            empty_snapshot(escalation_id="escalation-1", escalation_outcome="handed_off", escalated_human_path="nurse_line")
         )
         joined = " ".join(before + after + documented + agreed + escalated).casefold()
         for banned in (
@@ -1560,7 +1560,7 @@ class TestPatientLines:
         """A recorded acceptance with no documented evidence. The two resolved
         cases must not share line 1 (F4): a promise is not evidence, so an
         acceptance alone never says care happened."""
-        snapshot = empty_snapshot(human_acceptance_id="acceptance-1")
+        snapshot = empty_snapshot(human_acceptance_id="acceptance-1", accepted_by="caregiver", accepted_scope="handoff")
         closure = rules.derive_closure(snapshot, SCENARIO_NOW_UTC)
         assert closure.closure is ClosureState.CLOSED_WITH_EVIDENCE
         assert closure.care_evidenced is False
@@ -1576,7 +1576,7 @@ class TestPatientLines:
         handoff went to, which `derive_closure` carries as `action_owner_id`;
         the patient is never told to act on a plan that has been handed away."""
         snapshot = empty_snapshot(
-            escalation_id="escalation-1", escalated_human_path="nurse_line"
+            escalation_id="escalation-1", escalation_outcome="handed_off", escalated_human_path="nurse_line"
         )
         closure = rules.derive_closure(snapshot, SCENARIO_NOW_UTC)
         assert closure.closure is ClosureState.ESCALATED_TO_HUMAN
@@ -1593,7 +1593,7 @@ class TestPatientLines:
         """No internal identifier may reach the patient surface. An escalated
         human path the policy cannot display refuses rather than printing it."""
         snapshot = empty_snapshot(
-            escalation_id="escalation-1", escalated_human_path="route-9"
+            escalation_id="escalation-1", escalation_outcome="handed_off", escalated_human_path="route-9"
         )
         closure = rules.derive_closure(snapshot, SCENARIO_NOW_UTC)
         assert closure.closure is ClosureState.ESCALATED_TO_HUMAN

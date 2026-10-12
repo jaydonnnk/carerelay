@@ -86,6 +86,7 @@ from carerelay.state import (
     DEFAULT_KEY_NAMESPACE,
     EpisodeNotFound,
     EpisodeStore,
+    FlowStopped,
     RestatementNotFound,
     derive_attempt_key,
 )
@@ -244,7 +245,7 @@ class RestatementOutcome:
         read-back would repair nothing and the patient would reach the human path
         every time. K1 must not be passable by refusing to commit.
         """
-        return not self.comparison.mismatched and not self.comparison.uncertain
+        return self.hint_level is not HintLevel.H3 and not self.comparison.mismatched and not self.comparison.uncertain
 
 
 @dataclass(frozen=True)
@@ -582,6 +583,12 @@ class EpisodeService:
         Raises `CoordinatorUnavailable` when the coordinator cannot answer, in
         which case nothing is recorded and no outcome exists.
         """
+        self._store.require_active_flow(episode_id)
+        snapshot = self._store.load_snapshot(episode_id)
+        rounds = [row for row in self._store.list_restatements(episode_id)
+                  if snapshot.disposition and row.disposition_version == snapshot.disposition.version]
+        if rounds and rounds[-1].outcome is RecallOutcome.NOT_RECALLED:
+            raise FlowStopped("unfinished repair ladder; use the latest restatement's repair endpoint")
         return self._score(
             episode_id,
             confirmed_text,
@@ -621,6 +628,9 @@ class EpisodeService:
         parent = self._store.get_restatement(restatement_id)
         if episode_id is not None and parent.episode_id != episode_id:
             raise RestatementNotFound(restatement_id)
+        snapshot = self._store.load_snapshot(parent.episode_id)
+        if snapshot.disposition is None or parent.disposition_version != snapshot.disposition.version:
+            raise StaleRestatement("restatement belongs to a superseded disposition")
         rounds = self._store.list_restatements(parent.episode_id)
         latest_id = rounds[-1].restatement_id if rounds else None
         if latest_id != restatement_id:
@@ -673,6 +683,7 @@ class EpisodeService:
                 f"episode {episode_id!r} has no disposition, so there is no plan "
                 "for a barrier to be reported against"
             )
+        self._store.require_active_flow(episode_id)
         now_utc = self._clock.now_utc()
         permitted_route_id: str | None = None
         if proposed_route_id is not None:
@@ -727,8 +738,9 @@ class EpisodeService:
         Escalating twice is allowed, and both records stand. The later one is the
         current handoff (`load_snapshot` takes the latest) and the earlier one
         stays in the record, which is what an append-only history is for. F6
-        reads this record: from the moment it exists, the acting party is the
-        human path, not the patient.
+        reads the outcome: `handed_off` and the legacy `handed_over` transfer
+        responsibility. Failed,
+        attempted or unknown outcomes remain unresolved with the original owner.
         """
         snapshot = self._store.load_snapshot(episode_id)
         if snapshot.disposition is None:
@@ -785,6 +797,8 @@ class EpisodeService:
                 "handoff obligation for an acceptance to close"
             )
         validated = rules.validate_owner(accepted_by, self._policy.permitted_owner_ids)
+        if not rules.handoff_is_transfer(validated, accepted_scope, snapshot.disposition.next_owner_id):
+            raise rules.PolicyViolation("acceptance must transfer the handoff to another named party")
         acceptance_id = self._store.record_human_acceptance(
             episode_id,
             accepted_by=validated,
@@ -914,6 +928,7 @@ class EpisodeService:
                     "attempt_id": attempt.attempt_id,
                     "route_id": attempt.route_id,
                     "consent_version": attempt.consent_version,
+                    "disposition_version": attempt.disposition_version,
                     "execution": attempt.execution.value,
                     "transitions": [
                         {
@@ -1006,10 +1021,15 @@ class EpisodeService:
             escalation = {
                 "escalation_id": snapshot.escalation_id,
                 "human_path": snapshot.escalated_human_path,
+                "outcome": snapshot.escalation_outcome,
             }
         acceptance = None
         if snapshot.human_acceptance_id is not None:
-            acceptance = {"acceptance_id": snapshot.human_acceptance_id}
+            acceptance = {
+                "acceptance_id": snapshot.human_acceptance_id,
+                "accepted_by": snapshot.accepted_by,
+                "scope": snapshot.accepted_scope,
+            }
 
         dwell_values = [
             value
@@ -1041,6 +1061,8 @@ class EpisodeService:
                 "action_owner_id": closure.action_owner_id,
                 "care_evidenced": closure.care_evidenced,
                 "simulated": closure.simulated,
+                "flow_stopped": snapshot.flow_stop_reason is not None,
+                "flow_stop_reason": snapshot.flow_stop_reason,
             },
             disposition_version=(
                 snapshot.disposition.version
@@ -1179,6 +1201,11 @@ class EpisodeService:
             self._store.insert_disposition(authorised, now_utc=self._clock.now_utc())
             new_version = authorised.version
         stops = decision.outcome is ReassessmentOutcome.STOP_AT_HUMAN_PATH
+        if stops:
+            self._store.record_flow_stop(
+                episode_id, snapshot.disposition.version, "reassessment_stop",
+                snapshot.disposition.fallback_route_id, now_utc=self._clock.now_utc(),
+            )
         return ReassessmentResult(
             episode_id=episode_id,
             outcome=decision.outcome,
@@ -1242,6 +1269,7 @@ class EpisodeService:
                 f"episode {episode_id!r} has no disposition, so there is no plan "
                 "with a permitted route to act on"
             )
+        self._store.require_active_flow(episode_id)
         route = rules.validate_route(route_id, self._policy.permitted_route_ids)
         if snapshot.consent_version is None:
             raise ConsentRequired(
@@ -1256,6 +1284,8 @@ class EpisodeService:
 
         existing = self._store.get_attempt_by_key(key)
         if existing is not None:
+            if existing.disposition_version != snapshot.disposition.version:
+                raise FlowStopped("attempt belongs to a superseded disposition; use a new purpose")
             return ActionOutcome(
                 episode_id=episode_id,
                 attempt_id=existing.attempt_id,
@@ -1355,6 +1385,15 @@ class EpisodeService:
                 "so a callback for it has nothing to answer"
             )
         attempt = attempts[-1]
+        if result.evidence is not None:
+            try:
+                rules.validate_adapter_evidence(result.evidence)
+            except rules.PolicyViolation as exc:
+                self._store.record_refusal(
+                    episode_id, surface="callback_evidence", reason=str(exc),
+                    now_utc=self._clock.now_utc(),
+                )
+                raise
         receipt = self._store.record_callback_once(
             attempt.attempt_id,
             callback_key,
@@ -1484,6 +1523,7 @@ class EpisodeService:
                 f"episode {episode_id!r} has no disposition, so there is no "
                 "approved plan for a restatement to be compared against"
             )
+        self._store.require_active_flow(episode_id)
         self._require_scorable(
             episode_id, mode, transcript_confirmation_id, confirmed_text
         )
@@ -1503,11 +1543,11 @@ class EpisodeService:
             display_tz=self._display_tz,
         )
 
-        understood = not comparison.mismatched and not comparison.uncertain
+        understood = level is not HintLevel.H3 and not comparison.mismatched and not comparison.uncertain
         outcome = (
             RECALL_OUTCOME_BY_LEVEL[level] if understood else RecallOutcome.NOT_RECALLED
         )
-        next_field = rules.next_repair(comparison, repair_round)
+        next_field = None if level is HintLevel.H3 else rules.next_repair(comparison, repair_round)
         routes_to_human_path = not understood and next_field is None
 
         restatement_id = self._store.record_restatement(

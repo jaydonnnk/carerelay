@@ -88,6 +88,7 @@ from carerelay.domain.models import (
     PolicyFixture,
     PolicyText,
     ReassessmentOutcome,
+    RecallOutcome,
     StopOrFixtureDecision,
 )
 
@@ -348,6 +349,13 @@ def compare_plan(
     return PlanComparison(frozenset(matched), frozenset(mismatched), frozenset(uncertain))
 
 
+def restatement_stops(level: HintLevel, outcome: RecallOutcome, repair_round: int) -> bool:
+    """C6: H3 never proves comprehension; an exhausted failed ladder stops."""
+    return level is HintLevel.H3 or (
+        repair_round >= MAX_REPAIR_ROUNDS and outcome is RecallOutcome.NOT_RECALLED
+    )
+
+
 def next_repair(comparison: PlanComparison, completed_rounds: int) -> str | None:
     """The next field to repair, or `None` when no further round is offered.
 
@@ -422,6 +430,16 @@ def project_attempt(transitions: Sequence[AttemptTransition]) -> ExecutionStatus
     return ordered[0].kind
 
 
+def validate_adapter_evidence(record: EvidenceRecord) -> None:
+    """This build has only simulated adapters, with no real artefact verifier.
+
+    A caller's label or source reference cannot establish authenticity. Trusted
+    repository fixtures can exercise documented rendering; adapter inputs cannot.
+    """
+    if not record.simulated:
+        raise PolicyViolation("non-simulated evidence has no verified ingestion path")
+
+
 def _strongest_evidence(records: Sequence[EvidenceRecord]) -> EvidenceLevel:
     """The evidence axis, with D11 enforced here as well as in the database.
 
@@ -441,6 +459,20 @@ def _strongest_evidence(records: Sequence[EvidenceRecord]) -> EvidenceLevel:
     return level
 
 
+def handoff_is_transfer(accepted_by: str | None, scope: str | None, owner: str) -> bool:
+    """An acceptance must cover this handoff and move work off the patient."""
+    return scope == "handoff" and bool(accepted_by) and accepted_by not in {"patient", owner}
+
+
+def _has_handoff_acceptance(snapshot: EpisodeSnapshot) -> bool:
+    return (
+        snapshot.human_acceptance_id is not None
+        and snapshot.disposition is not None
+        and handoff_is_transfer(snapshot.accepted_by, snapshot.accepted_scope,
+                                snapshot.disposition.next_owner_id)
+    )
+
+
 def derive_closure(snapshot: EpisodeSnapshot, now_utc: datetime) -> ClosureProjection:
     """Derive the closure state. Nothing in the system can write "resolved" (D4).
 
@@ -456,7 +488,7 @@ def derive_closure(snapshot: EpisodeSnapshot, now_utc: datetime) -> ClosureProje
        passed with nothing to show for it is invariant I2.
     3. A recorded human acceptance: closes the handoff obligation.
        `care_evidenced` stays false, so no surface may say care occurred.
-    4. A recorded escalation: handed to a named human path, deadline still
+    4. A recorded successful escalation: handed to a named human path, deadline still
        visible.
     5. Otherwise `open`.
 
@@ -509,9 +541,9 @@ def derive_closure(snapshot: EpisodeSnapshot, now_utc: datetime) -> ClosureProje
         closure = ClosureState.CLOSED_WITH_EVIDENCE
     elif expired:
         closure = ClosureState.EXPIRED_UNRESOLVED
-    elif snapshot.human_acceptance_id is not None:
+    elif _has_handoff_acceptance(snapshot):
         closure = ClosureState.CLOSED_WITH_EVIDENCE
-    elif snapshot.escalation_id is not None:
+    elif snapshot.escalation_id is not None and snapshot.escalation_outcome in {"handed_off", "handed_over"}:
         closure = ClosureState.ESCALATED_TO_HUMAN
     else:
         closure = ClosureState.OPEN
@@ -534,11 +566,13 @@ def _action_owner(
 ) -> str | None:
     """Who must act now. F6, decided at Slice 5; see `derive_closure`.
 
-    An escalation moves the obligation to the named human path. Without an
-    escalation the owner is the disposition's own `next_owner_id`, which is the
-    pre-Slice-5 behaviour and is unchanged for every non-escalated episode.
+    A relevant acceptance names its accepting party. A successful escalation
+    moves the obligation to the named human path. Failed or unconfirmed records
+    leave the disposition's own `next_owner_id` responsible.
     """
-    if snapshot.escalation_id is None:
+    if _has_handoff_acceptance(snapshot):
+        return snapshot.accepted_by
+    if snapshot.escalation_id is None or snapshot.escalation_outcome not in {"handed_off", "handed_over"}:
         return disposition.next_owner_id if disposition is not None else None
     if snapshot.escalated_human_path is None:
         raise DomainError(

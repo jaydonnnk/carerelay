@@ -285,6 +285,7 @@ class TestLedgerCarriesDwellSeconds:
 
 class TestLedgerCarriesTheClosureInputs:
     def test_an_acceptance_shows_in_the_ledger(self, client: TestClient, assessed):
+        client.post(f"/api/episodes/{EPISODE}/consents", json={"granted": True})
         client.post(f"/api/episodes/{EPISODE}/acceptances", json={"accepted_by": "caregiver"})
         body = client.get(f"/api/episodes/{assessed}/ledger").json()
         assert body["acceptance"] is not None
