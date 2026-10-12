@@ -1,5 +1,29 @@
 # CareRelay: project and execution instructions
 
+**12 October 2026, Gate 1 re-approval and shipping. [verified]** The user
+explicitly approved the concise patient journey, labelled visual cues and copy,
+and authorised committing the current working tree and pushing to main. Gate 1
+is RE-APPROVED; `00-status.md` carries the approval history and checklist. The
+inherited truthfulness repairs are included in that shipping request. Fresh full
+suite: 945 passed, 46 Postgres skips, one existing warning. The next step is Gate 2
+architecture for the journey and proposed ADP interpretation. That integration
+and the new production UI require their later design and slice approvals.
+
+**12 October 2026, truthfulness repair gate note. [verified]** Gate 2 was reopened
+and explicitly RE-APPROVED the same day for the durable-stop rule in
+`02-architecture.md` section 5.2; `00-status.md` records the approval. A stopped flow is not proof of a completed
+human handoff. The proposal reuses approved unresolved copy and the original
+deadline, blocks automated continuation across reload, and allows reopening only
+through an authorised new disposition version. Gates 1, 3 and 4 are untouched.
+Issues 1 to 3 repair existing contracts; the durable-stop repair is now authorised.
+[verified] Repairs are complete locally and committed in `b652de0`: 945 passed, 46 Postgres
+skips, 39/39 truthfulness mutations RED. See
+`docs/reviews/truthfulness-repairs-2026-10-12.md` for failing-before evidence,
+changed mechanisms and limitations. Real evidence ingestion remains unavailable;
+SQLite results are not deployed-store proof. No commit, merge, push, install or
+deployment was performed or authorised by this repair run.
+
+
 These instructions combine CareRelay's product and clinical-safety constraints with
 the repository's execution rules. Product authority, clinical boundaries and evidence
 labels always take precedence over generic workflow convenience.
