@@ -1,0 +1,463 @@
+<!doctype html>
+<html lang="en" data-palette="plum">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>CareRelay | Patient plan design preview</title>
+  <!--
+    Throwaway design proposal, 11 October 2026. Not a deployed patient screen.
+    Layout follows the recommendation wireframe: action, deadline, unresolved
+    status, then an optional read-back. Existing fixture wording is quoted from
+    src/carerelay/demo/fixture.py and the approved unresolved patient rendering.
+    The expanded hierarchy and control labels are proposals for review.
+    No assessment, booking, messaging, AI call, storage or external request occurs.
+    First pass is grayscale; the two proposed palettes share this exact layout.
+  -->
+  <style>
+    :root {
+      --oat: #f2f2f2;
+      --paper: #ffffff;
+      --brand: #333333;
+      --brand-hover: #202020;
+      --brand-soft: #e8e8e8;
+      --accent: #c6c6c6;
+      --accent-soft: #f1f1f1;
+      --ink: #252525;
+      --muted: #555555;
+      --line: #d0d0d0;
+      --control-line: #777777;
+      --focus: #333333;
+      --patient-size: 20px;
+      font-family: "Avenir Next", "Segoe UI", Arial, sans-serif;
+      color: var(--ink);
+      background: var(--oat);
+    }
+    :root[data-palette="plum"] {
+      --oat: #eee8dd;
+      --paper: #fffcf7;
+      --brand: #542c48;
+      --brand-hover: #402037;
+      --brand-soft: #e7dce2;
+      --accent: #ee965e;
+      --accent-soft: #faecdc;
+      --ink: #332e30;
+      --muted: #665c61;
+      --line: #d8cfc5;
+      --control-line: #907b85;
+      --focus: #542c48;
+    }
+    :root[data-palette="red"] {
+      --oat: #eee8dd;
+      --paper: #fffcf7;
+      --brand: #9b4945;
+      --brand-hover: #7f3734;
+      --brand-soft: #f0ded7;
+      --accent: #d78a48;
+      --accent-soft: #f5e7d5;
+      --ink: #392e2a;
+      --muted: #6f5a52;
+      --line: #d8cfc5;
+      --control-line: #93786c;
+      --focus: #9b4945;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; }
+    button, input, textarea { font: inherit; }
+    button, summary, a { -webkit-tap-highlight-color: transparent; }
+    button { cursor: pointer; }
+    button:disabled { cursor: default; }
+    button, a, summary { touch-action: manipulation; }
+    button:focus-visible, a:focus-visible, summary:focus-visible,
+    textarea:focus-visible, [tabindex="-1"]:focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 5px;
+    }
+    button:focus-visible { position: relative; z-index: 1; }
+    [hidden] { display: none !important; }
+    h1, h2, h3, p { margin: 0; }
+    svg { flex: none; }
+    .icon { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+    .skip { position: absolute; top: -100px; left: 16px; padding: 14px 20px; background: var(--paper); color: var(--ink); z-index: 10; }
+    .skip:focus { top: 12px; }
+
+    /* Review controls are outside the proposed patient interface. */
+    .review-bar { background: #ffffff; border-bottom: 1px solid #d6d3cf; padding: 14px 28px; font: 14px/1.45 "Avenir Next", "Segoe UI", Arial, sans-serif; color: #34312e; }
+    .review-inner { max-width: 1240px; margin: auto; display: flex; justify-content: space-between; align-items: center; gap: 16px 28px; }
+    .review-title { font-weight: 700; }
+    .review-title span { display: block; font-weight: 400; color: #625d58; font-size: 12px; margin-top: 2px; }
+    .palette-controls { display: flex; gap: 6px; padding: 4px; border: 1px solid #d6d3cf; border-radius: 12px; background: #f6f5f3; }
+    .palette-button { display: flex; align-items: center; gap: 9px; min-height: 44px; padding: 8px 14px; border: 2px solid transparent; border-radius: 8px; background: transparent; color: #48413b; font-weight: 600; }
+    .palette-button[aria-pressed="true"] { background: #ffffff; border-color: #48413b; color: #26221f; }
+    .swatches { display: flex; padding-right: 4px; }
+    .swatches i { width: 15px; height: 15px; border: 1px solid #ffffff; border-radius: 50%; margin-right: -4px; }
+    .review-note { max-width: 1120px; margin: 36px auto 24px; padding: 20px 0 0; border-top: 1px solid var(--line); font: 14px/1.7 "Avenir Next", "Segoe UI", Arial, sans-serif; color: var(--muted); display: flex; justify-content: space-between; gap: 20px; }
+    .review-note strong { font-weight: 650; color: var(--ink); }
+    .review-note button { border: 0; background: none; padding: 0 6px; min-height: 44px; text-decoration: underline; text-underline-offset: 4px; color: var(--muted); font-size: 14px; }
+
+    .patient-app { font-size: var(--patient-size); line-height: 1.55; }
+    .app-header { max-width: 1120px; margin: 0 auto; min-height: 118px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .brand { display: flex; align-items: center; gap: 12px; color: var(--brand); }
+    .brand-mark { width: 42px; height: 42px; }
+    .brand-name { font-size: 29px; font-weight: 750; letter-spacing: -1.1px; line-height: 1.15; }
+    .brand-caption { display: block; font-size: 13px; color: var(--muted); letter-spacing: 0; font-weight: 500; margin-top: 3px; }
+    .reading-tools { display: flex; gap: 12px; align-items: center; }
+    .quiet-button { display: inline-flex; align-items: center; justify-content: center; gap: 10px; background: transparent; color: var(--ink); border: 1px solid var(--control-line); border-radius: 10px; min-height: 48px; padding: 10px 16px; font-size: 16px; font-weight: 600; }
+    .quiet-button:hover { background: var(--paper); }
+    .quiet-button[aria-pressed="true"] { background: var(--brand); color: var(--paper); border-color: var(--brand); }
+    .text-size-symbol { font-size: 19px; letter-spacing: -2px; margin-right: 2px; }
+    .text-size-symbol span { font-size: 14px; }
+    .demo-notice { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .demo-notice p { max-width: 1120px; margin: auto; padding: 11px 0; display: flex; align-items: flex-start; gap: 10px; font-size: 14px; color: var(--muted); }
+    .demo-notice .icon { width: 18px; height: 18px; margin-top: 2px; }
+    .demo-notice strong { color: var(--ink); font-weight: 650; }
+    main { max-width: 1120px; margin: 42px auto 0; }
+    .page-intro { margin-bottom: 28px; }
+    h1 { font-size: 2.05em; line-height: 1.2; font-weight: 650; letter-spacing: -1.3px; color: var(--brand); }
+    .intro-copy { margin-top: 10px; color: var(--muted); font-size: .9em; }
+    .plan-layout { display: grid; grid-template-columns: minmax(0, 760px) minmax(250px, 1fr); gap: 36px; align-items: start; }
+    .plan-sheet { background: var(--paper); border: 1px solid var(--line); border-radius: 22px; overflow: hidden; }
+    .sheet-heading { padding: 25px 32px 0; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+    .sheet-label { display: flex; align-items: center; gap: 10px; font-size: .8em; font-weight: 650; color: var(--brand); }
+    .sheet-label .icon { width: 21px; height: 21px; }
+    .fixture-tag { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: 3px 8px; white-space: nowrap; }
+    .action-copy { padding: 22px 32px 27px; }
+    .action-copy h2 { font-size: 1.55em; line-height: 1.35; letter-spacing: -.6px; max-width: 590px; font-weight: 650; }
+    .action-copy p { margin-top: 15px; display: flex; align-items: center; gap: 9px; font-size: .85em; color: var(--muted); }
+    .action-copy .icon { width: 19px; height: 19px; }
+    .plan-facts { display: grid; grid-template-columns: 1fr 1fr; margin: 0 32px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+    .fact { padding: 24px 0; }
+    .fact + .fact { border-left: 1px solid var(--line); margin-left: 20px; padding-left: 28px; }
+    .fact-label { font-size: .8em; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+    .fact-label .icon { width: 19px; height: 19px; }
+    .deadline { display: inline-block; font-size: 1.85em; font-weight: 650; line-height: 1.3; letter-spacing: -1px; margin-top: 7px; }
+    .deadline small { font-size: .65em; font-weight: 500; letter-spacing: 0; }
+    .deadline-day { display: block; color: var(--muted); font-size: .85em; margin-top: 2px; }
+    .owner { display: block; font-size: 1.1em; font-weight: 650; margin-top: 14px; }
+    .owner-note { display: block; font-size: .85em; color: var(--muted); margin-top: 3px; }
+    .unresolved { margin: 26px 32px; padding: 18px 20px; background: var(--accent-soft); border-radius: 10px; display: flex; align-items: flex-start; gap: 13px; }
+    .status-icon { height: 30px; width: 30px; background: var(--accent); color: var(--ink); border-radius: 50%; display: grid; place-items: center; flex: none; margin-top: 1px; }
+    .status-icon .icon { height: 19px; width: 19px; }
+    .status-label { font-size: .65em; color: var(--muted); margin-bottom: 2px; }
+    .unresolved h3 { font-size: .95em; font-weight: 650; line-height: 1.45; }
+    .sheet-footer { border-top: 1px solid var(--line); padding: 23px 32px 27px; }
+    .primary-button { display: inline-flex; align-items: center; justify-content: space-between; gap: 20px; min-height: 60px; border: 2px solid var(--brand); border-radius: 11px; padding: 15px 22px; background: var(--brand); color: var(--paper); font-size: .95em; line-height: 1.4; font-weight: 650; width: 100%; text-align: left; }
+    .primary-button:hover { background: var(--brand-hover); border-color: var(--brand-hover); }
+    .button-caption { text-align: center; color: var(--muted); font-size: .7em; margin-top: 12px; }
+    .support { padding-top: 10px; }
+    .support-emblem { background: var(--brand-soft); color: var(--brand); border-radius: 16px; width: 54px; height: 54px; display: grid; place-items: center; margin-bottom: 19px; }
+    .support-emblem .icon { width: 27px; height: 27px; }
+    .support h2 { font-size: 1.05em; line-height: 1.35; color: var(--brand); font-weight: 650; }
+    .fallback { margin-top: 13px; font-size: .95em; }
+    .support-note { margin-top: 12px; font-size: .75em; color: var(--muted); }
+    .support-rule { height: 1px; background: var(--line); margin: 26px 0; }
+    .disclosure summary { list-style: none; min-height: 48px; display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 600; font-size: .85em; cursor: pointer; }
+    .disclosure summary::-webkit-details-marker { display: none; }
+    .disclosure summary .icon { width: 20px; height: 20px; }
+    .disclosure[open] summary .icon { transform: rotate(180deg); }
+    .disclosure p { margin-top: 8px; font-size: .8em; color: var(--muted); }
+    .app-footer { max-width: 1120px; margin: 28px auto 0; display: flex; align-items: center; justify-content: space-between; gap: 14px; color: var(--muted); font-size: .65em; }
+    .app-footer p { display: flex; align-items: center; gap: 7px; }
+    .app-footer .icon { width: 16px; height: 16px; }
+    .footer-wordmark { color: var(--brand); font-size: 15px; font-weight: 650; }
+
+    dialog { width: min(620px, calc(100% - 32px)); max-height: calc(100dvh - 32px); border: 1px solid var(--line); border-radius: 20px; padding: 30px; background: var(--paper); color: var(--ink); font-size: var(--patient-size); line-height: 1.55; }
+    dialog::backdrop { background: var(--oat); opacity: .98; }
+    .dialog-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+    .dialog-top p { color: var(--brand); font-size: .75em; font-weight: 600; }
+    .close-button { min-width: 48px; min-height: 48px; border: 1px solid var(--control-line); background: var(--paper); border-radius: 50%; display: grid; place-items: center; color: var(--ink); }
+    dialog h2 { font-size: 1.4em; line-height: 1.35; font-weight: 650; letter-spacing: -.5px; }
+    .dialog-intro { margin: 12px 0 22px; color: var(--muted); font-size: .85em; }
+    label { display: block; font-size: .85em; font-weight: 600; margin-bottom: 8px; }
+    textarea { width: 100%; min-height: 135px; padding: 15px; resize: vertical; border: 1.5px solid var(--control-line); border-radius: 8px; background: var(--paper); color: var(--ink); font-size: 1em; line-height: 1.55; }
+    .input-help { color: var(--muted); font-size: .7em; margin: 7px 0 20px; }
+    .dialog-secondary { display: block; min-height: 48px; padding: 12px; margin: 12px auto 0; background: transparent; color: var(--brand); border: 0; text-decoration: underline; text-underline-offset: 4px; font-size: .85em; }
+    .draft-notice { padding: 16px; border: 1px solid var(--brand); background: var(--brand-soft); border-radius: 8px; margin-top: 18px; font-size: .85em; }
+    .field-error { color: var(--brand); font-size: .8em; font-weight: 600; margin: 8px 0; }
+
+    @media (min-width: 1500px) { main { margin-top: 54px; } .app-header { min-height: 132px; } }
+    @media (max-width: 1199px) {
+      .app-header, main, .app-footer, .review-note { margin-left: 32px; margin-right: 32px; }
+      .demo-notice p { padding-left: 32px; padding-right: 32px; }
+      .plan-layout { gap: 28px; grid-template-columns: minmax(0, 2.2fr) minmax(220px, 1fr); }
+    }
+    @media (max-width: 850px) {
+      .review-inner { flex-wrap: wrap; }
+      .review-title span { display: inline; margin-left: 8px; }
+      .plan-layout { grid-template-columns: minmax(0, 1fr); gap: 30px; }
+      .support { padding: 0 2px; }
+      .support-emblem { float: left; margin: 0 17px 14px 0; }
+      .support-rule { clear: both; }
+      .support-note { clear: both; padding-top: 2px; }
+      .review-note { margin-top: 24px; }
+    }
+    @media (max-width: 560px) {
+      .review-bar { padding: 12px 16px; }
+      .review-inner { gap: 10px; }
+      .review-title span { font-size: 11px; }
+      .palette-controls { width: 100%; }
+      .palette-button { flex: 1; justify-content: center; padding: 8px; font-size: 12px; gap: 7px; }
+      .app-header { margin: 0 20px; min-height: 100px; gap: 12px; }
+      .brand { gap: 9px; }
+      .brand-mark { width: 33px; height: 33px; }
+      .brand-name { font-size: 24px; }
+      .brand-caption { font-size: 11px; }
+      .reading-tools { gap: 8px; }
+      .quiet-button { padding: 10px 12px; min-width: 48px; }
+      .tool-label, .print-control { display: none; }
+      .text-size-symbol { margin: 0; }
+      .demo-notice p { padding: 10px 20px; font-size: 12px; gap: 8px; }
+      main { margin: 28px 16px 0; }
+      .page-intro { margin: 0 4px 22px; }
+      h1 { font-size: 1.6em; letter-spacing: -.8px; }
+      .intro-copy { font-size: .8em; line-height: 1.6; }
+      .plan-sheet { border-radius: 16px; }
+      .sheet-heading { padding: 21px 22px 0; }
+      .sheet-label { font-size: .7em; }
+      .fixture-tag { font-size: 11px; }
+      .action-copy { padding: 20px 22px 22px; }
+      .action-copy h2 { font-size: 1.3em; line-height: 1.4; }
+      .action-copy p { font-size: .75em; }
+      .plan-facts { margin: 0 22px; gap: 12px; }
+      .fact { padding: 19px 0; }
+      .fact + .fact { margin-left: 0; padding-left: 17px; }
+      .fact-label { font-size: .7em; }
+      .fact-label .icon { width: 16px; height: 16px; }
+      .deadline { font-size: 1.5em; }
+      .owner { font-size: .95em; }
+      .owner-note, .deadline-day { font-size: .75em; }
+      .unresolved { margin: 22px; padding: 16px; gap: 10px; }
+      .unresolved h3 { font-size: .85em; }
+      .status-icon { width: 25px; height: 25px; }
+      .sheet-footer { padding: 21px 22px 23px; }
+      .primary-button { font-size: .85em; padding: 14px 16px; gap: 12px; }
+      .button-caption { font-size: .65em; }
+      .support { margin: 0 6px; }
+      .app-footer { margin: 30px 22px 0; align-items: flex-start; }
+      .footer-wordmark { display: none; }
+      .review-note { margin: 24px 22px; font-size: 12px; flex-wrap: wrap; gap: 4px; }
+      dialog { padding: 23px; }
+    }
+    @media (max-width: 360px) {
+      .brand-caption { display: none; }
+      .plan-facts { grid-template-columns: 1fr; gap: 0; }
+      .fact + .fact { border-left: 0; border-top: 1px solid var(--line); padding-left: 0; }
+      .sheet-heading { flex-wrap: wrap; gap: 8px; }
+    }
+    @media (forced-colors: active) {
+      button, .plan-sheet, .unresolved, .demo-notice { border: 1px solid ButtonText; }
+      .status-icon { border: 1px solid CanvasText; }
+      .palette-button[aria-pressed="true"] { outline: 2px solid Highlight; }
+    }
+    @media print {
+      :root { --oat: white; --paper: white; --ink: black; --brand: black; --muted: #333; --line: #777; }
+      .review-bar, .review-note, .reading-tools, .sheet-footer, .disclosure, dialog, .skip { display: none !important; }
+      .app-header, main, .app-footer { margin: 16px 0; }
+      .app-header { min-height: 70px; }
+      .plan-layout { display: block; }
+      .plan-sheet { break-inside: avoid; border-radius: 0; }
+      .support { margin-top: 24px; }
+      .support-emblem, .support-rule { display: none; }
+      .demo-notice p { padding: 10px 0; }
+      .patient-app { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip" href="#main">Skip to your plan</a>
+  <svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+    <symbol id="clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/></symbol>
+    <symbol id="person" viewBox="0 0 24 24"><circle cx="12" cy="7" r="3.3"/><path d="M5 21v-2a7 7 0 0 1 14 0v2"/></symbol>
+    <symbol id="phone" viewBox="0 0 24 24"><path d="m7 3 3 5-2.5 2a16 16 0 0 0 6.5 6.5l2-2.5 5 3-1 3c-.3.8-1 1.2-1.8 1C9.3 19.8 4.2 14.7 3 5.8c-.2-.8.2-1.5 1-1.8Z"/></symbol>
+    <symbol id="info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v.1"/></symbol>
+    <symbol id="page" viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8h6m-6 4h6m-6 4h3"/></symbol>
+    <symbol id="print" viewBox="0 0 24 24"><path d="M7 7V3h10v4M7 17H4V9h16v8h-3M7 14h10v7H7Zm10-3h.1"/></symbol>
+    <symbol id="chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
+  </svg>
+
+  <aside class="review-bar" aria-label="Design review controls, not part of the patient interface">
+    <div class="review-inner">
+      <p class="review-title">Design preview <span>One patient page. Two colour directions.</span></p>
+      <div class="palette-controls" role="group" aria-label="Choose a colour palette">
+        <button class="palette-button" data-set-palette="plum" aria-pressed="true">
+          <span class="swatches" aria-hidden="true"><i style="background:#eee8dd"></i><i style="background:#542c48"></i><i style="background:#ee965e"></i></span>
+          Oat + plum + tangerine
+        </button>
+        <button class="palette-button" data-set-palette="red" aria-pressed="false">
+          <span class="swatches" aria-hidden="true"><i style="background:#9b4945"></i><i style="background:#eee8dd"></i><i style="background:#d78a48"></i></span>
+          Muted red + oat + pumpkin
+        </button>
+      </div>
+    </div>
+  </aside>
+
+  <div class="patient-app">
+    <header class="app-header">
+      <div class="brand" aria-label="CareRelay, your next step in care">
+        <svg class="brand-mark" viewBox="0 0 44 44" fill="none" aria-hidden="true"><path d="M27 7H15a10 10 0 0 0 0 20h4" stroke="var(--brand)" stroke-width="8" stroke-linecap="round"/><path d="M17 37h12a10 10 0 0 0 0-20h-4" stroke="var(--accent)" stroke-width="8" stroke-linecap="round"/></svg>
+        <div class="brand-name">CareRelay<span class="brand-caption">Your next step in care</span></div>
+      </div>
+      <div class="reading-tools" role="group" aria-label="Reading tools">
+        <button class="quiet-button" id="text-size" aria-pressed="false" aria-label="Use larger text">
+          <span class="text-size-symbol" aria-hidden="true"><span>A</span>A</span><span class="tool-label">Larger text</span>
+        </button>
+        <button class="quiet-button print-control" id="print-plan"><svg class="icon" aria-hidden="true"><use href="#print"/></svg><span>Print plan</span></button>
+      </div>
+    </header>
+
+    <div class="demo-notice" role="note"><p><svg class="icon" aria-hidden="true"><use href="#info"/></svg><span><strong>Simulated research demonstration.</strong> Not clinical advice. This is a fictional plan.</span></p></div>
+
+    <main id="main" tabindex="-1">
+      <div class="page-intro">
+        <h1>Your plan for today</h1>
+        <p class="intro-copy">What to do, when to do it, and what to do if it does not work.</p>
+      </div>
+
+      <div class="plan-layout">
+        <article class="plan-sheet" aria-labelledby="plan-action">
+          <div class="sheet-heading">
+            <p class="sheet-label"><svg class="icon" aria-hidden="true"><use href="#page"/></svg>Your next step</p>
+            <span class="fixture-tag">Fictional example</span>
+          </div>
+          <div class="action-copy">
+            <h2 id="plan-action">Go to the fictional provider's same-day review.</h2>
+            <p><svg class="icon" aria-hidden="true"><use href="#arrow"/></svg>Please act now.</p>
+          </div>
+
+          <div class="plan-facts">
+            <div class="fact">
+              <p class="fact-label"><svg class="icon" aria-hidden="true"><use href="#clock"/></svg>Please do it before</p>
+              <p><span class="deadline">6:00 <small>pm</small></span><span class="deadline-day">Today, in this example</span></p>
+            </div>
+            <div class="fact">
+              <p class="fact-label"><svg class="icon" aria-hidden="true"><use href="#person"/></svg>Who needs to act</p>
+              <p><span class="owner">You</span><span class="owner-note">This is your next step.</span></p>
+            </div>
+          </div>
+
+          <section class="unresolved" aria-labelledby="help-status">
+            <span class="status-icon" aria-hidden="true"><svg class="icon"><use href="#clock"/></svg></span>
+            <div><p class="status-label">Current status</p><h3 id="help-status">No one has agreed to help yet.</h3></div>
+          </section>
+
+          <div class="sheet-footer">
+            <button class="primary-button" id="open-readback" aria-haspopup="dialog">Say the plan in your own words<svg class="icon" aria-hidden="true"><use href="#arrow"/></svg></button>
+            <p class="button-caption">You can look at your plan again at any time.</p>
+          </div>
+        </article>
+
+        <aside class="support" aria-labelledby="fallback-heading">
+          <div class="support-emblem" aria-hidden="true"><svg class="icon"><use href="#phone"/></svg></div>
+          <h2 id="fallback-heading">If this step does not work</h2>
+          <p class="fallback">If that does not work, call the fictional nurse line.</p>
+          <p class="support-note">This is a simulated service. No call or message is sent from this preview.</p>
+          <div class="support-rule"></div>
+          <details class="disclosure">
+            <summary>What happens next?<svg class="icon" aria-hidden="true"><use href="#chevron"/></svg></summary>
+            <p>The button opens a place to write the plan in your own words. In this design preview, your answer is not checked or sent anywhere.</p>
+          </details>
+        </aside>
+      </div>
+    </main>
+
+    <footer class="app-footer">
+      <p><svg class="icon" aria-hidden="true"><use href="#info"/></svg>Example plan only. No care has been arranged.</p>
+      <span class="footer-wordmark">CareRelay</span>
+    </footer>
+  </div>
+
+  <footer class="review-note">
+    <p><strong id="palette-name">Direction 1: oat, plum purple and tangerine</strong><br>Try the palette switch, larger text, print, and read-back button. Proposed design; awaiting approval.</p>
+    <button id="wireframe-toggle" aria-pressed="false">Grayscale layout</button>
+  </footer>
+  <p class="sr-only" id="review-announcement" role="status" aria-live="polite"></p>
+
+  <dialog id="readback" aria-labelledby="readback-title" aria-describedby="readback-intro">
+    <div class="dialog-top"><p>Read-back preview · fictional plan</p><button class="close-button" id="close-readback" aria-label="Close and show my plan"><svg class="icon" aria-hidden="true"><use href="#close"/></svg></button></div>
+    <h2 id="readback-title" tabindex="-1">In your own words, what will you do, and when?</h2>
+    <p class="dialog-intro" id="readback-intro">You can use a few words. If you want to look again, your plan is still there.</p>
+    <form id="readback-form" novalidate>
+      <label for="readback-answer">Your words</label>
+      <textarea id="readback-answer" rows="4" aria-describedby="answer-help answer-error"></textarea>
+      <p class="input-help" id="answer-help">Design preview only. Your words stay on this page and are not checked.</p>
+      <p class="field-error" id="answer-error" role="alert" hidden>Write a few words first, or choose “Show my plan again”.</p>
+      <button class="primary-button" type="submit" id="keep-draft">Keep this draft in the preview<svg class="icon" aria-hidden="true"><use href="#arrow"/></svg></button>
+      <button class="dialog-secondary" type="button" id="show-plan">Show my plan again</button>
+      <p class="draft-notice" id="draft-notice" role="status" hidden>Your draft is still here. It has not been checked, and nothing has been arranged.</p>
+    </form>
+  </dialog>
+
+  <script>
+    const root = document.documentElement;
+    const paletteNames = {
+      plum: 'Direction 1: oat, plum purple and tangerine',
+      red: 'Direction 2: muted red, oat and pumpkin',
+      wireframe: 'Grayscale: the same page structure'
+    };
+    let lastPalette = 'plum';
+    function setPalette(palette) {
+      root.dataset.palette = palette;
+      if (palette !== 'wireframe') lastPalette = palette;
+      document.querySelectorAll('[data-set-palette]').forEach(button => {
+        button.setAttribute('aria-pressed', String(button.dataset.setPalette === palette));
+      });
+      document.getElementById('wireframe-toggle').setAttribute('aria-pressed', String(palette === 'wireframe'));
+      document.getElementById('palette-name').textContent = paletteNames[palette];
+      document.getElementById('review-announcement').textContent = paletteNames[palette];
+    }
+    document.querySelectorAll('[data-set-palette]').forEach(button => {
+      button.addEventListener('click', () => setPalette(button.dataset.setPalette));
+    });
+    document.getElementById('wireframe-toggle').addEventListener('click', () => {
+      setPalette(root.dataset.palette === 'wireframe' ? lastPalette : 'wireframe');
+    });
+    document.getElementById('text-size').addEventListener('click', function () {
+      const enlarged = this.getAttribute('aria-pressed') !== 'true';
+      this.setAttribute('aria-pressed', String(enlarged));
+      this.setAttribute('aria-label', enlarged ? 'Use standard text size' : 'Use larger text');
+      this.querySelector('.tool-label').textContent = enlarged ? 'Standard text' : 'Larger text';
+      root.style.setProperty('--patient-size', enlarged ? '24px' : '20px');
+      document.getElementById('review-announcement').textContent = enlarged ? 'Larger text is on.' : 'Standard text size is on.';
+    });
+    document.getElementById('print-plan').addEventListener('click', () => window.print());
+
+    const dialog = document.getElementById('readback');
+    const opener = document.getElementById('open-readback');
+    const answer = document.getElementById('readback-answer');
+    const error = document.getElementById('answer-error');
+    const notice = document.getElementById('draft-notice');
+    opener.addEventListener('click', () => {
+      dialog.showModal();
+      document.getElementById('readback-title').focus();
+    });
+    document.getElementById('close-readback').addEventListener('click', () => dialog.close());
+    document.getElementById('show-plan').addEventListener('click', () => dialog.close());
+    dialog.addEventListener('close', () => opener.focus());
+    document.getElementById('readback-form').addEventListener('submit', event => {
+      event.preventDefault();
+      if (!answer.value.trim()) {
+        error.hidden = false;
+        answer.setAttribute('aria-invalid', 'true');
+        notice.hidden = true;
+        answer.focus();
+        return;
+      }
+      error.hidden = true;
+      answer.removeAttribute('aria-invalid');
+      notice.hidden = false;
+    });
+    answer.addEventListener('input', () => {
+      notice.hidden = true;
+      if (answer.value.trim()) {
+        error.hidden = true;
+        answer.removeAttribute('aria-invalid');
+      }
+    });
+    const requestedPalette = new URLSearchParams(location.search).get('palette');
+    if (Object.hasOwn(paletteNames, requestedPalette)) setPalette(requestedPalette);
+  </script>
+</body>
+</html>
