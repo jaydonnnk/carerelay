@@ -35,7 +35,8 @@ be rebuilt once the session logs are gone.
 | `2026-10-08.md` | Slice 9 cut as a run and shipped; Slice 10 built, shipped and F4/F6/F6-render closed; Slice 11 built and adversarially reviewed |
 | `2026-10-09.md` | Slice 11 shipped to `main` and the record sweep after it; the log re-sync and the file-map entry; Slice 12's code half built |
 | `2026-10-10.md` | Slice 12's code half committed, merged and pushed; the `/ledger` alias; the `psycopg` environment regression |
-| `MEMORY.md` | Curated project notes: working conventions and current state |
+| `2026-10-11.md` | Historical Slice 12 asset completion, hosting/configuration observations and corrections |
+| `MEMORY.md` | Historical curated project notes; current authority remains 00-status.md |
 
 ## These are copies
 
@@ -46,7 +47,8 @@ file is the source and this copy is stale.
 
 ## Read them as written
 
-These logs are published unedited, including their errors. They record wrong
+These logs retain their historical errors. Publication redactions are explicitly
+labelled where needed; the 11 October copy removes one institution name. They record wrong
 turns, corrected claims and superseded decisions on purpose, because that is what
 a development-process record is. `00-status.md` remains the only authority for
 gate and slice state; a statement in a log is a record of what was believed on
