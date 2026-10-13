@@ -1,5 +1,13 @@
 # CareRelay — Plan (updated 21 September 2026)
 
+**13 October 2026, documentation shipping receipt. [verified]** Approved
+architecture/program design and records/handoffs were committed, the
+program-design branch published, and main safely fast-forwarded and pushed.
+The first remote verification matched both refs at `a15a215`; final receipt
+publication is within the same request. `00-status.md` carries the receipt.
+Next is separate Gate 4 preparation, not implementation. Current tips are
+read from Git; the earlier dirty-state snapshots below are historical.
+
 **13 October 2026, Gate 3 re-approval and shipping authority. [verified]**
 The user answered "Yep i approve." Gate 3 section 9 is RE-APPROVED;
 `00-status.md` records the checklist/history. The user also explicitly authorised

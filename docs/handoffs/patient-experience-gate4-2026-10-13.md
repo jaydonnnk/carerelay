@@ -11,7 +11,7 @@ handoff. Gate state and Git receipts belong in `00-status.md`.
 - [verified] Concrete Gate 3 amendment, section 9, prepared and explicitly re-approved: "Yep i approve."
 - [verified] Authority/checklist/history and supporting decisions reconciled. Gates 1/2/4, code/tests/prototypes and prior Gate 3 body were preserved during preparation.
 - [verified] Documentary checks passed; no new runtime proof or upgrade implementation exists.
-- [verified authority] The user authorised committing the working tree, publishing the documentation branch, merging and pushing main, then this handoff. Shipping completion is recorded separately after remote verification.
+- [verified] Architecture `99fd747`, program design `dc2510b` and records/handoffs `a15a215` were committed; the branch and main were pushed and both remote refs verified at `a15a215`. The follow-up shipping receipt is within the same request; final current tips are read from Git and recorded in the exported prompt.
 
 ## Decisions
 
@@ -44,7 +44,7 @@ material design blocks rather than a durable current line count.
 - `docs/plans/urgent-advice-accessibility/03-program-design.md:310`: section 9 upgrade contracts; current approval banners/receipt; sections 1 to 8 preserved.
 - `docs/plans/urgent-advice-accessibility/00-status.md:3`: current Gate 3 line, checklist/history, next Gate 4 boundary and Git shipping authority/receipt.
 - `AGENTS.md:3`, `docs/PLAN.md:3`, `tasks/todo.md:3`: current scope/approval/shipping limits and remaining task.
-- `docs/DESIGN_PRINCIPLES.md:3`, `03-planback-closure-contract.md:3`, `adp-and-deployment-impact.md:4`, `patient-experience-upgrade.md:3` under the plan folder where applicable: current decisions/dependencies/evidence mirrors.
+- `docs/DESIGN_PRINCIPLES.md:3`, `docs/plans/urgent-advice-accessibility/03-planback-closure-contract.md:3`, `docs/plans/urgent-advice-accessibility/adp-and-deployment-impact.md:4`, `docs/plans/urgent-advice-accessibility/patient-experience-upgrade.md:3`: current decisions/dependencies/evidence mirrors.
 - `PROGRESS.md`: operational documentary/shipping evidence only; `tasks/lessons.md`: observed branch-command discrepancy and prevention.
 - `docs/handoffs/patient-experience-gate3-2026-10-13.md`: inherited historical handoff, with an explicit supersession notice.
 - This file: current continuation and separate optional adversarial review prompt.

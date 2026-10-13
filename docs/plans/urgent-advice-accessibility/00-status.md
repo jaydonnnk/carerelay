@@ -59,6 +59,36 @@ request above authorises documentation Git operations, not implementation.
 
 **Next task:** separately prepare/review Gate 4 upgrade slices; stop at its approval boundary.
 
+### Documentation shipping receipt: 13 October 2026
+
+[verified] The user's explicit request to commit the working tree, publish the
+branch, merge and push to main was executed for the approved documentation.
+Architecture is committed in `99fd747`, program design in `dc2510b`, and
+approval/supporting records plus both handoffs in `a15a215`.
+`codex/patient-experience-program-design` was published to origin. Main advanced
+by a guarded fast-forward ref update before switching to the identical tree,
+avoiding the documented checkout-deletion hazard; the merge check was already
+up to date. The first main push succeeded. Live `git ls-remote --heads origin`
+verified main and the documentation branch at
+`a15a21559f0ef12a84ef14cdbd12f98acf2b3952`, with a clean working tree.
+
+[verified] Approval metadata and section 9 contracts/signature blocks were
+compared with the approved version; the contracts are unchanged. Earlier
+Gate 1/copy, Gate 2 semantics/section 5.2, Gate 4, source/tests and mockups stayed
+byte-preserved. Staged whitespace/punctuation checks and three focused existing
+credential-scanner checks passed. No full application suite, ADP, Postgres or
+browser result is claimed. No implementation, installation, credential change,
+database mutation, manual deployment or participant outreach was performed.
+
+This receipt is a follow-up documentation commit within the same shipping
+request, published on the documentation branch and fast-forwarded/pushed to main.
+The verified final delivery tip is in the exported prompt; current HEAD/remote
+refs must be rechecked rather than treating the first-push hash as a permanent
+current-tip claim. Next task: Gate 4 preparation using
+`docs/handoffs/patient-experience-gate4-2026-10-13.md`, with no implementation
+before its separate approval. The shipping request is complete after final
+remote verification; it grants the next agent no new Git/external authority.
+
 ## Gate 2 reopen: patient experience architecture, 13 October 2026
 
 [verified] The user's attached assignment explicitly requests this amendment,

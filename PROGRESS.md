@@ -182,10 +182,18 @@ Operational receipt only. The user's decision and shipping authority are recorde
 in `00-status.md`; no later gate or implementation is implied.
 - [x] Recheck working tree/branch, preserved files and live remote main at `aca4594`.
 - [x] Record the user's decision and Git authority in current scope mirrors.
-- [ ] Commit the inherited Gate 2 and Gate 3 documentation in coherent batches.
-- [ ] Publish the program-design branch, fast-forward main safely and push main.
-- [ ] Verify remote refs/clean tree and export the actionable Gate 4 prompt.
+- [x] Commit approved architecture `99fd747`, program design `dc2510b`, records/handoffs `a15a215`.
+- [x] Publish the branch, guarded fast-forward main, switch identical trees and push main.
+- [x] Verify both remote refs at first shipping tip `a15a215` and clean tree.
+- [x] Prepare final-tip prompt export; final remote check follows receipt publication.
 
 No application suite/live ADP/Postgres/browser check is required or claimed for
 these documentation-only commits. Gate 1 copy, Gate 2 semantics and Gate 4
 contract remain preserved.
+
+First shipping receipt: live remote main and documentation branch matched
+`a15a21559f0ef12a84ef14cdbd12f98acf2b3952`. Three focused existing credential
+scanner checks passed, staged diff/whitespace/punctuation clean. This follow-up
+receipt is part of the same authorised documentation ship; final refs are
+verified after its push, with the final snapshot exported for the next agent.
+No code/approved contract or later gate was changed by shipping.
