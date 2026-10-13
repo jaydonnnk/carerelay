@@ -1,5 +1,22 @@
 # Patient experience upgrade: updated 13 October 2026
 
+**13 October 2026, Slice 14 shipped to main. [verified]**
+The user requested main publication and a copy-paste Slice 15 prompt. Slice 14,
+its approved Gate 4 records and Gate 3 identity correction, and the handoffs were
+committed in coherent batches. Main advanced by verified fast-forward ref update
+before checkout, then was pushed to origin. Live remote main matched local main;
+this receipt is a follow-up within that same authorised publication request.
+No slice-branch publication was requested or performed. Current checkout is main.
+Slice 15 is unstarted; its next-chat prompt is
+`docs/handoffs/patient-experience-slice15-2026-10-13.md`. The next agent creates
+`slice-15-durable-start` from verified current main before implementation.
+The shipping authority is now exhausted; the next slice needs separate Git
+shipping authority at its own close. No install, real config/credential change,
+live ADP, database access or manual deployment was performed during shipping.
+Remote push may trigger configured automation; hosted behavior was not checked.
+The late-arriving `submission/usage-proof/Workbuddy_evidence.mp4` was excluded
+and remains untracked/untouched. Earlier pending/uncommitted notes are historical.
+
 **13 October 2026, authorised Slice 14 shipping in progress. [verified]**
 The user requested: "Push to main and then give a copy paste prompt for slice 15".
 Slice 14 code/tests are committed on `slice-14-journey-tracer`; main publication

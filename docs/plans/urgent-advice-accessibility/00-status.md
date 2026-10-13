@@ -2,8 +2,45 @@
 
 - Gate 1: Product, **RE-APPROVED 12 October 2026** for the revised concise patient journey, visual cues and copy in `01-product.md` and `patient-experience-copy.md`. The user explicitly approved Gate 1 and authorised committing the working tree and pushing to main. Previous approval: 8 October 2026.
 - Gate 2: Architecture, **RE-APPROVED 13 October 2026 (revision 4)** for the patient-experience journey and ADP read-back extraction design in `02-architecture.md` section 13. The user explicitly answered "Yep i approve gate 2" and requested a Gate 3 handoff. The previously approved section 5.2 durable-stop rule is unchanged. This architecture approval alone authorises no implementation.
-- Gate 3: Program Design, **RE-APPROVED 13 October 2026**, including section 9.12 identity correction. User answered "approve" after the reproduced no-event counterexample. Slice 14 local Check is complete; Slice 15 awaits its continuation/Git handoff.
+- Gate 3: Program Design, **RE-APPROVED 13 October 2026**, including section 9.12 identity correction. User answered "approve" after the reproduced no-event counterexample. Slice 14 is locally complete and shipped; Slice 15 is the requested next-chat target.
 - Gate 4: Slice plan, **RE-APPROVED 13 October 2026** for `04-slices.md` section 9. Its contract is unchanged. Slice 14 local Check is complete after Gate 3 section 9.12 re-approval; Slices 15 to 21 have not started. No shipping, install or external authority follows.
+
+## Slice 14 shipping receipt: 13 October 2026
+
+**13 October 2026, Slice 14 shipped to main. [verified]**
+The user requested main publication and a copy-paste Slice 15 prompt. Slice 14,
+its approved Gate 4 records and Gate 3 identity correction, and the handoffs were
+committed in coherent batches. Main advanced by verified fast-forward ref update
+before checkout, then was pushed to origin. Live remote main matched local main;
+this receipt is a follow-up within that same authorised publication request.
+No slice-branch publication was requested or performed. Current checkout is main.
+Slice 15 is unstarted; its next-chat prompt is
+`docs/handoffs/patient-experience-slice15-2026-10-13.md`. The next agent creates
+`slice-15-durable-start` from verified current main before implementation.
+The shipping authority is now exhausted; the next slice needs separate Git
+shipping authority at its own close. No install, real config/credential change,
+live ADP, database access or manual deployment was performed during shipping.
+Remote push may trigger configured automation; hosted behavior was not checked.
+The late-arriving `submission/usage-proof/Workbuddy_evidence.mp4` was excluded
+and remains untracked/untouched. Earlier pending/uncommitted notes are historical.
+
+[verified] Shipping preflight reran the full suite: **1,033 passed, 46 Postgres
+skips, one warning** (7.20s). Staged boundary checks: **188 passed**, one warning.
+Application/frontend bytes were preserved from the completed Slice 14 Check;
+Gate 1/2 and clinical fixtures remain unchanged. Historical WorkBuddy log copies
+were resynced without changing local originals: one institution name redacted
+and labelled, zero imported em dashes. This Codex session is not WorkBuddy usage.
+The source/read/renderer/mutation/record commits are individually inspectable.
+
+- [x] User explicitly authorises main publication and the Slice 15 handoff.
+- [x] Verify refs, scope, tracked secret scan, fresh tests and staged diffs.
+- [x] Commit coherent changes and safely fast-forward main before checkout.
+- [x] Push main and verify the live remote matches.
+- [x] Reconcile shipping receipts and prepare the actionable Slice 15 prompt.
+- [ ] Begin Slice 15 in the next authorised implementation chat; no code here.
+
+**Next work:** use `docs/handoffs/patient-experience-slice15-2026-10-13.md`.
+Slice 14's main dependency is satisfied. Preserve the unrelated untracked video.
 
 ## Slice 14 shipping request: 13 October 2026
 
@@ -263,7 +300,7 @@ no full-upgrade promise for 16 October or current cutoff assertion is made.
 
 ### Approved upgrade slices: Slice 14 locally complete
 
-- [x] Slice 14: local Check complete 13 October 2026, `slice-14-journey-tracer`; uncommitted, no engine/deployment claim.
+- [x] Slice 14: local Check complete and shipped to main 13 October 2026, `slice-14-journey-tracer`; no engine/deployed-behavior claim.
 - [ ] Slice 15: explicit durable start/coherent stored journey, `slice-15-durable-start`.
 - [ ] Slice 16: confirmed offline read-back/field repair, `slice-16-confirmed-readback`.
 - [ ] Slice 17: permission/truthful simulated failure, `slice-17-permission-failure`.
@@ -272,7 +309,7 @@ no full-upgrade promise for 16 October or current cutoff assertion is made.
 - [ ] Slice 20: production accessibility proof/remediation, `slice-20-accessibility-proof`.
 - [ ] Slice 21: separately authorised live ADP enablement, `slice-21-adp-enablement`.
 
-**Next work:** user continuation checkpoint and separately authorised commit/merge of Slice 14 to main, then Slice 15 on its own main-based branch.
+**Next work:** the user requested the Slice 15 handoff after main publication; the main dependency is now satisfied. Slice 15 begins in the next chat on its own main-based branch.
 
 ## Gate 3 reopen and re-approval: patient-experience program design, 13 October 2026
 

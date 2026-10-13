@@ -3,6 +3,15 @@
 Snapshot: 13 October 2026, Singapore time. This is an actionable implementation
 prompt requested by the user, overriding the transfer skill's passive template.
 
+## Shipping receipt
+
+[verified] Slice 14 and its approved records/handoffs were committed, main was
+safely fast-forwarded, and origin/main was pushed and verified against local main.
+The receipt publication is part of the same request. Current checkout is main;
+no Slice 15 branch or implementation exists. Only the unrelated untracked
+`submission/usage-proof/Workbuddy_evidence.mp4` remains outside the shipped tree.
+No slice branch was published. Source/frontend bytes remain the tested bytes.
+
 ## Completed and authority
 
 Slice 14 completed its bounded local Check. The user then requested: "Push to
