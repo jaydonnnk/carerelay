@@ -78,6 +78,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from carerelay.domain import rules
 from carerelay.domain.models import (
+    JourneyBundle,
     COMPARISON_FIELDS,
     MAX_REPAIR_ROUNDS,
     TERMINAL_TRANSITIONS,
@@ -1885,6 +1886,38 @@ class SqliteEpisodeStore:
 
     # -- projections -------------------------------------------------------
 
+    def load_journey_bundle(self, episode_id: str) -> JourneyBundle:
+        """One read transaction, including the verified stored identity/revision.
+
+        Only no-plan is exposed in Slice 14. Assessed bundles are refused by the
+        domain; their policy/command enrichment belongs to Slice 15.
+        """
+        try:
+            self._conn.execute("BEGIN")
+            row = self._conn.execute("SELECT id FROM episodes WHERE id = ?", (episode_id,)).fetchone()
+            if row is None:
+                raise EpisodeNotFound(episode_id)
+            snapshot = self.load_snapshot(episode_id)
+            revision = self._conn.execute(
+                "SELECT COALESCE(MAX(id), 0) FROM events WHERE episode_id = ?", (episode_id,)
+            ).fetchone()[0]
+            consent = self._current_consent(episode_id, CLINICAL_SCOPE)
+            bundle = JourneyBundle(
+                episode_id=row["id"], snapshot=snapshot, revision=revision,
+                policy=None, policy_text=None, events=self.list_events(episode_id),
+                restatements=(), commands=(), consent_granted=consent is not None and consent[1] == "granted",
+            )
+            self._conn.execute("COMMIT")
+            return bundle
+        except sqlite3.Error as exc:
+            if self._conn.in_transaction:
+                self._conn.rollback()
+            raise StateError("journey read unavailable") from exc
+        except BaseException:
+            if self._conn.in_transaction:
+                self._conn.rollback()
+            raise
+
     def load_snapshot(self, episode_id: str) -> EpisodeSnapshot:
         """Everything `domain.derive_closure` is allowed to look at.
 
@@ -2055,6 +2088,7 @@ class EpisodeStore(Protocol):
     def list_hint_events(self, episode_id: str) -> tuple[HintEventRecord, ...]: ...
     def record_transcript_confirmation(self, episode_id: str, *, text: str, now_utc: datetime) -> str: ...
     def has_transcript_confirmation(self, episode_id: str, confirmation_id: str) -> bool: ...
+    def load_journey_bundle(self, episode_id: str) -> JourneyBundle: ...
     def load_snapshot(self, episode_id: str) -> EpisodeSnapshot: ...
     def derive_closure(
         self, episode_id: str, now_utc: datetime

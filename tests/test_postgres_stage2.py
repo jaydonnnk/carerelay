@@ -249,9 +249,9 @@ class TestTheTwoStoresShareOneSurface:
 
     def test_every_protocol_member_exists_on_both_classes(self) -> None:
         members = sorted(n for n in dir(EpisodeStore) if not n.startswith("_"))
-        assert len(members) == 34, (
+        assert len(members) == 35, (
             f"the protocol has {len(members)} members; this test was written "
-            "against 34 (including the two durable-stop methods), so revisit the surface"
+            "against 35 (including the coherent journey reader), so revisit the surface"
         )
         for cls in (SqliteEpisodeStore, PostgresEpisodeStore):
             missing = sorted(n for n in members if not hasattr(cls, n))

@@ -490,3 +490,56 @@ class HintEvent:
     level: HintLevel
     kind: HintEventKind
     dwell_seconds: float | None = None
+
+@dataclass(frozen=True)
+class JourneyBundle:
+    """Coherent stored inputs; identity exists even without a disposition/event."""
+
+    episode_id: str
+    snapshot: EpisodeSnapshot
+    revision: int
+    policy: PolicyFixture | None
+    policy_text: PolicyText | None
+    events: tuple[object, ...]
+    restatements: tuple[object, ...]
+    commands: tuple[object, ...]
+    consent_granted: bool
+
+
+@dataclass(frozen=True)
+class FlowView:
+    stopped: bool = False
+    stop_reason: str | None = None
+    stopped_disposition_version: int | None = None
+    readback_attempt_id: str | None = None
+    latest_restatement_id: str | None = None
+    selected_repair_field: str | None = None
+    completed_repairs: int = 0
+    effective_hint: HintLevel = HintLevel.H1
+    card_visible: bool = False
+    interpretation: str = "idle"
+
+
+@dataclass(frozen=True)
+class JourneyProjection:
+    """Slice 14's no-plan subset. Assessed journeys are unavailable until Slice 15."""
+
+    episode_id: str
+    revision: int
+    as_of_utc: datetime
+    flow: FlowView
+    text: Mapping[str, str]
+    fixture_label: str
+    schema_version: str = "carerelay-journey-v1"
+    disposition_version: None = None
+    policy_version: None = None
+    clock_mode: str = "scenario"
+    plan_redacted: bool = False
+    plan: None = None
+    outcome: None = None
+    step: str = "start"
+    question: None = None
+    commands: tuple[object, ...] = ()
+    lines: tuple[str, ...] = ()
+    revealed_plan: None = None
+    simulated: bool = True

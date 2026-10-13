@@ -64,6 +64,9 @@ from collections.abc import Mapping, Sequence
 from datetime import datetime, timedelta, tzinfo
 
 from carerelay.domain.models import (
+    FlowView,
+    JourneyBundle,
+    JourneyProjection,
     COMPARISON_FIELDS,
     DEPLOYMENT_SIMULATED,
     MAX_REPAIR_ROUNDS,
@@ -828,3 +831,18 @@ def require_input_mode(value: str) -> InputMode:
     rule and must stop rather than default.
     """
     return InputMode(_require_member(value, tuple(InputMode), PolicyViolation))
+
+class JourneyUnavailable(DomainError):
+    """The current reader cannot safely project this stored journey."""
+
+
+def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjection:
+    """Read-only tracer. Do not manufacture a partial assessed journey."""
+    if bundle.snapshot.disposition is not None:
+        raise JourneyUnavailable("assessed journey is not implemented")
+    if not bundle.episode_id or not 0 <= bundle.revision <= 9007199254740991:
+        raise JourneyUnavailable("invalid journey identity or revision")
+    return JourneyProjection(
+        episode_id=bundle.episode_id, revision=bundle.revision,
+        as_of_utc=now_utc, flow=FlowView(), text={}, fixture_label="",
+    )

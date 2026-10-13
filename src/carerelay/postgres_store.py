@@ -74,6 +74,7 @@ from psycopg.rows import dict_row
 from . import postgres_schema
 from .domain import rules
 from .domain.models import (
+    JourneyBundle,
     MAX_REPAIR_ROUNDS,
     TERMINAL_TRANSITIONS,
     AttemptCommand,
@@ -1693,59 +1694,62 @@ class PostgresEpisodeStore:
         makes at most one row match.
         """
         with self._read() as cur:
-            cur.execute("SELECT id FROM episodes WHERE id = %s", (episode_id,))
-            if cur.fetchone() is None:
-                raise EpisodeNotFound(episode_id)
+            return self._load_snapshot(cur, episode_id)
 
-            cur.execute(
-                "SELECT * FROM dispositions WHERE episode_id = %s "
-                "ORDER BY version_no DESC LIMIT 1",
-                (episode_id,),
-            )
-            disposition_row = cur.fetchone()
-            disposition = (
-                _disposition_from_row(disposition_row)
-                if disposition_row is not None
-                else None
-            )
+    def _load_snapshot(self, cur: psycopg.Cursor, episode_id: str) -> EpisodeSnapshot:
+        cur.execute("SELECT id FROM episodes WHERE id = %s", (episode_id,))
+        if cur.fetchone() is None:
+            raise EpisodeNotFound(episode_id)
 
-            cur.execute(
-                "SELECT id, episode_id, route_id, purpose_id, idempotency_key, "
-                "consent_version FROM attempts WHERE episode_id = %s "
-                "ORDER BY opened_at DESC, id DESC LIMIT 1",
-                (episode_id,),
-            )
-            attempt_row = cur.fetchone()
-            attempt = (
-                self._attempt_snapshot(cur, attempt_row)
-                if attempt_row is not None
-                else None
-            )
+        cur.execute(
+            "SELECT * FROM dispositions WHERE episode_id = %s "
+            "ORDER BY version_no DESC LIMIT 1",
+            (episode_id,),
+        )
+        disposition_row = cur.fetchone()
+        disposition = (
+            _disposition_from_row(disposition_row)
+            if disposition_row is not None
+            else None
+        )
 
-            consent = self._fetch_consent(cur, episode_id, CLINICAL_SCOPE)
+        cur.execute(
+            "SELECT id, episode_id, route_id, purpose_id, idempotency_key, "
+            "consent_version FROM attempts WHERE episode_id = %s "
+            "ORDER BY opened_at DESC, id DESC LIMIT 1",
+            (episode_id,),
+        )
+        attempt_row = cur.fetchone()
+        attempt = (
+            self._attempt_snapshot(cur, attempt_row)
+            if attempt_row is not None
+            else None
+        )
+
+        consent = self._fetch_consent(cur, episode_id, CLINICAL_SCOPE)
+        cur.execute(
+            "SELECT id, accepted_by, scope FROM human_acceptances WHERE episode_id = %s "
+            "ORDER BY recorded_at DESC, id DESC LIMIT 1",
+            (episode_id,),
+        )
+        acceptance = cur.fetchone()
+        cur.execute(
+            "SELECT id, human_path, outcome FROM escalations WHERE episode_id = %s "
+            "ORDER BY recorded_at DESC, id DESC LIMIT 1",
+            (episode_id,),
+        )
+        escalation = cur.fetchone()
+        expiry = None
+        if disposition is not None:
             cur.execute(
-                "SELECT id, accepted_by, scope FROM human_acceptances WHERE episode_id = %s "
-                "ORDER BY recorded_at DESC, id DESC LIMIT 1",
-                (episode_id,),
+                "SELECT id FROM expiry_events WHERE episode_id = %s "
+                "AND disposition_version = %s "
+                "ORDER BY occurred_at DESC, id DESC LIMIT 1",
+                (episode_id, disposition.version),
             )
-            acceptance = cur.fetchone()
-            cur.execute(
-                "SELECT id, human_path, outcome FROM escalations WHERE episode_id = %s "
-                "ORDER BY recorded_at DESC, id DESC LIMIT 1",
-                (episode_id,),
-            )
-            escalation = cur.fetchone()
-            expiry = None
-            if disposition is not None:
-                cur.execute(
-                    "SELECT id FROM expiry_events WHERE episode_id = %s "
-                    "AND disposition_version = %s "
-                    "ORDER BY occurred_at DESC, id DESC LIMIT 1",
-                    (episode_id, disposition.version),
-                )
-                expiry = cur.fetchone()
-            evidence = self._list_evidence(cur, episode_id)
-            stop_reason = self._flow_stop_reason(cur, episode_id, disposition.version) if disposition else None
+            expiry = cur.fetchone()
+        evidence = self._list_evidence(cur, episode_id)
+        stop_reason = self._flow_stop_reason(cur, episode_id, disposition.version) if disposition else None
 
         return EpisodeSnapshot(
             disposition=disposition,
@@ -1763,6 +1767,29 @@ class PostgresEpisodeStore:
             ),
             expiry_event_id=expiry["id"] if expiry is not None else None,
         )
+
+    def load_journey_bundle(self, episode_id: str) -> JourneyBundle:
+        """No-plan snapshot parity; actual Postgres proof remains Slice 19."""
+        try:
+            with self._read() as cur:
+                cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
+                cur.execute("SELECT id FROM episodes WHERE id = %s", (episode_id,))
+                row = cur.fetchone()
+                if row is None:
+                    raise EpisodeNotFound(episode_id)
+                snapshot = self._load_snapshot(cur, episode_id)
+                cur.execute("SELECT COALESCE(MAX(id), 0) AS revision FROM events WHERE episode_id = %s", (episode_id,))
+                revision = cur.fetchone()["revision"]
+                cur.execute("SELECT kind, payload, recorded_at FROM events WHERE episode_id = %s ORDER BY id", (episode_id,))
+                events = tuple((e["kind"], e["payload"], e["recorded_at"]) for e in cur.fetchall())
+                consent = self._fetch_consent(cur, episode_id, CLINICAL_SCOPE)
+                return JourneyBundle(
+                    episode_id=row["id"], snapshot=snapshot, revision=revision,
+                    policy=None, policy_text=None, events=events,
+                    restatements=(), commands=(), consent_granted=consent is not None and consent[1] == "granted",
+                )
+        except psycopg.Error as exc:
+            raise StateError("journey read unavailable") from exc
 
     def derive_closure(self, episode_id: str, now_utc: datetime) -> ClosureProjection:
         """Convenience read: load the snapshot, then derive. Policy stays in `domain`."""
