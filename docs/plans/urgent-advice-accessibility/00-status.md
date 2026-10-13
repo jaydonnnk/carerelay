@@ -1,15 +1,278 @@
 # Status: CareRelay urgent-advice accessibility
 
 - Gate 1: Product, **RE-APPROVED 12 October 2026** for the revised concise patient journey, visual cues and copy in `01-product.md` and `patient-experience-copy.md`. The user explicitly approved Gate 1 and authorised committing the working tree and pushing to main. Previous approval: 8 October 2026.
-- Gate 2: Architecture, **RE-APPROVED 13 October 2026 (revision 4)** for the patient-experience journey and ADP read-back extraction design in `02-architecture.md` section 13. The user explicitly answered "Yep i approve gate 2" and requested a Gate 3 handoff. The previously approved section 5.2 durable-stop rule is unchanged. No new implementation is authorised.
-- Gate 3: Program Design, **RE-APPROVED 13 October 2026**, patient-experience and ADP read-back amendment in `03-program-design.md` section 9. User approval: "Yep i approve." Reopened and re-approved the same day; historical approval of 1 October retained. Gate 4 upgrade preparation is next; no implementation authorised.
-- Gate 4: Slice plan, **RE-APPROVED 8 October 2026** (reopened and re-approved the same day; re-approved 30 September 2026; first approved 28 September 2026). Reopened to execute the plan's own pre-recorded cut of the Gate B run, and re-approved so Slice 10 can begin; see the section below
+- Gate 2: Architecture, **RE-APPROVED 13 October 2026 (revision 4)** for the patient-experience journey and ADP read-back extraction design in `02-architecture.md` section 13. The user explicitly answered "Yep i approve gate 2" and requested a Gate 3 handoff. The previously approved section 5.2 durable-stop rule is unchanged. This architecture approval alone authorises no implementation.
+- Gate 3: Program Design, **RE-APPROVED 13 October 2026**, including section 9.12 identity correction. User answered "approve" after the reproduced no-event counterexample. Slice 14 local Check is complete; Slice 15 awaits its continuation/Git handoff.
+- Gate 4: Slice plan, **RE-APPROVED 13 October 2026** for `04-slices.md` section 9. Its contract is unchanged. Slice 14 local Check is complete after Gate 3 section 9.12 re-approval; Slices 15 to 21 have not started. No shipping, install or external authority follows.
+
+## Slice 14 shipping request: 13 October 2026
+
+**13 October 2026, authorised Slice 14 shipping in progress. [verified]**
+The user requested: "Push to main and then give a copy paste prompt for slice 15".
+Slice 14 code/tests are committed on `slice-14-journey-tracer`; main publication
+is being verified in this shipping session. This request includes the inherited
+approved records and the actionable Slice 15 handoff. Slice 15 is not started
+here; no next-slice branch, installation, credential change or manual deployment.
+An unrelated `submission/usage-proof/Workbuddy_evidence.mp4` appeared during
+shipping and is left untracked/untouched. Prior no-shipping-authority notes below
+are historical. Current completion/receipt authority is `00-status.md`.
+
+Fresh shipping suite: 1,033 passed, 46 Postgres skips, one warning (7.20s).
+Source/frontend checksums remain those of the completed local Check.
+The user requested an actionable next-chat Slice 15 prompt, not implementation
+in this shipping session. Main publication verification follows.
+
+## Slice 14: local read-only no-plan tracer, complete 13 October 2026
+
+[verified] Branch `slice-14-journey-tracer`; HEAD/main remain `1a8fff9`, with no
+staging, commit, merge or push. Inherited dirty Gate 4 records/handoff were
+snapshotted outside the repo and preserved through branch creation. Gate 3's
+identity correction was explicitly re-approved by "approve" before code edits.
+
+### Implemented boundary
+
+- Verified stored episode identity, coherent no-plan read and event revision in
+  both repository implementations. Disposable SQLite race/reopen proof; Postgres
+  source/signature parity only. No command table or schema migration.
+- Complete nullable no-plan wire shape; no fixture lines, owner, deadline, routes,
+  question or command. Options and consented MCP also expose no no-plan routes.
+  Unknown ID is 404. Assessed GET is explicitly 503 for this tracer, preserving
+  old service/ledger outcome checks until Slice 15's complete projection.
+- Bare root is a 303 to operator-configured `CARERELAY_FRONTEND_URL`, ignoring
+  caller redirect/episode parameters. Missing/invalid configuration refuses.
+  This new variable was used only for the local preview, not deployed config.
+- Server-only signed candidate cookie and read-only bootstrap; fixed relative
+  redirect preserves its host. No patient create-on-render, hint/action control
+  or mutation offer. Decoder accepts only the fully validated no-plan branch.
+  Recovery uses the exact approved entry/recovery catalog; no raw error text.
+
+### Check evidence and bounded claims
+
+- [x] Fresh full suite after cleanup: **1,033 passed, 46 Postgres skips, one
+  existing warning**, 7.46 seconds. Baseline was 945/46/one warning. Superseded
+  fixture-fallback/live-study-parity expectations were reconciled; legacy
+  outcome assertions remain through the service serializer and HTTP ledger,
+  with explicit assessed-HTTP refusal assertions. Study artifact/run unchanged.
+- [x] `npm run typecheck` and `npm run build`, Next.js 15.5.27/Node 24.21.0.
+  Operator ran `npm ci`; package/lockfile/config remain unchanged. Audit reports
+  next moderate and transitive postcss high (two packages); exposure was not
+  assessed here and no dependency upgrade/audit fix is part of this slice.
+- [x] `tests/_mutate_patient_experience.py`: **63/63 RED**, before/after controls,
+  actual assertion failures and byte-exact restores, including untracked files.
+  `tests/_mutate_truthfulness.py`: **39/39 RED**, same restoration discipline.
+- [x] Additional actual production-build render mutant: introduce an explicit
+  create call into the page, GET it, observe one backend POST and an assertion
+  failure. Original and restored builds issue zero POSTs. Source restored
+  byte-exact, restored production build passed. This is one separate live proof,
+  not a duplicate credit for the harness's structural render test.
+- [x] Authenticated live curl at `http://127.0.0.1:8139`: no-plan/options 200,
+  unknown 404, no token 401, bare root 303 with empty body. No-plan identity
+  survives backend restart; backend PID changed from 84906 to 87396.
+- [x] Production Next.js at `http://127.0.0.1:8140/`, Codex In-app Browser:
+  no-cookie entry, candidate 404, same-ID keyboard Try again, blocked API and
+  restored no-plan; missing-key bootstrap at localhost:8141 reaches recovery
+  without any backend call. A separate loopback proxy dropped actual bootstrap
+  303/cookie responses before delivery: browser reported ERR_EMPTY_RESPONSE,
+  with zero backend calls/POSTs. Browser-generated error-page inspection was
+  blocked by the automation URL policy; no app recovery rendering is claimed
+  for that network drop. Candidate record seeded only by the local test
+  operator, not the bootstrap/page. Intentional bootstrap changed candidate ID.
+- [x] All **38** malformed decoder fixtures reached recovery in that browser,
+  each followed by a restored-good no-plan control. Normal browser/curl capture
+  recorded **91 GETs and zero POSTs** before the deliberate live mutation.
+  The mutation's one POST is isolated in its own evidence. Service spies prove
+  reads invoke no create, intake, extraction or dispatch method.
+- [x] Actual API JSON, SSR HTML, RSC, visible text and accessibility tree:
+  **10 positive needle controls on each of five surfaces**, then clean scans.
+  Detectors individually mutated in the current harness. Fixture needles only.
+- [x] Desktop 1280x900 and 320 CSS pixels; 200% text measured at 40px versus
+  20px, with scroll width 320. Keyboard skip focuses main; text control and
+  Try again work. This is no VoiceOver/Safari announcement or 200%/400% browser
+  zoom result; Slice 20 retains those obligations. Browser version was not
+  exposed by the automation API; an attempted navigator read failed, not passed.
+- [x] Architecture cleanup: removed the unused legacy Pydantic patient model;
+  scanner now uses the real current serializer. Keep HintCard as the explicitly
+  gated Slice 16 surface, old fixture helpers for existing tests/assets, and
+  old slice mutation scripts as historical version-specific proof. Their retired
+  UI anchors are not claimed current; use the two named current harnesses above.
+  Judge ledger's old create helper remains outside the patient flow until its
+  approved Slice 15 reconciliation. No file deletion or unrelated refactor.
+
+[verified observed corrections] A first suite collection exposed the retired
+study HTML-heading dependency. A reconciliation run used the wrong cwd, and a
+replacement matched a longer client variable; corrected and logged. Source
+review caught a missing Postgres JourneyBundle import that runtime annotations
+alone did not execute. Actual browser bootstrap exposed an absolute redirect
+switching 127.0.0.1 to localhost; corrected to relative Location and separately
+mutation-proved. These are recorded failures, not hidden passing attempts.
+
+[verified evidence locations] This chat's `work/slice14/` holds baseline/full
+suite logs, exact preflight snapshots, and live curl/body/header/SSR/RSC/browser/
+mutation captures. The mutation logs name their independent temporary backup
+folders. User-facing report/screenshots are in this chat's `outputs/` directory.
+The local API and one Next.js preview remain running for review; the missing-key
+server and mutation server were stopped. No deployed configuration was changed.
+
+**Check result:** Slice 14 complete only for its approved local no-plan scope.
+No Slice 15 code, durable-start receipt, scored read-back, live ADP, hosted restart,
+actual Postgres engine, clinical safety or target-user benefit is claimed.
+Gates 1/2/4, clinical policy, scenario date/deadline and mockups are preserved.
+
+**Next boundary: Continue to slice 15, or re-steer?** Slice 15 also requires
+separate explicit commit/merge authority to put Slice 14 on current main before
+creating `slice-15-durable-start`. No push authority is inferred.
+
+**13 October 2026, Gate 3 identity amendment re-approved. [verified]**
+The user answered "approve" to section 9.12's required `JourneyBundle.episode_id`
+correction. Gate 3 is RE-APPROVED; `00-status.md` carries the receipt. Slice 14
+implementation resumes on `slice-14-journey-tracer`. Earlier blocked notes below
+are historical. Slice 14 is not complete; Slice 15 still requires its Check,
+continuation and separately authorised main handoff. No installation or Git
+shipping/external authority was added. Frontend tooling remains unavailable.
+
+Approval history: Gate 3 reopened for the missing identity field, then explicitly
+re-approved on 13 October 2026. Gates 1/2/4 remain unchanged.
+
+- [x] Obtain explicit Gate 3 section 9.12 re-approval: "approve".
+- [ ] Complete Slice 14 implementation and every required Check.
+
+## Slice 14 preflight and Gate 3 signature falsifier: 13 October 2026
+
+[verified] The attached actionable handoff starts Slice 14 first. The branch is
+`slice-14-journey-tracer`, based on unchanged main/HEAD `1a8fff9`. The inherited
+Gate 4 approval records and handoff remain uncommitted and preserved. Backup:
+`/Users/jayd0/Documents/Codex/2026-10-13/files-pasted-by-the-user-carerelay-2/work/slice14/preflight/`.
+All 198 files and the Git index matched after checkout. No product code or test
+file changed; no migration, frontend build or browser Check was performed.
+
+[verified design counterexample] Gate 3 section 9.3 permits event revision 0.
+Two schema-valid stored no-plan episodes `fictional-empty-a` and
+`fictional-empty-b`, each without events, were reopened in disposable SQLite.
+Their complete available inputs for the section 9.8 `JourneyBundle` are equal:
+identical null-disposition snapshots, revision 0, null policy/text, empty events,
+restatements and commands, and false consent. `EpisodeSnapshot` has no episode
+identity. With the same injected time, pure `derive_journey(bundle)` cannot
+produce the two different `JourneyProjection.episode_id` values required by
+section 9.3. Integrity and foreign-key checks passed. This is a signature
+counterexample, not an implemented projection test or a clinical finding.
+
+[proposed correction] Add required `episode_id: str` to `JourneyBundle`, read
+from the verified `episodes.id` row inside the same coherent transaction. Unknown
+IDs still raise 404. Neither an event nor a disposition supplies identity.
+Section 9.12 records the proposed correction and its required future regression.
+No public route, wire field, schema migration, copy or architecture change follows.
+
+**Approval history:** Gate 3 was re-approved earlier on 13 October, then reopened
+by this concrete signature falsifier under Gate 4 section 9.8. Re-approval is
+pending, not inferred from the earlier approval or Slice 14 instruction.
+Gates 1/2/4 retain their approvals and byte-preserved contracts; implementation
+is blocked by Gate 3. Slice 14 remains incomplete; Slice 15 remains unstarted.
+
+- [x] Verify Git state, external Python imports and closed loopback engine DSN.
+- [x] Snapshot inherited files outside the repo, branch and verify preserved bytes.
+- [x] Fresh baseline: 945 passed, 46 Postgres skips, one existing warning.
+- [x] Reproduce the permitted no-event identity collision in reopened SQLite.
+- [x] Prepare the narrow Gate 3 amendment and reconcile current state mirrors.
+- [ ] Obtain explicit Gate 3 re-approval before implementing the amendment.
+- [ ] Complete Slice 14 code, focused/full checks, independent mutations, curl,
+  actual browser proof and architecture cleanup, then its continuation checkpoint.
+
+[verified environment limit] No `.venv` or `frontend/node_modules`; backend
+imports work with the external Python 3.13.12. Node 24.21.0/npm 11.19.0 are
+available. No compatible Next.js installation was located in the bounded search.
+Operator setup remains `npm --prefix /Users/jayd0/Desktop/carerelay/frontend ci`;
+no install authority was supplied. Postgres was deliberately unreachable at the
+closed loopback port; pure parity tests ran in the full baseline. Engine skips
+are unproved. No ADP/model/provider or production call occurred.
+
+**Next decision:** Approve Gate 3, or what should change?
 
 **Historical state before the 12 October reopen: all four gates were APPROVED as of 8 October 2026: Gate 2 was re-approved immediately and Gate 1 was re-approved when its two closure mockups were created the same day.** Before that reopen all four gates were approved as of 2 October 2026: Gates 1 and 2 were reopened that day by the patient wording pass and **re-approved the same day** ("I have read and i re approve both gates"), which also completed the re-opened Slice 5 Check. **Slice 5 closes as of 2 October 2026.** Gate 4 was untouched by the pass, so implementation stayed authorised throughout. At the time that pass was written nothing from it was committed or pushed; the gate amendments and the Slice 5 work have both shipped since, and the branch state as it stands now is in section 3 of `AGENTS.md` rather than here.
 
 **The submission-asset half of Slice 12 was completed on 11 October 2026 and shipped the same day.**
 
 **All three reopened gates were re-approved on 30 September 2026.** Implementation is authorised again, slice by slice, in the order `04-slices.md` gives.
+
+## Gate 4 reopen and re-approval: patient-experience slice plan, 13 October 2026
+
+[verified] The user's attached assignment authorises this documentation branch
+and Gate 4 preparation only. At preflight, main/HEAD/tracking main and live remote
+main/program-design branch matched `1a8fff92edaadeddd49d42e6ce0db5d8fe2a3bfb`,
+and the tree was clean. `codex/patient-experience-slice-plan` was created from
+that main before the first edit. No staging, commit, merge or push is authorised.
+
+[verified document state] `04-slices.md` section 9 is drafted, so Gate 4 is
+REOPENED, then explicitly RE-APPROVED after review. Gates 1/2/3 and their approval history are preserved.
+The original Gate 4 body/Slices 0 to 13 remain historical comparison; Slice 9
+is cut as a participant run and old conditional Slice 13 remains unbuilt.
+[hypothesis] Eight visible slices, 14 to 21, carry all approved Gate 3 guards.
+The first is read-only/no-plan; migration/replay/stop/consent boundaries accompany
+the mutations they protect. Live ADP remains a separately authorised last step.
+
+- [x] Recheck clean main, HEAD and live remote shipping snapshot.
+- [x] Create the authorised documentation branch before editing.
+- [x] Inspect controlling contracts, supporting records and actual application gaps.
+- [x] Draft visible slices, exact future files, guard allocation and effort arithmetic.
+- [x] Mirror reopened scope/state; preserve Gates 1/2/3, code/tests and prototypes.
+- [x] Complete documentary, preservation, whitespace and scope checks: prior gates/code/mockups preserved, historical Gate 4 body retained, all 38 Gate 3 verification rows exactly allocated; no runtime result.
+- [x] Obtain explicit Gate 4 re-approval: "Yep i approve", 13 October 2026.
+- [x] Prepare the requested actionable implementation handoff for Slice 14 then Slice 15.
+- [ ] Start Slice 14 in the next authorised implementation session; no code here.
+
+[verified documentary checks] SHA-256 baseline comparison preserves the other
+187 tracked files, including Gates 1/2/3, source/frontend/tests and all mockups.
+Historical Gate 4 body is unchanged; all 38 verification rows match Gate 3
+exactly. Eight effort ranges and milestone sums check; LF, added punctuation,
+bounded new-text credential patterns with positive controls and `git diff --check`
+pass. HEAD/index are unchanged, no files are staged and no code/new file exists
+from this run. The check's initial whole-file heading counter was corrected to
+scope section 9; that checker error is logged in `tasks/lessons.md`.
+
+Approval history: **13 October 2026, Gate 4 REOPENED and RE-APPROVED the same day.**
+[verified] The user answered: "Yep i approve, now the handoff prompt for the next agent to start slice 14 and 15 please."
+This is explicit approval of section 9 and a request for an actionable next-agent
+handoff covering Slice 14 followed by Slice 15. It authorises no implementation
+in this handoff-only session and supplies no new Git shipping authority. The
+8 October approval remains history for the prior plan/cut. No new runtime,
+application-suite, mutation, ADP, Postgres or browser result is claimed. Recorded
+12 October figures remain historical. No proposed slice is complete.
+
+[verified handoff constraints] The documentation tree remains uncommitted on
+`codex/patient-experience-slice-plan` at `1a8fff9`; main/remote main were rechecked
+at the same full hash during this handoff. Preserve these inherited edits when
+starting Slice 14 from current main. The approved Slice 14 Check and continue
+boundary precede Slice 15. Slice 14 must be on main before Slice 15 branches;
+commit/merge authority is separate and has not been supplied. No silent carry
+of Slice 14 implementation onto a branch from old main. Frontend dependencies
+are absent; operator setup is needed for browser/build proof, with no installs
+performed here. The handoff records the available external Python interpreter.
+
+
+[verified dependencies] Separate Gate 1 approval of exact confirmation label/help
+precedes patient scoring exposure; non-timing/date copy stays gated. Bare
+`tomorrow` remains uncertain under the existing policy. [unknown] Live ADP
+positive extraction/final-channel profile, actual Postgres ordering/restart,
+production accessibility and participant benefit remain unproved. Later live
+ADP publishing/activation/calls, disposable access, processor/retention/clinical/
+participant work, assets, deployment/submission and Git shipping need separate
+authority. Provider-sharing consent grants no general ADP-processing authority.
+
+[hypothesis] Effort remains 84 to 144 incremental person-hours; Slice 14 is 4 to 7,
+through Slice 15 is 18 to 30. The arithmetic and exclusions are in section 9.4;
+no full-upgrade promise for 16 October or current cutoff assertion is made.
+
+### Approved upgrade slices: Slice 14 locally complete
+
+- [x] Slice 14: local Check complete 13 October 2026, `slice-14-journey-tracer`; uncommitted, no engine/deployment claim.
+- [ ] Slice 15: explicit durable start/coherent stored journey, `slice-15-durable-start`.
+- [ ] Slice 16: confirmed offline read-back/field repair, `slice-16-confirmed-readback`.
+- [ ] Slice 17: permission/truthful simulated failure, `slice-17-permission-failure`.
+- [ ] Slice 18: strict ADP extraction with offline transports, `slice-18-adp-boundary`.
+- [ ] Slice 19: disposable Postgres races/restarts, `slice-19-postgres-proof`.
+- [ ] Slice 20: production accessibility proof/remediation, `slice-20-accessibility-proof`.
+- [ ] Slice 21: separately authorised live ADP enablement, `slice-21-adp-enablement`.
+
+**Next work:** user continuation checkpoint and separately authorised commit/merge of Slice 14 to main, then Slice 15 on its own main-based branch.
 
 ## Gate 3 reopen and re-approval: patient-experience program design, 13 October 2026
 
@@ -44,7 +307,7 @@ future conflicting evidence must reopen its owning gate, not be rationalised awa
 - [x] Preserve inherited work, Gate 1 copy/prototypes, Gate 2 and Gate 4 contracts.
 - [x] Perform documentary/preservation review; results recorded in PROGRESS.md.
 - [x] Obtain explicit Gate 3 approval: "Yep i approve.", 13 October 2026.
-- [ ] After approval only, prepare a separate Gate 4 upgrade amendment.
+- [x] After approval only, prepare a separate Gate 4 upgrade amendment: section 9 drafted and explicitly re-approved 13 October.
 
 Approval history: **13 October 2026, Gate 3 REOPENED and RE-APPROVED the same day.**
 [verified] The user explicitly answered "Yep i approve." and separately requested
@@ -57,7 +320,7 @@ run in this assignment; no installation, credential change, database mutation,
 deployment or participant outreach is authorised. The later explicit shipping
 request above authorises documentation Git operations, not implementation.
 
-**Next task:** separately prepare/review Gate 4 upgrade slices; stop at its approval boundary.
+**Completed next design step:** Gate 4 is now re-approved; the requested implementation handoff targets Slice 14 then Slice 15.
 
 ### Documentation shipping receipt: 13 October 2026
 
@@ -109,7 +372,7 @@ reconciled from source; old intake/classification Slice 13 scope is unbuilt.
 - [x] Preserve Gate 1 copy/mockups, Gate 3/4 contracts and section 5.2 stop rule.
 - [x] Obtain explicit Gate 2 re-approval for revision 4: user approval, 13 October 2026.
 - [x] After approval, separately prepare/review Gate 3 program design: draft prepared and explicitly re-approved 13 October.
-- [ ] After Gate 3, separately prepare/review Gate 4 upgrade slices.
+- [x] After Gate 3, separately prepare/review Gate 4 upgrade slices: draft prepared and explicitly re-approved 13 October.
 
 Approval history: **13 October 2026, Gate 2 REOPENED and RE-APPROVED the same day.**
 [verified] The user's approval excerpt is "Yep i approve gate 2". The user also
@@ -744,9 +1007,11 @@ The spike was built as `spike/gate_a/probe.py` with `spike/gate_a/test_probe.py`
 ## Slices
 
 **13 October scope boundary:** this checklist records the prior approved build.
-The re-approved Gate 2 upgrade has no approved Gate 3/4 amendment and no
-authorised implementation slice. Slice 13 remains not built; its intake/classification
-contract does not cover the proposed read-back integration.
+Gate 3 section 9 is re-approved. Gate 4's separate upgrade amendment is now
+RE-APPROVED; the user requested the Slice 14/15 implementation handoff. Slices 14 to 21
+are unchecked in the current reopen section above. Slice 13 remains not built;
+its intake/classification contract does not cover the approved read-back role.
+The historical implementation-authority paragraph below covers the prior plan only.
 
 **Gate 4 was reopened on 8 October 2026 to execute the plan's pre-recorded cut of the Gate B run and was re-approved the same day, so implementation is authorised again.** Slices proceed one at a time, each ending with a "continue, or re-steer?" check. **Slices 5, 6, 7 and 7b are built, reviewed and shipped to `main`; Slice 8 is built on `slice-8-fixed-card`, adversarially reviewed and remediated the same day, its Check is complete, and it shipped to `main` on 7 October 2026. Slice 9 is built on `slice-9` and CUT as a run on 8 October 2026: no dyad was recruited, so there is no Gate B result and no human-centred validation claim. Slice 10 (the Closure Contract in full) is built on `slice-10` and SHIPPED to `main` on 8 October 2026, with the closure renderings approved at a Gate 1 re-approval the same day; F4, F6 and F6-render are closed, and all five closure screens were proven live. Slice 11 (the fault harness and the seven sequences) is BUILT on `slice-11-fault-harness`, its Check is complete, adversarially reviewed with a SOUND verdict, and SHIPPED to `main` on 9 October 2026, with the slice branch unpublished. O8 is closed by its child-process kill test, for the SQLite store. Slice 12 (the judge ledger, the submission assets and the usage proof) has its CODE HALF BUILT on `slice-12-ledger`: the ledger and options read projections, the ledger view in the Next.js frontend, 29 tests and a 10-of-10 mutation harness, all committed on 10 October 2026 and fast-forwarded into `main`, and **its submission-asset half is COMPLETE, shipped on 11 October 2026** (see the part-two section above).** Slice state below is the only authority.
 
@@ -1345,9 +1610,9 @@ The map spans three folders, reorganised on 30 September 2026 so that a review a
 |---|---|---|
 | `00-status.md` | state | this file |
 | `01-product.md` | **Gate 1 doc** | problem, success metric, announcement, product rules, screens |
-| `02-architecture.md` | **Gate 2 doc** | **revision 4 RE-APPROVED 13 Oct 2026.** Durable-stop amendment approved 12 Oct and preserved. D14 to D18 approve the journey/resume, screen mapping and ADP read-back architecture. Gate 3 section 9 is re-approved 13 Oct; Gate 4 upgrade amendment remains outstanding |
+| `02-architecture.md` | **Gate 2 doc** | **revision 4 RE-APPROVED 13 Oct 2026.** Durable-stop amendment approved 12 Oct and preserved. D14 to D18 approve the journey/resume, screen mapping and ADP read-back architecture. Gate 3 section 9 is re-approved 13 Oct; Gate 4 upgrade section 9 is re-approved 13 Oct |
 | `03-program-design.md` | **Gate 3 doc** | **RE-APPROVED 13 Oct 2026.** Section 9 upgrade contracts approved; historical sections 1 to 8 retained |
-| `04-slices.md` | **Gate 4 doc** | **APPROVED 30 Sep 2026.** First approved 28 Sep. **14 slices, Slice 0 to Slice 13**, full scope, Gate A re-verification, R1 schedule risk |
+| `04-slices.md` | **Gate 4 doc** | **RE-APPROVED 13 Oct 2026.** Section 9 upgrade plan; Slices 14 to 21 not started. Slice 14/15 handoff requested. Historical Slices 0 to 13 retained |
 | `03-planback-closure-contract.md` | supporting note | specification and feasibility for PlanBack and the Closure Contract. Carries the `03-` filename that Gate 3 needed |
 | `clinical-review-blocker.md` | supporting note | decision paper, 26 Sep: what the reviewer blocker actually blocks, and three routes through |
 | `research-workarounds.md` | supporting note | which blockers are workaroundable and which are hard gates. Listed here for the first time: it was named in `AGENTS.md` section 2 but was missing from this map |
@@ -1356,6 +1621,7 @@ The map spans three folders, reorganised on 30 September 2026 so that a review a
 | `patient-experience-copy.md` | Gate 1 proposed copy | [verified] Exact main/dialog text from the twelve patient experience mockups; approved 12 October 2026 |
 | `patient-experience-upgrade.md` | supporting execution note | [verified] Handoff reconciliation, incremental order, verification and manual dependencies |
 | `docs/handoffs/patient-experience-gate3-2026-10-13.md` (repo root) | session handoff | [verified] Approved Gate 2 receipt, dirty-worktree state, actionable Gate 3 assignment and separate review prompt |
+| `docs/handoffs/patient-experience-slices14-15-2026-10-13.md` (repo root) | implementation handoff | [verified] Gate 4 approval receipt, uncommitted tree, Slice 14 first/Slice 15 checkpoint and main handoff, tooling/proof limits |
 | `design/mocks/patient-journey/` (repo root) | Gate 1 proposed assets | [verified] Twelve separate patient screens and review index, plain HTML; approved 12 October 2026 |
 
 **`docs/reviews/`**

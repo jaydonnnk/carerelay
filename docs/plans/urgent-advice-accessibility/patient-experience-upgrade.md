@@ -1,5 +1,82 @@
 # Patient experience upgrade: updated 13 October 2026
 
+**13 October 2026, authorised Slice 14 shipping in progress. [verified]**
+The user requested: "Push to main and then give a copy paste prompt for slice 15".
+Slice 14 code/tests are committed on `slice-14-journey-tracer`; main publication
+is being verified in this shipping session. This request includes the inherited
+approved records and the actionable Slice 15 handoff. Slice 15 is not started
+here; no next-slice branch, installation, credential change or manual deployment.
+An unrelated `submission/usage-proof/Workbuddy_evidence.mp4` appeared during
+shipping and is left untracked/untouched. Prior no-shipping-authority notes below
+are historical. Current completion/receipt authority is `00-status.md`.
+
+**13 October 2026, Slice 14 local Check complete. [verified]**
+The read-only no-plan tracer is complete locally on `slice-14-journey-tracer`.
+`00-status.md` owns the completion record. Gate 3 section 9.12 was explicitly
+re-approved with "approve" before implementation. No-plan API/options/MCP expose
+no guidance; unknown IDs recover; the bare root redirects to configured trusted
+frontend. Signed bootstrap creates no record, and patient render/retry creates
+nothing. Assessed patient GET deliberately returns 503 until Slice 15.
+Fresh checks: 1,033 passed, 46 Postgres skips, one warning; frontend typecheck and
+production build pass. New harness 63/63 RED, existing truthfulness 39/39 RED;
+one additional production-build create-on-render mutant is RED, with passing
+controls and byte-exact restoration. Actual browser checked 38 malformed inputs,
+entry/recovery/retry, 320px and 200% text. API/SSR/RSC/visible/accessibility
+scanner controls pass. These are bounded local observations, not full
+screen-reader/zoom or clinical proof. No Postgres engine or ADP proof.
+The user installed frontend dependencies; the agent performed no install or
+version/lockfile change. npm audit reports one moderate and one high package
+finding; no audit fix was applied. No commit/merge/push/deployment occurred.
+Slice 15 remains unstarted. It requires the visible continuation checkpoint and
+separate explicit authority to commit/merge Slice 14 onto main before branching.
+Earlier notes below are historical.
+
+**13 October 2026, Gate 3 identity amendment re-approved. [verified]**
+The user answered "approve" to section 9.12's required `JourneyBundle.episode_id`
+correction. Gate 3 is RE-APPROVED; `00-status.md` carries the receipt. Slice 14
+implementation resumes on `slice-14-journey-tracer`. Earlier blocked notes below
+are historical. Slice 14 is not complete; Slice 15 still requires its Check,
+continuation and separately authorised main handoff. No installation or Git
+shipping/external authority was added. Frontend tooling remains unavailable.
+
+**13 October 2026, Slice 14 preflight: Gate 3 reopened. [verified]**
+Slice 14 preflight started on `slice-14-journey-tracer`, created from main at
+`1a8fff92edaadeddd49d42e6ce0db5d8fe2a3bfb`; all 198 snapshotted files and the
+index survived checkout byte-exact. No implementation edit has occurred.
+The approved `JourneyBundle` omits episode identity. Two valid no-plan records
+with revision 0 and no events produce identical inputs to `derive_journey`,
+which cannot return their different required episode IDs. A reopened disposable
+SQLite probe confirmed equal inputs, integrity OK and no foreign-key violations.
+Gate 3 is now in progress pending re-approval of the narrow identity-field
+amendment in `03-program-design.md` section 9.12. `00-status.md` owns this state.
+Gates 1/2 and the Gate 4 plan remain unchanged; Slice 14 is blocked and incomplete,
+and Slice 15 has not started. Earlier approval/handoff notes below are history.
+Fresh baseline: 945 passed, 46 Postgres skips, one warning; not Slice 14 proof.
+Frontend dependencies remain absent; no compatible installed Next.js toolchain
+was located in the bounded search. No install, credentials, ADP, Postgres access,
+commit, merge, push or deployment occurred. Resume Slice 14 only after the
+required Gate 3 re-approval. Its later Check, continuation and authorised main
+handoff still precede Slice 15.
+
+**13 October 2026, Gate 4 re-approval and Slice 14/15 handoff. [verified]**
+The user explicitly approved Gate 4 and requested the next-agent implementation
+handoff for Slice 14 then Slice 15. Section 9 of `04-slices.md` is RE-APPROVED;
+`00-status.md` carries the gate line, checklist and approval history. Gates 1/2/3
+contracts are unchanged. No upgrade slice has started. The records/handoff remain
+uncommitted on `codex/patient-experience-slice-plan`; no Git shipping is authorised.
+The handoff starts Slice 14, with the visible Check and continue-or-re-steer
+boundary before Slice 15. Slice 15 needs Slice 14 on current main first;
+committing/merging that work requires separate explicit Git authority. Do not
+carry Slice 14 code as dirty changes onto a Slice 15 branch from old main.
+[verified dependencies] Frontend node_modules is absent; existing package and
+lockfile supply the operator `npm ci` setup. No installation is performed or
+inferred here. The existing external Python 3.13.12 interpreter is available;
+this checkout has no .venv. Preserve current file endings, not stale skill defaults.
+[hypothesis] Slice 14 is 4 to 7 hours; through Slice 15, 18 to 30, unmeasured.
+No confirmation/scoring/action/ADP capability or full-upgrade deadline follows.
+Separate copy, live ADP, disposable Postgres, clinical/participant and deployment
+boundaries remain. The cut study stays cut. Older notes below are historical.
+
 **13 October 2026, documentation shipping receipt. [verified]** Approved
 architecture/program design and records/handoffs were committed, the
 program-design branch published, and main safely fast-forwarded and pushed.

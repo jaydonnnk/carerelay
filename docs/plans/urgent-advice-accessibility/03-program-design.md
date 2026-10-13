@@ -309,8 +309,9 @@ At 26 September, the 16 October submission is about 20 calendar days away. **[hy
 
 ## 9. Patient-experience and ADP read-back amendment: 13 October 2026
 
-**Gate 3: RE-APPROVED 13 October 2026.** [verified] The user answered
-"Yep i approve." This section amends the
+**Gate 3: RE-APPROVED 13 October 2026.** The user answered "approve"
+to section 9.12's missing bundle identity correction. Earlier approval that
+day was "Yep i approve." This section amends the
 existing program design against Gate 2 revision 4, section 13, approved on
 13 October Singapore time. It does not replace the historical contract above.
 For this upgrade, section 9 takes precedence over obsolete signatures, storage,
@@ -318,7 +319,8 @@ platform, expiry-reader, study and effort statements in sections 1 to 8.
 `00-status.md` remains the sole gate authority. Gate 1's twelve screens and exact
 copy, Gate 2 including section 5.2, and Gate 4 are unchanged.
 
-All contracts below are **[verified design approval, behaviour remains hypothesis]** unless
+Including the re-approved identity correction in section 9.12, contracts retain
+their **[verified design approval, behaviour remains hypothesis]** status unless
 explicitly labelled otherwise. Approval makes them design authority, not passing
 evidence. No implementation, tests, migrations, install, credentials, live ADP
 call, database mutation, participant contact, deployment, commit or push is
@@ -1015,6 +1017,7 @@ transfer responsibility, write evidence or declare care arranged.
 ```python
 @dataclass(frozen=True)
 class JourneyBundle:
+    episode_id: str  # section 9.12: verified stored row identity
     snapshot: EpisodeSnapshot
     revision: int
     policy: PolicyFixture | None
@@ -1428,3 +1431,43 @@ dependencies are on disk; no important permission exists only in chat.
 committing the working tree, publishing the branch, merging and pushing to main,
 and an actionable prompt for the next agent to prepare Gate 4. This is no
 Gate 4 approval or authority to implement the upgrade.
+
+## 9.12 Identity correction: Gate 3 re-approved, 13 October 2026
+
+**Status: RE-APPROVED.** The user answered "approve" on 13 October 2026. The earlier section 9 approval remains
+history. This narrow correction is proposed after Slice 14 preflight, under
+Gate 4 section 9.8's signature-falsifier rule. No implementation was written.
+
+[verified] `JourneyProjection.episode_id` is required by section 9.3, including
+for true no-plan. That section explicitly permits revision 0 when no events
+exist. The section 9.8 bundle had no identity field, and the current
+`EpisodeSnapshot` has none. For two valid no-plan rows without events, all
+approved bundle fields can be equal while the required response IDs differ.
+A disposable SQLite probe seeded `fictional-empty-a` and `fictional-empty-b`,
+closed/reopened the store, compared those fields and verified integrity and
+foreign keys. This counterexample does not claim the unbuilt projector ran.
+
+**Approved signature delta:** the section 9.8 `JourneyBundle` now shows required
+`episode_id: str` before `snapshot`. Both `load_bundle(episode_id)` and
+`load_journey_bundle(episode_id)` must populate it from the verified stored
+`episodes.id` row in the same coherent transaction as the remaining fields.
+An absent row still raises `EpisodeNotFound` and maps to 404; merely echoing
+an unverified request ID is not sufficient. `derive_journey` copies this identity
+for no-plan and assessed projections; no event/disposition/process lookup or
+shared demo ID may substitute for it. Its signature stays pure and unchanged.
+
+**Required future regression, within existing G01/G31/G37 scope:** seed two
+no-plan episodes with no events in disposable SQLite, reopen, read both through
+authenticated GET and assert their distinct exact IDs with revision 0, null
+plan/outcome/aliases and empty commands/lines/options. Unknown ID stays 404.
+Include ordinary eventful no-plan controls. Independently remove bundle identity
+propagation or substitute the shared ID and require real assertion failure;
+retain the existing per-surface no-plan and fresh-process obligations. Store
+reader parity remains source-only until the authorised Slice 19 engine proof.
+
+This adds no wire field (identity is already required), public endpoint, table,
+command, policy, copy or clinical behavior. Gates 1/2 and the approved Gate 4 plan
+are unchanged. Slice 14 implementation may resume after this explicit re-approval. Its later visible Check/cleanup/continuation and authorised main
+handoff remain prerequisites for Slice 15.
+
+**Re-approval recorded:** "approve", 13 October 2026.
