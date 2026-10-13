@@ -77,7 +77,7 @@ class EpisodeBrief:
     """
 
     episode_id: str
-    policy_version: str
+    policy_version: str | None
     disposition_version: int | None
     permitted_route_ids: tuple[str, ...]
     fallback_route_id: str | None
@@ -264,9 +264,9 @@ def _brief(
     disposition = snapshot.disposition
     return EpisodeBrief(
         episode_id=episode_id,
-        policy_version=policy.version,
+        policy_version=disposition.policy_version if disposition is not None else None,
         disposition_version=disposition.version if disposition is not None else None,
-        permitted_route_ids=tuple(sorted(policy.permitted_route_ids)),
+        permitted_route_ids=tuple(sorted(policy.permitted_route_ids)) if disposition is not None else (),
         fallback_route_id=(
             disposition.fallback_route_id if disposition is not None else None
         ),

@@ -67,32 +67,14 @@ from carerelay.study.scoring import (  # noqa: E402
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CARD_PATH = REPO_ROOT / "study" / "fixed-card.html"
 PROTOCOL_PATH = REPO_ROOT / "study" / "protocol.md"
-API_PATH = REPO_ROOT / "src" / "carerelay" / "api.py"
 
 CARD_INSTRUMENT = "fixed-card-v1"
 
 
-def _application_heading() -> str:
-    """The heading the application's patient screen renders, read from `api.py`.
-
-    Finding S1 of the Slice 8 review: the expected heading used to be a constant
-    declared in this file, so renaming the heading in `api.py` left the parity
-    guard green while the card and the application quietly disagreed. The value
-    is therefore read from the application's own source, so a rename on **either**
-    side now fails. Exactly one `<h1>` is required, because the derivation is
-    only meaningful while the patient screen has exactly one heading.
-    """
-    headings = re.findall(
-        r"<h1[^>]*>(.*?)</h1>", API_PATH.read_text(encoding="utf-8"), re.DOTALL
-    )
-    if len(headings) != 1:
-        raise AssertionError(f"api.py must render exactly one <h1>: {headings}")
-    return headings[0].strip()
-
-
-#: The heading the card must carry. Derived from the application, never declared
-#: here, for the reason in `_application_heading`.
-CARD_HEADING = _application_heading()
+# The participant run was CUT on 8 October. Slice 14 retires the FastAPI HTML
+# surface; parity with the new journey is neither required nor claimed. Preserve
+# the frozen instrument's exact historical heading. This does not restart study.
+CARD_HEADING = "Your plan"
 
 #: Anything that loads a resource, executes, or wires the card to the application.
 #: The card is an external artefact, so there is no legitimate instance of any of
@@ -458,25 +440,15 @@ class TestTheCardWordingMatchesTheFixture:
         assert fixture.DEADLINE_DISPLAY in visible
         assert fixture.FALLBACK_ROUTE_TEXT in visible
 
-    def test_the_application_renders_exactly_one_heading(self) -> None:
-        """The precondition of the derived heading in `_application_heading`.
+    def test_retired_api_page_is_not_used_as_a_study_comparator(self) -> None:
+        from carerelay.api import app
+        from fastapi.testclient import TestClient
+        response = TestClient(app).get("/", follow_redirects=False)
+        assert response.status_code in (303, 503)
+        assert "<h1" not in response.text
 
-        `CARD_HEADING` is read from the one `<h1>` in `api.py`. If the patient
-        screen ever renders two, the derivation silently takes the first and the
-        parity claim becomes ambiguous, so the count is asserted outright.
-        """
-        source = API_PATH.read_text(encoding="utf-8")
-        assert len(re.findall(r"<h1[^>]*>", source)) == 1
-
-    def test_the_card_heading_is_the_heading_the_application_renders(self) -> None:
-        """Finding S1: this guard is now bound to `api.py`, not to a constant.
-
-        The expected value is derived at import from the application's own
-        patient screen, so a rename on either side fails it. Both directions are
-        mutation-proven in `tests/_mutate_slice8.py` (S1a renames the heading in
-        `api.py`, S1b renames it on the card) and both go RED.
-        """
-        assert CARD_HEADING, "api.py renders no heading, so there is nothing to match"
+    def test_frozen_card_retains_its_historical_heading(self) -> None:
+        """Historical instrument only; old live-heading parity claim is retired."""
         headings = re.findall(r"<h1[^>]*>(.*?)</h1>", _card_visible(), re.DOTALL)
         assert [heading.strip() for heading in headings] == [CARD_HEADING]
 

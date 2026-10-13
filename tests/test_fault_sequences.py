@@ -354,30 +354,29 @@ def _assert_healthy_surface(
     (`test_scanner_detects_injected_needle`): a negative scan without it is
     not evidence.
 
-    **Only the JSON projection is content-asserted.** The page at `/` is the
-    Slice 1 tracer bullet: it renders `fixture.demo_lines()` and never reads
-    its `episode_id`, so it is a constant and the harness asserts `200` plus
-    the scanners on it. That limit is recorded in the Slice 11 section of
-    `00-status.md` rather than papered over here.
+    Slice 14 retires the bare fixture page and temporarily refuses assessed HTTP.
+    Exact legacy outcome assertions remain at the service serializer; authenticated
+    HTTP refusal is checked separately. This is not Slice 15 journey proof.
     """
     projected = world.client.get(f"/api/episodes/{EPISODE}")
-    assert projected.status_code == 200, projected.text
-    body = projected.json()
+    assert projected.status_code == 503, projected.text
+    assert projected.json() == {"detail": "journey unavailable"}
+    body = json.loads(json.dumps(world.service.project_patient(EPISODE).as_dict()))
     assert tuple(body["lines"]) == expected_lines
     assert body["closure"] == expected_closure
     assert body["care_evidenced"] is False
     assert body["simulated"] is True
     assert body["fixture_label"] == fixture.FIXTURE_LABEL
 
-    page = world.client.get("/")
-    assert page.status_code == 200
+    page = world.client.get("/", follow_redirects=False)
+    assert page.status_code in (303, 503)
 
     for scanner in (
         scan_for_secrets,
         scan_for_facility_names,
         scan_for_unlabelled_receipts,
     ):
-        assert scanner(projected.text) == [], (
+        assert scanner(json.dumps(body)) == [], (
             f"{scanner.__name__} fired on the serialized projection"
         )
         assert scanner(page.text) == [], f"{scanner.__name__} fired on the page"

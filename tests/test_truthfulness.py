@@ -1,6 +1,7 @@
 """Authenticated regression probes. Local SQLite unless explicitly marked otherwise."""
 from contextlib import contextmanager
 import secrets
+import json
 
 import pytest
 from fastapi.testclient import TestClient
@@ -58,9 +59,16 @@ def surfaces(client):
     patient = client.get(BASE)
     ledger = client.get(BASE + "/ledger")
     alias = client.get(f"/ledger/{EPISODE}")
-    assert patient.status_code == ledger.status_code == alias.status_code == 200, (patient.text, ledger.text, alias.text)
+    # Slice 14 blocks assessed patient HTTP until the complete Slice 15 projection.
+    # Retain all old serialized outcome assertions through the unchanged service,
+    # plus authenticated HTTP ledger/mutation guards and exact recovery refusal.
+    assert patient.status_code == 503, patient.text
+    assert patient.json() == {"detail": "journey unavailable"}
+    assert ledger.status_code == alias.status_code == 200, (ledger.text, alias.text)
     assert ledger.json() == alias.json()
-    return patient.json(), ledger.json()
+    service = app.dependency_overrides.get(get_service, get_service)()
+    legacy = json.loads(json.dumps(service.project_patient(EPISODE).as_dict()))
+    return legacy, ledger.json()
 
 
 def assert_unresolved(patient, ledger):

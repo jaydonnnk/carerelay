@@ -118,14 +118,14 @@ def _open_attempt(client: TestClient) -> str:
 
 
 class TestPermittedOptions:
-    def test_the_route_set_is_exactly_the_policy_set(self, client: TestClient):
-        client.post("/api/episodes")
+    def test_the_route_set_is_exactly_the_policy_set(self, client: TestClient, assessed):
+        # Options require a disposition; no-plan must expose none.
         body = client.get(f"/api/episodes/{EPISODE}/options").json()
         assert {r["route_id"] for r in body["routes"]} == set(
             fixture.PERMITTED_ROUTE_IDS
         )
 
-    def test_every_route_carries_the_policy_display_text(self, client: TestClient):
+    def test_every_route_carries_the_policy_display_text(self, client: TestClient, assessed):
         """A raw route id on a screen is the defect this read exists to prevent."""
         client.post("/api/episodes")
         body = client.get(f"/api/episodes/{EPISODE}/options").json()
@@ -147,6 +147,7 @@ class TestPermittedOptions:
         client.post("/api/episodes")
         body = client.get(f"/api/episodes/{EPISODE}/options").json()
         assert body["disposition_version"] is None
+        assert body["routes"] == []
 
     def test_after_assessment_the_version_is_named(self, client: TestClient, assessed):
         body = client.get(f"/api/episodes/{assessed}/options").json()
@@ -249,7 +250,10 @@ class TestTheLedgerNeverWrites:
             json={"confirmed_text": fixture.BOUND_COMPLAINT},
         )
         assert late_client.get(f"/api/episodes/{EPISODE}/ledger").json()["expiry"] == []
-        patient = late_client.get(f"/api/episodes/{EPISODE}").json()
+        # Assessed HTTP is unavailable in Slice 14; old expiry proof stays at service.
+        response = late_client.get(f"/api/episodes/{EPISODE}")
+        assert response.status_code == 503
+        patient = app.dependency_overrides[get_service]().project_patient(EPISODE).as_dict()
         assert patient["closure"] == "expired_unresolved"
         after = late_client.get(f"/api/episodes/{EPISODE}/ledger").json()
         assert len(after["expiry"]) == 1

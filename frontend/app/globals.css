@@ -148,3 +148,22 @@ p.ledger-note {
   background: var(--label-bg);
   padding: 0.6rem 0.8rem;
 }
+
+/* Approved patient palette and flat entry/recovery layout. No timed behavior. */
+.journey { --ink: #352b31; --paper: #eee8dd; --accent: #542c48;
+  min-height: 100vh; background: var(--paper); color: var(--ink); font-size: 1rem; }
+.journey-large { font-size: 2rem; }
+.journey-header { max-width: 40rem; margin: auto; padding: 1rem;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
+.journey .screen { padding: 1.5rem 1rem 3rem; overflow-wrap: anywhere; }
+.journey h1 { font-size: 1.7em; line-height: 1.2; color: var(--accent); }
+.journey .demo-label { font-size: .8em; }
+.journey-status { font-size: 1.25em; font-weight: 650; }
+.text-control, .journey .control { font: inherit; padding: .65em .8em; min-height: 48px;
+  border: 2px solid var(--accent); border-radius: .3rem; cursor: pointer; }
+.text-control { color: var(--accent); background: transparent; }
+.journey .primary { display: inline-block; background: var(--accent); color: #fff;
+  text-decoration: none; max-width: 100%; }
+.journey :focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+.skip-link { position: absolute; left: -10000px; }
+.skip-link:focus { left: 1rem; top: 1rem; padding: .5rem; background: #fff; color: #542c48; }

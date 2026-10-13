@@ -51,6 +51,7 @@ from carerelay.coordinator import (
 )
 from carerelay.domain import rules
 from carerelay.domain.models import (
+    JourneyProjection,
     MAX_REPAIR_ROUNDS,
     RECALL_OUTCOME_BY_LEVEL,
     AttemptCommand,
@@ -815,6 +816,17 @@ class EpisodeService:
             simulated=True,
         )
 
+    def project_journey(self, episode_id: str) -> JourneyProjection:
+        """Read a coherent no-plan journey. Temporary refusal is not a stop."""
+        from carerelay.demo.fixture import JOURNEY_COPY, JOURNEY_LABEL
+
+        bundle = self._store.load_journey_bundle(episode_id)
+        journey = rules.derive_journey(bundle, now_utc=self._clock.now_utc())
+        return replace(
+            journey, text=dict(JOURNEY_COPY["start"]), fixture_label=JOURNEY_LABEL,
+            clock_mode="system" if isinstance(self._clock, SystemClock) else "scenario",
+        )
+
     def project_patient(self, episode_id: str) -> PatientSurface:
         """The patient's four lines, derived, with the expiry read-path first.
 
@@ -867,7 +879,7 @@ class EpisodeService:
         """
         snapshot = self._store.load_snapshot(episode_id)
         routes: list[RouteOption] = []
-        for route_id in sorted(self._policy.permitted_route_ids):
+        for route_id in sorted(self._policy.permitted_route_ids if snapshot.disposition is not None else ()):
             display = self._policy_text.route_display_by_id.get(route_id)
             if display is None:
                 raise rules.MissingDisplayText(

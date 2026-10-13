@@ -1,8 +1,7 @@
 """FastAPI routes: Slice 1 (tracer bullet) plus Slice 4 (PlanBack).
 
-Slice 1 wired two routes end to end against a hardcoded episode: no database, no
-domain logic, no coordinator. Those two routes are untouched here and still serve
-the tracer bullet.
+Slice 14 removes no-disposition fixture guidance and redirects the bare root.
+The patient journey is read-only until command-backed start lands in Slice 15.
 
 Slice 4 adds the PlanBack routes: `/intake`, `/transcript-confirmations`,
 `/hint-events`, `/restatements` and `/restatements/{id}/repairs`. **This file
@@ -33,21 +32,23 @@ import hmac
 import os
 import threading
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
 from carerelay import __version__
+from carerelay.presentation import journey_surface
 from carerelay.coordinator import (
     CoordinatorUnavailable,
     LocalSimulationCoordinator,
 )
 from carerelay.demo import fixture
 from carerelay.domain.rules import (
-    NoDispositionToRender,
+    JourneyUnavailable,
     PolicyViolation,
 )
 from carerelay.domain.models import (
@@ -95,10 +96,7 @@ from carerelay.tools import McpTools
 # Slice 7: who may reach the transport
 # ---------------------------------------------------------------------------
 
-#: The prefixes the token guards. `/health` and the fallback patient page stay
-#: open on purpose: a health check that needs a credential cannot be used by the
-#: platform that is checking it, and the fallback page renders the fixture's
-#: static four lines with nothing read from the record.
+#: Health and the bare-root redirect contain no patient record.
 GUARDED_PREFIXES: tuple[str, ...] = ("/api", "/ledger")
 
 #: The environment names. Slice 7 keeps them to three so the arming rule is
@@ -297,10 +295,7 @@ app = FastAPI(
 
 _install_cors()
 
-# Slice 1 renders one patient page that links `/static/style.css`. The file has
-# been a declared Slice 1 deliverable since the tracer bullet, but nothing served
-# it, so the page rendered unstyled and `GET /static/style.css` answered 404. The
-# Slice 6 adversarial review found it. Mounted here so the declared link resolves.
+# Historical fixture assets remain served; the bare root now redirects.
 app.mount(
     "/static",
     StaticFiles(directory=str(Path(__file__).resolve().parent / "static")),
@@ -429,28 +424,6 @@ class EpisodeCreated(BaseModel):
     note: str
 
 
-class PatientProjection(BaseModel):
-    """The patient's four lines, plus the label the patient must be able to see.
-
-    `simulated` and `fixture_label` are inside the projection on purpose, not in
-    page chrome: D11 requires the simulated label to travel with the clinical
-    data, because a projection that omits it is a false-completion path.
-
-    Slice 10 adds `closure` and `care_evidenced`. The frontend needs the closure
-    state to choose which approved rendering to show, and `care_evidenced` is
-    carried beside it so a caller can tell a resolved episode from one where a
-    human accepted a handoff without re-deriving either. The two are independent
-    axes (F5) and neither is inferred from the other here.
-    """
-
-    episode_id: str
-    lines: list[str]
-    closure: str
-    care_evidenced: bool
-    simulated: bool
-    fixture_label: str
-
-
 @app.get("/health", tags=["ops"])
 def health() -> dict[str, str]:
     return {"status": "ok", "version": __version__}
@@ -488,50 +461,19 @@ def create_episode(
     )
 
 
-@app.get(
-    "/api/episodes/{episode_id}",
-    response_model=PatientProjection,
-    tags=["episodes"],
-)
+@app.get("/api/episodes/{episode_id}", tags=["episodes"])
 def get_episode(
     episode_id: str,
     service: EpisodeService = Depends(get_service),
-) -> PatientProjection:
-    """The patient projection: four lines and the simulated label.
-
-    Slice 10 derives this from `domain.patient_lines` against the two axes,
-    instead of returning a fixed literal, and runs the **expiry read-path**
-    first: the first read after an unresolved deadline records the expiry event
-    once, so an episode whose deadline passed while nobody looked is reported as
-    expired the moment somebody reads it. There is no scheduler behind this.
-
-    **The pre-assessment fallback.** `POST /api/episodes` writes no disposition
-    (`02-architecture.md` 3.1), so before assessment there is no plan, no owner,
-    no route and no deadline for `domain.patient_lines` to name. The Slice 1
-    tracer bullet rendered a fixed four-line placeholder for that case and this
-    route keeps it rather than inventing a plan. The literal lives in
-    `demo/fixture.py` and is used only here; the moment a disposition exists the
-    derivation takes over.
-
-    **Every closure state renders its approved wording.** The three closure
-    renderings were approved on 8 October 2026, so `domain.patient_lines` now
-    covers all four states the Closure Contract can derive and this route no
-    longer needs a refusal branch for a resolved episode.
-    """
+) -> dict[str, object]:
+    """Slice 14: nullable no-plan; assessed journeys refuse until Slice 15."""
     with _DB_LOCK:
         try:
-            surface = service.project_patient(episode_id)
-        except NoDispositionToRender:
-            lines = fixture.demo_lines()
-            return PatientProjection(
-                episode_id=episode_id,
-                lines=list(lines.as_tuple()),
-                closure="open",
-                care_evidenced=False,
-                simulated=True,
-                fixture_label=fixture.FIXTURE_LABEL,
-            )
-    return PatientProjection(**surface.as_dict())
+            return journey_surface(service.project_journey(episode_id))
+        except EpisodeNotFound:
+            raise
+        except (JourneyUnavailable, StateError):
+            raise HTTPException(status_code=503, detail="journey unavailable") from None
 
 
 @app.get("/api/episodes/{episode_id}/options", tags=["episodes"])
@@ -594,39 +536,22 @@ def get_ledger(
         return service.project_ledger(episode_id).as_dict()
 
 
-@app.get("/", response_class=HTMLResponse, tags=["ui"])
-def patient_page(episode_id: str = fixture.DEMO_EPISODE_ID) -> HTMLResponse:
-    """The patient screen. Server-rendered, text-first, no build step.
-
-    The label is rendered as visible text at the top of the page. Nothing on this
-    page hides itself or advances on a timer.
-    """
-    lines = fixture.demo_lines()
-    body = "\n".join(
-        f'      <li class="line">{line}</li>' for line in lines.as_tuple()
-    )
-    html = f"""<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CareRelay</title>
-  <link rel="stylesheet" href="/static/style.css">
-</head>
-<body>
-  <main class="screen">
-    <p class="fixture-label" role="note">{fixture.FIXTURE_LABEL}</p>
-    <h1 class="screen-title">Your plan</h1>
-    <ul class="lines">
-{body}
-    </ul>
-    <form class="hide-control" method="get" action="/">
-      <button type="submit" class="hide-button">Hide the plan</button>
-    </form>
-  </main>
-</body>
-</html>"""
-    return HTMLResponse(content=html)
+@app.get("/", tags=["ui"])
+def patient_page() -> RedirectResponse:
+    """Retired fixture surface. Redirect only to an operator-configured origin."""
+    target = os.getenv("CARERELAY_FRONTEND_URL", "").strip()
+    try:
+        url = urlsplit(target)
+        trusted = (url.scheme == "https" or
+                   (url.scheme == "http" and url.hostname in {"127.0.0.1", "localhost", "::1"}
+                    and _env(APP_ENV_ENV).casefold() not in PUBLIC_ENVS))
+        if not trusted or not url.hostname or url.username or url.password or url.query or url.fragment:
+            raise ValueError("invalid frontend URL")
+        if any(ord(c) < 33 for c in target):
+            raise ValueError("invalid frontend URL")
+    except ValueError:
+        raise HTTPException(status_code=503, detail="frontend unavailable") from None
+    return RedirectResponse(target, status_code=303, headers={"Cache-Control": "no-store"})
 
 
 # ---------------------------------------------------------------------------

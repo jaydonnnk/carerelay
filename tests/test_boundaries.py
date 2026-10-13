@@ -554,6 +554,10 @@ VICTIM_FILES: tuple[tuple[str, str], ...] = (
     ("frontend page", "frontend/app/page.tsx"),
     ("frontend ledger page", "frontend/app/ledger/page.tsx"),
     ("frontend component", "frontend/components/HintCard.tsx"),
+    ("frontend journey", "frontend/components/PatientJourney.tsx"),
+    ("frontend decoder", "frontend/lib/journey.ts"),
+    ("frontend locator", "frontend/lib/episode-locator.ts"),
+    ("frontend bootstrap", "frontend/app/example/route.ts"),
     ("frontend build config", "frontend/next.config.mjs"),
     ("frontend manifest", "frontend/package.json"),
     ("frontend type config", "frontend/tsconfig.json"),
@@ -1006,17 +1010,18 @@ def test_scanner_detects_injected_needle() -> None:
     """
     from fastapi.testclient import TestClient
 
-    from carerelay.api import ActionResponse, PatientProjection, app
+    from carerelay.api import ActionResponse, app
     from carerelay.demo import fixture
+    from carerelay.presentation import journey_surface
+    from test_truthfulness import make_service
 
-    projection = PatientProjection(
-        episode_id=fixture.DEMO_EPISODE_ID,
-        lines=list(fixture.demo_lines().as_tuple()),
-        closure="open",
-        care_evidenced=False,
-        simulated=True,
-        fixture_label=fixture.FIXTURE_LABEL,
-    ).model_dump_json()
+    # Exercise the current serializer; the old Pydantic response was retired.
+    service = make_service(":memory:")
+    try:
+        service.ensure_episode("scanner-current", "fictional")
+        projection = json.dumps(journey_surface(service.project_journey("scanner-current")))
+    finally:
+        service._store.close()
     page = TestClient(app).get("/").text
 
     # The controls: the real surfaces are clean before anything is injected,
@@ -1078,3 +1083,67 @@ def test_scanner_detects_injected_needle() -> None:
     assert scan_for_secrets(page + raw), "the scanner missed the raw form"
     assert scan_for_secrets(projection + forward), "the scanner missed the forward form"
     assert scan_for_secrets(escaped), "the scanner missed the JSON-escaped form"
+
+# Slice 14 no-plan detectors. API serialization is exercised here; actual Next.js
+# SSR/RSC/visible/accessibility capture remains blocked without frontend tooling.
+NO_PLAN_DETECTORS = {
+    "arranged": r"help is arranged\.",
+    "nothing_needed": r"nothing more is needed from you\.",
+    "agreed": r"someone has agreed to help\.",
+    "no_action": r"you do not need to act now\.",
+    "passed": r"we have passed this to",
+    "facility": r"\bhospital\b",
+    "clinician": r"\bdr\.?\s+fixture\b",
+    "credential": r"authorization: bearer",
+    "private_path": r"c:/fixture/private-key\.txt",
+    "receipt": r"provider_ref",
+}
+
+
+def scan_no_plan_surface(serialized: str) -> list[str]:
+    """Bounded fixture-needle controls, not a universal secret/entity detector."""
+    import html
+    try:
+        decoded = json.dumps(json.loads(serialized), ensure_ascii=False)
+    except (ValueError, TypeError):
+        decoded = serialized
+    normalized = html.unescape(decoded).replace("\\\\", "\\").replace("\\", "/").casefold()
+    return [name for name, pattern in NO_PLAN_DETECTORS.items() if re.search(pattern, normalized)]
+
+
+NO_PLAN_NEEDLES = {
+    "arranged": "Help is arranged.", "nothing_needed": "Nothing more is needed from you.",
+    "agreed": "Someone has agreed to help.", "no_action": "You do not need to act now.",
+    "passed": "We have passed this to the fictional nurse line.",
+    "facility": "Fixture " + "Hospital", "clinician": "Dr Fixture Needle",
+    "credential": "authorization: bearer " + "synthetic-fixture-only",
+    "private_path": "C:" + "\\fixture\\private-key.txt", "receipt": "provider_ref=fictional-unlabelled",
+}
+
+
+@pytest.mark.parametrize("needle", NO_PLAN_NEEDLES)
+@pytest.mark.parametrize("form", ["json", "json_escaped", "forward_slash"])
+def test_serialized_detection_controls(tmp_path, monkeypatch, needle, form):
+    from fastapi.testclient import TestClient
+    from carerelay.api import app, get_service
+    from test_truthfulness import make_service
+    service = make_service(tmp_path / "scanner.sqlite")
+    service.ensure_episode("scanner-no-plan", "fictional")
+    monkeypatch.setenv("CARERELAY_API_TOKEN", "synthetic-scanner-only")
+    app.dependency_overrides[get_service] = lambda: service
+    try:
+        with TestClient(app, headers={"Authorization": "Bearer synthetic-scanner-only"}) as client:
+            response = client.get("/api/episodes/scanner-no-plan")
+        assert response.status_code == 200
+        assert scan_no_plan_surface(response.text) == []
+        body = response.json()
+        body["lines"] = [NO_PLAN_NEEDLES[needle]]
+        planted = json.dumps(body, ensure_ascii=form == "json_escaped")
+        if form == "json_escaped":
+            planted = planted.replace("Help", "\\u0048elp")
+        if form == "forward_slash":
+            planted = planted.replace("\\\\", "/")
+        assert needle in scan_no_plan_surface(planted)
+    finally:
+        app.dependency_overrides.clear()
+        service._store.close()

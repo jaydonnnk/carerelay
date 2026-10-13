@@ -103,114 +103,42 @@ class TestEpisodeContract:
     def test_unknown_episode_is_404(self, client: TestClient):
         assert client.get("/api/episodes/does-not-exist").status_code == 404
 
-    def test_episode_returns_exactly_four_lines(self, client: TestClient):
-        client.post("/api/episodes")
-        body = client.get(f"/api/episodes/{fixture.DEMO_EPISODE_ID}").json()
-        assert len(body["lines"]) == 4
-
-    def test_no_line_is_empty(self, client: TestClient):
-        client.post("/api/episodes")
-        body = client.get(f"/api/episodes/{fixture.DEMO_EPISODE_ID}").json()
-        for line in body["lines"]:
-            assert line.strip(), f"empty patient line in {body['lines']!r}"
-
-    def test_line_three_carries_the_deadline(self, client: TestClient):
-        client.post("/api/episodes")
-        body = client.get(f"/api/episodes/{fixture.DEMO_EPISODE_ID}").json()
-        assert fixture.DEADLINE_DISPLAY in body["lines"][2]
-
-    def test_line_four_names_the_fallback_route(self, client: TestClient):
-        client.post("/api/episodes")
-        body = client.get(f"/api/episodes/{fixture.DEMO_EPISODE_ID}").json()
-        assert fixture.FALLBACK_ROUTE_TEXT in body["lines"][3]
-
-    def test_line_two_does_not_render_a_doubled_owner(self, client: TestClient):
-        """Regression: "You or you must act now." was rendered by the live app.
-
-        The approved copy rendered line 2 as "You or [named person] must act now.".
-        With a patient owner that yields "You or you ...". Caught by inspection
-        on 28 Sep 2026, not by a test, so this test now exists. The 2 October
-        2026 wording pass changed the sentence to "Please act now: you, or
-        [named person]." and the doubled-owner defect stays fixed.
-        """
-        client.post("/api/episodes")
-        body = client.get(f"/api/episodes/{fixture.DEMO_EPISODE_ID}").json()
-        assert " or you " not in f" {body['lines'][1]} "
-        assert "you or you" not in body["lines"][1].lower()
-
-
-class TestSimulatedLabelTravelsWithTheData:
-    """D11: the label must be in the projection, not only in page chrome."""
-
-    def test_label_is_inside_the_serialized_projection(self, client: TestClient):
-        client.post("/api/episodes")
-        body = client.get(f"/api/episodes/{fixture.DEMO_EPISODE_ID}").json()
+    def test_no_plan_has_no_fixture_guidance(self, planback_client: TestClient):
+        planback_client.post("/api/episodes")
+        response = planback_client.get(f"/api/episodes/{EPISODE}")
+        assert response.status_code == 200
+        body = response.json()
+        assert body["lines"] == []
+        assert body["plan"] is body["outcome"] is body["closure"] is None
+        assert body["care_evidenced"] is False
+        assert body["text"] == fixture.JOURNEY_COPY["start"]
         assert body["simulated"] is True
-        assert body["fixture_label"] == fixture.FIXTURE_LABEL
+        assert body["fixture_label"] == fixture.JOURNEY_LABEL
 
-    def test_label_is_rendered_as_visible_text(self, client: TestClient):
-        html = client.get("/").text
-        assert fixture.FIXTURE_LABEL in html
+    def test_bare_root_redirects_without_guidance(self, client, monkeypatch):
+        monkeypatch.setenv("CARERELAY_FRONTEND_URL", "https://frontend.invalid/")
+        response = client.get("/?episode_id=anything&redirect=https://attacker.invalid", follow_redirects=False)
+        assert response.status_code == 303
+        assert response.headers["location"] == "https://frontend.invalid/"
+        assert response.text == ""
 
+    def test_bare_root_without_configuration_refuses(self, client, monkeypatch):
+        monkeypatch.delenv("CARERELAY_FRONTEND_URL", raising=False)
+        assert client.get("/", follow_redirects=False).status_code == 503
 
-class TestNoTimerOrAutoAdvance:
-    """C8 / PLAN.md 5.2.1: nothing in the product times out or hides itself."""
-
-    def test_page_contains_no_meta_refresh_or_script(self, client: TestClient):
-        html = client.get("/").text.lower()
-        assert "http-equiv=\"refresh\"" not in html
-        assert "<script" not in html
-
-    def test_stylesheet_has_no_animation_or_auto_hide(self):
-        css = (Path(__file__).resolve().parents[1] / "src/carerelay/static/style.css").read_text()
-        lowered = css.lower()
-        for banned in ("animation:", "transition:", "@keyframes"):
-            assert banned not in lowered, f"stylesheet uses {banned!r}"
-
-    def test_the_page_links_a_stylesheet_the_app_actually_serves(
-        self, client: TestClient
-    ):
-        """The Slice 6 review found this: the page linked `/static/style.css`, no
-        mount served it, and the CSS test above read the file from disk so it never
-        noticed. A 404 on the declared stylesheet means the page renders unstyled.
-        """
-        html = client.get("/").text
-        assert 'href="/static/style.css"' in html
-        served = client.get("/static/style.css")
-        assert served.status_code == 200, "/static/style.css is linked but not served"
-        assert "{" in served.text, "the stylesheet route returned an empty body"
+    def test_static_legacy_stylesheet_remains_available(self, client):
+        assert client.get("/static/style.css").status_code == 200
 
 
-class AssertionsHaveTeeth:
-    """A green assertion that was never seen red is not evidence."""
-
-    def test_line_count_assertion_catches_a_dropped_line(self, client: TestClient):
-        """Mutate the fixture to three lines; the four-line test must fail."""
-        original = fixture.demo_lines
-
-        class ThreeLines:
-            def as_tuple(self):
-                return original().as_tuple()[:3]
-
-        fixture.demo_lines = ThreeLines  # type: ignore[assignment]
-        try:
-            client.post("/api/episodes")
-            body = client.get(f"/api/episodes/{fixture.DEMO_EPISODE_ID}").json()
-            assert len(body["lines"]) != 4, "the four-line assertion is vacuous"
-        finally:
-            fixture.demo_lines = original  # type: ignore[assignment]
-
-    def test_label_assertion_catches_a_stripped_label(self, client: TestClient):
-        """An unlabelled simulated projection must be detectable."""
-        original = fixture.FIXTURE_LABEL
-        fixture.FIXTURE_LABEL = ""  # type: ignore[misc]
-        try:
-            response = client.get("/", params={"episode_id": fixture.DEMO_EPISODE_ID})
-            assert fixture.FIXTURE_LABEL not in response.text, (
-                "the label assertion cannot fail, so it proves nothing"
-            )
-        finally:
-            fixture.FIXTURE_LABEL = original  # type: ignore[misc]
+def legacy_patient_after_refusal(client):
+    """Slice 14 refuses assessed GET. Keep old copy/expiry regression proof at
+    the existing service serializer, alongside the new HTTP refusal assertion.
+    This is explicitly not assessed journey/browser proof (Slice 15).
+    """
+    response = client.get(f"/api/episodes/{EPISODE}")
+    assert response.status_code == 503
+    assert response.json() == {"detail": "journey unavailable"}
+    return json.loads(json.dumps(app.dependency_overrides[get_service]().project_patient(EPISODE).as_dict()))
 
 
 # ---------------------------------------------------------------------------
@@ -940,7 +868,8 @@ class TestAuthIsFailClosed:
     ) -> None:
         """It renders the fixture's static four lines and reads no record."""
         monkeypatch.setenv("CARERELAY_API_TOKEN", "t" * 32)
-        assert planback_client.get("/").status_code == 200
+        # The unconfigured bare root now refuses; it never serves guidance.
+        assert planback_client.get("/", follow_redirects=False).status_code == 503
 
 
 class TestEveryApiRouteIsGuarded:
@@ -1193,11 +1122,11 @@ class TestExpiryReadPath:
         )
         assert store.list_expiry_events(EPISODE) == (), "nothing has read the episode"
 
-        body = client.get(f"/api/episodes/{EPISODE}").json()
+        body = legacy_patient_after_refusal(client)
         assert body["closure"] == "expired_unresolved"
         assert len(store.list_expiry_events(EPISODE)) == 1
 
-        client.get(f"/api/episodes/{EPISODE}")
+        legacy_patient_after_refusal(client)
         assert len(store.list_expiry_events(EPISODE)) == 1, (
             "the second read recorded a second expiry event"
         )
@@ -1206,7 +1135,7 @@ class TestExpiryReadPath:
         self, planback_client: TestClient, assessed: str
     ) -> None:
         """The control, at the same route: nothing is recorded early."""
-        body = planback_client.get(f"/api/episodes/{EPISODE}").json()
+        body = legacy_patient_after_refusal(planback_client)
         assert body["closure"] == "open"
         assert "It is past" not in body["lines"][2]
 
@@ -1220,7 +1149,7 @@ class TestExpiryReadPath:
             f"/api/episodes/{EPISODE}/intake",
             json={"confirmed_text": fixture.BOUND_COMPLAINT},
         )
-        lines = client.get(f"/api/episodes/{EPISODE}").json()["lines"]
+        lines = legacy_patient_after_refusal(client)["lines"]
         assert len(lines) == 4
         assert fixture.DEADLINE_DISPLAY in lines[2]
         assert fixture.FALLBACK_ROUTE_TEXT in lines[3]
@@ -1243,7 +1172,7 @@ class TestSerializedPatientAndLedgerLabels:
             f"/api/episodes/{EPISODE}/intake",
             json={"confirmed_text": fixture.BOUND_COMPLAINT},
         )
-        body = client.get(f"/api/episodes/{EPISODE}").json()
+        body = legacy_patient_after_refusal(client)
 
         assert fixture.DEADLINE_DISPLAY in body["lines"][2]
         assert fixture.FALLBACK_ROUTE_TEXT in body["lines"][3]
@@ -1292,7 +1221,7 @@ class TestAcceptanceClosesTheHandoffAndNeverEvidencesCare:
         planback_client.post(
             f"/api/episodes/{EPISODE}/acceptances", json={"accepted_by": "caregiver"}
         )
-        body = planback_client.get(f"/api/episodes/{EPISODE}").json()
+        body = legacy_patient_after_refusal(planback_client)
         assert body["closure"] == "closed_with_evidence"
         assert body["care_evidenced"] is False
         assert body["lines"][0] == "Someone has agreed to help."
@@ -1364,7 +1293,7 @@ class TestClosureRenderingsThroughTheDerivedRoute:
             ),
             now_utc=fixture.SCENARIO_NOW_UTC,
         )
-        body = planback_client.get(f"/api/episodes/{EPISODE}").json()
+        body = legacy_patient_after_refusal(planback_client)
         assert body["closure"] == "closed_with_evidence"
         assert body["care_evidenced"] is True
         assert body["lines"][0] == "Help is arranged."
@@ -1382,7 +1311,7 @@ class TestClosureRenderingsThroughTheDerivedRoute:
             f"/api/episodes/{EPISODE}/escalations", json={"human_path": "nurse_line"}
         )
         assert response.status_code == 200
-        body = planback_client.get(f"/api/episodes/{EPISODE}").json()
+        body = legacy_patient_after_refusal(planback_client)
         assert body["closure"] == "escalated_to_human"
         assert body["lines"][0] == (
             f"We have passed this to {fixture.FALLBACK_ROUTE_TEXT}."

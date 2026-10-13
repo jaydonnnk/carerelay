@@ -5,7 +5,7 @@ module sits on the *outside* of it: it turns values `domain` has already decided
 into the JSON the API returns. It makes **no** decision of its own, reads no
 clock and touches no store, so it has no way to introduce a rule.
 
-**JSON only.** The patient screen's HTML lives with the route that serves it.
+**JSON only.** The patient screen is rendered by the Next.js frontend.
 Nothing here composes markup, and nothing here composes patient-facing words:
 every string arrives from `domain.patient_lines`, which takes them from
 `PolicyText`. A presentation layer that could author a sentence would be a
@@ -22,9 +22,9 @@ unresolved one without re-deriving it.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, asdict
 
-from carerelay.domain.models import ClosureProjection
+from carerelay.domain.models import ClosureProjection, JourneyProjection
 
 __all__ = [
     "FaultAssertion",
@@ -220,3 +220,13 @@ class LedgerSurface:
             "simulated": self.simulated,
             "fixture_label": self.fixture_label,
         }
+
+def journey_surface(journey: JourneyProjection) -> dict[str, object]:
+    """Serialize the domain no-plan value without deriving a second state."""
+    body = asdict(journey)
+    body["as_of_utc"] = journey.as_of_utc.isoformat()
+    body["lines"] = list(journey.lines)
+    body["commands"] = list(journey.commands)
+    body.update(closure=None, execution=None, evidence=None,
+                action_owner_id=None, care_evidenced=False)
+    return body

@@ -88,10 +88,9 @@ def demo_lines() -> PatientLines:
     Hardcoded for Slice 1. **Slice 10 replaced this literal on the assessed
     path:** `GET /api/episodes/{id}` now derives its lines from
     `domain.patient_lines` against the two axes. What remains here is the
-    **pre-assessment fallback only**, for the episode `POST /api/episodes`
-    creates before any disposition exists. `patient_lines` needs an owner, a
-    route and a deadline to name, and an un-assessed episode has none, so the
-    route keeps this fixed placeholder rather than inventing a plan.
+    historical fixture helper for tests/assets only. Slice 14 removes the
+    pre-assessment API and bare-root fallbacks. A no-plan record exposes no
+    guidance, owner, route or deadline.
 
     **Line 2 note.** `PLAN.md` 6.1, `02-architecture.md` 7 and `01-product.md` all
     rendered line 2 as "You or *[named person]* must act now." Taken literally with
@@ -265,3 +264,13 @@ def disposition(episode_id: str, now_utc: datetime) -> Disposition:
         fallback_route_id=FALLBACK_ROUTE_ID,
         source=DispositionSource.FIXTURE,
     )
+
+# Exact Gate 1 entry/recovery mirror; no guidance belongs to a no-plan record.
+JOURNEY_LABEL = "Demo only · fictional plan · no real care"
+JOURNEY_COPY = {
+    "start": {"heading": "Try an example", "status": "No plan yet.",
+              "description": "See what happens when a request fails.", "start": "See the example"},
+    "recovery": {"heading": "We cannot load your plan",
+                 "description": "Keep the instructions you already have.",
+                 "retry": "Try again", "loading": "Loading. Nothing is confirmed yet."},
+}

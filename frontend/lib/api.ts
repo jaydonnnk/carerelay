@@ -1,3 +1,5 @@
+import "server-only";
+import { readJourney, type NoPlanJourney } from "./journey";
 /**
  * The one place the frontend talks to the CareRelay API.
  *
@@ -26,12 +28,7 @@ const API_TOKEN = process.env.CARERELAY_API_TOKEN ?? "";
  * reading the code. The id is whatever the service says it is, and nothing else.
  */
 
-export type PatientProjection = {
-  episode_id: string;
-  lines: string[];
-  simulated: boolean;
-  fixture_label: string;
-};
+export type PatientProjection = NoPlanJourney;
 
 export type HintState = {
   episode_id: string;
@@ -79,17 +76,21 @@ async function call<T>(
   return { ok: true, value: (await response.json()) as T };
 }
 
-/** The patient's four lines. Never synthesised when the call fails. */
-export async function getEpisode(
-  episodeId: string,
-): Promise<Result<PatientProjection>> {
-  return call<PatientProjection>(`/api/episodes/${encodeURIComponent(episodeId)}`);
+/** Read-only, bounded and decoded; transport detail never becomes patient copy. */
+export async function getEpisode(episodeId: string): Promise<Result<PatientProjection>> {
+  try {
+    const response = await fetch(`${API_URL}/api/episodes/${encodeURIComponent(episodeId)}`, {
+      headers: API_TOKEN ? { Authorization: `Bearer ${API_TOKEN}` } : {},
+      cache: "no-store", redirect: "error", signal: AbortSignal.timeout(5000),
+    });
+    const value = await readJourney(response, episodeId);
+    return value ? { ok: true, value } : { ok: false, reason: "unavailable", detail: "journey unavailable" };
+  } catch { return { ok: false, reason: "unavailable", detail: "journey unavailable" }; }
 }
 
 /**
- * Create the demo episode, so a fresh deployment has something to show. Returns
- * the id the service actually issued, which is the only place that id may come
- * from.
+ * Legacy judge-ledger helper. Patient entry never calls this. Command-backed
+ * explicit patient creation belongs to Slice 15.
  */
 export async function createEpisode(): Promise<Result<{ episode_id: string }>> {
   return call<{ episode_id: string }>("/api/episodes", { method: "POST", body: "{}" });
