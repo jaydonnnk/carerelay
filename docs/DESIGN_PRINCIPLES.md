@@ -1,5 +1,29 @@
 # Design principles — the four tests
 
+**13 October 2026, Gate 3 approval reconciliation. [verified]** The user
+answered "Yep i approve." Gate 3 section 9 is RE-APPROVED in `00-status.md`.
+Gate 1 copy, Gate 2 revision 4/section 5.2 and Gate 4 are unchanged. The current
+proposal specifies confirmed words through strict ADP extraction, deterministic
+same-version field repair, durable replay receipts and coherent stop/owner/deadline
+projection. ADP does not execute actions or write guidance; action origin remains
+`local-sim`. [unknown] Live extraction/channel separation, Postgres ordering,
+production accessibility and card advantage remain unproved. New confirmation,
+non-timing repair and date copy stay behind Gate 1 approval. Incremental estimate
+84 to 144 hours is unmeasured. The separate user instruction authorises committing,
+publishing, merging and pushing the documentation tree and a Gate 4 handoff;
+no implementation or later-gate approval follows.
+Older Gate 2 handoff statements below describe their earlier checkpoint.
+
+**13 October 2026 scope reconciliation.** [verified] Gate 2 revision 4 is
+re-approved for the patient-experience amendment, 13 October. Gates 3/4
+remain unchanged. Application state, deadlines, consent and closure remain
+portable governance. The patient app currently executes through the labelled
+local simulator. [hypothesis] ADP may add confirmed read-back extraction only;
+that does not prove WorkBuddy tool execution, native resume, benefit over the
+fixed card or revive the dropped monitored episode. See architecture section 13
+and `00-status.md`; older proposals below remain historical.
+
+
 Companion to `PLAN.md`. Applies the four principles adopted on 21 September 2026 and reports what they actually change.
 
 Every claim is labelled: **[verified]** supported by the cited source · **[vendor claim]** advertised, not independently validated · **[hypothesis]** our judgment · **[unknown]** not established.

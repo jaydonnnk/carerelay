@@ -1,8 +1,8 @@
 # Status: CareRelay urgent-advice accessibility
 
 - Gate 1: Product, **RE-APPROVED 12 October 2026** for the revised concise patient journey, visual cues and copy in `01-product.md` and `patient-experience-copy.md`. The user explicitly approved Gate 1 and authorised committing the working tree and pushing to main. Previous approval: 8 October 2026.
-- Gate 2: Architecture, **RE-APPROVED 12 October 2026**, narrow amendment to section 5.2 separating a durable flow stop from a completed human handoff. The user answered "Approve Gate 2 amendment" in chat the same day. Prior approval: 8 October 2026.
-- Gate 3: Program Design, **RE-APPROVED 1 October 2026** (reopened and re-approved the same day; re-approved 30 September 2026; first approved 26 September 2026). The reopen was one paragraph of section 6.2, dropping Option C, and section 8 item 3 was reconciled to the post-drop state in the same pass; see the Gate 3 re-approval below
+- Gate 2: Architecture, **RE-APPROVED 13 October 2026 (revision 4)** for the patient-experience journey and ADP read-back extraction design in `02-architecture.md` section 13. The user explicitly answered "Yep i approve gate 2" and requested a Gate 3 handoff. The previously approved section 5.2 durable-stop rule is unchanged. No new implementation is authorised.
+- Gate 3: Program Design, **RE-APPROVED 13 October 2026**, patient-experience and ADP read-back amendment in `03-program-design.md` section 9. User approval: "Yep i approve." Reopened and re-approved the same day; historical approval of 1 October retained. Gate 4 upgrade preparation is next; no implementation authorised.
 - Gate 4: Slice plan, **RE-APPROVED 8 October 2026** (reopened and re-approved the same day; re-approved 30 September 2026; first approved 28 September 2026). Reopened to execute the plan's own pre-recorded cut of the Gate B run, and re-approved so Slice 10 can begin; see the section below
 
 **Historical state before the 12 October reopen: all four gates were APPROVED as of 8 October 2026: Gate 2 was re-approved immediately and Gate 1 was re-approved when its two closure mockups were created the same day.** Before that reopen all four gates were approved as of 2 October 2026: Gates 1 and 2 were reopened that day by the patient wording pass and **re-approved the same day** ("I have read and i re approve both gates"), which also completed the re-opened Slice 5 Check. **Slice 5 closes as of 2 October 2026.** Gate 4 was untouched by the pass, so implementation stayed authorised throughout. At the time that pass was written nothing from it was committed or pushed; the gate amendments and the Slice 5 work have both shipped since, and the branch state as it stands now is in section 3 of `AGENTS.md` rather than here.
@@ -10,6 +10,99 @@
 **The submission-asset half of Slice 12 was completed on 11 October 2026 and shipped the same day.**
 
 **All three reopened gates were re-approved on 30 September 2026.** Implementation is authorised again, slice by slice, in the order `04-slices.md` gives.
+
+## Gate 3 reopen and re-approval: patient-experience program design, 13 October 2026
+
+[verified] The user explicitly authorised this documentation branch and Gate 3
+preparation. Section 9 of `03-program-design.md` is amended; Gate 3 is therefore
+reopened, then explicitly RE-APPROVED the same day. Gate 1 remains re-approved 12 October;
+Gate 2 revision 4 remains re-approved 13 October, and section 5.2 is byte-preserved.
+Gate 4 retains its existing contract unchanged and does not authorise the upgrade.
+
+[verified, drafting checkpoint] Source gaps rechecked; inherited dirty work preserved at HEAD
+`aca4594485f3e465daa461bf8139033458b2b81c` on
+`codex/patient-experience-program-design`. No current remote-sync result is
+claimed. The branch creation command reported an existing branch; inspection
+confirmed this branch was current at the expected HEAD with unchanged files/index.
+At that drafting checkpoint, no reset, stash, discard, staging, commit, merge or push occurred.
+
+[verified design approval, behaviour remains hypothesis] Section 9 specifies the exact future file footprint,
+versioned coherent journey/redaction and all twelve screens, signed start/replay
+bindings and append-only claim/terminal receipts, confirmation/latest-parent
+field retention and cue provenance, strict ADP raw spans/envelope/uncertainty,
+transactions/dispatch crash windows, additive migrations and independent guard
+mutations. Incremental effort is 84 to 144 person-hours, unmeasured.
+[verified copy gap] Draft-review prototypes lack an explicit confirmation control;
+its exact wording, non-timing repair and new date templates need Gate 1 approval
+before exposure. No copy is invented here. [unknown] ADP final-answer separation
+and positive extraction, Postgres proof, production accessibility and benefit over
+the fixed card remain unproved. No new falsifier of Gate 1/2 was established;
+future conflicting evidence must reopen its owning gate, not be rationalised away.
+
+- [x] Inspect authority, actual application/engines, prototypes and recorded evidence.
+- [x] Prepare the concrete Gate 3 amendment and supporting scope/decision mirrors.
+- [x] Preserve inherited work, Gate 1 copy/prototypes, Gate 2 and Gate 4 contracts.
+- [x] Perform documentary/preservation review; results recorded in PROGRESS.md.
+- [x] Obtain explicit Gate 3 approval: "Yep i approve.", 13 October 2026.
+- [ ] After approval only, prepare a separate Gate 4 upgrade amendment.
+
+Approval history: **13 October 2026, Gate 3 REOPENED and RE-APPROVED the same day.**
+[verified] The user explicitly answered "Yep i approve." and separately requested
+committing the working tree, publishing the branch, merging and pushing to main,
+then a copy-paste prompt for the next task using the original assignment template.
+The prior 1 October approval is historical and covers no new journey/ADP work.
+The 12 October 945/46-skip/one-warning and 39/39 mutation figures are recorded
+results, not fresh checks. No application suite, live ADP or Postgres engine was
+run in this assignment; no installation, credential change, database mutation,
+deployment or participant outreach is authorised. The later explicit shipping
+request above authorises documentation Git operations, not implementation.
+
+**Next task:** separately prepare/review Gate 4 upgrade slices; stop at its approval boundary.
+
+## Gate 2 reopen: patient experience architecture, 13 October 2026
+
+[verified] The user's attached assignment explicitly requests this amendment,
+reopening Gate 2, and branch `codex/patient-experience-architecture`. Before
+editing, the working tree was clean and local/remote main both matched
+`aca4594485f3e465daa461bf8139033458b2b81c`. The earlier shipping request is
+complete; it authorises no new commit, push, deployment or implementation here.
+
+[hypothesis] Revision 4 adds D14 to D18: one server-owned journey projection;
+explicit no-plan; twelve screen mappings; stable episode/resume and durable
+command dedupe; field-only repair with retained same-version matches; and
+confirmed words through ADP extraction into deterministic comparison. ADP has
+no urgency, booking, guidance or closure role. Current stack/auth facts are
+reconciled from source; old intake/classification Slice 13 scope is unbuilt.
+
+- [x] Inspect the actual frontend, API, domain, service and both repository boundaries.
+- [x] Prepare the concrete revision 4 amendment and reconcile supporting mirrors.
+- [x] Preserve Gate 1 copy/mockups, Gate 3/4 contracts and section 5.2 stop rule.
+- [x] Obtain explicit Gate 2 re-approval for revision 4: user approval, 13 October 2026.
+- [x] After approval, separately prepare/review Gate 3 program design: draft prepared and explicitly re-approved 13 October.
+- [ ] After Gate 3, separately prepare/review Gate 4 upgrade slices.
+
+Approval history: **13 October 2026, Gate 2 REOPENED and RE-APPROVED the same day.**
+[verified] The user's approval excerpt is "Yep i approve gate 2". The user also
+requested an actionable, unbiased, honest and thorough Gate 3 continuation
+prompt in the format of the original assignment. This authorises preparing that
+handoff and recording approval, not implementing the upgrade, committing,
+pushing, deploying, installing, changing credentials or calling ADP.
+Gate 1 remains RE-APPROVED 12 October. Gate 3 and Gate 4 retain their prior
+contracts, untouched; they do not authorise this new journey or read-back
+integration. No new slice is started. The section 5.2 approval of 12 October
+and shipped repairs remain valid; no earlier defect is called unfixed again.
+
+[verified, recorded results only] The repair/shipping record reports 945 passed,
+46 Postgres skips, one existing warning and 39/39 truthfulness mutations RED.
+These were not rerun in this documentation assignment. [unknown] Postgres
+runtime/concurrency, positive ADP extraction and user benefit remain unproven.
+Assets and usage-proof files exist; their claims/provenance need later review.
+
+**Historical handoff next action:** prepare the separate Gate 3 program-design
+amendment. This handoff was completed; Gate 3 is now re-approved as recorded
+above, and the next separate design task is Gate 4. No keys or installation are requested, and no new
+implementation is authorised by this approval. The required evidence and later manual dependencies
+are in `02-architecture.md` section 13.7.
 
 ## Patient experience Gate 1 reopen: 12 October 2026
 
@@ -35,7 +128,7 @@ the upgrade requires its own subsequent design and slice approvals.
 - [x] Reconcile the old handoff with the repair report and current source.
 - [x] Prepare Gate 1 decisions, separate HTML screens and copy inventory.
 - [x] Obtain explicit Gate 1 re-approval for the patient experience amendment: user approval, 12 October 2026.
-- [ ] After approval, prepare the upgrade's Gate 2 integration amendment.
+- [x] After approval, prepare the upgrade's Gate 2 integration amendment: revision 4 drafted and explicitly approved 13 October 2026.
 
 Approval history: **12 October 2026, Gate 1 REOPENED and RE-APPROVED the same day.**
 The user's execution request is not recorded as approval of unseen copy. The
@@ -619,6 +712,11 @@ The spike was built as `spike/gate_a/probe.py` with `spike/gate_a/test_probe.py`
 **The live walkthrough was captured against the real stack.** `uvicorn carerelay.api:app` on `127.0.0.1:8137`, a fresh SQLite database and the scenario clock, so every response in `submission/demo-walkthrough.md` comes from a running server rather than from memory. Verified in order: episode creation; the **422** refusal of a complaint the fixture is not bound to; the **200** for the bound phrase; the restatement mismatch and its repair; the four approved lines; consent; `POST /actions` returning the scripted `failed`; a callback applied; a replayed callback **refused** as duplicate; legibility unchanged after the failed attempt; the lines after a named acceptance; the judge ledger; and **404** for an unknown episode.
 
 ## Slices
+
+**13 October scope boundary:** this checklist records the prior approved build.
+The re-approved Gate 2 upgrade has no approved Gate 3/4 amendment and no
+authorised implementation slice. Slice 13 remains not built; its intake/classification
+contract does not cover the proposed read-back integration.
 
 **Gate 4 was reopened on 8 October 2026 to execute the plan's pre-recorded cut of the Gate B run and was re-approved the same day, so implementation is authorised again.** Slices proceed one at a time, each ending with a "continue, or re-steer?" check. **Slices 5, 6, 7 and 7b are built, reviewed and shipped to `main`; Slice 8 is built on `slice-8-fixed-card`, adversarially reviewed and remediated the same day, its Check is complete, and it shipped to `main` on 7 October 2026. Slice 9 is built on `slice-9` and CUT as a run on 8 October 2026: no dyad was recruited, so there is no Gate B result and no human-centred validation claim. Slice 10 (the Closure Contract in full) is built on `slice-10` and SHIPPED to `main` on 8 October 2026, with the closure renderings approved at a Gate 1 re-approval the same day; F4, F6 and F6-render are closed, and all five closure screens were proven live. Slice 11 (the fault harness and the seven sequences) is BUILT on `slice-11-fault-harness`, its Check is complete, adversarially reviewed with a SOUND verdict, and SHIPPED to `main` on 9 October 2026, with the slice branch unpublished. O8 is closed by its child-process kill test, for the SQLite store. Slice 12 (the judge ledger, the submission assets and the usage proof) has its CODE HALF BUILT on `slice-12-ledger`: the ledger and options read projections, the ledger view in the Next.js frontend, 29 tests and a 10-of-10 mutation harness, all committed on 10 October 2026 and fast-forwarded into `main`, and **its submission-asset half is COMPLETE, shipped on 11 October 2026** (see the part-two section above).** Slice state below is the only authority.
 
@@ -1217,8 +1315,8 @@ The map spans three folders, reorganised on 30 September 2026 so that a review a
 |---|---|---|
 | `00-status.md` | state | this file |
 | `01-product.md` | **Gate 1 doc** | problem, success metric, announcement, product rules, screens |
-| `02-architecture.md` | **Gate 2 doc** | **revision 3, APPROVED 30 Sep 2026.** Revision 2 was approved 25 Sep. D1 to D13, pinned tool path, attempt-transition schema, external between-subjects baseline, non-functional surfaces, change log |
-| `03-program-design.md` | **Gate 3 doc** | **APPROVED 30 Sep 2026.** First approved 26 Sep. Files, types, call stacks, failure-capable tests, effort |
+| `02-architecture.md` | **Gate 2 doc** | **revision 4 RE-APPROVED 13 Oct 2026.** Durable-stop amendment approved 12 Oct and preserved. D14 to D18 approve the journey/resume, screen mapping and ADP read-back architecture. Gate 3 section 9 is re-approved 13 Oct; Gate 4 upgrade amendment remains outstanding |
+| `03-program-design.md` | **Gate 3 doc** | **RE-APPROVED 13 Oct 2026.** Section 9 upgrade contracts approved; historical sections 1 to 8 retained |
 | `04-slices.md` | **Gate 4 doc** | **APPROVED 30 Sep 2026.** First approved 28 Sep. **14 slices, Slice 0 to Slice 13**, full scope, Gate A re-verification, R1 schedule risk |
 | `03-planback-closure-contract.md` | supporting note | specification and feasibility for PlanBack and the Closure Contract. Carries the `03-` filename that Gate 3 needed |
 | `clinical-review-blocker.md` | supporting note | decision paper, 26 Sep: what the reviewer blocker actually blocks, and three routes through |
@@ -1227,6 +1325,7 @@ The map spans three folders, reorganised on 30 September 2026 so that a review a
 | `mockups/` | Gate 1 assets | seven plain-HTML screens, throwaway by design |
 | `patient-experience-copy.md` | Gate 1 proposed copy | [verified] Exact main/dialog text from the twelve patient experience mockups; approved 12 October 2026 |
 | `patient-experience-upgrade.md` | supporting execution note | [verified] Handoff reconciliation, incremental order, verification and manual dependencies |
+| `docs/handoffs/patient-experience-gate3-2026-10-13.md` (repo root) | session handoff | [verified] Approved Gate 2 receipt, dirty-worktree state, actionable Gate 3 assignment and separate review prompt |
 | `design/mocks/patient-journey/` (repo root) | Gate 1 proposed assets | [verified] Twelve separate patient screens and review index, plain HTML; approved 12 October 2026 |
 
 **`docs/reviews/`**

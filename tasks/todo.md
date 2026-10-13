@@ -1,5 +1,48 @@
 # CareRelay reframe and accessibility plan
 
+**13 October 2026, Gate 3 re-approval and shipping authority. [verified]**
+The user answered "Yep i approve." Gate 3 section 9 is RE-APPROVED;
+`00-status.md` records the checklist/history. The user also explicitly authorised
+committing the working tree, publishing the branch, merging and pushing to main,
+and an actionable Gate 4 handoff in the original assignment format. Gate 1 copy and Gate 2
+revision 4, including its durable-stop rule, are preserved. Gate 4 is unchanged
+and does not authorise this upgrade. Documentation branch: `codex/patient-experience-program-design`,
+from the inspected `aca4594` baseline, carrying the inherited Gate 2 records.
+[verified design approval, behaviour remains hypothesis] Coherent/redacted journey projection, stable
+start/replay, atomic append-only command receipts, latest-parent field repair,
+server-held ADP extraction and episode-serialized local dispatch are specified.
+[unknown] Positive ADP extraction/channel separation, actual Postgres proof,
+accessibility and participant benefit remain unproved. Exact confirmation-control,
+non-timing repair and new date wording need Gate 1 approval before exposure.
+[verified source limit] Bare `tomorrow` is not a supported deadline form in
+`fixture-provisional-0`; it remains uncertain. A definite literal-tomorrow repair
+requires a separately approved Gate 2 versioned comparison decision.
+Incremental estimate: 84 to 144 person-hours, unmeasured; no 16 October completion
+promise. This shipping request authorises documentation Git operations only,
+not implementation, Gate 4 approval, installation, credentials, live ADP, database
+mutation, deployment or participant outreach. The next task is Gate 4 preparation.
+
+**13 October 2026, Gate 2 patient-experience amendment. [verified]** Gate 2
+is RE-APPROVED, revision 4 of `02-architecture.md`, section 13. The user
+explicitly answered "Yep i approve gate 2" and requested a Gate 3 handoff.
+Gate 1 remains re-approved. The 12 October durable-stop rule is preserved;
+Gates 3 and 4 retain their prior contracts and do not authorise this upgrade.
+[verified approval, behaviour remains hypothesis] Approved decisions:
+authoritative action/deadline/owner/next-question
+and stop projection, explicit no-plan, twelve screen mappings, stable episode
+resume, durable request dedupe and confirmed read-back through ADP extraction
+into deterministic comparison. ADP remains outside urgency, actions, guidance
+and closure; execution stays `local-sim`. The old conditional
+intake/classification slice remains unbuilt; Gate 3/4 must separately design
+and sequence the approved read-back role.
+[verified] Slices through 12, assets and usage-proof files exist; Slice 9's run
+was cut and Slice 13 was not built. Recorded 12 October results, not fresh checks
+here: 945 passed, 46 Postgres skips, one warning; 39/39 mutations RED.
+[unknown] Postgres runtime/concurrency, positive ADP extraction and patient
+benefit remain unproven. Next: separate Gate 3 and Gate 4 amendments. This assignment authorises no implementation, commit, push,
+installation, credentials, external call or deployment.
+
+
 **12 October 2026, Gate 1 re-approval and shipping. [verified]** The user
 explicitly approved the concise patient journey, labelled visual cues and copy,
 and authorised committing the current working tree and pushing to main. Gate 1
@@ -22,6 +65,18 @@ skips, 39/39 truthfulness mutations RED. See
 changed mechanisms and limitations. Real evidence ingestion remains unavailable;
 SQLite results are not deployed-store proof. No commit, merge, push, install or
 deployment was performed or authorised by this repair run.
+
+
+## Patient-experience architecture: 13 October 2026
+
+- [x] Draft Gate 2 revision 4 against the current application and twelve screens.
+- [x] Reopen Gate 2 and mirror the proposal without changing Gate 1/3/4 contracts.
+- [x] Receive explicit Gate 2 re-approval: user approval, 13 October 2026.
+- [x] Prepare the separate Gate 3 amendment: section 9, re-approved 13 October.
+- [x] Obtain explicit Gate 3 approval: "Yep i approve.", 13 October.
+- [ ] Separately prepare Gate 4 upgrade slices and obtain their approval.
+
+The historical checklist below describes prior work and authorises no upgrade.
 
 
 - [x] Re-read the challenge, judging criteria, current PLAN.md, and case-study boundaries.

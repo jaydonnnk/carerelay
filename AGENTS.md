@@ -1,5 +1,48 @@
 # CareRelay: project and execution instructions
 
+**13 October 2026, Gate 3 re-approval and shipping authority. [verified]**
+The user answered "Yep i approve." Gate 3 section 9 is RE-APPROVED;
+`00-status.md` records the checklist/history. The user also explicitly authorised
+committing the working tree, publishing the branch, merging and pushing to main,
+and an actionable Gate 4 handoff in the original assignment format. Gate 1 copy and Gate 2
+revision 4, including its durable-stop rule, are preserved. Gate 4 is unchanged
+and does not authorise this upgrade. Documentation branch: `codex/patient-experience-program-design`,
+from the inspected `aca4594` baseline, carrying the inherited Gate 2 records.
+[verified design approval, behaviour remains hypothesis] Coherent/redacted journey projection, stable
+start/replay, atomic append-only command receipts, latest-parent field repair,
+server-held ADP extraction and episode-serialized local dispatch are specified.
+[unknown] Positive ADP extraction/channel separation, actual Postgres proof,
+accessibility and participant benefit remain unproved. Exact confirmation-control,
+non-timing repair and new date wording need Gate 1 approval before exposure.
+[verified source limit] Bare `tomorrow` is not a supported deadline form in
+`fixture-provisional-0`; it remains uncertain. A definite literal-tomorrow repair
+requires a separately approved Gate 2 versioned comparison decision.
+Incremental estimate: 84 to 144 person-hours, unmeasured; no 16 October completion
+promise. This shipping request authorises documentation Git operations only,
+not implementation, Gate 4 approval, installation, credentials, live ADP, database
+mutation, deployment or participant outreach. The next task is Gate 4 preparation.
+
+**13 October 2026, Gate 2 patient-experience amendment. [verified]** Gate 2
+is RE-APPROVED, revision 4 of `02-architecture.md`, section 13. The user
+explicitly answered "Yep i approve gate 2" and requested a Gate 3 handoff.
+Gate 1 remains re-approved. The 12 October durable-stop rule is preserved;
+Gates 3 and 4 retain their prior contracts and do not authorise this upgrade.
+[verified approval, behaviour remains hypothesis] Approved decisions:
+authoritative action/deadline/owner/next-question
+and stop projection, explicit no-plan, twelve screen mappings, stable episode
+resume, durable request dedupe and confirmed read-back through ADP extraction
+into deterministic comparison. ADP remains outside urgency, actions, guidance
+and closure; execution stays `local-sim`. The old conditional
+intake/classification slice remains unbuilt; Gate 3/4 must separately design
+and sequence the approved read-back role.
+[verified] Slices through 12, assets and usage-proof files exist; Slice 9's run
+was cut and Slice 13 was not built. Recorded 12 October results, not fresh checks
+here: 945 passed, 46 Postgres skips, one warning; 39/39 mutations RED.
+[unknown] Postgres runtime/concurrency, positive ADP extraction and patient
+benefit remain unproven. Next: separate Gate 3 and Gate 4 amendments. This assignment authorises no implementation, commit, push,
+installation, credentials, external call or deployment.
+
+
 **12 October 2026, Gate 1 re-approval and shipping. [verified]** The user
 explicitly approved the concise patient journey, labelled visual cues and copy,
 and authorised committing the current working tree and pushing to main. Gate 1
@@ -94,13 +137,14 @@ Authority rules:
   operational memory and may never record or imply a gate approval.
 - Official rules, the handbook and primary sources supersede stored summaries
   whenever a time-sensitive external claim is made.
-- A draft gate document authorises nothing. `02-architecture.md` revision 2 is
-  approved; `00-status.md` records the approval and its limits.
+- A draft gate document authorises nothing. Gate 2 revision 4 is re-approved
+  13 October 2026; section 5.2 remains unchanged. Gate 3/4 upgrade amendments
+  require their separate explicit approvals. `00-status.md` records the approval history and current limits.
 - **File-map trap:** two supporting notes already occupy the `02-` and `03-`
   filenames that the Gate 2 and Gate 3 documents need. Read the map in
   `00-status.md` before assuming a file's role from its number.
 
-## 3. Current state, gates and authorization
+## 3. Gate and shipping history (current scope is the 13 October note above)
 
 - **2026-09-30 current authority, revised 30 September 2026:** Gate 1 (Product),
   Gate 2 (Architecture, revision 3), Gate 3 (Program Design) and Gate 4 (Slice
@@ -165,10 +209,11 @@ Authority rules:
   `origin` stays `local-sim`, and D8 forbids ADP carrying the section 3.3 claim.
   Approval of Gate 2 authorised the spike only (read-only credential checks and one
   typed tool call), not implementation code.
-- **Stack (revised 30 September 2026).** Backend: Python 3.13 + FastAPI + SQLite
-  (WAL, busy timeout) on **Render** (Docker, paid plan, mounted persistent disk),
-  with the SQLite path supplied by `APP_DATABASE_URL`. Frontend: a **Next.js
-  clinical frontend on Vercel** calling the Render API as JSON. **The Node and
+- **Stack (source/config checked 13 October 2026).** Python 3.13 + FastAPI on
+  Render (Docker, configured free plan, no mounted disk), with Postgres on
+  Supabase via `APP_DATABASE_URL` and local SQLite behind the same repository
+  interface. Next.js on Vercel calls FastAPI server-side; `CARERELAY_API_TOKEN`
+  stays on the servers. Deployed restart proof remains unestablished. **The Node and
   Next.js reversal decision is made**, recorded here and dated: Slices 1 to 3 had
   already shipped, so the original "before the first domain-code commit" trigger
   could not be met, and the decision is taken on the user's explicit instruction
@@ -357,8 +402,9 @@ Rules:
   requires it.
 - Never store secrets, tokens or credentials in repository notes, logs, fixtures or
   documentation. `02-architecture.md` lists environment variable names only.
-- Do not use em dashes in new writing. Never write a bare `S` for a slice; write
-  `S1` or `Slice 1`.
+- Do not use em dashes in new writing. Check every added diff line, including
+  inherited labels on edited lines, before handoff. Never write a bare `S` for
+  a slice; write `S1` or `Slice 1`.
 
 ### Mistake logging
 
@@ -504,10 +550,9 @@ watching, or when a gate run is long enough that context will be compacted.
   behind a shared bearer token. **The deployment region and the processor
   arrangements are [unknown] and must be recorded** under PDPA before submission.
   The append-only record no longer depends on the mounted disk: Slice 7b moved it
-  to Postgres on Supabase, reached through `APP_DATABASE_URL`, and the disk block
-  in `render.yaml` is dead weight carried for one deploy so that the change under
-  review stayed one change. Removing it, and the `plan: starter` it forces, is a
-  recorded follow-up. Until then it is still a paid feature and a recurring cost.
+  to Postgres on Supabase, reached through `APP_DATABASE_URL`, and the obsolete disk and paid-plan settings were removed on 11 October;
+  `render.yaml` explicitly declares `plan: free`. This is configuration evidence,
+  not fresh verification of hosting cost or deployed persistence.
 - **A credential was published on 4 October 2026 and rotated on 5 October.** The
   working Supabase database password was committed in `710a99c` and pushed to a
   public `origin/main`, in prose, inside three documents. It is scrubbed from all

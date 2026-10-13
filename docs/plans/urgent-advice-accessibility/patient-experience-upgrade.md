@@ -1,4 +1,59 @@
-# Patient experience upgrade: 12 October 2026
+# Patient experience upgrade: updated 13 October 2026
+
+## Gate 3 re-approval and shipping: 13 October 2026
+
+[verified] The user explicitly answered "Yep i approve." Gate 3 section 9
+is now RE-APPROVED; checklist and history are in `00-status.md`. Gate 1/2 authority is preserved; Gate 4 is unchanged. Future files,
+signatures, screen/contradiction mappings, start/replay, confirmation/field repair,
+ADP schema/envelope/limits, transaction/migration and fail-capable tests are exact
+in that section. This is documentation only; no application suite or live service
+was run. Inherited edits are included in the user's subsequent explicit documentation
+shipping request: commit, publish branch, merge, push main and prepare Gate 4 handoff.
+
+[hypothesis] The estimate is 84 to 144 incremental person-hours, unmeasured, with
+no credible full-upgrade completion promise for 16 October. Confirmation-control,
+non-timing repair and new date wording need Gate 1 approval before exposure;
+ADP final-answer separation and positive probes need later authorised operator
+proof before enablement. Existing provider consent grants no general ADP-processing
+authority. Disposable Postgres access, processor/retention and clinical/participant
+reviews remain separate. The cut study remains cut.
+
+[verified source limit] Bare `tomorrow` is not a supported deadline form in
+`fixture-provisional-0`; it remains uncertain. A definite literal-tomorrow repair
+requires a separately approved Gate 2 versioned comparison decision.
+
+Remaining sequence: separate Gate 4 upgrade design/approval, small visible
+journey/ADP slices, API/browser/accessibility/disposable-Postgres proof, corrected
+demo/claims/assets, separately authorised deployment/submission. No code, tests,
+migrations, credentials, installations, live ADP, database mutation or outreach
+is authorised by Gate 3. The separate user request authorises
+staging, commit, branch publication, merge and push of these documentation records.
+
+## Gate 2 preparation: 13 October 2026
+
+[verified] Revision 4 is drafted in `02-architecture.md` section 13; Gate 2
+is explicitly re-approved 13 October in `00-status.md`. Source inspection
+confirms the pre-assessment fallback, shared demo ID, incomplete frontend
+projection and local simulator remain current gaps. The shipped truthfulness
+repairs remain in place. No production code, approved copy or mockup was edited.
+
+[verified approval, implementation unbuilt] The amendment approves one server-owned projection and twelve
+screen mappings, no-plan/options refusal, explicit example start, stable resume
+and replay records, same-version field-only repair, and ADP extraction of
+confirmed words before deterministic comparison. ADP must return grounded raw
+spans/uncertainty; invalid output or timeout stays unscored. It supplies no
+urgency, booking, patient words or care evidence. Gates 3/4 contracts remain
+unchanged; old Slice 13 intake/classification scope does not cover this work.
+
+[verified] This is documentation preparation on
+`codex/patient-experience-architecture`, from clean main matching GitHub at
+`aca4594485f3e465daa461bf8139033458b2b81c`. No fresh suite, Postgres engine,
+ADP service or target-user result is claimed. The remaining manual dependencies
+are precise in architecture section 13.7: later gate approval, operator ADP
+schema/version/knowledge-base/probe checks and server-only configuration,
+disposable Postgres access, and processor/retention review. No credentials or
+installation are needed now. The previous shipping authority is exhausted.
+
 
 [verified] Gate 1 was explicitly approved and the working tree committed and
 pushed to main on 12 October 2026. The first verified remote tip was `2486236`;
@@ -172,7 +227,7 @@ and SHA-256 hashes: `/tmp/carerelay-patient-gate1-before/`.
 ## Manual dependencies
 
 - [verified] Gate 1 decision received: approved 12 October 2026.
-  Next product decision: Gate 2 integration; no credentials are requested now.
+  Gate 2 revision 4 is re-approved; next product decision is the separate Gate 3 amendment. No credentials are requested now.
 - [unknown] Later Postgres proof needs an authorised disposable test database and
   locally configured access, never a pasted secret or an unapproved production run.
 - [verified boundary] A clinical-ready claim would require qualified clinical

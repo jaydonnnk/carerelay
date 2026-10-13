@@ -1,7 +1,33 @@
 # ADP and deployment: impact on the approved architecture
 
+**13 October 2026, Gate 3 approval reconciliation. [verified]** The user
+answered "Yep i approve." Gate 3 section 9 is RE-APPROVED in `00-status.md`.
+Gate 1 copy, Gate 2 revision 4/section 5.2 and Gate 4 are unchanged. The current
+proposal specifies confirmed words through strict ADP extraction, deterministic
+same-version field repair, durable replay receipts and coherent stop/owner/deadline
+projection. ADP does not execute actions or write guidance; action origin remains
+`local-sim`. [unknown] Live extraction/channel separation, Postgres ordering,
+production accessibility and card advantage remain unproved. New confirmation,
+non-timing repair and date copy stay behind Gate 1 approval. Incremental estimate
+84 to 144 hours is unmeasured. The separate user instruction authorises committing,
+publishing, merging and pushing the documentation tree and a Gate 4 handoff;
+no implementation or later-gate approval follows.
+Older Gate 2 handoff statements below describe their earlier checkpoint.
+
 **Kind:** supporting note. **Status: DRAFT, authorises nothing.**
-**Date:** 30 September 2026.
+**Date:** 30 September 2026, with a 13 October reconciliation below.
+
+**13 October 2026 reconciliation.** [verified] The hosting assessment below is
+historical: the Next.js frontend, server-held bearer token, Postgres repository
+and disk-free Render configuration now exist. The patient app still constructs
+`LocalSimulationCoordinator`; the published ADP agent is separate and its
+positive extraction path remains unproven. [hypothesis] Revision 4 of Gate 2,
+section 13, now proposes confirmed read-back extraction with raw spans,
+uncertainty validation, whole-response timeout and safe unscored fallback.
+It does not enable the old intake/classification Slice 13, execution, urgency,
+patient rendering or closure. Gate 2 revision 4 was re-approved 13 October; Gate 3/4 contracts
+remain untouched and their upgrade amendments are outstanding. Earlier alternatives/cost forecasts below are historical,
+not current instructions to install, publish or migrate.
 **Source:** `docs/ADP_Hackathon_Guide_EN.pdf` (9 pages, "Tencent Cloud ADP, Hackathon
 Guide", AI CAN DO IT Hackathon Singapore 2026), supplied by the user 30 September 2026.
 

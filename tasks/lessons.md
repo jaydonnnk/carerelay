@@ -60,3 +60,7 @@
 - 2026-10-12: [verified] A skill read used the user-level root for a plugin skill and found no file. Root cause: expanding the skill name without its catalog root. Read the exact catalog path; the installed caveman-commit skill was found in the plugin cache and used for commit messages only.
 
 - 2026-10-12: [verified] The staged diff check found a trailing blank line in the new copy inventory; it was invisible to the earlier unstaged diff check because the file was untracked. Removed it before commit. Prevention: run the cached whitespace check after staging every batch, including newly created files.
+
+- 2026-10-13: [verified] The Gate 2 documentation preflight caught an inherited U+2014 in an edited architecture table label. Root cause: validating only newly composed prose missed punctuation retained on the changed line. Prevention: inspect every added diff line, including inherited labels, and remove U+2014 before delivery. Corrected before handoff.
+
+- 2026-10-13: [verified] The authorised Gate 3 branch creation returned an already-exists error, while follow-up inspection showed that branch was current at the expected HEAD and all baseline bytes/index were unchanged. Cause of the discrepant command result is unknown. Prevention: inspect current branch, ref/reflog and preserved work before retrying a Git mutation; do not reset or force-recreate a branch from an ambiguous result.

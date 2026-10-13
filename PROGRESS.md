@@ -109,3 +109,83 @@ Shipping result: the authorised repair and design working tree is on main and
 its first push is verified against GitHub. Gate 1 is re-approved in the authority
 record. The receipt commit is pushed as the final bookkeeping step. No credentials
 or installation are needed for shipping. Postgres execution remains skipped.
+
+## Gate 2 architecture preparation: 13 October 2026
+
+Operational checklist only; gate authority remains `00-status.md`.
+Scope: documentation amendment on `codex/patient-experience-architecture`, from
+clean main matching GitHub at `aca4594485f3e465daa461bf8139033458b2b81c`.
+No implementation, commit, push, external call, install or deployment.
+
+- [x] Inspect repository authority, approved screens, repair evidence and source.
+- [x] Draft authoritative journey/no-plan/resume/command and ADP role decisions.
+- [x] Reconcile supporting mirrors without changing Gate 1 or Gate 3/4 contracts.
+- [x] Verify diff, preserved-file hashes, documentary consistency and byte endings.
+- [x] Prepare the reviewable amendment and the Gate 2 approval boundary.
+
+Baseline backup/hashes: `/tmp/carerelay-gate2-architecture-20261013/`.
+Recorded suite/mutation results remain historical; no fresh application suite
+or live ADP/Postgres proof is claimed by this documentation task.
+
+Verification: `python3 /tmp/carerelay-gate2-verify.py` passed; 81 source/frontend/
+test/mockup/gate hashes preserved, section 5.2 unchanged, twelve screen mappings,
+consistent current gate/checklist/history, original LF, no added U+2014 and a
+bounded credential scan with positive controls. `git diff --check` passed.
+One inherited punctuation defect was caught/corrected before delivery and
+logged in `tasks/lessons.md`. No application suite was rerun.
+
+Result: revision 4 and supporting mirrors are prepared. Current gate state and
+the subsequent user decision belong only in `00-status.md`. No implementation,
+staging, commit, push, install, credential change or deployment occurred.
+
+## Gate 3 handoff preparation: 13 October 2026
+
+- [x] Reconcile authority and supporting mirrors with the user's latest decision.
+- [x] Prepare an actionable Gate 3 handoff and a separate optional review prompt.
+- [x] Verify preserved design/code, documentary state, byte endings and diff.
+
+Current gate authority remains `00-status.md`. No Gate 3 content has been edited.
+
+## Gate 3 program-design preparation: 13 October 2026
+
+Operational checklist only; gate authority is `00-status.md`. Documentation
+branch: `codex/patient-experience-program-design`, HEAD `aca4594`, carrying the
+inherited dirty Gate 2 records. Baseline bytes/index/diff are captured in the
+calling chat's `work/` directory. Existing source, tests, prototypes and Gate 1/2/4
+must remain unchanged. No implementation, stage, commit, push, database/service
+call, credentials, install or deployment.
+
+- [x] Read authority/skill, actual frontend/API/service/domain/SQLite/Postgres and evidence.
+- [x] Prepare section 9 contracts, migration/test designs and effort/uncertainties.
+- [x] Mirror current drafting scope/decisions and preserve earlier history.
+- [x] Complete documentary checks and preservation comparison; reviewable output exported.
+- [x] Prepare the exact Gate 3 question for delivery; no later-gate work begun.
+
+Recorded application results remain historical; no suite or live ADP/Postgres
+check is represented as fresh evidence by this run.
+
+Documentary verification: the calling chat's `work/check_documents.py` passes.
+185 baseline files are byte-preserved, including all source/frontend/tests,
+mockups, Gate 1/copy, Gate 2 and Gate 4; original Gate 3 body is preserved.
+Index/HEAD unchanged, current branch verified, LF convention retained, new
+signature blocks parse as stubs, bounded drafted-text credential scans have
+positive controls, no added U+2014, and `git diff --check` passes. These are
+documentary checks, not application, live ADP, Postgres or browser results.
+
+Result: concrete Gate 3 amendment plus scope mirrors prepared; explicit approval
+is pending only in `00-status.md`. Deliverable snapshot is in the calling chat's
+`outputs/CareRelay-Gate-3-amendment.md`. No implementation or shipping occurred.
+
+## Gate 3 documentation shipping: 13 October 2026
+
+Operational receipt only. The user's decision and shipping authority are recorded
+in `00-status.md`; no later gate or implementation is implied.
+- [x] Recheck working tree/branch, preserved files and live remote main at `aca4594`.
+- [x] Record the user's decision and Git authority in current scope mirrors.
+- [ ] Commit the inherited Gate 2 and Gate 3 documentation in coherent batches.
+- [ ] Publish the program-design branch, fast-forward main safely and push main.
+- [ ] Verify remote refs/clean tree and export the actionable Gate 4 prompt.
+
+No application suite/live ADP/Postgres/browser check is required or claimed for
+these documentation-only commits. Gate 1 copy, Gate 2 semantics and Gate 4
+contract remain preserved.

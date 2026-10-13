@@ -1,5 +1,48 @@
 # CareRelay — Plan (updated 21 September 2026)
 
+**13 October 2026, Gate 3 re-approval and shipping authority. [verified]**
+The user answered "Yep i approve." Gate 3 section 9 is RE-APPROVED;
+`00-status.md` records the checklist/history. The user also explicitly authorised
+committing the working tree, publishing the branch, merging and pushing to main,
+and an actionable Gate 4 handoff in the original assignment format. Gate 1 copy and Gate 2
+revision 4, including its durable-stop rule, are preserved. Gate 4 is unchanged
+and does not authorise this upgrade. Documentation branch: `codex/patient-experience-program-design`,
+from the inspected `aca4594` baseline, carrying the inherited Gate 2 records.
+[verified design approval, behaviour remains hypothesis] Coherent/redacted journey projection, stable
+start/replay, atomic append-only command receipts, latest-parent field repair,
+server-held ADP extraction and episode-serialized local dispatch are specified.
+[unknown] Positive ADP extraction/channel separation, actual Postgres proof,
+accessibility and participant benefit remain unproved. Exact confirmation-control,
+non-timing repair and new date wording need Gate 1 approval before exposure.
+[verified source limit] Bare `tomorrow` is not a supported deadline form in
+`fixture-provisional-0`; it remains uncertain. A definite literal-tomorrow repair
+requires a separately approved Gate 2 versioned comparison decision.
+Incremental estimate: 84 to 144 person-hours, unmeasured; no 16 October completion
+promise. This shipping request authorises documentation Git operations only,
+not implementation, Gate 4 approval, installation, credentials, live ADP, database
+mutation, deployment or participant outreach. The next task is Gate 4 preparation.
+
+**13 October 2026, Gate 2 patient-experience amendment. [verified]** Gate 2
+is RE-APPROVED, revision 4 of `02-architecture.md`, section 13. The user
+explicitly answered "Yep i approve gate 2" and requested a Gate 3 handoff.
+Gate 1 remains re-approved. The 12 October durable-stop rule is preserved;
+Gates 3 and 4 retain their prior contracts and do not authorise this upgrade.
+[verified approval, behaviour remains hypothesis] Approved decisions:
+authoritative action/deadline/owner/next-question
+and stop projection, explicit no-plan, twelve screen mappings, stable episode
+resume, durable request dedupe and confirmed read-back through ADP extraction
+into deterministic comparison. ADP remains outside urgency, actions, guidance
+and closure; execution stays `local-sim`. The old conditional
+intake/classification slice remains unbuilt; Gate 3/4 must separately design
+and sequence the approved read-back role.
+[verified] Slices through 12, assets and usage-proof files exist; Slice 9's run
+was cut and Slice 13 was not built. Recorded 12 October results, not fresh checks
+here: 945 passed, 46 Postgres skips, one warning; 39/39 mutations RED.
+[unknown] Postgres runtime/concurrency, positive ADP extraction and patient
+benefit remain unproven. Next: separate Gate 3 and Gate 4 amendments. This assignment authorises no implementation, commit, push,
+installation, credentials, external call or deployment.
+
+
 **12 October 2026, Gate 1 re-approval and shipping. [verified]** The user
 explicitly approved the concise patient journey, labelled visual cues and copy,
 and authorised committing the current working tree and pushing to main. Gate 1
@@ -37,7 +80,10 @@ Every claim below is labelled:
 - **[hypothesis]** — our strategic judgment; not established.
 - **[unknown]** — not established either way.
 
-No implementation has been authorised. No accounts, credentials, clinical review, user research or external integrations exist yet.
+Historical 21 September baseline below is superseded for build/access status
+by the dated 13 October note and `00-status.md`. Existing slices are shipped;
+this revision 4 proposal authorises no new implementation. Clinical review and
+patient benefit remain unestablished.
 
 ---
 
@@ -423,7 +469,12 @@ The two-axis ledger is **judge-facing evidence**, shown in the walkthrough and t
 **Optional, only with measured need**
 - **TRTC speech** — for the target population if typing is a demonstrated barrier; text confirmation and text-only fallback required.
 - **Miora** — visual explanations and interface assets if comprehension measurably improves.
-- **ADP (revised 30 September 2026):** a **published agent surface**, additive to WorkBuddy and never a replacement for the execution substrate (Decision D-A). It may occupy the **interpretation step only**: never the execution path, never the rendering path. Tool execution is a `[vendor claim]`; the MCP tool, the platform-originated failure event and session resume are `[unknown]`. A conditional slice, default do not run. See `02-architecture.md` D8 and `04-slices.md` Slice 13.
+- **ADP (13 October 2026 proposal):** published agent separate from the patient
+  app; confirmed fictional read-back extraction only, with strict raw-span
+  validation, independent uncertainty checks, bounded timeout and unscored
+  fallback. Domain code canonicalises/compares; simulated action execution stays
+  `local-sim`. Gate 2 section 13 proposes this explicitly; the old unbuilt
+  intake/classification Slice 13 does not authorise it. No ADP call is made here.
 - **Agent Runtime:** only to supply a capability that is actually missing.
 
 **Deliberately excluded**
