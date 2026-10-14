@@ -96,3 +96,7 @@ reviewer's judgement, `[guess]` a hunch, `[unknown]` not established.
 [the Slice 16 review](reviews/slice16-local-check-2026-10-14.md).
 [The Slice 17/18 handoff](handoffs/patient-experience-slice17-18-2026-10-14.md)
 supplies the later contracts and limits. `00-status.md` owns shipping state.
+
+[verified] Slice 17's bounded local permission/failure Check is documented in [the Slice 17 review](reviews/slice17-local-check-2026-10-14.md). `00-status.md` owns state and the user acceptance/shipping boundary.
+
+[verified] Current next-agent Slice 18 handoff: [strict offline ADP extraction](handoffs/patient-experience-slice18-2026-10-14.md). Slice 17 acceptance/publication state remains in `00-status.md`.

@@ -3,7 +3,88 @@
 - Gate 1: Product, **narrowly RE-APPROVED 14 October 2026** for Slice 16's exact five confirmation/help and pending/retry strings in `patient-experience-copy.md`. The user answered "Approve these exact Gate 1 strings". The 12 October approved inventory is preserved. Approved strings are exposed only by the guarded offline Slice 16 controls; specialized non-timing and system-date copy remain blocked. Gates 2 to 4 contracts are unchanged.
 - Gate 2: Architecture, **RE-APPROVED 13 October 2026 (revision 4)** for the patient-experience journey and ADP read-back extraction design in `02-architecture.md` section 13. The user explicitly answered "Yep i approve gate 2" and requested a Gate 3 handoff. The previously approved section 5.2 durable-stop rule is unchanged. This architecture approval alone authorises no implementation.
 - Gate 3: Program Design, **RE-APPROVED 13 October 2026**, including section 9.12 identity correction. User answered "approve" after the reproduced no-event counterexample. Slice 14 is locally complete and shipped; Slice 15 Check is accepted with disclosed blocked viewport items and Slice 15 is shipped to main.
-- Gate 4: Slice plan, **RE-APPROVED 13 October 2026** for `04-slices.md` section 9. Its contract is unchanged. Slice 15 Check accepted 14 October 2026 by the user ("Yes, ship") with viewport items disclosed as blocked, not passed, and carried to Slice 20; Slice 15 is shipped to main. Slice 16's offline/SQLite Check is ACCEPTED 14 October 2026. The user answered "I accept" and requested main publication and cleanup, then notification before Slice 17. Slice 16 is shipped to main by verified fast-forward and origin/main publication. Slices 17 to 21 have not started. No install or external-runtime authority follows.
+- Gate 4: Slice plan, **RE-APPROVED 13 October 2026** for `04-slices.md` section 9. Its contract is unchanged. Slice 15 Check accepted 14 October 2026 by the user ("Yes, ship") with viewport items disclosed as blocked, not passed, and carried to Slice 20; Slice 15 is shipped to main. Slice 16's offline/SQLite Check is ACCEPTED 14 October 2026. The user answered "I accept" and requested main publication and cleanup, then notification before Slice 17. Slice 16 is shipped to main by verified fast-forward and origin/main publication. Slice 17's bounded local Check is ACCEPTED 14 October 2026; the user explicitly authorised scoped working-tree commits and origin/main publication. Shipping is in progress. Slices 18 to 21 have not started; the requested Slice 18 handoff is for another agent. No install or external-runtime authority follows.
+
+## Slice 17 accepted Check and main publication: 14 October 2026
+
+[verified] The user answered "Yes i accept the check, commit the working tree and
+push to main, then give a concrete and thorough copy paste handoff prompt for
+slice 18 for another agent". This accepts the bounded local Check and authorises
+coherent scoped commits, safe fast-forward into main, push of origin/main and
+this handoff. No Slice 18 branch or implementation is started here.
+
+[verified] Shipping preflight: HEAD, main and live origin/main match `e57e23a`;
+index is empty. An external snapshot preserves 227 repository files and index
+entries at `/tmp/carerelay-s17-shipping/`. The protected tracked video matches
+its original SHA-256. All 727 named RED fingerprints, target backups and
+control-source snapshots match current bytes. Truthfulness's current complete
+log records 39/39 RED; its exact target restoration is checked before shipping.
+The mutation runs are inherited current proof, not re-executed during shipping.
+
+[verified] Fresh shipping suite: 1,869 passed, 54 Postgres skips, one existing
+warning, exit 0; frontend typecheck/build pass. Logs are under
+`/tmp/carerelay-s17-shipping/`. All seven truthfulness target backups are
+byte-identical to current source. Gate/copy/manifest/hosting/video preservation,
+LF and no-added-em-dash checks pass. Named processes remain stopped.
+
+- [x] User accepts local Check and explicitly authorises this shipping scope.
+- [x] Live main/branch/index/tree/video preflight and external backup.
+- [x] Fresh full suite/frontend checks and current proof/preservation audit.
+- [ ] Coherent commits, safe main ref update before checkout and live push check.
+- [ ] Concrete Slice 18 handoff, publication receipt and current-state sweep.
+- [ ] Stop on main before Slice 18; report verified publication.
+
+[unknown] Real Postgres, full accessibility and live ADP remain Slices 19/20/21.
+No install, real configuration/credential change, external runtime, deployment
+or participant work is authorised by this shipping request. Push can trigger
+configured automation; hosted behavior is not checked. Gates/copy remain intact.
+
+[verified] Scoped publication commits so far, in dependency order:
+
+- `09c37ed`: clear the two separately approved example values.
+- `3567f84`: original dispatch permits and outermost store writes.
+- `a2f60b0`: current permission/request guards, atomic local dispatch and backend controls.
+- `bdbf52a`: explicit patient permission, decoder/actions and truthful failure views.
+- `ae9d2d2`: current guard inventory, fail-capable controls and mutation definitions.
+- `deb2bec`: labelled Codex development-process account, preserving historical logs.
+
+## Slice 17 local Check before acceptance: historical, 14 October 2026
+
+[verified] Slice 17's bounded local SQLite/simulator Check passes on uncommitted `slice-17-permission-failure`, from verified main/live main `e57e23a`. The user explicitly continued Slice 17 after accepting and shipping Slice 16. No Check acceptance, Git shipping or Slice 18 continuation is inferred. Gates 1 to 4 contracts and exact copy remain unchanged.
+
+- [x] Main/tree/video preflight and slice branch; fresh baseline disclosed. Two credential-bearing sample assignments cleared only after explicit user approval.
+- [x] Bound barrier/hint/consent/request receipts, fixed purpose/route, original-process once-consumed permit, current guarded state and required tool-held fresh clock.
+- [x] Outermost claim/final transactions; atomic dispatch start/observation/terminal, neutral unknown/waiting and separate callback failure. Replay/new token/raw service/MCP cannot redispatch.
+- [x] Current named run: 727 RED, zero SURVIVED/NOT PROVEN, exact target restores and current source/control fingerprints. Current truthfulness: 39/39 RED, passing controls and exact restores.
+- [x] Fresh post-restoration suite: 1,869 passed, 54 Postgres skips, one existing warning; frontend typecheck/build pass.
+- [x] Actual HTTP/curl and lost-response replay; 503 unavailable/202 pending preserve one attempt. Independent-process stop/revoke ordering, lock holding, fork/identity and claim/effect/receipt SIGKILL checks.
+- [x] Visible production browser keyboard/pointer/unchecked permission/decline/revoke/request/recovery/dialog, 320px and measured 200% text control, wide 1280px and two tabs. No retroactive pass of earlier Slice 15 blockers.
+- [x] Twenty-seven literal stored cases agree across API/SSR/RSC; 135 serialized captures, 2,970/2,970 positive scanner controls. Actual DOM/AX observations are separate bounded evidence.
+- [x] Task/slice review and architect cleanup; referenced files retained, no deletion proposed. Named ports 8317/8318/8319/8320 free; temporary tabs closed and viewport reset.
+- [ ] User accepts this local Check and separately authorises Git shipping.
+- [ ] After accepted Check and verified main publication, explicit continuation to Slice 18.
+
+[verified] Evidence/scope: `docs/reviews/slice17-local-check-2026-10-14.md`. Current full proof `/tmp/carerelay-s17-full-named-4/`; suite `/tmp/carerelay-s17-final-suite.log`; truthfulness `/tmp/carerelay-s17-truthfulness-current3.log`; live evidence `/tmp/carerelay-slice17-live/`. Source/targets/controls match final bytes. Historical partial/surviving runs are disclosed in the review, not combined into totals.
+
+[verified] Video is tracked at current main and unchanged at SHA-256 `cd5fbe68ab2d439f853ae8bd4b85bc6561216c951d1b374f73e62465c9c3a106`. Original deadline and patient owner persist after failed/unknown requests. Observations and applied invocation receipts do not claim a callback, acceptance or care. ADP stays disabled.
+
+[unknown] The 54 Postgres skips are not engine proof; actual access remains separately authorised Slice 19. Full screen-reader/browser zoom/accessibility remains Slice 20. Live ADP remains Slice 21. No participant/clinical proof, real provider/message, install, real configuration/credential change, deployment or later-slice work. Sample credential validity is unknown; no rotation/history rewrite occurred.
+
+**Boundary:** Slice 17 local Check ready; stopped for user acceptance. No commit, push or Slice 18.
+
+## Slice 17 preflight and local build: historical checkpoint, 14 October 2026
+
+[verified] The user requested "please proceed with slice 17" after accepting and shipping Slice 16. This authorises only Slice 17 implementation and its own local Check, not Git shipping or Slice 18. `slice-17-permission-failure` was created before edits from verified HEAD/local main/live origin/main `e57e23a1741b5db6d6ad51c11bdf6520a0a36cc3`. The pre-edit tree was clean and every snapshot file/index entry survived branching exactly. Video is now tracked on main, with preserved SHA-256 `cd5fbe68ab2d439f853ae8bd4b85bc6561216c951d1b374f73e62465c9c3a106`.
+
+[verified] Baseline: 1 failed, 1,768 passed, 51 Postgres skips, one warning. Secret scan flagged two credential-bearing remote DSNs in `.env.example`. The user explicitly approved "Clear the two example values"; exactly those assignments are now empty. No credential rotation, real configuration change or database access occurred. Baseline log: `/tmp/carerelay-slice17-baseline.log`; external tree backup: `/tmp/carerelay-slice17-preflight/`.
+
+[verified partial build] Barrier/consent/request commands and original-process permits are implemented locally; frontend controls and legacy test-fixture migration are being integrated. Action claim and final dispatch now require their own committing transactions. Slice 17 is INCOMPLETE. No complete named mutation, full suite, live HTTP/browser/scanner Check or accepted exit is claimed. Gates 1 to 4 contracts remain unchanged. ADP stays disabled. No install, shipping, external runtime, Postgres access, deployment, participant or Slice 18/19/20/21 work is authorised.
+
+- [x] Explicit Slice 17 continuation, main verification, snapshot and branch.
+- [x] Fresh baseline and separately approved clearing of two example assignments.
+- [ ] Complete the Slice 17 local Check and present it for acceptance.
+
+Older sections below are historical snapshots.
 
 ## Slice 16 main publication and cleanup: 14 October 2026
 
@@ -1945,7 +2026,7 @@ The map spans three folders, reorganised on 30 September 2026 so that a review a
 | `01-product.md` | **Gate 1 doc** | problem, success metric, announcement, product rules, screens |
 | `02-architecture.md` | **Gate 2 doc** | **revision 4 RE-APPROVED 13 Oct 2026.** Durable-stop amendment approved 12 Oct and preserved. D14 to D18 approve the journey/resume, screen mapping and ADP read-back architecture. Gate 3 section 9 is re-approved 13 Oct; Gate 4 upgrade section 9 is re-approved 13 Oct |
 | `03-program-design.md` | **Gate 3 doc** | **RE-APPROVED 13 Oct 2026.** Section 9 upgrade contracts approved; historical sections 1 to 8 retained |
-| `04-slices.md` | **Gate 4 doc** | **RE-APPROVED 13 Oct 2026.** Section 9 upgrade plan. **Corrected 14 Oct 2026:** Slices 14 to 16 are shipped to `main`; Slice 16's offline Check is accepted and its five exact strings are approved. Slices 17 to 21 are unstarted. Historical Slices 0 to 13 retained |
+| `04-slices.md` | **Gate 4 doc** | **RE-APPROVED 13 Oct 2026.** Section 9 upgrade plan. **Corrected 14 Oct 2026:** Slices 14 to 16 are shipped to `main`; Slice 16's offline Check is accepted and its five exact strings are approved. Slice 17 local Check is accepted, with main publication in progress; Slices 18 to 21 are unstarted. Historical Slices 0 to 13 retained |
 | `03-planback-closure-contract.md` | supporting note | specification and feasibility for PlanBack and the Closure Contract. Carries the `03-` filename that Gate 3 needed |
 | `clinical-review-blocker.md` | supporting note | decision paper, 26 Sep: what the reviewer blocker actually blocks, and three routes through |
 | `research-workarounds.md` | supporting note | which blockers are workaroundable and which are hard gates. Listed here for the first time: it was named in `AGENTS.md` section 2 but was missing from this map |
@@ -1953,8 +2034,10 @@ The map spans three folders, reorganised on 30 September 2026 so that a review a
 | `mockups/` | Gate 1 assets | seven plain-HTML screens, throwaway by design |
 | `patient-experience-copy.md` | Gate 1 copy | [verified] Exact main/dialog text approved 12 October 2026; five new Slice 16 strings explicitly approved 14 October 2026 |
 | `patient-experience-upgrade.md` | supporting execution note | [verified] Handoff reconciliation, incremental order, verification and manual dependencies |
-| `docs/handoffs/patient-experience-slice17-18-2026-10-14.md` (repo root) | implementation handoff | [verified] Slice 16 accepted/shipped; Slice 17/18 contracts and limits; stop before Slice 17 |
+| `docs/handoffs/patient-experience-slice17-18-2026-10-14.md` (repo root) | implementation handoff | [verified] Historical Slice 16/17 checkpoints, superseded by the dedicated Slice 18 handoff; no current continuation authority |
+| `docs/handoffs/patient-experience-slice18-2026-10-14.md` (repo root) | next-agent implementation handoff | [verified] Accepted Slice 17 scope, exact strict fake-transport Slice 18 prompt, controls, preservation and separate authority boundaries |
 | `docs/reviews/slice16-local-check-2026-10-14.md` (repo root) | supporting review | [verified] Accepted offline/SQLite Check, cleanup and bounded evidence; no engine/live ADP claim |
+| `docs/reviews/slice17-local-check-2026-10-14.md` (repo root) | supporting review | [verified] Accepted local permission/failure Check, current 727 named RED and 39 truthfulness RED, process/browser/scanner scope and limitations |
 | `docs/handoffs/patient-experience-gate3-2026-10-13.md` (repo root) | session handoff | [verified] Approved Gate 2 receipt, dirty-worktree state, actionable Gate 3 assignment and separate review prompt |
 | `docs/handoffs/patient-experience-slices14-15-2026-10-13.md` (repo root) | implementation handoff | [verified] Gate 4 approval receipt, uncommitted tree, Slice 14 first/Slice 15 checkpoint and main handoff, tooling/proof limits |
 | `design/mocks/patient-journey/` (repo root) | Gate 1 proposed assets | [verified] Twelve separate patient screens and review index, plain HTML; approved 12 October 2026 |
@@ -2015,3 +2098,5 @@ The map spans three folders, reorganised on 30 September 2026 so that a review a
 - Round-2 review effort estimate: **90–150 h** for this architecture plus 20–35 h baseline. The user has reviewed this and **accepted the estimate as achievable** (25 Sep). Gate 3 still produces a real estimate; the acceptance is not a substitute for one.
 - Branch and commit state, re-verified 30 September 2026 after the Slice 3 remediation: `main`, `slice-3` and `slice-4` all sit at the tip of the Slice 3 work and its remediation, whose substantive commits are `4841b71` (the store's command and result types), `ad3401a` (the append-only record), `6b831f3` (the documentation restructure) and `27bed4b` (the record), followed by the ship corrections, `71a1e83` (the O1 remediation) and `f17c361` (its record). `slice-2-domain-core` sits at `80245e4`. `gate-2-architecture` and `care-relay-adversarial-review` no longer exist as branches; their commits remain reachable from `main`. `origin` holds `main` and `slice-3`, each in sync with its local branch: the Slice 3 work and its remediation are pushed, and so is everything committed after them, including the Gate 2, 3 and 4 revision-3 amendment. No gate authorises a commit or a push; they were made on the user's explicit instruction of 30 September 2026. The push itself succeeds when it is asked for, so the earlier credential failures no longer apply. **Updated 1 October 2026:** the Slice 4 ship moved `main` forward to the `slice-4` tip, so `origin` now holds `main` and `slice-4`, and `slice-3` stays frozen where its slice closed. **No hash is given for `origin`'s tip, on purpose:** a hash here goes stale on the next push, and that correction has already been needed twice. **Updated 5 October 2026, after the Slice 7b stage 2 ship:** `origin` holds seven branches, not two: `main`, `slice-3`, `slice-4`, `slice-4-completion`, `slice-6`, `slice-7` and `slice-7b-stage1-fixes`. Every slice branch is frozen at the commit its slice closed on and so sits behind `main` by design; `main` is in sync with `origin/main` and holds everything through Slice 7b stage 2. `origin/slice-7b-stage1-fixes` is the one branch deliberately left behind its local tip, because the instruction of 5 October named `main` and `AGENTS.md` section 6 pushes a slice branch only when the user asks. Branch names are listed here rather than counted, for the reason already given, and `git ls-remote --heads origin` stays the only authority for what the remote holds: this sandbox drops the local tracking refs after a push, which reads like a failed push and is not one. **Updated 8 October 2026, after the Slice 9 cut ship and the Slice 10 ship:** `origin` holds the same seven branches named above and nothing new was published, because both instructions named `main`; `slice-9` and `slice-10` stay unpublished. `main` is in sync with `origin/main` and holds everything through Slice 10. **Updated 9 October 2026, after the Slice 11 ship:** `main` now holds everything through Slice 11 and is in sync with `origin/main`, verified against `git ls-remote --heads origin` and with `git rev-list --left-right --count origin/main...main` reading `0 0`. The instruction named `main` only, so `slice-11-fault-harness` stays unpublished alongside `slice-9` and `slice-10`, and `origin` still holds the same seven branches named above.
 - **Slice 3 is complete** (30 September 2026): the append-only record exists at `src/carerelay/state.py`. **Corrected 30 September 2026 by Slice 4:** `restatements` now has a writer (`state.record_restatement`), and `api.py` is wired to the store for the five PlanBack routes. The three tracer-bullet routes from Slice 1 remain hardcoded, because their slice's contract says so. The `source_ref` open item from the Slice 2 review is settled. Ten readings of the approved documents are flagged in the Slice 3 section above; reading 6 (the snapshot reports the expiry event for the current disposition version) is the one most worth an explicit yes or no. The Slice 3 review gives reading 6 an explicit **yes**, with reasoning at section 7 (B4) of the review note; the decision remains the user's. **Reviewed 30 September 2026:** verdict yes with named caveats, two blocking findings corrected above, and eight open items O1 to O8. **Remediated the same day, before Slice 4 began:** O1, O3, O4 and O6 are closed and O2 is half closed, so the `INSERT OR REPLACE` gap no longer blocks the structural claim, which is now scoped rather than absolute. 332 pass. That change is **committed on `slice-3` and fast-forwarded into `main`**, in two commits: the code, then this record. Full note: `docs/reviews/slice3-adversarial-review.md`.
+
+[verified supporting map] Slice 17 local review/evidence: `docs/reviews/slice17-local-check-2026-10-14.md`; authoritative for nothing, current state above.

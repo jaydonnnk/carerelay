@@ -1,5 +1,25 @@
 # CareRelay: Slice 16 record and context for Slices 17 and 18
 
+## Superseding Slice 17 acceptance and Slice 18 handoff: 14 October 2026
+
+[verified] The user accepted Slice 17's bounded Check and explicitly requested
+working-tree commits, main publication and an actionable handoff for another
+agent. Publication is in progress; `00-status.md` owns the receipt. The current
+next-agent record is `docs/handoffs/patient-experience-slice18-2026-10-14.md`.
+No Slice 18 branch or code is created here. Earlier pending-acceptance/build
+snapshots below are historical, including old video tracking statements.
+
+## Current update after Slice 17: 14 October 2026
+
+[verified] The user explicitly continued Slice 17 after accepting and shipping Slice 16. Slice 17 is now built locally on uncommitted `slice-17-permission-failure`, from verified main/live main `e57e23a`. Its bounded Check is READY: 1,869 passed, 54 Postgres skips, one existing warning; frontend typecheck/build pass; final 727 named RED with zero SURVIVED/NOT PROVEN and exact restores/current fingerprints; truthfulness 39/39 RED. Real HTTP/curl, process crash/ordering, visible browser and positive scanner evidence is in `docs/reviews/slice17-local-check-2026-10-14.md`. `00-status.md` owns state.
+
+[verified] User acceptance of this Check, Git shipping and Slice 18 continuation remain absent. Do not start Slice 18 from old main or carry dirty Slice 17 work onto its branch. The five exact copy strings remain approved; specialized non-timing/system-date strings remain blocked. ADP stays disabled. Real Postgres/full accessibility/live ADP remain Slices 19/20/21. No install, real config/credentials, external runtime, deployment or participant authority follows.
+
+[verified] The video is now tracked at main, unchanged at the original SHA-256 in this file. Two credential-bearing sample assignments were cleared only after explicit user approval; no rotation/access/history rewrite occurred. Named local processes are stopped and temporary browser state cleaned up.
+
+The Slice 16 shipping/build snapshots and older next-chat prompt below are historical. This update supersedes their unstarted-Slice-17 statements; they add no current authority.
+
+
 Dated 14 October 2026. `00-status.md` owns gate and slice state.
 
 ## Shipping update: 14 October 2026

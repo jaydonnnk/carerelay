@@ -1,5 +1,34 @@
 # CareRelay: project and execution instructions
 
+**14 October 2026, Slice 17 Check accepted; main publication authorised. [verified]**
+The user accepted the bounded local Check and requested committing the working
+tree, pushing to main and a concrete Slice 18 handoff for another agent.
+Shipping is in progress on `slice-17-permission-failure`; no Slice 18 branch or
+implementation is created here. Accepted proof: 1,869 passed, 54 Postgres skips,
+one existing warning; typecheck/build pass; 727 current named RED and 39/39
+truthfulness RED with exact restores. `00-status.md` owns the receipt and limits.
+The protected tracked video is byte-preserved. Later Git shipping and external
+scopes remain separate. Current handoff:
+`docs/handoffs/patient-experience-slice18-2026-10-14.md`.
+Older checkpoints below are historical.
+
+**14 October 2026, Slice 17 local Check ready; stopped. [verified]**
+The authorised permission/failure slice is built on uncommitted
+`slice-17-permission-failure`, from verified main/live main `e57e23a`.
+Current suite: 1,869 passed, 54 Postgres skips, one existing warning;
+frontend typecheck/build pass. Final named proof: 727 RED, zero
+SURVIVED/NOT PROVEN, exact restores and matching current fingerprints;
+truthfulness 39/39 RED. Real HTTP/curl, independent-process crash/ordering,
+production-browser and positive scanner checks pass within the bounded local
+scope in `docs/reviews/slice17-local-check-2026-10-14.md`.
+The protected video is now tracked and byte-preserved. Two sample DSNs were
+cleared on explicit approval; no rotation/access occurred. Named processes/tabs
+are closed and viewport reset. User Check acceptance and Git shipping remain
+absent. Slice 18/19/20/21 are unstarted here; Postgres, full accessibility and
+live ADP remain their later boundaries. `00-status.md` owns state.
+Older checkpoints below are historical.
+
+
 **14 October 2026, Slice 16 shipped to main; stopped before Slice 17. [verified]**
 The user accepted the local Check and authorised main publication and cleanup.
 Seven scoped commits went onto `slice-16-confirmed-readback`; main advanced by
