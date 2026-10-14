@@ -146,4 +146,8 @@ that it passes. This addendum preserves the original review observations.
 Fresh shipping checks reproduce 2,029 passed, 56 Postgres skips, one warning and
 passing frontend typecheck/build. Current named/truthfulness proof hashes and
 backups match; no new mutation or live corpus is claimed during shipping.
-Publication is in progress; 00-status.md owns its subsequent receipt.
+Seven scoped commits were safely fast-forwarded before checkout and pushed to
+main. All 231 files/index entries survived exactly; first live remote check
+matched `6dc765b`. This dated receipt is published within that same request;
+00-status.md owns state and final live refs are reported after publication.
+Only main is pushed. No later-slice branch or implementation is created.

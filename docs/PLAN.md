@@ -1,23 +1,28 @@
 # CareRelay — Plan (updated 21 September 2026)
 
-## Slice 18 accepted Check; main publication in progress: 14 October 2026
+## Slice 18 accepted and shipped to main: 14 October 2026
 
-[verified] The user accepted the bounded Slice 18 Check and explicitly requested
-commits, main integration, origin/main push and the next-agent handoff. Fresh
-shipping checks: 2,029 passed, 56 Postgres skips, one existing warning;
-typecheck/build pass. Existing 824 named RED and 39 truthfulness RED records
-match current source/controls and exact backups. The disclosed BODY-focus
-failure stays a Slice 20 obligation. Real Postgres and live ADP remain unproven.
+[verified] The user accepted the bounded Slice 18 Check and authorised scoped
+commits, safe main integration, origin/main push and the next-agent handoff.
+Seven commits were fast-forwarded by guarded ref update before checkout. All
+231 file hashes and index entries survived exactly; the first live remote check
+matched local main at `6dc765b`. This receipt/current-state sweep is within the
+same publication request; final refs are checked live after its publication.
 
-[verified] Pre-shipping HEAD/main/live main match `0fac90d`; an external snapshot
-preserves 230 files/index/video at `/tmp/carerelay-s18-shipping/`. The protected
-video is tracked and exact; named previews remain stopped. Coherent publication
-and live verification are in progress, within this explicit shipping request.
+[verified] Fresh shipping checks: 2,029 passed, 56 Postgres skips, one existing
+warning; frontend typecheck/build pass. Existing 824 named RED over 805 distinct
+edits and 39 truthfulness RED remain current, with matching source/control
+hashes and exact restores. Protected tracked video is byte-preserved, ADP stays
+disabled by default and named local previews remain stopped. The known
+Escape/BODY-focus failure stays a Slice 20 obligation; real Postgres and live
+ADP remain unproven.
+
+[verified] Checkout is main; the local Slice 18 branch is retained and aligned.
+Only main is published. No Slice 19/20/21 branch or implementation is created.
 The numbered next-agent prompt is `docs/handoffs/patient-experience-slice19-21-2026-10-14.md`.
-This session stops on main without starting Slices 19/20/21. Slice 19 needs
-separately authorised disposable engine access; later shipping, accessibility
-continuation and live ADP retain their separate boundaries. `00-status.md` owns
-state. Earlier checkpoints below are history.
+Slice 19 needs explicit continuation and separately authorised disposable engine
+access; later shipping and live ADP retain separate authority. `00-status.md`
+owns state. Earlier checkpoints below are history.
 
 ## Slice 18 local Check before acceptance: historical, 14 October 2026
 

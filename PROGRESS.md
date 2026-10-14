@@ -5,7 +5,7 @@ Operational memory only. `00-status.md` owns gate and slice state.
 [verified] Strict fake-transport extraction is built on `slice-18-adp-boundary`,
 from verified main/live main `0fac90dde43882b9322d575fbd80114650e4dc19`. The user
 accepted the bounded Check and requested commits/main publication and the
-numbered Slices 19 to 21 handoff. Shipping is in progress; no Slice 19/20/21
+numbered Slices 19 to 21 handoff. Seven scoped commits are on main; no Slice 19/20/21
 branch or implementation is created. State/acceptance authority is 00-status.md.
 
 - [x] External 228-file/video/index snapshot and branch before editing.
@@ -43,4 +43,9 @@ additional actual Postgres cases remain skipped for Slice 19.
 typecheck/build pass. Current inherited target/control fingerprints and exact
 restores match. Snapshot: `/tmp/carerelay-s18-shipping/`, 230 files plus index.
 Handoff: `docs/handoffs/patient-experience-slice19-21-2026-10-14.md`.
-Publication receipt and final live refs remain the next verification step.
+[verified] Safe main ref update preceded checkout, preserving 231 file hashes
+and index entries. Push succeeded; first live remote check matched `6dc765b`.
+This receipt is published in the same request, with final live refs reported
+thereafter. Checkout is main and the retained local Slice 18 branch is aligned.
+Only main is pushed. Source/test/video bytes are unchanged; named ports remain
+free. No next-slice code, cleanup deletion, installation or external runtime.

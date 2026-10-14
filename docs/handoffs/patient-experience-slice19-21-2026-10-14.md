@@ -3,6 +3,13 @@
 `00-status.md` owns gate and slice state. This supporting handoff was requested
 after the user accepted Slice 18 and authorised its commits, main integration
 and origin/main push. Publication is recorded separately in `00-status.md`.
+
+[verified] Seven scoped commits were integrated by safe fast-forward and main
+push; the first live remote check matched local main at `6dc765b`. The receipt
+is published within the same request. Final refs are verified after publication
+and should be queried afresh by the next agent. The local Slice 18 branch is
+retained/aligned; only main is pushed. Tree/index/video preservation passes.
+
 This session does not start Slices 19, 20 or 21. Submitting the prompt below
 continues Slice 19 only; engine access still requires its explicit named scope.
 
@@ -44,7 +51,7 @@ authorised scoped main publication. Its source branch is
 receipt and query live origin/main for the final entry tip; the original base
 above is historical. Do not branch from it when main has advanced.
 
-[unknown] Slices 19, 20 and 21 are unstarted. Their order is disposable Postgres
+[verified] Slices 19, 20 and 21 are unstarted. Their order is disposable Postgres
 proof, full production accessibility, then separately authorised live ADP.
 Each stops for its own bounded Check acceptance and continuation decision.
 Later shipping needs separate explicit authority before the following slice
