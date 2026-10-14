@@ -1,5 +1,68 @@
 # Design principles — the four tests
 
+**14 October 2026, Slice 15 local verification complete, Check recorded. [verified]**
+Every locally runnable Slice 15 Check item passes on dirty `slice-15-durable-start`; `00-status.md` owns the record.
+Current source: 1,547 passed, 46 Postgres skips, one existing warning; typecheck and production build pass.
+One full named mutation run: 443 RED, zero SURVIVED/NOT PROVEN, exact restores; truthfulness 39/39 RED.
+Scanner: 50 real surfaces, 1,100 of 1,100 injection controls; 28 fixtures cross-surface clean over 12 steps.
+Live durable start, lost create/intake recovery, restart, rotation, forged identity, missing key/locator and seven retired writes (422, zero rows) passed over real HTTP.
+Blocked, not passed: live keystrokes, pointer click, screenshots, 320px reflow, enlarged text and two simultaneous tabs, because the in-app browser viewport is 0x0 and hidden.
+`frontend/lib/api.ts:61` is UNPROVEN-NO-CONTROL for Slice 17; real Postgres stays Slice 19.
+The user accepted the Check with that blocker disclosed ("Yes, ship"), authorising scoped commits, fast-forward into main and push of origin/main.
+Latest record: `docs/handoffs/patient-experience-slice15-continuation-4-2026-10-14.md`.
+No Slice 16, installation, real config/credentials, external runtime, engine or deployment.
+The unrelated untracked video remains byte-preserved. Earlier checkpoints are historical.
+
+**14 October 2026, Slice 15 third continuation checkpoint. [verified]**
+The user requested a next-agent finish handoff, then cleanup and main publication
+before later slices. Slice 15 remains INCOMPLETE on dirty `slice-15-durable-start`.
+Fresh full suite: 1,509 passed, 46 Postgres skips, one warning. Frontend typecheck/
+build pass. Current combined mutations: 398 RED, zero SURVIVED/NOT PROVEN, matching
+target fingerprints and exact restores. Browser checked 28 stored branches and
+163 malformed bodies; the scanner/bootstrap/guard-ledger/final cleanup Check is
+still open. Latest record: `docs/handoffs/patient-experience-slice15-continuation-3-2026-10-14.md`.
+The user's latest request authorises scoped commit/integration/push to main only
+after Slice 15's Check passes. None occurred here. No later-slice implementation,
+installation, real config/credentials, external runtime, engine or manual deployment
+was authorised. Protected copy/gates/manifests/config and the unrelated untracked
+video remain byte-preserved. Earlier scope limits are historical checkpoints.
+
+**13 October 2026, Slice 15 second continuation checkpoint. [verified]**
+The user requested another context handoff. Slice 15 remains INCOMPLETE on dirty
+`slice-15-durable-start`. Latest full suite: 1,299 passed, 46 Postgres skips,
+one existing warning. Typecheck/build pass. Current named mutations: 207 RED,
+2 SURVIVED, 0 NOT PROVEN; existing truthfulness 39/39 RED, exact restores.
+Live lost-response/two-tab and representative stored-screen proof is bounded;
+the full guard/browser/scanner Check and architecture cleanup remain open.
+Latest record: `docs/handoffs/patient-experience-slice15-continuation-2-2026-10-13.md`.
+Protected gate/copy/config/manifests and unrelated video bytes are unchanged.
+No Git shipping, installation, external service, deployment or Slice 16 work.
+Earlier checkpoints below are historical; `00-status.md` owns slice state.
+
+
+**13 October 2026, Slice 15 continuation checkpoint. [verified]**
+The user requested a handoff near 350k active context, before 400k. The current
+frontend wiring item closes with typecheck/build and a bounded live smoke;
+Slice 15 remains incomplete on dirty `slice-15-durable-start`. Focused receipt
+checks: 23 passed. Full diagnostic: 42 failed, 850 passed, 46 Postgres skips,
+one warning, 167 errors, not fully triaged. No current mutation or complete
+matrix/browser proof. Continue from
+`docs/handoffs/patient-experience-slice15-continuation-2026-10-13.md`.
+No Git shipping, install, real configuration/credentials, ADP, engine or deployment
+authority is added. Earlier snapshots below are history; `00-status.md` owns state.
+
+
+**13 October 2026, Slice 15 local build in progress. [verified]**
+`slice-15-durable-start` was created from verified main/live remote main at
+`b91a4ad`; all 208 snapshotted files and the index survived byte-exact.
+Fresh baseline: 1,033 passed, 46 Postgres skips, one warning. The current
+local build adds command receipts and stored journey projection; its Check is
+incomplete and no Slice 15 completion or shipping is claimed. `00-status.md`
+owns the current slice state. Slice 16 and external/install/Git shipping scopes
+remain unauthorised. The unrelated untracked usage-proof video is preserved.
+Earlier unstarted notes describe their recorded checkpoints.
+
+
 **13 October 2026, Slice 14 shipped to main. [verified]**
 The user requested main publication and a copy-paste Slice 15 prompt. Slice 14,
 its approved Gate 4 records and Gate 3 identity correction, and the handoffs were

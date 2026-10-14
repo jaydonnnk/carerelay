@@ -2,8 +2,142 @@
 
 - Gate 1: Product, **RE-APPROVED 12 October 2026** for the revised concise patient journey, visual cues and copy in `01-product.md` and `patient-experience-copy.md`. The user explicitly approved Gate 1 and authorised committing the working tree and pushing to main. Previous approval: 8 October 2026.
 - Gate 2: Architecture, **RE-APPROVED 13 October 2026 (revision 4)** for the patient-experience journey and ADP read-back extraction design in `02-architecture.md` section 13. The user explicitly answered "Yep i approve gate 2" and requested a Gate 3 handoff. The previously approved section 5.2 durable-stop rule is unchanged. This architecture approval alone authorises no implementation.
-- Gate 3: Program Design, **RE-APPROVED 13 October 2026**, including section 9.12 identity correction. User answered "approve" after the reproduced no-event counterexample. Slice 14 is locally complete and shipped; Slice 15 is the requested next-chat target.
-- Gate 4: Slice plan, **RE-APPROVED 13 October 2026** for `04-slices.md` section 9. Its contract is unchanged. Slice 14 local Check is complete after Gate 3 section 9.12 re-approval; Slices 15 to 21 have not started. No shipping, install or external authority follows.
+- Gate 3: Program Design, **RE-APPROVED 13 October 2026**, including section 9.12 identity correction. User answered "approve" after the reproduced no-event counterexample. Slice 14 is locally complete and shipped; Slice 15 Check is accepted with disclosed blocked viewport items.
+- Gate 4: Slice plan, **RE-APPROVED 13 October 2026** for `04-slices.md` section 9. Its contract is unchanged. Slice 14 local Check is complete after Gate 3 section 9.12 re-approval. Slice 15 Check accepted 14 October 2026 by the user ("Yes, ship") with five viewport items disclosed as blocked, not passed, and carried to Slice 20. Slices 16 to 21 have not started. No shipping, install or external authority follows.
+
+## Slice 15: local verification battery complete, Check recorded, 14 October 2026
+
+**14 October 2026, Slice 15 completion and Check record. [verified]**
+Every locally runnable Slice 15 Check item passes on dirty `slice-15-durable-start`.
+Five viewport-dependent items are BLOCKED by the tool environment and are recorded below as bounded observations, not as passes.
+Whether that disclosed blocker satisfies the "full approved Check" condition on the user's shipping authority was the user's decision, asked before any commit; the answer is recorded below.
+Latest record: `docs/handoffs/patient-experience-slice15-continuation-4-2026-10-14.md`.
+Evidence root: `/tmp/carerelay-slice15-finish-20261014/`; single best summary: `live/live-check-summary.json`.
+
+**Check decision, 14 October 2026. [verified]**
+Asked whether the disclosed environmental blocker satisfies the full approved Check, the user answered "Yes, ship".
+The Slice 15 Check is therefore accepted with the five blocked viewport items and two simultaneous tabs carried open, not passed; the keyboard start/retry and 320px proof moves with Slice 20's accessibility proof.
+That answer exercises the user's earlier conditional authority for scoped commits, fast-forward into `main` and push of `origin/main`, and nothing beyond it.
+
+### Check evidence
+
+- [verified] Full suite on current source: **1,547 passed, 46 skipped, 1 warning**, exit 0, reproduced again in the recording session with `node` on PATH. The 46 skips all carry an explicit Postgres-unavailable reason and are Slice 19 engine skips. The warning is the existing Starlette `httpx` deprecation.
+- [verified] Frontend typecheck exit 0 and production build exit 0. The frontend source hashes at record time match the hashes the build was taken from, and the copied API runtime is diff-clean against `src/carerelay`.
+- [verified] One clean full named mutation run: **443 RED, 0 SURVIVED, 0 NOT PROVEN**, every target restored byte-exact. This is one run, not a combination. Existing truthfulness harness: **39/39 RED**. Typed product refusals now count as RED; interpreter-level breakage still earns no credit.
+- [verified] Guard classification: `docs/reviews/slice15-guard-evidence-classification.md` records 45 newly proven independent guards and classifies every guard denied independent credit by class, with empirical evidence. Limit: guards not expressed as an `if` are outside the inventory, so it is structural, not exhaustive.
+- [verified] Scanner positive controls: **50 real serialized surfaces** (10 screens times API JSON, SSR HTML, RSC payload, visible text and accessibility text) from the production build. **1,100 of 1,100 injection controls detected**, zero unexpected needles. Five needles are also the Gate 1 approved closure copy, so their absence check is scoped to surfaces with no recorded disposition and outcome, and the documented, accepted and handoff screens carry 25 positive literal-copy assertions instead.
+- [verified] Cross-surface agreement: **28 trusted stored fixtures over 12 distinct steps**, zero failures. Every API heading and patient line appears literally in the production server render, labelled simulated and fixture, with the original deadline `2026-09-30T10:00:00+00:00` or no deadline where the screen carries none.
+- [verified] Live durable-start contract over real HTTP against the production build: bootstrap creates no record (303, host-only HttpOnly SameSite=lax locator, Secure omitted only under the documented loopback exception, zero rows, API 404). Lost create response: +1 episode, +2 receipt rows, 0 dispositions, reload recovers the same episode. Lost intake response: 0 episodes, +1 disposition, +2 receipt rows, one disposition version and no v2, reload renders the plan.
+- [verified] Restart persistence returned the identical body, revision, deadline and four lines. Two reads of the same candidate were byte-identical at revision 115. Missing locator gives the entry screen and creates nothing. A foreign-key locator (rotation) and a validly signed locator for a never-bootstrapped episode (forged identity) give the recovery screen and create nothing. An empty key refuses to encode and decodes to null.
+- [verified] All seven retired patient writes POST to **422 `journey command unavailable`** with zero rows created; unauthenticated POST is 401.
+- [verified] Keyboard structure, read from the live DOM: 3 controls, all native anchor or button, all tabbable, no non-native click handlers, skip link to `#main`, focusable `main`. The text-size control flipped `aria-pressed` on a real click event.
+- [verified] Architecture cleanup (`architect-reviewer`, post-slice mode): verdict clean, no deletions recommended, no repository file deleted. Three stale present-tense claims were corrected (`tests/test_boundaries.py`, two in `AGENTS.md`, and this file's file-map row).
+- [verified] Writing checks: 0 em dashes in added lines, every touched file LF, `git diff --check` clean. `submission/usage-proof/Workbuddy_evidence.mp4` is byte-identical at `cd5fbe68ab2d439f853ae8bd4b85bc6561216c951d1b374f73e62465c9c3a106`, untracked and excluded.
+
+### Blocked, bounded observations (not passes)
+
+- [blocked] **Live keystroke navigation.** The in-app browser reports `viewport=0x0, visible=false, visibilityState=hidden`; `press_key` reports success while `document.activeElement` stays `BODY`, so keystrokes never reach the page.
+- [blocked] **Pointer click and screenshots.** Both return `NATIVE_BROWSER_VIEWPORT_UNAVAILABLE`.
+- [blocked] **320px reflow and enlarged-text measurement.** These need a real viewport; CSS values alone are not accepted as evidence. The earlier 13 October bounded 320px and 40px text observation predates later source changes and is not current proof.
+- [blocked] **Two simultaneous tabs.** Only one page context is available; approximated by two sequential byte-identical reads of the same candidate, which is weaker than the contract wording.
+- [verified scope note] Gate 4's Slice 15 Proof line names "keyboard start/retry and 320px checks". Only the keyboard structure above is current evidence. Full assistive-technology, zoom and reflow proof is allocated to Slice 20 by the approved plan; the Slice 15 keyboard and 320px items remain open until a real viewport runs them.
+
+### Open allocations
+
+- [verified] UNPROVEN-NO-CONTROL for Slice 17: `frontend/lib/api.ts:61` (`response.status === 401 || response.status === 503`) has no test asserting the `reason` distinction between the two branches.
+- [verified] Real Postgres engine behaviour is unproven and allocated to separately authorised Slice 19.
+- [verified] No Slice 16 work, installation, real configuration or credential change, external runtime call, deployment or participant work occurred. Gates 1 to 4 contracts are unchanged. Slice 9's participant run remains CUT; no participant validation is claimed.
+
+**Next boundary:** the user accepted the Check with the disclosed blocker, so Slice 15 ships by coherent commits, fast-forward into `main` and push of `origin/main`; then "Continue to slice 16, or re-steer?" Slice 16 also remains blocked on the separate Gate 1 confirmation-copy approval.
+
+## Slice 15: third incomplete handoff, 14 October 2026
+
+**14 October 2026, Slice 15 third continuation checkpoint. [verified]**
+The user requested a next-agent finish handoff, then cleanup and main publication
+before later slices. Slice 15 remains INCOMPLETE on dirty `slice-15-durable-start`.
+Fresh full suite: 1,509 passed, 46 Postgres skips, one warning. Frontend typecheck/
+build pass. Current combined mutations: 398 RED, zero SURVIVED/NOT PROVEN, matching
+target fingerprints and exact restores. Browser checked 28 stored branches and
+163 malformed bodies; the scanner/bootstrap/guard-ledger/final cleanup Check is
+still open. Latest record: `docs/handoffs/patient-experience-slice15-continuation-3-2026-10-14.md`.
+The user's latest request authorises scoped commit/integration/push to main only
+after Slice 15's Check passes. None occurred here. No later-slice implementation,
+installation, real config/credentials, external runtime, engine or manual deployment
+was authorised. Protected copy/gates/manifests/config and the unrelated untracked
+video remain byte-preserved. Earlier scope limits are historical checkpoints.
+
+[verified] `00-status.md` still records Slice 15 as incomplete. The new handoff
+contains the latest evidence, remaining local Check status and the explicit
+conditional Git publication request. The previous 39/39 truthfulness mutations
+remain historical until their current replay. No later slice has started.
+
+## Slice 15: second incomplete handoff, 13 October 2026
+
+**13 October 2026, Slice 15 second continuation checkpoint. [verified]**
+The user requested another context handoff. Slice 15 remains INCOMPLETE on dirty
+`slice-15-durable-start`. Latest full suite: 1,299 passed, 46 Postgres skips,
+one existing warning. Typecheck/build pass. Current named mutations: 207 RED,
+2 SURVIVED, 0 NOT PROVEN; existing truthfulness 39/39 RED, exact restores.
+Live lost-response/two-tab and representative stored-screen proof is bounded;
+the full guard/browser/scanner Check and architecture cleanup remain open.
+Latest record: `docs/handoffs/patient-experience-slice15-continuation-2-2026-10-13.md`.
+Protected gate/copy/config/manifests and unrelated video bytes are unchanged.
+No Git shipping, installation, external service, deployment or Slice 16 work.
+Earlier checkpoints below are historical; `00-status.md` owns slice state.
+
+[verified] Source repairs cover durable expiry, typed invalid records, new event
+ordering, comparison/decoder contradictions and lower/equal revision recovery.
+Legacy tests now retain meaningful service assertions with real signed setup,
+assessed HTTP reads and explicit retired-route refusal controls. Full suite and
+current mutation reports are named in the latest handoff. Two surviving nullable
+validators overlap semantic guards and do not have independent kills.
+
+[verified] Production preview 8166 uses copied/hash-checked code and synthetic
+local auth. Lost create/intake responses and two tabs yielded one controlled
+episode/disposition and four receipt rows, with no scoring/action/consent.
+Actual curl persisted through API restart. Saved representative outcome captures
+and measured 320px/40px text are bounded; remaining browser substates,
+contradictions, malformed/scanner-positive controls and cleanup remain incomplete.
+`PROGRESS.md` tracks open work. No later slice, shipping or external authority.
+
+## Slice 15: incomplete continuation checkpoint, 13 October 2026
+
+[verified] Branch `slice-15-durable-start` comes from shipped main/live remote
+main `b91a4ad`. Its source/tests/records are dirty and uncommitted. The separately
+authorised Slice 14 handoff finished before this branch. All 208 preflight files
+and index survived branch creation; the unrelated usage-proof video is preserved.
+The user requested closure near 350k active context, before 400k. This is an
+interrupted implementation checkpoint, not a Check or slice completion.
+
+[verified bounded work] Command codec/schema/repository/service/projection and
+frontend start/read wiring exist locally. Typecheck passes; an isolated production
+build from 16 hash-compared frontend files passes using existing installed modules.
+Twenty-three new receipt tests pass, including a real child SIGKILL rollback and
+SQL claim bindings. No new guard mutation harness ran. The full diagnostic is
+**42 failed, 850 passed, 46 Postgres skips, one warning, 167 errors**. Its entire
+failure set is untriaged; many old unsigned-create/free-text-intake fixtures no
+longer initialize. Do not infer the other failures are expected or harmless.
+
+[verified limited runtime] Production browser at `http://127.0.0.1:8156/` completed
+read-only bootstrap, explicit create, separate intake and same-episode GET reload.
+The controlled episode had one episode/disposition, four command rows, no attempts/
+restatements/consents, care false, patient owner and the original 18:00 SGT deadline.
+Actual authenticated patient/options/ledger curl returned 200. Later unknown-source
+preview interactions are excluded; no global one-episode claim is made. There is
+no complete twelve-state/malformed/lost-response/two-tab/restart/mobile/keyboard/
+scanner-positive matrix. This bounded smoke is not clinical or engine proof.
+
+[verified continuation] Remaining work includes failure triage, full current guard/
+constraint/migration/atomicity/snapshot/decoder proof, reconciled safety regressions,
+independent mutations, complete required browser/curl Check and architecture cleanup.
+Known source-review hypotheses and exact logs/paths/PIDs are in
+`docs/handoffs/patient-experience-slice15-continuation-2026-10-13.md`.
+`PROGRESS.md` tracks the dependency order. Evidence is outside the repository at
+`/tmp/carerelay-slice15-20261013-01a13510/`. Own preview PIDs 29817 (API 8155) and
+29842 (copied frontend 8156) remain for handoff; they are not fresh proof after
+later edits. Source/copy/authority/manifests/config/video preservation was checked.
+Gates 1/2/3/4 contracts are unchanged. No staging, commit/merge/push, install, real
+config/credential change, ADP, Postgres engine, deployment or Slice 16 work occurred.
 
 ## Slice 14 shipping receipt: 13 October 2026
 
@@ -298,10 +432,10 @@ authority. Provider-sharing consent grants no general ADP-processing authority.
 through Slice 15 is 18 to 30. The arithmetic and exclusions are in section 9.4;
 no full-upgrade promise for 16 October or current cutoff assertion is made.
 
-### Approved upgrade slices: Slice 14 locally complete
+### Approved upgrade slices: Slice 14 shipped, Slice 15 locally verified
 
 - [x] Slice 14: local Check complete and shipped to main 13 October 2026, `slice-14-journey-tracer`; no engine/deployed-behavior claim.
-- [ ] Slice 15: explicit durable start/coherent stored journey, `slice-15-durable-start`.
+- [ ] Slice 15: explicit durable start/coherent stored journey, `slice-15-durable-start`. Check accepted 14 October 2026 by the user ("Yes, ship"); five viewport items blocked, disclosed and carried to Slice 20.
 - [ ] Slice 16: confirmed offline read-back/field repair, `slice-16-confirmed-readback`.
 - [ ] Slice 17: permission/truthful simulated failure, `slice-17-permission-failure`.
 - [ ] Slice 18: strict ADP extraction with offline transports, `slice-18-adp-boundary`.
@@ -309,7 +443,7 @@ no full-upgrade promise for 16 October or current cutoff assertion is made.
 - [ ] Slice 20: production accessibility proof/remediation, `slice-20-accessibility-proof`.
 - [ ] Slice 21: separately authorised live ADP enablement, `slice-21-adp-enablement`.
 
-**Next work:** the user requested the Slice 15 handoff after main publication; the main dependency is now satisfied. Slice 15 begins in the next chat on its own main-based branch.
+**Next work:** Slice 15 main publication, then "Continue to slice 16, or re-steer?" See the 14 October 2026 completion record at the top of this file. Slice 16 does not start before Slice 15 is published, and its patient-flow entry stays blocked on the separate Gate 1 confirmation-copy approval.
 
 ## Gate 3 reopen and re-approval: patient-experience program design, 13 October 2026
 
@@ -1649,7 +1783,7 @@ The map spans three folders, reorganised on 30 September 2026 so that a review a
 | `01-product.md` | **Gate 1 doc** | problem, success metric, announcement, product rules, screens |
 | `02-architecture.md` | **Gate 2 doc** | **revision 4 RE-APPROVED 13 Oct 2026.** Durable-stop amendment approved 12 Oct and preserved. D14 to D18 approve the journey/resume, screen mapping and ADP read-back architecture. Gate 3 section 9 is re-approved 13 Oct; Gate 4 upgrade section 9 is re-approved 13 Oct |
 | `03-program-design.md` | **Gate 3 doc** | **RE-APPROVED 13 Oct 2026.** Section 9 upgrade contracts approved; historical sections 1 to 8 retained |
-| `04-slices.md` | **Gate 4 doc** | **RE-APPROVED 13 Oct 2026.** Section 9 upgrade plan; Slices 14 to 21 not started. Slice 14/15 handoff requested. Historical Slices 0 to 13 retained |
+| `04-slices.md` | **Gate 4 doc** | **RE-APPROVED 13 Oct 2026.** Section 9 upgrade plan. **Corrected 14 Oct 2026:** Slice 14 is complete and shipped to `main`; Slice 15 is in progress on `slice-15-durable-start`; Slices 16 to 21 have not started. Historical Slices 0 to 13 retained |
 | `03-planback-closure-contract.md` | supporting note | specification and feasibility for PlanBack and the Closure Contract. Carries the `03-` filename that Gate 3 needed |
 | `clinical-review-blocker.md` | supporting note | decision paper, 26 Sep: what the reviewer blocker actually blocks, and three routes through |
 | `research-workarounds.md` | supporting note | which blockers are workaroundable and which are hard gates. Listed here for the first time: it was named in `AGENTS.md` section 2 but was missing from this map |
