@@ -1,5 +1,49 @@
 # Design principles — the four tests
 
+## Slice 18 accepted Check; main publication in progress: 14 October 2026
+
+[verified] The user accepted the bounded Slice 18 Check and explicitly requested
+commits, main integration, origin/main push and the next-agent handoff. Fresh
+shipping checks: 2,029 passed, 56 Postgres skips, one existing warning;
+typecheck/build pass. Existing 824 named RED and 39 truthfulness RED records
+match current source/controls and exact backups. The disclosed BODY-focus
+failure stays a Slice 20 obligation. Real Postgres and live ADP remain unproven.
+
+[verified] Pre-shipping HEAD/main/live main match `0fac90d`; an external snapshot
+preserves 230 files/index/video at `/tmp/carerelay-s18-shipping/`. The protected
+video is tracked and exact; named previews remain stopped. Coherent publication
+and live verification are in progress, within this explicit shipping request.
+The numbered next-agent prompt is `docs/handoffs/patient-experience-slice19-21-2026-10-14.md`.
+This session stops on main without starting Slices 19/20/21. Slice 19 needs
+separately authorised disposable engine access; later shipping, accessibility
+continuation and live ADP retain their separate boundaries. `00-status.md` owns
+state. Earlier checkpoints below are history.
+
+## Slice 18 local Check before acceptance: historical, 14 October 2026
+
+[verified] The user explicitly continued Slice 18 only from accepted/shipped
+Slice 17. `slice-18-adp-boundary` was created before edits from verified local
+and live main `0fac90dde43882b9322d575fbd80114650e4dc19`. Strict read-back uses
+explicitly fake transports and pinned synthetic profiles; ADP remains disabled
+by default. Immutable adapter-origin provenance, exact schema/Unicode/SSE,
+whole-response budget/limits, no retry/fallback and committed lock-free extraction
+are built. Original plan/deadline/owner and Slice 17 dispatch boundaries remain.
+
+[verified] Current proof: 2,029 passed, 56 Postgres skips, one existing warning;
+typecheck/build pass. One complete current run: 824 named RED over 805 distinct
+edits, zero SURVIVED/NOT PROVEN, exact restores/current fingerprints. Truthfulness
+39/39 RED. Authenticated HTTP/curl, lost response/stale/two-worker and production
+browser/scanner checks are bounded in `docs/reviews/slice18-local-check-2026-10-14.md`.
+Actual 320px/wide views and 20px-to-40px text enlargement are observed. Escape
+focus ends at BODY in the unchanged patient component; this is a Slice 20 failure,
+not a pass. Full accessibility, real Postgres and live ADP remain unproven.
+
+[verified] Protected tracked video, approved gate/copy/config/manifests and index
+entries are preserved. Named local processes/tabs are closed; viewport reset.
+Checkout remains uncommitted `slice-18-adp-boundary`; main/live main are unchanged.
+Local Check acceptance and Git shipping are pending. Slices 19/20/21 are unstarted.
+`00-status.md` owns state. Earlier checkpoints below are history.
+
 **14 October 2026, Slice 17 accepted and shipped to main; Slice 18 unstarted. [verified]**
 The user accepted the bounded local Check and authorised working-tree commits,
 main publication and a concrete Slice 18 handoff for another agent. Eight

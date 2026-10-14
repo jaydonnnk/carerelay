@@ -1,32 +1,46 @@
-# CareRelay Slice 17: 14 October 2026
+# CareRelay Slice 18: 14 October 2026
 
-Operational memory only. `00-status.md` owns state.
+Operational memory only. `00-status.md` owns gate and slice state.
 
-[verified] Local Check accepted and shipped to main. Eight scoped commits were safely fast-forwarded before checkout and pushed; first live main verification matched `bafe8ca`. This receipt sweep is within the same request. Slice 18 remains unstarted; current prompt: `docs/handoffs/patient-experience-slice18-2026-10-14.md`.
+[verified] Strict fake-transport extraction is built on `slice-18-adp-boundary`,
+from verified main/live main `0fac90dde43882b9322d575fbd80114650e4dc19`. The user
+accepted the bounded Check and requested commits/main publication and the
+numbered Slices 19 to 21 handoff. Shipping is in progress; no Slice 19/20/21
+branch or implementation is created. State/acceptance authority is 00-status.md.
 
-- [x] Tree/video/index snapshot and branch before edits. Video now tracked, unchanged SHA-256 `cd5fbe68ab2d439f853ae8bd4b85bc6561216c951d1b374f73e62465c9c3a106`.
-- [x] Fresh baseline: 1 failed, 1,768 passed, 51 skips, one warning. User-approved clearing of exactly two sample DSN assignments resolved scanner failure; no rotation/access.
-- [x] Fixed-purpose commands, original process permit, tool-held fresh clock, outermost claim/effect transactions and atomic receipts.
-- [x] Frontend guarded barrier/unchecked grant/separate request/decline/revoke; exact copy, decoder and old caller migration.
-- [x] Final full named run: 727 RED, zero SURVIVED/NOT PROVEN, exact restores and current source/control fingerprints. Current truthfulness 39/39 RED.
-- [x] Final suite: 1,869 passed, 54 Postgres skips, one warning. Typecheck/build pass.
-- [x] Real HTTP/curl/lost-response/503/202; process ordering/SIGKILL/fork; visible browser and two tabs.
-- [x] Twenty-seven literal stored cases, API/SSR/RSC, 135 serialized surfaces and 2,970/2,970 scanner positives; separate DOM/AX observations.
-- [x] Review, architect cleanup, records, LF/diff/no-added-em-dash checks. Ports 8317/8318/8319/8320 free; tabs closed and viewport reset.
-- [x] User accepts Check and authorises working-tree commits and main publication.
-- [x] Verified main publication and prepared the concrete Slice 18 handoff; stopped before implementation.
+- [x] External 228-file/video/index snapshot and branch before editing.
+- [x] Baseline 1,869 passed, 54 skips, one warning.
+- [x] Exact schema/Unicode/SSE, fake profiles, whole budget and independent caps.
+- [x] One call, disabled zero-call, no retries/fallback, immutable safe provenance.
+- [x] Committed claim, transport outside locks, current-state/parent/cue rechecks.
+- [x] Full current named proof 824 RED, zero survivors/not proven; exact restores.
+- [x] Truthfulness 39/39 RED, exact restores.
+- [x] Final suite 2,029 passed, 56 Postgres skips, one warning; typecheck/build pass.
+- [x] Real HTTP/curl/lost/stale/two-worker, production browser and positive scanners.
+- [x] Narrow architecture cleanup, records, LF/diff/no-added-em-dash/preservation.
+- [x] Named preview processes/tabs stopped; viewport reset; video still tracked.
 
-## Evidence and resume
+[verified limitation] Native Escape closes the dialog but focus ends at BODY.
+This is recorded for Slice 20, not passed. VoiceOver/zoom/full accessibility,
+real Postgres and live ADP remain unproven. No clinical/participant benefit.
 
-Review: `docs/reviews/slice17-local-check-2026-10-14.md`.
-Full named: `/tmp/carerelay-s17-full-named-4/`; suite `/tmp/carerelay-s17-final-suite.log`; truthfulness `/tmp/carerelay-s17-truthfulness-current3.log`.
-Frontend: `/tmp/carerelay-s17-typecheck.log`, `/tmp/carerelay-s17-build-final.log`.
-HTTP/browser/scanner/source hashes: `/tmp/carerelay-slice17-live/`.
-Preflight: `/tmp/carerelay-slice17-preflight/`; implementation plan `/tmp/carerelay-slice17-plan.md`.
+Review: `docs/reviews/slice18-local-check-2026-10-14.md`.
+Evidence: `/tmp/carerelay-s18-full-named-1/`, `/tmp/carerelay-s18-truthfulness.log`,
+`/tmp/carerelay-s18-final-suite.log`, `/tmp/carerelay-s18-live/` and
+`/tmp/carerelay-s18-preflight/`. Temporary evidence may disappear.
 
-[verified] Earlier proof failures are retained: first named 721 RED/five survivors, later historical 726/726 and 727/727 runs. Final run uses the refreshed truthfulness control corpus. Two truthfulness attempts stopped on stale anchors after 29/34 RED; final 39/39 passes. Failed live fixture setups used shared IDs/clock; final driver isolates them and checks literals. Review fixed nested rollback redispatch, error mapping, projection contradictions, type import and duplicate question. Tool clock now matches Gate 3's required constructor.
+[verified] Review fixed outer-lock extraction, Unicode SSE line splitting,
+unsafe/absent provenance, omitted canonical ID and huge-integer classification.
+Earlier mutation probes are historical; the complete 824-case run owns proof.
+The first new probe's three masked refusals and attribute error were corrected.
 
-[unknown] Postgres is Slice 19; full accessibility/old blockers Slice 20; live ADP Slice 21. No clinical/participant benefit, install, real config/credentials, external runtime, deployment or later slice. Samples cleared, credential validity/history/rotation unverified.
+Existing runtimes remain the handoff's Python and Node. No installation,
+real configuration/credential change, provider call, Postgres access,
+deployment or participants occurred. Both-engine code contracts exist; the
+additional actual Postgres cases remain skipped for Slice 19.
 
-Node PATH `/Users/jayd0/.workbuddy-ai/binaries/node/versions/22.22.2-6/bin`; Python `/Users/jayd0/.workbuddy-ai/binaries/python/envs/default/bin/python`.
-Offline tests: `PYTHONPATH=src APP_DATABASE_URL=:memory: APP_CLOCK=scenario APP_ENV=local CARERELAY_API_TOKEN='' PYTHONDONTWRITEBYTECODE=1 CARERELAY_TEST_DSN=postgresql://127.0.0.1:1/carerelay_disabled`, pytest `-o addopts='' -q`, fresh basetemp. Mutations serial with frozen writers/external backups; never kill them.
+[verified] Fresh shipping suite: 2,029 passed, 56 Postgres skips, one warning;
+typecheck/build pass. Current inherited target/control fingerprints and exact
+restores match. Snapshot: `/tmp/carerelay-s18-shipping/`, 230 files plus index.
+Handoff: `docs/handoffs/patient-experience-slice19-21-2026-10-14.md`.
+Publication receipt and final live refs remain the next verification step.
