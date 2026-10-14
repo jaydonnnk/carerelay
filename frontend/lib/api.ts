@@ -217,6 +217,23 @@ export type Ledger = {
     extraction_provenance: { mode: string; validation: string; confirmation_id: string;
       retained: { field: string; source_restatement_id: string; source_confirmation_id: string }[] } | null;
   }[];
+  extractions: {
+    operation_id: string;
+    terminal_state: string;
+    scored: boolean | number;
+    interpreter_mode: string;
+    instruction_version: string;
+    schema_version: string;
+    transport_profile: string;
+    transport_provenance: string;
+    correlation_id: string;
+    request_id: string;
+    trace_id: string | null;
+    model_version: string | null;
+    validation: string;
+    failure_category: string | null;
+    instruction_observation: string;
+  }[];
   escalation: { escalation_id: string; human_path: string | null } | null;
   acceptance: { acceptance_id: string } | null;
   origins: string[];

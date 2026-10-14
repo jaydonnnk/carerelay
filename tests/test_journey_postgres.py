@@ -37,7 +37,7 @@ def pg_readback():
         with psycopg.connect(dsn, connect_timeout=2):
             pass
     except psycopg.OperationalError:
-        pytest.skip("Postgres unavailable: Slice 16 engine cases unproven until authorised Slice 19")
+        pytest.skip("Postgres unavailable: read-back engine cases unproven until authorised Slice 19")
     service = make_service(dsn)
     try:
         yield service, dsn
@@ -63,6 +63,45 @@ def test_postgres_confirmed_repair_and_replay(pg_readback):
         assert other._store.list_restatements(ep)[-1].provenance["mode"] == "local-sim"
     finally:
         other._store.close()
+
+
+def test_postgres_fake_adp_readback_and_unavailable_contract(pg_readback):
+    """Engine proof stays skipped without the separately authorised disposable DSN."""
+    import uuid
+    from test_adp_extraction import adapter, ScenarioTransport
+    from test_field_repair import start_readback, confirm, score
+    service, dsn = pg_readback
+    for failure in [None, "invalid"]:
+        service._readback_extractor = adapter(ScenarioTransport(failure=failure))
+        ep = start_readback(service, "fictional-pg18-" + uuid.uuid4().hex)
+        confirm(service, ep, "go to the clinic today before six myself")
+        binding, result = score(service, ep)
+        assert result.receipt.scored is (failure is None)
+        assert result.receipt.state == ("applied" if failure is None else "unavailable")
+        assert service.project_ledger(ep).as_dict()["extractions"][-1]["transport_provenance"] == "fake-offline"
+        assert service._store.list_attempts(ep) == ()
+        other = make_service(dsn)
+        try:
+            replay = other.score_confirmed(binding)
+            assert replay.receipt.replayed and replay.receipt.scored is (failure is None)
+        finally:
+            other._store.close()
+
+
+def test_postgres_nested_fake_adp_scoring_refuses_before_transport(pg_readback):
+    import uuid
+    from carerelay.state import StateError
+    from test_adp_extraction import adapter, ScenarioTransport
+    from test_field_repair import start_readback, confirm, score, KEY, verify_operation
+    service, _ = pg_readback
+    transport = ScenarioTransport(); service._readback_extractor = adapter(transport)
+    ep = start_readback(service, "fictional-pg18-nested-" + uuid.uuid4().hex)
+    confirm(service, ep, "go to the clinic today before six myself")
+    token = next(o.operation_token for o in service.project_journey(ep).commands if o.kind == "score_words")
+    with service._store.journey_transaction(ep, write=True):
+        with pytest.raises(StateError): service.score_confirmed(verify_operation(token, signing_key=KEY))
+    assert transport.calls == [] and service._store.list_restatements(ep) == ()
+    assert score(service, ep)[1].receipt.scored and len(transport.calls) == 1
 
 
 def test_postgres_permission_request_has_one_atomic_receipt(pg_readback):

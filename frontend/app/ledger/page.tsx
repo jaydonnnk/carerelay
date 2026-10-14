@@ -141,6 +141,22 @@ export default async function LedgerPage() {
               .join("; ")}
       </p>
 
+      <h2 className="section-title">Read-back extraction</h2>
+      <p className="ledger-note">
+        Fake profiles prove the offline parser only. Live ADP and model correctness are unverified.
+        Instruction versions are configured operator assertions.
+      </p>
+      {ledger.extractions.map((row) => (
+        <p className="ledger-note" key={row.operation_id}>
+          {row.interpreter_mode}, {row.transport_provenance}, {row.transport_profile}.
+          {" "}{row.validation}, {row.scored ? "scored" : "unscored"}, {row.terminal_state}.
+          {" "}Instruction {row.instruction_version}; schema {row.schema_version}.
+          {" "}Correlation {row.correlation_id}; request {row.request_id}.
+          {" "}Trace {row.trace_id ?? "not exposed"}; model {row.model_version ?? "unknown"}.
+          {row.failure_category ? ` Failure: ${row.failure_category}.` : ""}
+        </p>
+      ))}
+
       <h2 className="section-title">Fault assertions</h2>
       <p className="ledger-note">
         Reporting only. These are verdicts over the rows above and cannot move
