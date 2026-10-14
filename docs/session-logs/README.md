@@ -36,7 +36,7 @@ be rebuilt once the session logs are gone.
 | `2026-10-09.md` | Slice 11 shipped to `main` and the record sweep after it; the log re-sync and the file-map entry; Slice 12's code half built |
 | `2026-10-10.md` | Slice 12's code half committed, merged and pushed; the `/ledger` alias; the `psycopg` environment regression |
 | `2026-10-11.md` | Historical Slice 12 asset completion, hosting/configuration observations and corrections |
-| `2026-10-14.md` | Written process records of accepted Slice 16/17 Checks and main publication; Slice 18 handoff, with the Codex account explicitly distinguished from WorkBuddy logs |
+| `2026-10-14.md` | Written process records of accepted Slices 16 to 18 Checks and main publication; Slices 19 to 21 handoff, with Codex accounts explicitly distinguished from WorkBuddy logs |
 | `MEMORY.md` | Historical curated project notes; current authority remains 00-status.md |
 
 ## These are copies
