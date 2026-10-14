@@ -4,12 +4,12 @@
 
 [verified] The user accepted Slice 17's bounded Check and explicitly requested
 working-tree commits, main publication and an actionable handoff for another
-agent. Publication is in progress; `00-status.md` owns the receipt. The current
+agent. Slice 17 is accepted and shipped to main; `00-status.md` owns the receipt. The current
 next-agent record is `docs/handoffs/patient-experience-slice18-2026-10-14.md`.
 No Slice 18 branch or code is created here. Earlier pending-acceptance/build
 snapshots below are historical, including old video tracking statements.
 
-## Current update after Slice 17: 14 October 2026
+## Local build update after Slice 17: historical, 14 October 2026
 
 [verified] The user explicitly continued Slice 17 after accepting and shipping Slice 16. Slice 17 is now built locally on uncommitted `slice-17-permission-failure`, from verified main/live main `e57e23a`. Its bounded Check is READY: 1,869 passed, 54 Postgres skips, one existing warning; frontend typecheck/build pass; final 727 named RED with zero SURVIVED/NOT PROVEN and exact restores/current fingerprints; truthfulness 39/39 RED. Real HTTP/curl, process crash/ordering, visible browser and positive scanner evidence is in `docs/reviews/slice17-local-check-2026-10-14.md`. `00-status.md` owns state.
 

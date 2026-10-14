@@ -9,8 +9,10 @@ to submit to another agent as the explicit Slice 18 continuation.
 [verified] The user accepted Slice 17's bounded local Check and requested:
 "Yes i accept the check, commit the working tree and push to main, then give a
 concrete and thorough copy paste handoff prompt for slice 18 for another agent".
-Slice 17 shipping is being completed under that request. The dated publication
-receipt in `00-status.md` and live Git refs, rather than an old hash copied here,
+Slice 17 is shipped to main by eight scoped commits and safe fast-forward;
+the first live publication check matched local main at `bafe8ca`. This receipt
+publication is within the same request. The dated publication receipt in
+`00-status.md` and live Git refs, rather than an old hash copied here,
 establish the final entry tip. No Slice 18 branch or implementation is made in
 this session. Later shipping authority remains separate.
 

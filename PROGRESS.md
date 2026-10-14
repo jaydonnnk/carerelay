@@ -2,7 +2,7 @@
 
 Operational memory only. `00-status.md` owns state.
 
-[verified] Local Check accepted by the user; shipping in progress on `slice-17-permission-failure`, from main/live main `e57e23a1741b5db6d6ad51c11bdf6520a0a36cc3`. Working-tree commits and origin/main publication are authorised. Slice 18 remains unstarted.
+[verified] Local Check accepted and shipped to main. Eight scoped commits were safely fast-forwarded before checkout and pushed; first live main verification matched `bafe8ca`. This receipt sweep is within the same request. Slice 18 remains unstarted; current prompt: `docs/handoffs/patient-experience-slice18-2026-10-14.md`.
 
 - [x] Tree/video/index snapshot and branch before edits. Video now tracked, unchanged SHA-256 `cd5fbe68ab2d439f853ae8bd4b85bc6561216c951d1b374f73e62465c9c3a106`.
 - [x] Fresh baseline: 1 failed, 1,768 passed, 51 skips, one warning. User-approved clearing of exactly two sample DSN assignments resolved scanner failure; no rotation/access.
@@ -14,7 +14,7 @@ Operational memory only. `00-status.md` owns state.
 - [x] Twenty-seven literal stored cases, API/SSR/RSC, 135 serialized surfaces and 2,970/2,970 scanner positives; separate DOM/AX observations.
 - [x] Review, architect cleanup, records, LF/diff/no-added-em-dash checks. Ports 8317/8318/8319/8320 free; tabs closed and viewport reset.
 - [x] User accepts Check and authorises working-tree commits and main publication.
-- [ ] Verify final main publication and deliver Slice 18 handoff; stop before implementation.
+- [x] Verified main publication and prepared the concrete Slice 18 handoff; stopped before implementation.
 
 ## Evidence and resume
 

@@ -50,6 +50,7 @@ Boundary: local Check ready for user acceptance. No commit/push or Slice 18 star
 
 [verified] After the local review session, the user accepted this bounded Check
 and authorised committing the working tree and pushing to main, with a concrete
-Slice 18 handoff for another agent. Publication is being verified. Statements
+Slice 18 handoff for another agent. Main publication is verified; the dated
+receipt is published within that same request. Statements
 above describe the local review before acceptance; `00-status.md` owns current
 state. No Slice 18 implementation or external authority follows.

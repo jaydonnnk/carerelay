@@ -1,16 +1,18 @@
 # Design principles — the four tests
 
-**14 October 2026, Slice 17 Check accepted; main publication authorised. [verified]**
-The user accepted the bounded local Check and requested committing the working
-tree, pushing to main and a concrete Slice 18 handoff for another agent.
-Shipping is in progress on `slice-17-permission-failure`; no Slice 18 branch or
-implementation is created here. Accepted proof: 1,869 passed, 54 Postgres skips,
-one existing warning; typecheck/build pass; 727 current named RED and 39/39
-truthfulness RED with exact restores. `00-status.md` owns the receipt and limits.
-The protected tracked video is byte-preserved. Later Git shipping and external
-scopes remain separate. Current handoff:
+**14 October 2026, Slice 17 accepted and shipped to main; Slice 18 unstarted. [verified]**
+The user accepted the bounded local Check and authorised working-tree commits,
+main publication and a concrete Slice 18 handoff for another agent. Eight
+scoped commits were safely fast-forwarded before checkout and origin/main was
+pushed; the first live remote check matched local main at `bafe8ca`.
+This receipt/current-state sweep is within the same publication request.
+Fresh shipping checks: 1,869 passed, 54 Postgres skips, one existing warning;
+typecheck/build pass. The 727 named RED and 39 truthfulness RED records remain
+current with exact restores. The protected tracked video is byte-preserved.
+Checkout is main. No Slice 18 branch or implementation is created here.
+`00-status.md` owns state; the concrete next-agent prompt is in
 `docs/handoffs/patient-experience-slice18-2026-10-14.md`.
-Older checkpoints below are historical.
+Later shipping and external scopes remain separate. Older checkpoints are history.
 
 **14 October 2026, Slice 17 local Check ready; stopped. [verified]**
 The authorised permission/failure slice is built on uncommitted
