@@ -1,4 +1,4 @@
-"""Slice 15 independent guards: SQLite/crypto/decoder/source parity only.
+"""Patient-experience guards through Slice 16: SQLite/crypto/decoder/source parity.
 
 Use --validate-only to resolve anchors, collect selectors and run their controls.
 Run mutations only after all source writers stop. --filter and --resume retain
@@ -198,6 +198,16 @@ def build_mutations():
     add_decoder_mutations(add)
     add_inventory_mutations(add)
     add_classification_mutations(add)
+    add_slice16_domain_mutations(add)
+    add_slice16_flow_mutations(add)
+    add_slice16_binding_mutations(add)
+    add_slice16_store_mutations(add)
+    add_slice16_entry_mutations(add)
+    add_slice16_lifecycle_mutations(add)
+    add_slice16_closed_copy_mutations(add)
+    add_slice16_pending_navigation_mutations(add)
+    add_slice16_source_word_mutations(add)
+    add_slice16_full_width_question_mutation(add)
     boundary = (ROOT / 'tests/test_boundaries.py').read_text()
     start = boundary.index('NO_PLAN_DETECTORS = {'); end = boundary.index('\n}', start)
     for name, pattern in re.findall(r'    "([a-z_]+)": r"([^"]+)",', boundary[start:end]):
@@ -268,7 +278,8 @@ def add_inventory_mutations(add):
         'journey?.question && journey.question.text !== copy.heading', 'journey?.question',
         I + "test_renderer_announces_each_server_prompt_once[permission]")
     add("G06 one pending status", "frontend/components/PatientJourney.tsx",
-        'journey?.flow.interpretation === "pending" && !copy.feedback', 'journey?.flow.interpretation === "pending"',
+        '{copy.feedback && <p role="status">{copy.feedback}</p>}',
+        '{copy.feedback && <><p role="status">{copy.feedback}</p><p role="status">{copy.feedback}</p></>}',
         I + "test_renderer_announces_each_server_prompt_once[pending]")
     source = (ROOT / STATE).read_text()
     start = source.index("CREATE TABLE IF NOT EXISTS journey_commands (")
@@ -311,9 +322,9 @@ def add_inventory_mutations(add):
         "op_episode": ('!UUID.test(value.episode_id)', 'false'),
         "op_digest": ('!/^[0-9a-f]{64}$/.test(value.body_sha256)', 'false'),
         "op_version": ('value.disposition_version !== null', 'false'),
-        "op_parent": ('value.parent_restatement_id !== null', 'false'),
-        "op_confirmation": ('value.confirmation_id !== null', 'false'),
-        "op_kind": ('!["create", "select_example"].includes(value.kind)', 'false'),
+        "op_parent": ('value.disposition_version !== null || value.parent_restatement_id !== null', 'value.disposition_version !== null || false'),
+        "op_confirmation": ('value.parent_restatement_id !== null || value.confirmation_id !== null ||\n          value.purpose', 'value.parent_restatement_id !== null || false ||\n          value.purpose'),
+        "op_kind": ('!["readback_started", "confirm_words", "score_words", "repair_words", "show_plan", "hide_plan", "h3", "supersede_extraction"].includes(value.kind)', 'false'),
         "op_purpose": ('value.purpose !== `episode:${value.kind}`', 'false'),
     }
     for index, case in enumerate(["nonce", "episode", "operation"]):
@@ -419,12 +430,12 @@ def add_inventory_mutations(add):
         ("purpose", 'binding.kind != "select_example" or binding.purpose != PURPOSES["select_example"]', 'binding.kind != "select_example"'),
         ("choice", 'if example_id != "scripted-appointment":', 'if False:'),
         ("date", 'if now_utc.astimezone(fixture.DISPLAY_TZ).date() != fixture.SCENARIO_NOW_UTC.astimezone(fixture.DISPLAY_TZ).date():', 'if False:'),
-        ("prepare_parent", 'if kind != "select_example" or parent_id is not None:', 'if kind != "select_example":'),
-        ("prepare_digest", 'if body_sha256 != request_digest(kind, {"example_id": "scripted-appointment"}):', 'if False:'),
+        ("prepare_parent", 'if kind not in {"select_example", "confirm_words"} or (kind == "select_example" and parent_id is not None):', 'if kind not in {"select_example", "confirm_words"}:'),
+        ("prepare_digest", 'if kind == "select_example" and body_sha256 != request_digest(kind, {"example_id": "scripted-appointment"}):', 'if False:'),
         ("prepare_offer", 'if not any(o.kind == kind for o in journey.commands):', 'if False:'),
     ]:
         add("G13 intake " + case, SERVICE, old, new, I + f"test_intake_and_preparation_refusals_preserve_real_record[{case}]")
-    add("G13 intake URL identity", "src/carerelay/api.py", 'if binding.episode_id != episode_id:', 'if False:', I + "test_intake_and_preparation_refusals_preserve_real_record[url_episode]")
+    add("G13 intake URL identity", "src/carerelay/api.py", '            if binding.episode_id != episode_id:', '            if False:', I + "test_intake_and_preparation_refusals_preserve_real_record[url_episode]")
     for suffix in ["transcript-confirmations", "hint-events", "restatements", "repairs", "barriers", "actions", "consents"]:
         source = (ROOT / "src/carerelay/api.py").read_text()
         start = source.index('async def require_implemented_patient_write'); end = source.index('\n\nasync def require_api_token', start)
@@ -500,7 +511,7 @@ def add_classification_mutations(add):
          'if False:', contract + "waiting]"),
         ("pending feedback text", 'if interpretation == "pending":', 'if False:', contract + "pending]"),
         ("unavailable feedback text", 'elif interpretation == "unavailable":', 'elif False:', contract + "unavailable]"),
-        ("uncertain feedback text", 'elif interpretation == "uncertain":', 'elif False:', contract + "uncertain]"),
+        ("uncertain feedback text", 'elif interpretation == "uncertain":', 'elif False:', 'tests/test_field_repair.py::test_producer_and_frontend_agree_on_each_new_lifecycle[timing_uncertain_owner]'),
     ]:
         add("G03 " + case, RULES, old, new, selector)
     for case in ["scalar accept", "list accept"]:
@@ -541,6 +552,305 @@ def add_classification_mutations(add):
     add("G06 closure reconcile equal revision needs a read", DECODER,
         'if (next.revision === current.revision && !fromRead) {', 'if (next.revision === current.revision) {', reconcile)
 
+
+def add_slice16_domain_mutations(add):
+    """Partial Slice 16 domain proof; no claim about its unfinished flow."""
+    selector = "tests/test_field_repair.py::"
+    def pin(label, target, old, new, test):
+        add("Slice16 " + label, target, old, new, selector + test)
+    pin("G18 offline extraction use", "src/carerelay/adp_extraction.py",
+        'spans = tuple(source_candidates(request.confirmed_text, forms) for forms in fields)',
+        'spans = ((), (), ())', "test_offline_exact_source_offsets")
+    pin("G18 exact source offsets", RULES,
+        'SourceSpan(match.group(), match.start(), match.end())',
+        'SourceSpan(match.group(), 0, len(match.group()))', "test_offline_exact_source_offsets")
+    pin("G18 exact source text", RULES, 'SourceSpan(match.group(), match.start(), match.end())',
+        'SourceSpan(normalise(match.group()), match.start(), match.end())', "test_offline_preserves_whitespace_and_chinese_offsets")
+    pin("G18 source start boundary", RULES, 'pattern = r"(?<!\\w)" + pattern',
+        'pattern = pattern', "test_offline_owner_forms_have_word_boundaries[theme]")
+    pin("G18 source end boundary", RULES, 'pattern += r"(?!\\w)"',
+        'pattern += ""', "test_offline_owner_forms_have_word_boundaries[myselfish]")
+    pin("G18 source empty form", RULES, 'if pattern:\n            for match in re.finditer',
+        'if True:\n            for match in re.finditer', "test_empty_form_is_not_a_source_span")
+    pin("G18 overlapping form", RULES,
+        'other.start <= span.start and span.end <= other.end and other != span',
+        'False', "test_source_candidates_prefers_a_complete_overlapping_form")
+    pin("G18 offline missing span uncertainty", "src/carerelay/adp_extraction.py",
+        'if span is None)\n        raw = RawExtraction',
+        'if False)\n        raw = RawExtraction', "test_offline_bare_tomorrow_does_not_invent_a_time")
+    for word in ["not", "no", "never", "cannot", "unsure", "uncertain", "maybe", "perhaps", "might", "may", "could", "would", "if", "or"]:
+        old = r'\b(?:not|no|never|cannot|unsure|uncertain|maybe|perhaps|might|may|could|would|if|or)\b'
+        values = [x for x in "not|no|never|cannot|unsure|uncertain|maybe|perhaps|might|may|could|would|if|or".split("|") if x != word]
+        new = r'\b(?:' + "|".join(values) + r')\b'
+        pin("G20 doubt " + word, RULES, old, new, "test_each_doubt_form_prevents_recall[" + word + "]")
+    for label, old, new, test in [
+        ("negated contraction", r"|\b\w+n['’]t\b|\?|？|不|没|未", r"|\?|？|不|没|未", "test_each_doubt_form_prevents_recall[contraction]"),
+        ("question", r"|\b\w+n['’]t\b|\?|？|不|没|未", r"|\b\w+n['’]t\b|？|不|没|未", "test_whole_answer_doubt_is_independent"),
+        ("chinese not", "|不|没|未", "|没|未", "test_each_doubt_form_prevents_recall[han_not]"),
+        ("chinese no", "|不|没|未", "|不|未", "test_each_doubt_form_prevents_recall[han_no]"),
+        ("chinese not yet", "|不|没|未", "|不|没", "test_each_doubt_form_prevents_recall[han_not_yet]"),
+        ("backward correction", 'if _READBACK_BACKWARD.search(sentence):', 'if False:', "test_backward_correction_invalidates_all_retention"),
+        ("unsupported correction", 'elif _READBACK_BACKWARD.search(sentence) and re.search(', 'elif False and re.search(', "test_whole_answer_doubt_is_independent"),
+        ("multiple candidates", 'if len(resolved) > 1:', 'if False:', "test_whole_answer_doubt_is_independent"),
+        ("unsupported new value", 'if any(not any(span.start <= hit.start() and hit.end() <= span.end',
+            'if False and any(not any(span.start <= hit.start() and hit.end() <= span.end', "test_unsupported_other_field_invalidates_retention"),
+    ]:
+        pin("G20 " + label, RULES, old, new, test)
+    for label, old, new, test in [
+        ("policy", 'if context.policy_version != policy.version:', 'if False:', "test_retention_requires_its_policy_and_grounded_identity[policy]"),
+        ("field", 'if source.field not in COMPARISON_FIELDS:', 'if False:', "test_retention_requires_its_policy_and_grounded_identity[field]"),
+        ("row identity", 'if not source.source_restatement_id or not source.source_confirmation_id:',
+            'if not source.source_confirmation_id:', "test_retention_requires_its_policy_and_grounded_identity[row]"),
+        ("confirmation identity", 'if not source.source_restatement_id or not source.source_confirmation_id:',
+            'if not source.source_restatement_id:', "test_retention_requires_its_policy_and_grounded_identity[confirmation]"),
+        ("grounded source", 'if value is None or value != source.canonical_value:', 'if value != source.canonical_value:', "test_retention_requires_its_policy_and_grounded_identity[unknown_value]"),
+        ("source canonical value", 'if value is None or value != source.canonical_value:', 'if value is None:', "test_bad_grounded_retention_refuses"),
+        ("full answer", 'if context.repair_field is None:', 'if False:', "test_full_answer_correction_does_not_borrow_missing_fields"),
+        ("selected field", 'if source.field == context.repair_field:', 'if False:', "test_selected_field_is_not_retained_when_answer_is_missing"),
+        ("explicit replacement", 'if values.get(source.field) is not None:', 'if False:', "test_explicit_other_field_replaces_retention"),
+        ("whole answer doubt", 'if source.field in whole_answer_doubt:', 'if False:', "test_backward_correction_invalidates_all_retention"),
+        ("known match retained", 'values[source.field] = source.source_span.text', 'values[source.field] = None', "test_timing_only_retains_grounded_action_owner"),
+        ("missing doubt cleared only for retained", 'uncertain.discard(source.field)', 'pass', "test_timing_only_retains_grounded_action_owner"),
+        ("transitive reference", 'retained.append(source)', 'pass', "test_timing_only_retains_grounded_action_owner"),
+        ("owner source resolution", 'value = _resolve_id(source.source_span.text, policy.owner_aliases, policy.permitted_owner_ids)',
+            'value = source.canonical_value', "test_owner_retention_must_resolve_its_grounded_value"),
+        ("deadline source resolution", 'value = _resolve_deadline(source.source_span.text, now_utc, display_tz, policy.deadline_forms)',
+            'value = source.canonical_value', "test_deadline_retention_refuses_a_different_source_value"),
+    ]:
+        pin("G19 retention " + label, RULES, old, new, test)
+
+
+
+def add_slice16_flow_mutations(add):
+    field = "tests/test_field_repair.py::"
+    adp = "src/carerelay/adp_extraction.py"
+    def pin(label, target, old, new, selector):
+        add("Slice16 " + label, target, old, new, selector)
+    for dimension, old, new in [
+        ("episode", 'context.episode_id != bundle.episode_id', 'False'),
+        ("version", 'context.disposition_version != disposition.version', 'False'),
+        ("policy", 'context.policy_version != disposition.policy_version', 'False'),
+        ("revision", 'if bundle.revision != context.claim_revision:', 'if False:'),
+        ("stop", 'bundle.snapshot.flow_stop_reason is not None or bundle.snapshot.expiry_event_id is not None', 'bundle.snapshot.expiry_event_id is not None'),
+        ("sticky_expiry", 'bundle.snapshot.flow_stop_reason is not None or bundle.snapshot.expiry_event_id is not None', 'bundle.snapshot.flow_stop_reason is not None'),
+        ("deadline", 'if now_utc >= disposition.clinical_deadline_utc:', 'if False:'),
+        ("attempt", 'context.attempt_id != journey.flow.readback_attempt_id or context.parent_id != journey.flow.latest_restatement_id', 'context.parent_id != journey.flow.latest_restatement_id'),
+        ("parent", 'context.attempt_id != journey.flow.readback_attempt_id or context.parent_id != journey.flow.latest_restatement_id', 'context.attempt_id != journey.flow.readback_attempt_id'),
+        ("cue", 'context.effective_hint != journey.flow.effective_hint or context.effective_hint is HintLevel.H3', 'context.effective_hint is HintLevel.H3'),
+        ("repair_count", 'if context.completed_repairs != journey.flow.completed_repairs or context.completed_repairs >= MAX_REPAIR_ROUNDS:', 'if False:'),
+        ("confirmation", 'confirmed["confirmation_id"] == context.confirmation_id and confirmed["text"] == context.confirmed_text', 'confirmed["text"] == context.confirmed_text'),
+        ("words", 'confirmed["confirmation_id"] == context.confirmation_id and confirmed["text"] == context.confirmed_text', 'confirmed["confirmation_id"] == context.confirmation_id'),
+    ]:
+        pin("G34 final " + dimension, RULES, old, new, field + "test_final_context_fences_are_independent[" + dimension + "]")
+    for case, old, new in [
+        ("mode", 'result.mode != "local-sim"', 'False'),
+        ("validation", 'result.validation != "valid"', 'False'),
+        ("schema", 'raw.schema_version != "carerelay-readback-v1"', 'False'),
+        ("refused_type", 'type(raw.refused) is not bool', 'False'),
+        ("refused", 'or raw.refused:', 'or False:'),
+        ("uncertainty_type", 'not isinstance(raw.uncertain_fields, frozenset)', 'False'),
+        ("unknown_uncertainty", 'not raw.uncertain_fields <= frozenset(COMPARISON_FIELDS)', 'False'),
+        ("null_without_uncertainty", 'if field not in raw.uncertain_fields:', 'if False:'),
+        ("span_type", 'not isinstance(span, SourceSpan)', 'False'),
+        ("start_bool", 'type(span.start) is not int', 'False'),
+        ("end_bool", 'type(span.end) is not int', 'False'),
+        ("negative", 'not 0 <= span.start < span.end <= len(confirmed_text)', 'not span.start < span.end <= len(confirmed_text)'),
+        ("empty", 'not 0 <= span.start < span.end <= len(confirmed_text)', 'not 0 <= span.start <= span.end <= len(confirmed_text)'),
+        ("end_overrun", 'not 0 <= span.start < span.end <= len(confirmed_text)', 'not 0 <= span.start < span.end'),
+        ("ungrounded", 'confirmed_text[span.start:span.end] != span.text', 'False'),
+    ]:
+        pin("G18 offline boundary " + case, adp, old, new, field + "test_offline_output_boundary_refuses_each_invalid_shape[" + case + "]")
+    pin("G16 scored state atomic receipt", SERVICE,
+        'receipt = tx.complete_once(binding.operation_id, state="applied", result_ref=ref, result_kind="restatement",',
+        'self._store._conn.commit()\n                receipt = tx.complete_once(binding.operation_id, state="applied", result_ref=ref, result_kind="restatement",',
+        field + "test_process_crash_between_score_and_receipt_rolls_back_both")
+    pin("G15 late terminal fences score", SERVICE,
+        'if receipt.state != "pending":\n                pass',
+        'if False:\n                pass', field + "test_pending_duplicate_calls_one_extractor_and_supersede_fences_late_output")
+    pin("G14 claimed replay avoids extraction", SERVICE,
+        'if receipt is not None:\n            return CommandResponse(receipt, self.project_journey(binding.episode_id))',
+        'if receipt is not None:\n            return self.score_confirmed(replace(binding, operation_id=binding.operation_id + "r"))',
+        field + "test_pending_duplicate_calls_one_extractor_and_supersede_fences_late_output")
+    pin("G18 exact confirmation body", SERVICE,
+        'if binding.body_sha256 != request_digest("confirm_words", {"text": text, "parent_id": binding.parent_restatement_id}):',
+        'if False:', field + "test_exact_confirmed_words_and_latest_parent_are_not_substitutable")
+    pin("G19 latest confirmation preparation parent", SERVICE,
+        'if kind == "confirm_words" and parent_id != journey.flow.latest_restatement_id:',
+        'if False:', field + "test_exact_confirmed_words_and_latest_parent_are_not_substitutable")
+    pin("G18 lost confirmation preserves identity", SERVICE,
+        'if kind == "confirm_words":\n                for row in reversed(bundle.commands):',
+        'if False:\n                for row in reversed(bundle.commands):', field + "test_same_body_preparation_recovers_the_confirmed_operation")
+    pin("G18 store owns scoring claim", STATE,
+        'if owned is None:\n            raise CommandConflict("score has no exact owned pending claim")',
+        'if False:\n            raise CommandConflict("score has no exact owned pending claim")', field + "test_store_will_not_score_without_an_owned_scoring_claim")
+    pin("G22 H3 stop", SERVICE,
+        'if binding.kind == "h3":\n                        tx._event("flow_stopped",',
+        'if False:\n                        tx._event("flow_stopped",', field + "test_h3_stops_without_extraction_or_round")
+    pin("G23 hide does not lower cue", SERVICE,
+        'journey.flow.effective_hint if binding.kind == "hide_plan" else HintLevel.H2',
+        'HintLevel.H1 if binding.kind == "hide_plan" else HintLevel.H2', field + "test_reveal_hide_reload_keeps_highest_cue")
+    pin("G23 timing exposure commits before display", SERVICE,
+        'if journey.step == "repair" and journey.flow.effective_hint not in {HintLevel.H2, HintLevel.H3}:',
+        'if False:', field + "test_confirmed_round_zero_and_grounded_timing_repair")
+    pin("G18 persisted provenance", STATE, 'provenance=provenance,', 'provenance=None,', field + "test_ledger_names_offline_provenance_and_keeps_legacy_unknown")
+    pin("G08 fresh document on readback", "frontend/components/PatientJourney.tsx",
+        'window.location.assign("/"); // A fresh document removes the prior plan\'s HTML/RSC.',
+        '// omitted document replacement', F + "test_readback_transition_replaces_the_answer_bearing_document")
+    pin("G23 hide keeps opener focus", "frontend/components/PatientJourney.tsx",
+        'if (result.journey.step === journey?.step) showOpener.current?.focus();',
+        'if (result.journey.step === journey?.step) main.current?.focus();', F + "test_hide_response_keeps_focus_on_the_show_opener")
+    pin("G18 new capability decoder", LOCATOR,
+        'if (["create", "select_example"].includes(value.kind)) {',
+        'if (true) {', D + "test_s16_server_capabilities_decode_at_the_real_frontend_boundary")
+
+
+
+def add_slice16_binding_mutations(add):
+    add('Slice16 G19 grounding parent_version', RULES, 'parent.disposition_version != bundle.snapshot.disposition.version', 'False', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[parent_version]')
+    add('Slice16 G19 grounding parent_attempt', RULES, 'parent.provenance.get("attempt_id") != attempt_id', 'False', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[parent_attempt]')
+    add('Slice16 G19 grounding nonancestor', RULES, 'source_id not in ancestors', 'False', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[nonancestor]')
+    add('Slice16 G19 grounding source_policy', RULES, 'meta.get("policy_version") != bundle.policy.version', 'False', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[source_policy]')
+    add('Slice16 G19 grounding source_attempt', RULES, 'meta.get("attempt_id") != attempt_id or field not in source.comparison.matched', 'False or field not in source.comparison.matched', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[source_attempt]')
+    add('Slice16 G19 grounding source_version', RULES, 'source.disposition_version != bundle.snapshot.disposition.version', 'False', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[source_version]')
+    add('Slice16 G19 grounding source_match', RULES, 'field not in source.comparison.matched', 'False', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[source_match]')
+    add('Slice16 G19 grounding confirmation_episode', RULES, 'event is None or event.get("episode_id") != bundle.episode_id', 'event is None or False', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[confirmation_episode]')
+    add('Slice16 G19 grounding confirmation_attempt', RULES, 'event.get("attempt_id") != attempt_id\n                or event.get("disposition_version")', 'False\n                or event.get("disposition_version")', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[confirmation_attempt]')
+    add('Slice16 G19 grounding confirmation_version', RULES, 'event.get("disposition_version") != source.disposition_version', 'False', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[confirmation_version]')
+    add('Slice16 G19 grounding confirmation_parent', RULES, 'event.get("parent_id") != meta.get("parent_id")', 'False', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[confirmation_parent]')
+    add('Slice16 G19 grounding start_type', RULES, 'type(span.start) is not int or type(span.end) is not int or not 0 <= span.start < span.end <= len(event["text"])', 'False or type(span.end) is not int or not 0 <= span.start < span.end <= len(event["text"])', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[start_type]')
+    add('Slice16 G19 grounding end_type', RULES, 'type(span.end) is not int or not 0 <= span.start < span.end <= len(event["text"])', 'False or not 0 <= span.start < span.end <= len(event["text"])', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[end_type]')
+    add('Slice16 G19 grounding offset_negative', RULES, 'not 0 <= span.start < span.end <= len(event["text"])', 'not span.start < span.end <= len(event["text"])', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[offset_negative]')
+    add('Slice16 G19 grounding offset_empty', RULES, 'not 0 <= span.start < span.end <= len(event["text"])', 'not 0 <= span.start <= span.end <= len(event["text"])', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[offset_empty]')
+    add('Slice16 G19 grounding offset_overrun', RULES, 'not 0 <= span.start < span.end <= len(event["text"])', 'not 0 <= span.start < span.end', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[offset_overrun]')
+    add('Slice16 G19 grounding offset_text', RULES, 'event["text"][span.start:span.end] != span.text', 'False', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[offset_text]')
+    add('Slice16 G19 grounding unknown_value', RULES, 'if value is None:\n            raise JourneyUnavailable("retention value is unknown")', 'if False:\n            raise JourneyUnavailable("retention value is unknown")', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[unknown_value]')
+    add('Slice16 G19 grounding confirmation_missing', RULES, 'if (event is None or event.get("episode_id") != bundle.episode_id', 'if event is None:\n            event = {"episode_id": bundle.episode_id, "attempt_id": attempt_id, "disposition_version": source.disposition_version, "parent_id": meta.get("parent_id"), "text": "go to the clinic"}\n        if (False or event.get("episode_id") != bundle.episode_id', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[confirmation_missing]')
+    add('Slice16 G19 grounding span_shape', RULES, 'if not isinstance(span_data, dict):\n            raise JourneyUnavailable("retention has no source span")', 'if not isinstance(span_data, dict):\n            span_data = {"text": "go to the clinic", "start": 0, "end": 16}', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[span_shape]')
+    add('Slice16 G19 grounding missing_ancestor', RULES, 'if previous is not None and node is None:\n            raise JourneyUnavailable("missing retention ancestor")', 'if previous is not None and node is None:\n            break', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[missing_ancestor]')
+    add('Slice16 G19 grounding cycle', RULES, 'if node.restatement_id in ancestors:\n            raise JourneyUnavailable("cyclic retention chain")', 'if node.restatement_id in ancestors:\n            break', 'tests/test_field_repair.py::test_grounded_chain_refuses_each_untrusted_source[cycle]')
+    add('Slice16 G18 confirmation version', RULES, 'event.get("disposition_version") != bundle.snapshot.disposition.version', 'False', 'tests/test_field_repair.py::test_confirmation_event_requires_each_binding[version]')
+    add('Slice16 G18 confirmation attempt', RULES, 'event.get("attempt_id") != attempt_id:\n            continue', 'False:\n            continue', 'tests/test_field_repair.py::test_confirmation_event_requires_each_binding[attempt]')
+    add('Slice16 G18 confirmation episode', RULES, 'event.get("episode_id") != bundle.episode_id or event.get("policy_version") != bundle.policy.version', 'False or event.get("policy_version") != bundle.policy.version', 'tests/test_field_repair.py::test_confirmation_event_requires_each_binding[episode]')
+    add('Slice16 G18 confirmation policy', RULES, 'event.get("policy_version") != bundle.policy.version', 'False', 'tests/test_field_repair.py::test_confirmation_event_requires_each_binding[policy]')
+    add('Slice16 G18 confirmation text_type', RULES, 'not isinstance(event.get("text"), str) or not event["text"].strip() or len(event["text"]) > 2048', 'False', 'tests/test_field_repair.py::test_confirmation_event_requires_each_binding[text_type]')
+    add('Slice16 G18 confirmation text_empty', RULES, 'not event["text"].strip()', 'False', 'tests/test_field_repair.py::test_confirmation_event_requires_each_binding[text_empty]')
+    add('Slice16 G18 confirmation text_long', RULES, 'len(event["text"]) > 2048', 'False', 'tests/test_field_repair.py::test_confirmation_event_requires_each_binding[text_long]')
+    add('Slice16 G18 confirmation id_type', RULES, 'not isinstance(event.get("confirmation_id"), str)', 'False', 'tests/test_field_repair.py::test_confirmation_event_requires_each_binding[id_type]')
+    add('Slice16 G18 confirmation id_empty', RULES, 'not event["confirmation_id"]', 'False', 'tests/test_field_repair.py::test_confirmation_event_requires_each_binding[id_empty]')
+    add('Slice16 G18 confirmation parent', RULES, 'current.get("parent_id") == parent_id', 'True', 'tests/test_field_repair.py::test_confirmation_event_requires_each_binding[parent]')
+    add("Slice16 G18 missing output stays unavailable", "src/carerelay/adp_extraction.py", 'if result.mode != "local-sim" or result.validation != "valid" or result.raw is None:\n        return None', 'if result.mode != "local-sim" or result.validation != "valid" or result.raw is None:\n        return RawExtraction("carerelay-readback-v1", None, None, None, frozenset(COMPARISON_FIELDS), False)', "tests/test_field_repair.py::test_offline_output_boundary_refuses_each_invalid_shape[missing_raw]")
+
+
+
+def add_slice16_store_mutations(add):
+    add('Slice16 G18 store confirmation claim', STATE, 'if (claim is None or claim["kind"] != "confirm_words" or claim["claim_revision"] != bundle.revision\n                or claim["parent_restatement_id"] != context.parent_id\n                or claim["body_sha256"] != request_digest("confirm_words", {"text": context.confirmed_text, "parent_id": context.parent_id})):', 'if False:', 'tests/test_field_repair.py::test_confirmation_store_refuses_at_its_first_boundary[claim]')
+    add('Slice16 G18 store confirmation kind', STATE, 'claim["kind"] != "confirm_words"', 'False', 'tests/test_field_repair.py::test_confirmation_store_refuses_at_its_first_boundary[kind]')
+    add('Slice16 G18 store confirmation revision', STATE, 'claim["claim_revision"] != bundle.revision', 'False', 'tests/test_field_repair.py::test_confirmation_store_refuses_at_its_first_boundary[revision]')
+    add('Slice16 G18 store confirmation parent', STATE, 'claim["parent_restatement_id"] != context.parent_id', 'False', 'tests/test_field_repair.py::test_confirmation_store_refuses_at_its_first_boundary[parent]')
+    add('Slice16 G18 store confirmation digest', STATE, 'claim["body_sha256"] != request_digest("confirm_words", {"text": context.confirmed_text, "parent_id": context.parent_id})', 'False', 'tests/test_field_repair.py::test_confirmation_store_refuses_at_its_first_boundary[digest]')
+    add('Slice16 G18 store confirmation episode', STATE, 'context.episode_id != self.episode_id', 'False', 'tests/test_field_repair.py::test_confirmation_store_refuses_at_its_first_boundary[episode]')
+    add('Slice16 G18 store confirmation version', STATE, 'context.disposition_version != journey.disposition_version', 'False', 'tests/test_field_repair.py::test_confirmation_store_refuses_at_its_first_boundary[version]')
+    add('Slice16 G18 store confirmation policy', STATE, 'context.policy_version != journey.policy_version', 'False', 'tests/test_field_repair.py::test_confirmation_store_refuses_at_its_first_boundary[policy]')
+    add('Slice16 G18 store confirmation attempt', STATE, 'context.attempt_id != journey.flow.readback_attempt_id', 'False', 'tests/test_field_repair.py::test_confirmation_store_refuses_at_its_first_boundary[attempt]')
+    add('Slice16 G18 store confirmation latest_parent', STATE, 'context.parent_id != journey.flow.latest_restatement_id', 'False', 'tests/test_field_repair.py::test_confirmation_store_refuses_at_its_first_boundary[latest_parent]')
+    add('Slice16 G18 store confirmation stop', STATE, 'or journey.flow.stopped or bundle.snapshot.expiry_event_id is not None', 'or False or bundle.snapshot.expiry_event_id is not None', 'tests/test_field_repair.py::test_confirmation_store_refuses_at_its_first_boundary[stop]')
+    add('Slice16 G18 store confirmation deadline', STATE, 'now_utc >= bundle.snapshot.disposition.clinical_deadline_utc', 'False', 'tests/test_field_repair.py::test_confirmation_store_refuses_at_its_first_boundary[deadline]')
+    add('Slice16 G18 owned score kind', STATE, 'AND c.kind = ?', 'AND (? IS NOT NULL)', 'tests/test_field_repair.py::test_scoring_store_requires_each_owned_claim_dimension[kind]')
+    add('Slice16 G18 owned score version', STATE, 'AND c.disposition_version = ?', 'AND (? IS NOT NULL)', 'tests/test_field_repair.py::test_scoring_store_requires_each_owned_claim_dimension[version]')
+    add('Slice16 G18 owned score revision', STATE, 'AND c.claim_revision = ?', 'AND (? IS NOT NULL)', 'tests/test_field_repair.py::test_scoring_store_requires_each_owned_claim_dimension[revision]')
+    add('Slice16 G18 owned score confirmation', STATE, 'AND c.confirmation_id = ?', 'AND (? IS NOT NULL)', 'tests/test_field_repair.py::test_scoring_store_requires_each_owned_claim_dimension[confirmation]')
+    add('Slice16 G18 owned score parent', STATE, 'AND (c.parent_restatement_id = ? OR (c.parent_restatement_id IS NULL AND ? IS NULL))', 'AND (? IS NOT NULL OR ? IS NULL)', 'tests/test_field_repair.py::test_scoring_store_requires_each_owned_claim_dimension[parent]')
+    add('Slice16 G18 owned score purpose', STATE, 'AND c.purpose = ?', 'AND (? IS NOT NULL)', 'tests/test_field_repair.py::test_scoring_store_requires_each_owned_claim_dimension[purpose]')
+    add('Slice16 G18 owned score digest', STATE, 'AND c.body_sha256 = ?', 'AND (? IS NOT NULL)', 'tests/test_field_repair.py::test_scoring_store_requires_each_owned_claim_dimension[digest]')
+    add('Slice16 G18 owned score terminal', STATE, "AND NOT EXISTS (SELECT 1 FROM journey_commands t WHERE t.operation_id = c.operation_id AND t.phase = 'completed')", 'AND 1', 'tests/test_field_repair.py::test_scoring_store_requires_each_owned_claim_dimension[terminal]')
+    add("Slice16 G34 source scanner includes new server files", "tests/test_boundaries.py", 'VICTIM_FILES += tuple(("readback server source", name) for name in (', 'VICTIM_FILES += tuple(("readback server source", name) for name in () if False for name in (', "tests/test_boundaries.py::test_new_readback_server_files_are_scanned_with_positive_controls")
+
+
+def add_slice16_entry_mutations(add):
+    add("Slice16 G22 stopped screen ends repair prompting", RULES,
+        'if not stopped and closure.closure is ClosureState.OPEN:', 'if closure.closure is ClosureState.OPEN:',
+        "tests/test_field_repair.py::test_two_uncertain_repairs_stop_without_round_zero_reset")
+    add('Slice16 G18 service entry purpose', SERVICE, 'if binding.purpose != self._readback_purpose(journey, binding.kind):', 'if False:', 'tests/test_field_repair.py::test_service_readback_refuses_before_claim_or_extraction[purpose]')
+    add('Slice16 G18 service entry offer', SERVICE, 'if not any(o.kind == binding.kind for o in journey.commands):', 'if False:', 'tests/test_field_repair.py::test_service_readback_refuses_before_claim_or_extraction[offer]')
+    add('Slice16 G18 service entry parent', SERVICE, 'if binding.parent_restatement_id != parent:', 'if False:', 'tests/test_field_repair.py::test_service_readback_refuses_before_claim_or_extraction[parent]')
+    add('Slice16 G18 service entry scoring_kind', SERVICE, 'binding.kind not in {"score_words", "repair_words"}', 'False', 'tests/test_field_repair.py::test_service_readback_refuses_before_claim_or_extraction[scoring_kind]')
+    add('Slice16 G18 service entry scoring_confirmation', SERVICE, 'or binding.confirmation_id is None:\n            raise CommandInvalid("unpermitted scoring")', 'or False:\n            raise CommandInvalid("unpermitted scoring")', 'tests/test_field_repair.py::test_service_readback_refuses_before_claim_or_extraction[scoring_confirmation]')
+    add('Slice16 G18 service entry scoring_digest', SERVICE, 'if binding.body_sha256 != request_digest(binding.kind, {"confirmation_id": binding.confirmation_id}):', 'if False:', 'tests/test_field_repair.py::test_service_readback_refuses_before_claim_or_extraction[scoring_digest]')
+    add('Slice16 G18 service entry event_kind', SERVICE, 'binding.kind not in {"readback_started", "show_plan", "hide_plan", "h3"}', 'False', 'tests/test_field_repair.py::test_service_readback_refuses_before_claim_or_extraction[event_kind]')
+    add('Slice16 G18 service entry event_confirmation', SERVICE, 'or binding.confirmation_id is not None:\n            raise CommandInvalid("unpermitted readback event")', 'or False:\n            raise CommandInvalid("unpermitted readback event")', 'tests/test_field_repair.py::test_service_readback_refuses_before_claim_or_extraction[event_confirmation]')
+    add('Slice16 G18 service entry event_digest', SERVICE, 'if binding.body_sha256 != request_digest(binding.kind, {}):', 'if False:', 'tests/test_field_repair.py::test_service_readback_refuses_before_claim_or_extraction[event_digest]')
+    add('Slice16 G18 service entry confirmation_kind', SERVICE, 'binding.kind != "confirm_words"', 'False', 'tests/test_field_repair.py::test_service_readback_refuses_before_claim_or_extraction[confirmation_kind]')
+    add('Slice16 G18 service entry confirmation_id', SERVICE, 'or binding.confirmation_id is not None:\n            raise CommandInvalid("unpermitted confirmation")', 'or False:\n            raise CommandInvalid("unpermitted confirmation")', 'tests/test_field_repair.py::test_service_readback_refuses_before_claim_or_extraction[confirmation_id]')
+    add('Slice16 G18 service entry words_type', SERVICE, 'if type(text) is not str or not text.strip() or len(text) > 2048:', 'if False:', 'tests/test_field_repair.py::test_service_readback_refuses_before_claim_or_extraction[words_type]')
+    add('Slice16 G18 service entry words_empty', SERVICE, 'not text.strip()', 'False', 'tests/test_field_repair.py::test_service_readback_refuses_before_claim_or_extraction[words_empty]')
+    add('Slice16 G18 service entry words_long', SERVICE, 'len(text) > 2048', 'False', 'tests/test_field_repair.py::test_service_readback_refuses_before_claim_or_extraction[words_long]')
+    add('Slice16 G18 frontend capability version_type', LOCATOR, '!Number.isSafeInteger(value.disposition_version)', 'false', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[version_type]')
+    add('Slice16 G18 frontend capability version_zero', LOCATOR, 'value.disposition_version < 1', 'false', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[version_zero]')
+    add('Slice16 G18 frontend capability ref_type', LOCATOR, 'typeof ref !== "string"', 'false', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[ref_type]')
+    add('Slice16 G18 frontend capability ref_format', LOCATOR, '!/^[A-Za-z0-9_-]{1,128}$/.test(ref)', 'false', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[ref_format]')
+    add('Slice16 G18 frontend capability purpose_parts', LOCATOR, 'parts.length !== 5', 'false', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[purpose_parts]')
+    add('Slice16 G18 frontend capability purpose_prefix', LOCATOR, 'parts[0] !== "disposition"', 'false', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[purpose_prefix]')
+    add('Slice16 G18 frontend capability purpose_version', LOCATOR, 'parts[1] !== String(value.disposition_version)', 'false', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[purpose_version]')
+    add('Slice16 G18 frontend capability purpose_role', LOCATOR, 'parts[2] !== "readback"', 'false', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[purpose_role]')
+    add('Slice16 G18 frontend capability purpose_attempt', LOCATOR, '!/^[A-Za-z0-9_-]{1,128}$/.test(parts[3])', 'false', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[purpose_attempt]')
+    add('Slice16 G18 frontend capability purpose_kind', LOCATOR, 'parts[4] !== value.kind', 'false', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[purpose_kind]')
+    add('Slice16 G18 frontend capability start_attempt', LOCATOR, 'value.kind === "readback_started" && parts[3] !== "none"', 'false', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[start_attempt]')
+    add('Slice16 G18 frontend capability missing_attempt', LOCATOR, 'parts[3] === "none"', 'false', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[missing_attempt]')
+    add('Slice16 G18 frontend capability event_parent', LOCATOR, '(value.parent_restatement_id !== null || value.confirmation_id !== null)) return null;', '(false || value.confirmation_id !== null)) return null;', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[event_parent]')
+    add('Slice16 G18 frontend capability event_confirmation', LOCATOR, '(value.parent_restatement_id !== null || value.confirmation_id !== null)) return null;', '(value.parent_restatement_id !== null || false)) return null;', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[event_confirmation]')
+    add('Slice16 G18 frontend capability confirm_id', LOCATOR, 'value.kind === "confirm_words" && value.confirmation_id !== null', 'false', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[confirm_id]')
+    add('Slice16 G18 frontend capability score_confirmation', LOCATOR, 'value.confirmation_id === null) return null;', 'false) return null;', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[score_confirmation]')
+    add('Slice16 G18 frontend capability score_parent', LOCATOR, 'value.kind === "score_words" && value.parent_restatement_id !== null', 'false', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[score_parent]')
+    add('Slice16 G18 frontend capability repair_parent', LOCATOR, 'value.kind === "repair_words" && value.parent_restatement_id === null', 'false', 'tests/test_field_repair.py::test_frontend_s16_capability_grammar_has_independent_controls[repair_parent]')
+    add('Slice16 G22 final absolute h3', RULES, 'context.effective_hint is HintLevel.H3', 'False', 'tests/test_field_repair.py::test_final_context_fences_are_independent[h3]')
+    add('Slice16 G22 final absolute cap', RULES, 'or context.completed_repairs >= MAX_REPAIR_ROUNDS', 'or False', 'tests/test_field_repair.py::test_final_context_fences_are_independent[cap]')
+    add("Slice16 G18 store sticky expiry", STATE, 'or journey.flow.stopped or bundle.snapshot.expiry_event_id is not None', 'or journey.flow.stopped', "tests/test_field_repair.py::test_confirmation_store_refuses_at_its_first_boundary[sticky_expiry]")
+
+
+def add_slice16_lifecycle_mutations(add):
+    add("Slice16 G08 decoder accepts stopped histories", DECODER,
+        '  if (["readback", "repair"].includes(value.step as string)) {', '  if (true) {',
+        "tests/test_field_repair.py::test_producer_and_frontend_agree_on_each_new_lifecycle[cap]")
+
+
+def add_slice16_closed_copy_mutations(add):
+    add("Slice16 G31 expired screen ends readback prompts", RULES,
+        'if not stopped and closure.closure is ClosureState.OPEN:', 'if not stopped:',
+        "tests/test_field_repair.py::test_producer_and_frontend_agree_on_each_new_lifecycle[expired_uncertain]")
+    add("Slice16 G22 stopped decoder needs no retry feedback", DECODER,
+        '!flow.stopped && outcome.closure === "open" &&', 'outcome.closure === "open" &&',
+        "tests/test_field_repair.py::test_producer_and_frontend_agree_on_each_new_lifecycle[cap]")
+    add("Slice16 G31 expired decoder needs no retry feedback", DECODER,
+        '!flow.stopped && outcome.closure === "open" &&', '!flow.stopped &&',
+        "tests/test_field_repair.py::test_producer_and_frontend_agree_on_each_new_lifecycle[expired_uncertain]")
+
+
+def add_slice16_pending_navigation_mutations(add):
+    add("Slice16 G12 pending navigation before stop stays usable", RULES,
+        'if extraction_pending and closure.closure is ClosureState.OPEN:', 'if False:',
+        "tests/test_field_repair.py::test_producer_and_frontend_agree_on_each_new_lifecycle[pending_h3]")
+    add("Slice16 G12 stopped pending cannot supersede or H3 again", RULES,
+        '("show_plan", "hide_plan") if stopped else ("show_plan", "hide_plan", "h3", "supersede_extraction")',
+        '("show_plan", "hide_plan", "h3", "supersede_extraction")',
+        "tests/test_field_repair.py::test_producer_and_frontend_agree_on_each_new_lifecycle[pending_h3]")
+    add("Slice16 G12 decoder accepts stopped pending navigation", DECODER,
+        'flow.stopped && outcome.closure === "open" ? ["show_plan", "hide_plan"]',
+        'false ? ["show_plan", "hide_plan"]',
+        "tests/test_field_repair.py::test_producer_and_frontend_agree_on_each_new_lifecycle[pending_h3]")
+
+
+def add_slice16_source_word_mutations(add):
+    add("Slice16 G18 source word begins at a boundary", "src/carerelay/adp_extraction.py",
+        'span.text[:1].isascii() and span.text[:1].isalnum() and span.start > 0', 'False',
+        "tests/test_field_repair.py::test_injected_exact_subword_is_not_a_grounded_field[prefix]")
+    add("Slice16 G18 source word ends at a boundary", "src/carerelay/adp_extraction.py",
+        'span.text[-1:].isascii() and span.text[-1:].isalnum() and span.end < len(confirmed_text)', 'False',
+        "tests/test_field_repair.py::test_injected_exact_subword_is_not_a_grounded_field[suffix]")
+
+
+def add_slice16_full_width_question_mutation(add):
+    add("Slice16 G20 full width question invalidates its field", RULES, r"|？|不|没|未", r"|不|没|未",
+        "tests/test_field_repair.py::test_full_width_question_never_becomes_a_clean_timing_repair")
 
 def add_decoder_mutations(add):
     clauses = {

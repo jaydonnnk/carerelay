@@ -33,6 +33,8 @@ def change_body(body, changes):
             source = copy.deepcopy(target[key])
             destination, destination_key = parent(change["destination"])
             destination[destination_key].append(source)
+        elif change["op"] == "append":
+            target[key].append(copy.deepcopy(change["value"]))
         else:
             value = change["value"]
             if isinstance(value, dict) and "repeat" in value: value = value["repeat"] * value["count"] + value.get("suffix", "")
@@ -177,6 +179,7 @@ def test_real_action_refuses_before_backend(case):
     observed = node('''import {readFileSync} from "node:fs";
 import {createRequire} from "node:module";
 import {createHmac} from "node:crypto";
+import * as journeyModule from "./frontend/lib/journey.ts";
 import * as locator from "./frontend/lib/episode-locator.ts";
 const caseName=JSON.parse(readFileSync(0,"utf8"));
 const require=createRequire(process.cwd()+"/frontend/package.json"),ts=require("typescript");
@@ -191,6 +194,7 @@ const code=ts.transpileModule(readFileSync("frontend/app/actions.ts","utf8"),{co
 new Function("require","module","exports",code)(name=>{
  if(name==="next/headers")return {headers:async()=>({get:k=>context[k]??null}),cookies:async()=>({get:()=>context.cookie?{value:context.cookie}:undefined})};
  if(name==="@/lib/episode-locator")return locator;
+ if(name==="@/lib/journey")return journeyModule;
  if(name==="@/lib/api")return {createCommand:async()=>{calls++;return {ok:false}},selectExampleCommand:async()=>{calls++;return {ok:false}}};
  throw Error(name);
 },mod,mod.exports);
@@ -378,7 +382,7 @@ else if(["keys","schema","nonce","episode","operation","uuid_type","length"].inc
  if(test==="op_id")body.operation_id="bad/id";if(test==="op_episode")body.episode_id="wrong";
  if(test==="op_digest")body.body_sha256="A".repeat(64);
  if(test==="op_version")body.disposition_version=1;if(test==="op_parent")body.parent_restatement_id="parent";
- if(test==="op_confirmation")body.confirmation_id="confirmation";if(test==="op_kind"){body.kind="request";body.purpose="episode:request"}
+ if(test==="op_confirmation")body.confirmation_id="confirmation";if(test==="op_kind"){body.kind="request";body.disposition_version=1;body.purpose="disposition:1:readback:none:request"}
  if(test==="op_purpose")body.purpose="caller-purpose";if(test==="operation_fields")body.extra=true;
  function ordered(){return JSON.stringify(Object.fromEntries(Object.keys(body).sort().map(k=>[k,body[k]])))}
  let raw=test==="operation_body"?JSON.stringify(body,null,1):ordered(),payload;
@@ -424,12 +428,16 @@ def test_renderer_announces_each_server_prompt_once(tmp_path, case):
     observed = node('''import {readFileSync} from "node:fs";import {createRequire} from "node:module";
 import * as journey from "./frontend/lib/journey.ts";
 const body=JSON.parse(readFileSync(0,"utf8")),require=createRequire(process.cwd()+"/frontend/package.json"),ts=require("typescript"),React=require("react");
+const hintMod={exports:{}};const hintCode=ts.transpileModule(readFileSync("frontend/components/HintCard.tsx","utf8"),{
+ compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
+new Function("require","module","exports",hintCode)(require,hintMod,hintMod.exports);
 const mod={exports:{}};const code=ts.transpileModule(readFileSync("frontend/components/PatientJourney.tsx","utf8"),{
  compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
 new Function("require","module","exports",code)(name=>{
  if(name==="next/navigation")return {useRouter:()=>({refresh(){}})};
  if(name==="@/app/actions")return {};
  if(name==="@/lib/journey")return journey;
+ if(name==="./HintCard")return hintMod.exports;
  return require(name);
 },mod,mod.exports);
 const html=require("react-dom/server").renderToStaticMarkup(React.createElement(mod.exports.PatientJourney,{state:"loaded",journey:body}));

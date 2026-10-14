@@ -140,8 +140,11 @@ def test_decoder_independent_invariant(tmp_path, case):
     if case == "open_owner":
         bad["plan"]["current_owner_display"] = "Caregiver"
         bad["action_owner_id"] = "caregiver"
+    if case in {"execution_enum", "unresolved_failure", "outcome_escalation_path"}:
+        bad["commands"] = [o for o in bad["commands"] if o["kind"] != "readback_started"]
+        bad["text"].pop("readback_label", None)
     if case == "unresolved_failure":
-        bad["text"] = {"heading": "That request did not work"}
+        bad["text"] = {"heading": "That request did not work", "show_label": "Show my plan", "hide_label": "Back to my answer"}
     script = f'''import {{decodeJourney}} from {json.dumps((ROOT / "frontend/lib/journey.ts").as_uri())};
 import {{readFileSync}} from "node:fs";
 const [good,bad]=JSON.parse(readFileSync(0,"utf8"));
