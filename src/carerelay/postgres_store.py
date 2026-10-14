@@ -1567,6 +1567,7 @@ class PostgresEpisodeStore:
         outcome: RecallOutcome,
         dwell_seconds: float | None,
         now_utc: datetime,
+        provenance: dict[str, object] | None = None,
     ) -> str:
         """Append one scored restatement. Returns the new row's id.
 
@@ -1623,7 +1624,7 @@ class PostgresEpisodeStore:
                     input_mode.value,
                     1 if transcript_confirmed else 0,
                     json.dumps(
-                        {
+                        provenance if provenance is not None else {
                             "action_span": extracted.action_span,
                             "deadline_span": extracted.deadline_span,
                             "next_owner_span": extracted.next_owner_span,

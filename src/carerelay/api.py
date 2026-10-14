@@ -36,6 +36,8 @@ from urllib.parse import urlsplit
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.exceptions import RequestValidationError
+from fastapi.exception_handlers import request_validation_exception_handler
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
@@ -187,10 +189,18 @@ def guarded_path(path: str) -> bool:
 async def require_implemented_patient_write(request: Request) -> None:
     path = request.url.path
     if request.method == "POST" and path.startswith("/api/episodes/") and (
-        path.endswith(("/transcript-confirmations", "/hint-events", "/restatements",
-                       "/repairs", "/barriers", "/actions", "/consents"))
+        path.endswith(("/barriers", "/actions", "/consents"))
     ):
         raise HTTPException(status_code=422, detail="journey command unavailable")
+    if request.method == "POST" and path.startswith("/api/episodes/") and path.endswith(
+        ("/transcript-confirmations", "/hint-events", "/restatements", "/repairs")
+    ):
+        try:
+            payload = await request.json()
+        except ValueError:
+            raise HTTPException(status_code=422, detail="journey command unavailable") from None
+        if not isinstance(payload, dict) or not isinstance(payload.get("operation_token"), str):
+            raise HTTPException(status_code=422, detail="journey command unavailable")
 
 
 async def require_api_token(request: Request) -> None:
@@ -318,6 +328,13 @@ async def episode_not_found(request: Request, exc: EpisodeNotFound) -> JSONRespo
     return JSONResponse(status_code=404, content={"detail": "episode not found"})
 
 
+@app.exception_handler(RequestValidationError)
+async def command_validation_error(request: Request, exc: RequestValidationError):
+    if request.method == "POST" and request.url.path.startswith("/api/episodes/"):
+        return JSONResponse(status_code=422, content={"detail": "operation refused"})
+    return await request_validation_exception_handler(request, exc)
+
+
 # ---------------------------------------------------------------------------
 # Slice 4 wiring
 # ---------------------------------------------------------------------------
@@ -434,6 +451,47 @@ def health() -> dict[str, str]:
 class CreateCommandRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     operation_token: str = Field(min_length=1, max_length=4096)
+
+
+class ConfirmedWordsRequest(CreateCommandRequest):
+    text: str = Field(min_length=1, max_length=2048)
+
+
+def _readback_command(service, episode_id, token, kinds, invoke, *, parent_id=None):
+    """No global lock surrounds interpretation. Store transactions own ordering."""
+    try:
+        binding = verify_operation(token, signing_key=service._operation_signing_key())
+        if binding.episode_id != episode_id:
+            raise CommandConflict("episode binding conflict")
+        if binding.kind not in kinds:
+            raise CommandInvalid("unpermitted command kind")
+        if parent_id is not None and binding.parent_restatement_id != parent_id:
+            raise CommandConflict("repair route parent changed")
+        result = invoke(binding)
+    except EpisodeNotFound:
+        raise HTTPException(status_code=404, detail="episode not found") from None
+    except CommandInvalid:
+        raise HTTPException(status_code=422, detail="operation refused") from None
+    except CommandConflict:
+        return _command_conflict(service, episode_id)
+    except (DomainError, StateError):
+        raise HTTPException(status_code=503, detail="journey unavailable") from None
+    status = 202 if result.receipt.state == "pending" else 503 if result.receipt.state == "unavailable" else 200
+    return JSONResponse(status_code=status, content=command_surface(result))
+
+
+@app.post("/api/episodes/{episode_id}/journey-events", tags=["planback"])
+def record_journey_event(episode_id: str, body: CreateCommandRequest,
+                         service: EpisodeService = Depends(get_service)):
+    return _readback_command(service, episode_id, body.operation_token, {"readback_started", "show_plan", "hide_plan", "h3"},
+                             service.record_journey_event)
+
+
+@app.post("/api/episodes/{episode_id}/extractions/{operation_id}/supersede", tags=["planback"])
+def supersede_extraction(episode_id: str, operation_id: str, body: CreateCommandRequest,
+                         service: EpisodeService = Depends(get_service)):
+    return _readback_command(service, episode_id, body.operation_token, {"supersede_extraction"},
+                             lambda binding: service.supersede_extraction(binding, old_operation_id=operation_id))
 
 
 class ExampleCommandRequest(CreateCommandRequest):
@@ -683,139 +741,31 @@ def intake(episode_id: str, body: ExampleCommandRequest,
                             content=command_surface(result))
 
 
-@app.post(
-    "/api/episodes/{episode_id}/transcript-confirmations",
-    response_model=TranscriptConfirmationResponse,
-    tags=["planback"],
-)
-def confirm_transcript(
-    episode_id: str,
-    body: TranscriptConfirmationRequest,
-    service: EpisodeService = Depends(get_service),
-) -> TranscriptConfirmationResponse:
-    """Confirm or correct a transcript, **before** any evaluation.
-
-    The returned id is a digest of the text, so a restatement can be required to
-    be the very string that was confirmed.
-    """
-    try:
-        with _DB_LOCK:
-            confirmation_id = service.confirm_transcript(
-                episode_id, body.corrected_text
-            )
-    except EpisodeNotFound:
-        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
-    return TranscriptConfirmationResponse(
-        episode_id=episode_id, confirmation_id=confirmation_id
-    )
+@app.post("/api/episodes/{episode_id}/transcript-confirmations", tags=["planback"])
+def confirm_transcript(episode_id: str, body: ConfirmedWordsRequest,
+                       service: EpisodeService = Depends(get_service)):
+    return _readback_command(service, episode_id, body.operation_token, {"confirm_words"},
+                             lambda binding: service.confirm_words(binding, text=body.text))
 
 
-@app.post(
-    "/api/episodes/{episode_id}/hint-events",
-    response_model=HintEventResponse,
-    tags=["planback"],
-)
-def record_hint_event(
-    episode_id: str,
-    body: HintEventRequest,
-    service: EpisodeService = Depends(get_service),
-) -> HintEventResponse:
-    """Record a hint event. The card is hidden only by `patient_hid` (C8)."""
-    try:
-        with _DB_LOCK:
-            state = service.record_hint_event(
-                episode_id, body.hint_level, body.event, body.dwell_seconds
-            )
-    except EpisodeNotFound:
-        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
-    except PolicyViolation as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-    return HintEventResponse(
-        episode_id=episode_id,
-        hint_level=state.level.value,
-        card_visible=state.card_visible,
-    )
+@app.post("/api/episodes/{episode_id}/hint-events", tags=["planback"])
+def record_hint_event(episode_id: str, body: CreateCommandRequest,
+                      service: EpisodeService = Depends(get_service)):
+    return _readback_command(service, episode_id, body.operation_token, {"show_plan", "hide_plan", "h3"},
+                             service.record_journey_event)
 
 
-@app.post(
-    "/api/episodes/{episode_id}/restatements",
-    response_model=RestatementResponse,
-    tags=["planback"],
-)
-def submit_restatement(
-    episode_id: str,
-    body: RestatementRequest,
-    service: EpisodeService = Depends(get_service),
-) -> RestatementResponse:
-    """Score one restatement. The coordinator extracts; `domain` decides."""
-    try:
-        with _DB_LOCK:
-            outcome = service.submit_restatement(
-                episode_id,
-                body.text,
-                body.hint_level,
-                body.transcript_confirmation_id,
-                input_mode=body.input_mode,
-                dwell_seconds=body.dwell_seconds,
-            )
-    except EpisodeNotFound:
-        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
-    except (NoDispositionYet, UnconfirmedTranscript) as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    except PolicyViolation as exc:
-        # NF2. A malformed `hint_level` or `input_mode` used to leave `domain` as
-        # an uncaught `ValueError` and answer 500. `domain` now refuses it, and a
-        # refusal is a stop at the human path, not a crash.
-        raise HTTPException(status_code=422, detail=str(exc))
-    except StateError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    except CoordinatorUnavailable:
-        raise _coordinator_down()
-    return _restatement_body(outcome)
+@app.post("/api/episodes/{episode_id}/restatements", tags=["planback"])
+def submit_restatement(episode_id: str, body: CreateCommandRequest,
+                       service: EpisodeService = Depends(get_service)):
+    return _readback_command(service, episode_id, body.operation_token, {"score_words"}, service.score_confirmed)
 
 
-@app.post(
-    "/api/episodes/{episode_id}/restatements/{restatement_id}/repairs",
-    response_model=RestatementResponse,
-    tags=["planback"],
-)
-def repair_restatement(
-    episode_id: str,
-    restatement_id: str,
-    body: RestatementRequest,
-    service: EpisodeService = Depends(get_service),
-) -> RestatementResponse:
-    """Score one repair round, capped at two (C6)."""
-    try:
-        with _DB_LOCK:
-            outcome = service.repair_restatement(
-                restatement_id,
-                body.text,
-                body.hint_level,
-                body.transcript_confirmation_id,
-                input_mode=body.input_mode,
-                dwell_seconds=body.dwell_seconds,
-                episode_id=episode_id,
-            )
-    except RestatementNotFound:
-        raise HTTPException(
-            status_code=404,
-            detail=f"restatement {restatement_id!r} not found for episode {episode_id!r}",
-        )
-    except (
-        NoDispositionYet,
-        UnconfirmedTranscript,
-        RepairCapReached,
-        StaleRestatement,
-    ) as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    except PolicyViolation as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-    except StateError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    except CoordinatorUnavailable:
-        raise _coordinator_down()
-    return _restatement_body(outcome)
+@app.post("/api/episodes/{episode_id}/restatements/{restatement_id}/repairs", tags=["planback"])
+def repair_restatement(episode_id: str, restatement_id: str, body: CreateCommandRequest,
+                       service: EpisodeService = Depends(get_service)):
+    return _readback_command(service, episode_id, body.operation_token, {"repair_words"},
+                             service.score_confirmed, parent_id=restatement_id)
 
 
 # ---------------------------------------------------------------------------

@@ -39,7 +39,7 @@ bare. The comparison is unchanged; only the envelope grew.
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass, replace
+from dataclasses import asdict, dataclass, replace
 from datetime import datetime, timezone
 from datetime import tzinfo
 from typing import Protocol
@@ -51,6 +51,8 @@ from carerelay.coordinator import (
 )
 from carerelay.domain import rules
 from carerelay.domain.models import (
+    ReadbackContext,
+    ExtractedPlan,
     OperationBinding,
     CommandResponse,
     JourneyProjection,
@@ -409,6 +411,7 @@ class EpisodeService:
         policy_provenance: str,
         key_namespace: str = DEFAULT_KEY_NAMESPACE,
         operation_signing_key: Callable[[], bytes] | None = None,
+        readback_extractor=None,
     ) -> None:
         self._store = store
         self._coordinator = coordinator
@@ -427,6 +430,8 @@ class EpisodeService:
         # travels, so the signature that makes a double tap provable is unchanged.
         self._key_namespace = key_namespace
         self._operation_signing_key = operation_signing_key or (lambda: b"")
+        from carerelay.adp_extraction import OfflineReadbackExtractor
+        self._readback_extractor = readback_extractor or OfflineReadbackExtractor()
         # Read with `getattr`, as `simulated` is below: a test stub implements
         # the port structurally and may omit it, and the safe default is the
         # honest one. A stub that cannot name an origin may not claim `platform`.
@@ -835,6 +840,12 @@ class EpisodeService:
             try:
                 bundle = tx.load_bundle(episode_id)
                 journey = rules.derive_journey(bundle, now_utc=now_utc)
+                if journey.step == "repair" and journey.flow.effective_hint not in {HintLevel.H2, HintLevel.H3}:
+                    tx._event("hint_event", {"hint_level": "H2", "kind": "patient_hid", "dwell_seconds": None,
+                        "disposition_version": journey.disposition_version,
+                        "readback_attempt_id": journey.flow.readback_attempt_id}, now_utc)
+                    bundle = tx.load_bundle(episode_id)
+                    journey = rules.derive_journey(bundle, now_utc=now_utc)
             except (rules.DomainError, InvalidJourneyRecord) as error:
                 # Invalid display/round metadata must not roll back valid expiry.
                 projection_error = error
@@ -850,6 +861,23 @@ class EpisodeService:
                 binding = OperationBinding(operation_identity(episode_id=episode_id, kind="select_example",
                     revision=journey.revision, body_sha256=digest, signing_key=key), episode_id, None, journey.revision,
                     "select_example", "episode:select_example", digest, None, None)
+                offer = replace(offer, operation_token=issue_operation(binding, signing_key=key))
+            elif offer.kind != "confirm_words":
+                parent = journey.flow.latest_restatement_id if offer.kind in {"score_words", "repair_words", "supersede_extraction"} else None
+                confirmed = rules.readback_confirmation(bundle, attempt_id=journey.flow.readback_attempt_id, parent_id=parent)
+                confirmation_id = confirmed["confirmation_id"] if offer.kind in {"score_words", "repair_words", "supersede_extraction"} and confirmed else None
+                payload = {"confirmation_id": confirmation_id} if offer.kind in {"score_words", "repair_words"} else {}
+                if offer.kind == "supersede_extraction":
+                    completed = {r["operation_id"] for r in bundle.commands if r["phase"] == "completed"}
+                    old = next(r for r in bundle.commands if r["phase"] == "claimed" and r["operation_id"] not in completed and r["kind"] in {"score_words", "repair_words"})
+                    payload = {"old_operation_id": old["operation_id"]}
+                    offer = replace(offer, permitted_choice_ids=(old["operation_id"],))
+                digest = request_digest(offer.kind, payload)
+                key = self._operation_signing_key()
+                binding = OperationBinding(operation_identity(episode_id=episode_id, kind=offer.kind,
+                    revision=journey.revision, body_sha256=digest, signing_key=key), episode_id,
+                    journey.disposition_version, journey.revision, offer.kind, self._readback_purpose(journey, offer.kind),
+                    digest, parent, confirmation_id)
                 offer = replace(offer, operation_token=issue_operation(binding, signing_key=key))
             offers.append(offer)
         return replace(journey, commands=tuple(offers),
@@ -904,20 +932,213 @@ class EpisodeService:
     def prepare_command(self, episode_id: str, *, kind: str, body_sha256: str,
                         parent_id: str | None) -> str:
         from carerelay.journey_commands import CommandInvalid, PURPOSES, issue_operation, operation_identity, request_digest
-        if kind != "select_example" or parent_id is not None:
+        if kind not in {"select_example", "confirm_words"} or (kind == "select_example" and parent_id is not None):
             raise CommandInvalid("command unavailable")
-        if body_sha256 != request_digest(kind, {"example_id": "scripted-appointment"}):
+        if kind == "select_example" and body_sha256 != request_digest(kind, {"example_id": "scripted-appointment"}):
             raise CommandInvalid("unpermitted body")
         with self._store.journey_transaction(episode_id, write=False) as tx:
             bundle = tx.load_bundle(episode_id)
             journey = rules.derive_journey(bundle, now_utc=self._clock.now_utc())
+            if kind == "confirm_words":
+                for row in reversed(bundle.commands):
+                    if (row["kind"] == kind and row["phase"] == "claimed" and row["body_sha256"] == body_sha256
+                            and row["parent_restatement_id"] == parent_id and row["disposition_version"] == journey.disposition_version
+                            and row["purpose"] == self._readback_purpose(journey, kind)
+                            and any(t["operation_id"] == row["operation_id"] and t["phase"] == "completed" for t in bundle.commands)):
+                        recovered = OperationBinding(**{key: row[key] for key in OperationBinding.__dataclass_fields__ if key != "token_schema"})
+                        return issue_operation(recovered, signing_key=self._operation_signing_key())
             if not any(o.kind == kind for o in journey.commands):
                 raise CommandInvalid("command is not offered")
+            if kind == "confirm_words" and parent_id != journey.flow.latest_restatement_id:
+                raise CommandInvalid("confirmation parent is not latest")
             key = self._operation_signing_key()
             binding = OperationBinding(operation_identity(episode_id=episode_id, kind=kind,
                                        revision=journey.revision, body_sha256=body_sha256, signing_key=key),
-                                       episode_id, None, journey.revision, kind, PURPOSES[kind], body_sha256, None, None)
+                                       episode_id, journey.disposition_version, journey.revision, kind,
+                                       PURPOSES[kind] if kind == "select_example" else self._readback_purpose(journey, kind),
+                                       body_sha256, parent_id, None)
             return issue_operation(binding, signing_key=key)
+
+    @staticmethod
+    def _readback_purpose(journey, kind):
+        return f"disposition:{journey.disposition_version}:readback:{journey.flow.readback_attempt_id or 'none'}:{kind}"
+
+    def _require_readback_offer(self, binding, bundle, now_utc):
+        from carerelay.journey_commands import CommandConflict
+        journey = rules.derive_journey(bundle, now_utc=now_utc)
+        if binding.purpose != self._readback_purpose(journey, binding.kind):
+            raise CommandConflict("readback purpose changed")
+        if not any(o.kind == binding.kind for o in journey.commands):
+            raise CommandConflict("readback command is not offered")
+        parent = journey.flow.latest_restatement_id if binding.kind in {"confirm_words", "score_words", "repair_words", "supersede_extraction"} else None
+        if binding.parent_restatement_id != parent:
+            raise CommandConflict("readback parent is not latest")
+        return journey
+
+    def record_journey_event(self, binding: OperationBinding) -> CommandResponse:
+        from carerelay.journey_commands import CommandInvalid, CommandConflict, request_digest, validate_binding
+        validate_binding(binding)
+        if binding.kind not in {"readback_started", "show_plan", "hide_plan", "h3"} or binding.confirmation_id is not None:
+            raise CommandInvalid("unpermitted readback event")
+        if binding.body_sha256 != request_digest(binding.kind, {}):
+            raise CommandConflict("event body changed")
+        with self._store.journey_transaction(binding.episode_id, write=True) as tx:
+            receipt = tx.find(binding)
+            if receipt is None:
+                now = self._clock.now_utc()
+                journey = self._require_readback_offer(binding, tx.load_bundle(binding.episode_id), now)
+                tx.claim_once(binding, now_utc=now)
+                if binding.kind == "readback_started":
+                    tx._event("readback_started", {"readback_attempt_id": binding.operation_id,
+                        "disposition_version": binding.disposition_version}, now)
+                else:
+                    level = HintLevel.H3 if binding.kind == "h3" else (journey.flow.effective_hint if binding.kind == "hide_plan" else HintLevel.H2)
+                    tx._event("hint_event", {"hint_level": level.value,
+                        "kind": "patient_hid" if binding.kind == "hide_plan" else "shown", "dwell_seconds": None,
+                        "disposition_version": binding.disposition_version, "readback_attempt_id": journey.flow.readback_attempt_id}, now)
+                    if binding.kind == "h3":
+                        tx._event("flow_stopped", {"disposition_version": binding.disposition_version, "reason": "h3"}, now)
+                receipt = tx.complete_once(binding.operation_id, state="applied", result_ref=binding.operation_id,
+                    result_kind="event", scored=False, now_utc=now)
+        return CommandResponse(receipt, self.project_journey(binding.episode_id))
+
+    def confirm_words(self, binding: OperationBinding, *, text: str) -> CommandResponse:
+        from carerelay.journey_commands import CommandInvalid, CommandConflict, request_digest, validate_binding
+        validate_binding(binding)
+        if binding.kind != "confirm_words" or binding.confirmation_id is not None:
+            raise CommandInvalid("unpermitted confirmation")
+        if type(text) is not str or not text.strip() or len(text) > 2048:
+            raise CommandInvalid("invalid confirmed words")
+        if binding.body_sha256 != request_digest("confirm_words", {"text": text, "parent_id": binding.parent_restatement_id}):
+            raise CommandConflict("confirmed words changed")
+        with self._store.journey_transaction(binding.episode_id, write=True) as tx:
+            receipt = tx.find(binding)
+            if receipt is None:
+                now = self._clock.now_utc()
+                journey = self._require_readback_offer(binding, tx.load_bundle(binding.episode_id), now)
+                tx.claim_once(binding, now_utc=now)
+                context = ReadbackContext(binding.episode_id, binding.disposition_version, journey.policy_version,
+                    journey.flow.readback_attempt_id, binding.parent_restatement_id, binding.operation_id,
+                    text, journey.flow.selected_repair_field, journey.flow.completed_repairs, (), journey.flow.effective_hint, 0)
+                ref = tx.append_confirmed_words(context, now_utc=now)
+                receipt = tx.complete_once(binding.operation_id, state="applied", result_ref=ref,
+                    result_kind="confirmation", scored=False, now_utc=now)
+        return CommandResponse(receipt, self.project_journey(binding.episode_id))
+
+    def score_confirmed(self, binding: OperationBinding) -> CommandResponse:
+        from carerelay.adp_extraction import ExtractionInput, ExtractionResult, eligible_offline_output
+        from carerelay.journey_commands import CommandInvalid, CommandConflict, request_digest, validate_binding
+        validate_binding(binding)
+        if binding.kind not in {"score_words", "repair_words"} or binding.confirmation_id is None:
+            raise CommandInvalid("unpermitted scoring")
+        if binding.body_sha256 != request_digest(binding.kind, {"confirmation_id": binding.confirmation_id}):
+            raise CommandConflict("scoring body changed")
+        with self._store.journey_transaction(binding.episode_id, write=True) as tx:
+            receipt = tx.find(binding)
+            if receipt is None:
+                now = self._clock.now_utc()
+                bundle = tx.load_bundle(binding.episode_id)
+                journey = self._require_readback_offer(binding, bundle, now)
+                confirmed = rules.readback_confirmation(bundle, attempt_id=journey.flow.readback_attempt_id, parent_id=binding.parent_restatement_id)
+                if confirmed is None or confirmed["confirmation_id"] != binding.confirmation_id:
+                    raise CommandConflict("confirmation is not current")
+                context = ReadbackContext(binding.episode_id, binding.disposition_version, journey.policy_version,
+                    journey.flow.readback_attempt_id, binding.parent_restatement_id, binding.confirmation_id,
+                    confirmed["text"], journey.flow.selected_repair_field, journey.flow.completed_repairs,
+                    rules.grounded_parent_matches(bundle, attempt_id=journey.flow.readback_attempt_id, parent_id=binding.parent_restatement_id),
+                    journey.flow.effective_hint, 0)
+                encoded = asdict(context)
+                encoded.pop("claim_revision")
+                for source in encoded["retained"]:
+                    if isinstance(source["canonical_value"], datetime):
+                        source["canonical_value"] = source["canonical_value"].isoformat()
+                claimed = tx.claim_once(binding, now_utc=now, context=encoded)
+                context = replace(context, claim_revision=claimed.claim_revision)
+                policy = bundle.policy
+        if receipt is not None:
+            return CommandResponse(receipt, self.project_journey(binding.episode_id))
+        request = ExtractionInput(context.confirmed_text, frozenset(policy.action_aliases) | policy.permitted_action_ids,
+            frozenset(policy.deadline_forms), frozenset(policy.owner_aliases) | policy.permitted_owner_ids,
+            binding.operation_id, "offline-fixture-v1", "carerelay-readback-v1")
+        try:
+            result = self._readback_extractor.extract(request, budget_seconds=5.0)
+            raw = eligible_offline_output(result, confirmed_text=context.confirmed_text)
+            if raw is None and result.validation == "valid":
+                failure = "refused" if result.raw is not None and result.raw.refused else "invalid"
+                result = replace(result, validation=failure, failure_category=failure)
+        except Exception:
+            result = ExtractionResult("local-sim", "transport", None, binding.operation_id, None,
+                "offline-fixture-v1", "carerelay-readback-v1", None, "transport")
+            raw = None
+        with self._store.journey_transaction(binding.episode_id, write=True) as tx:
+            now = self._clock.now_utc()
+            receipt = tx.find(binding)
+            if receipt.state != "pending":
+                pass
+            elif not rules.readback_context_current(context, tx.load_bundle(binding.episode_id), now_utc=now):
+                snapshot = tx.load_snapshot(binding.episode_id)
+                if snapshot.disposition and now >= snapshot.disposition.clinical_deadline_utc and snapshot.expiry_event_id is None:
+                    self._store.record_expiry_once(binding.episode_id, snapshot.disposition.version, now)
+                receipt = tx.complete_once(binding.operation_id, state="refused", result_ref=None, scored=False, now_utc=now)
+            elif raw is None:
+                tx._event("interpretation_unavailable", {"disposition_version": context.disposition_version,
+                    "operation_id": binding.operation_id, "confirmation_id": context.confirmation_id}, now)
+                receipt = tx.complete_once(binding.operation_id, state="unavailable", result_ref=None, scored=False,
+                    now_utc=now, provenance=self._extraction_provenance(result))
+            else:
+                extracted = ExtractedPlan(raw.action_span.text if raw.action_span else None,
+                    raw.deadline_span.text if raw.deadline_span else None,
+                    raw.next_owner_span.text if raw.next_owner_span else None, raw.uncertain_fields)
+                extracted, retained = rules.merge_field_repair(context, extracted,
+                    whole_answer_doubt=rules.independent_uncertainty(context.confirmed_text, policy=policy),
+                    policy=policy, now_utc=now, display_tz=self._display_tz)
+                disposition = tx.load_snapshot(binding.episode_id).disposition
+                comparison = rules.compare_plan(disposition, extracted, policy=policy, now_utc=now, display_tz=self._display_tz)
+                metadata = {"schema": "readback-provenance-v1", "attempt_id": context.attempt_id, "parent_id": context.parent_id,
+                    "policy_version": context.policy_version, "confirmation_id": context.confirmation_id,
+                    "raw": {**asdict(raw), "uncertain_fields": sorted(raw.uncertain_fields)},
+                    "merged": {**asdict(extracted), "uncertain_fields": sorted(extracted.uncertain_fields)},
+                    "retained": [asdict(source) for source in retained], "mode": result.mode, "validation": result.validation}
+                for source in metadata["retained"]:
+                    if isinstance(source["canonical_value"], datetime):
+                        source["canonical_value"] = source["canonical_value"].isoformat()
+                ref = tx.append_scored_round(context, extracted, comparison, now_utc=now, provenance=metadata)
+                receipt = tx.complete_once(binding.operation_id, state="applied", result_ref=ref, result_kind="restatement",
+                    scored=True, now_utc=now, provenance=self._extraction_provenance(result))
+        return CommandResponse(receipt, self.project_journey(binding.episode_id))
+
+    @staticmethod
+    def _extraction_provenance(result):
+        return {"interpreter_mode": result.mode, "instruction_version": result.instruction_version,
+            "schema_version": result.schema_version, "transport_profile": "offline",
+            "request_id": result.request_id, "trace_id": result.trace_id, "model_version": result.model_version,
+            "validation": result.validation, "failure_category": result.failure_category}
+
+    def supersede_extraction(self, binding: OperationBinding, *, old_operation_id: str) -> CommandResponse:
+        from carerelay.journey_commands import CommandInvalid, CommandConflict, request_digest, validate_binding
+        validate_binding(binding)
+        if binding.kind != "supersede_extraction":
+            raise CommandInvalid("unpermitted supersede")
+        if binding.body_sha256 != request_digest(binding.kind, {"old_operation_id": old_operation_id}):
+            raise CommandConflict("supersede body changed")
+        with self._store.journey_transaction(binding.episode_id, write=True) as tx:
+            receipt = tx.find(binding)
+            if receipt is None:
+                now = self._clock.now_utc()
+                bundle = tx.load_bundle(binding.episode_id)
+                self._require_readback_offer(binding, bundle, now)
+                old = next((r for r in bundle.commands if r["operation_id"] == old_operation_id and r["phase"] == "claimed"), None)
+                if (old is None or old["kind"] not in {"score_words", "repair_words"}
+                        or old["disposition_version"] != binding.disposition_version
+                        or old["parent_restatement_id"] != binding.parent_restatement_id
+                        or old["confirmation_id"] != binding.confirmation_id
+                        or any(r["operation_id"] == old_operation_id and r["phase"] == "completed" for r in bundle.commands)):
+                    raise CommandConflict("extraction is not the current pending operation")
+                tx.claim_once(binding, now_utc=now)
+                tx.complete_once(old_operation_id, state="superseded", result_ref=None, scored=False, now_utc=now)
+                receipt = tx.complete_once(binding.operation_id, state="applied", result_ref=old_operation_id,
+                    result_kind="event", scored=False, now_utc=now)
+        return CommandResponse(receipt, self.project_journey(binding.episode_id))
 
     def replay(self, binding: OperationBinding) -> CommandResponse:
         from carerelay.journey_commands import CommandConflict
@@ -1120,6 +1341,7 @@ class EpisodeService:
                 "hint_level": r.hint_level.value,
                 "input_mode": r.input_mode.value,
                 "transcript_confirmed": r.transcript_confirmed,
+                "extraction_provenance": r.provenance,
                 "outcome": r.outcome.value,
                 "repair_round": r.repair_round,
                 "dwell_seconds": r.dwell_seconds,

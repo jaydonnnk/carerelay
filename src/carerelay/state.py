@@ -106,6 +106,7 @@ from carerelay.domain.models import (
     PlanComparison,
     ReceiptDisposition,
     RecallOutcome,
+    RECALL_OUTCOME_BY_LEVEL,
 )
 
 __all__ = [
@@ -237,7 +238,8 @@ class JourneyTransaction:
             (self.episode_id, kind, json.dumps(payload, sort_keys=True, separators=(",", ":")), _iso(now_utc)))
         return self.execute("SELECT MAX(id) AS revision FROM events WHERE episode_id = ?", (self.episode_id,)).fetchone()["revision"]
 
-    def claim_once(self, binding: OperationBinding, *, now_utc: datetime) -> ClaimResult:
+    def claim_once(self, binding: OperationBinding, *, now_utc: datetime,
+                   context: dict[str, object] | None = None) -> ClaimResult:
         from carerelay.journey_commands import CommandConflict, validate_binding
         validate_binding(binding)
         if binding.episode_id != self.episode_id:
@@ -250,9 +252,12 @@ class JourneyTransaction:
         version = bundle.snapshot.disposition.version if bundle.snapshot.disposition else None
         if binding.expected_revision != bundle.revision or binding.disposition_version != version:
             raise CommandConflict("stale unclaimed operation")
-        if binding.parent_restatement_id is not None or binding.confirmation_id is not None:
+        if binding.kind in {"create", "select_example"} and (binding.parent_restatement_id is not None or binding.confirmation_id is not None):
             raise CommandConflict("start cannot carry a scoring parent")
-        revision = self._event("command_claimed", {"operation_id": binding.operation_id, "kind": binding.kind}, now_utc)
+        payload = {"operation_id": binding.operation_id, "kind": binding.kind}
+        if context is not None:
+            payload["readback_context"] = context
+        revision = self._event("command_claimed", payload, now_utc)
         values = asdict(binding)
         values.pop("token_schema")
         values.update(phase="claimed", claim_revision=revision, scored=0, recorded_at=_iso(now_utc))
@@ -264,7 +269,8 @@ class JourneyTransaction:
         self.execute("INSERT INTO journey_commands (" + ",".join(columns) + ") VALUES (" + ",".join("?" for _ in columns) + ")", tuple(values[x] for x in columns))
 
     def complete_once(self, operation_id: str, *, state: str, result_ref: str | None,
-                      scored: bool, now_utc: datetime, result_kind: str | None = None) -> CommandReceipt:
+                      scored: bool, now_utc: datetime, result_kind: str | None = None,
+                      provenance: dict[str, object] | None = None) -> CommandReceipt:
         from carerelay.journey_commands import CommandConflict
         row = self.execute("SELECT * FROM journey_commands WHERE operation_id = ? AND phase = 'claimed' AND episode_id = ?", (operation_id, self.episode_id)).fetchone()
         if row is None:
@@ -277,8 +283,59 @@ class JourneyTransaction:
         values.pop("id")
         values.update(phase="completed", terminal_state=state, result_kind=result_kind,
                       result_ref=result_ref, scored=int(scored), recorded_at=_iso(now_utc))
+        if provenance is not None:
+            allowed = {"interpreter_mode", "instruction_version", "schema_version", "transport_profile",
+                       "request_id", "trace_id", "model_version", "validation", "failure_category"}
+            if set(provenance) - allowed:
+                raise StateError("unknown extraction provenance")
+            values.update(provenance)
         self._insert(values)
         return CommandReceipt(operation_id, state, result_ref, scored, False)
+
+    def append_confirmed_words(self, context, *, now_utc: datetime) -> str:
+        from carerelay.journey_commands import CommandConflict, request_digest
+        bundle = self.load_bundle(self.episode_id)
+        journey = rules.derive_journey(bundle, now_utc=now_utc)
+        claim = self.execute("SELECT * FROM journey_commands WHERE episode_id = ? AND operation_id = ? AND phase = 'claimed'",
+                             (self.episode_id, context.confirmation_id)).fetchone()
+        if (claim is None or claim["kind"] != "confirm_words" or claim["claim_revision"] != bundle.revision
+                or claim["parent_restatement_id"] != context.parent_id
+                or claim["body_sha256"] != request_digest("confirm_words", {"text": context.confirmed_text, "parent_id": context.parent_id})):
+            raise CommandConflict("confirmation has no exact owned claim")
+        if (context.episode_id != self.episode_id or context.disposition_version != journey.disposition_version
+                or context.policy_version != journey.policy_version or context.attempt_id != journey.flow.readback_attempt_id
+                or context.parent_id != journey.flow.latest_restatement_id
+                or journey.flow.stopped or bundle.snapshot.expiry_event_id is not None
+                or now_utc >= bundle.snapshot.disposition.clinical_deadline_utc):
+            raise CommandConflict("confirmation context changed")
+        self._event("words_confirmed", {"schema": "confirmed-words-v1", "episode_id": self.episode_id,
+            "disposition_version": context.disposition_version, "policy_version": context.policy_version,
+            "attempt_id": context.attempt_id, "parent_id": context.parent_id,
+            "confirmation_id": context.confirmation_id, "text": context.confirmed_text}, now_utc)
+        return context.confirmation_id
+
+    def append_scored_round(self, context, extracted, comparison, *, now_utc: datetime,
+                            provenance: dict[str, object]) -> str:
+        from carerelay.journey_commands import CommandConflict, request_digest
+        kind = "repair_words" if context.parent_id is not None else "score_words"
+        purpose = f"disposition:{context.disposition_version}:readback:{context.attempt_id}:{kind}"
+        owned = self.execute("SELECT operation_id FROM journey_commands c WHERE c.episode_id = ? AND c.phase = 'claimed' "
+            "AND c.kind = ? AND c.disposition_version = ? AND c.claim_revision = ? AND c.confirmation_id = ? "
+            "AND (c.parent_restatement_id = ? OR (c.parent_restatement_id IS NULL AND ? IS NULL)) "
+            "AND c.purpose = ? AND c.body_sha256 = ? "
+            "AND NOT EXISTS (SELECT 1 FROM journey_commands t WHERE t.operation_id = c.operation_id AND t.phase = 'completed')",
+            (self.episode_id, kind, context.disposition_version, context.claim_revision, context.confirmation_id,
+             context.parent_id, context.parent_id, purpose, request_digest(kind, {"confirmation_id": context.confirmation_id}))).fetchone()
+        if owned is None:
+            raise CommandConflict("score has no exact owned pending claim")
+        if not rules.readback_context_current(context, self.load_bundle(self.episode_id), now_utc=now_utc):
+            raise CommandConflict("scoring context changed")
+        outcome = RECALL_OUTCOME_BY_LEVEL[context.effective_hint] if comparison.is_clean() else RecallOutcome.NOT_RECALLED
+        return self.store.record_restatement(self.episode_id, disposition_version=context.disposition_version,
+            hint_level=context.effective_hint, input_mode=InputMode.TEXT, transcript_confirmed=True,
+            extracted=extracted, comparison=comparison,
+            repair_round=context.completed_repairs + (1 if context.parent_id is not None else 0),
+            outcome=outcome, dwell_seconds=None, now_utc=now_utc, provenance=provenance)
 
 #: Every table in this schema. The clinical record is append-only, and so is
 #: everything else here: nothing in the product has a legitimate UPDATE or DELETE.
@@ -838,6 +895,7 @@ class RestatementRecord:
     outcome: RecallOutcome
     dwell_seconds: float | None
     created_at: datetime
+    provenance: dict[str, object] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -1933,6 +1991,7 @@ class SqliteEpisodeStore:
         outcome: RecallOutcome,
         dwell_seconds: float | None,
         now_utc: datetime,
+        provenance: dict[str, object] | None = None,
     ) -> str:
         """Append one scored restatement. Returns the new row's id.
 
@@ -2000,7 +2059,7 @@ class SqliteEpisodeStore:
                     input_mode.value,
                     1 if transcript_confirmed else 0,
                     json.dumps(
-                        {
+                        provenance if provenance is not None else {
                             "action_span": extracted.action_span,
                             "deadline_span": extracted.deadline_span,
                             "next_owner_span": extracted.next_owner_span,
@@ -2252,6 +2311,9 @@ def _disposition_from_row(row: sqlite3.Row) -> Disposition:
 
 def _restatement_from_row(row: sqlite3.Row) -> RestatementRecord:
     extracted_payload = json.loads(row["extracted_json"])
+    provenance = extracted_payload if extracted_payload.get("schema") == "readback-provenance-v1" else None
+    if provenance is not None:
+        extracted_payload = provenance["merged"]
     comparison_payload = json.loads(row["mismatches"])
     return RestatementRecord(
         restatement_id=row["id"],
@@ -2275,6 +2337,7 @@ def _restatement_from_row(row: sqlite3.Row) -> RestatementRecord:
         outcome=RecallOutcome(row["outcome"]),
         dwell_seconds=row["dwell_seconds"],
         created_at=_parse(row["created_at"]),
+        provenance=provenance,
     )
 
 
@@ -2320,7 +2383,7 @@ class EpisodeStore(Protocol):
     def record_escalation(self, episode_id: str, *, human_path: str, outcome: str, now_utc: datetime) -> str: ...
     def record_expiry_once(self, episode_id: str, disposition_version: int, now_utc: datetime) -> bool: ...
     def list_expiry_events(self, episode_id: str) -> tuple[tuple[int, datetime], ...]: ...
-    def record_restatement(self, episode_id: str, *, disposition_version: int, hint_level: HintLevel, input_mode: InputMode, transcript_confirmed: bool, extracted: ExtractedPlan, comparison: PlanComparison, repair_round: int, outcome: RecallOutcome, dwell_seconds: float | None, now_utc: datetime) -> str: ...
+    def record_restatement(self, episode_id: str, *, disposition_version: int, hint_level: HintLevel, input_mode: InputMode, transcript_confirmed: bool, extracted: ExtractedPlan, comparison: PlanComparison, repair_round: int, outcome: RecallOutcome, dwell_seconds: float | None, now_utc: datetime, provenance: dict[str, object] | None = None) -> str: ...
     def list_restatements(self, episode_id: str) -> tuple[RestatementRecord, ...]: ...
     def get_restatement(self, restatement_id: str) -> RestatementRecord: ...
     def record_hint_event(self, episode_id: str, *, hint_level: HintLevel, kind: HintEventKind, dwell_seconds: float | None, now_utc: datetime) -> None: ...
