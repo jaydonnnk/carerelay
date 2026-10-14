@@ -75,7 +75,7 @@ DECODER_BAD = {
     "hint_enum": ("plan", "flow.effective_hint", "H9"),
     "interpretation_enum": ("plan", "flow.interpretation", "unknown"),
     "repair_field_enum": ("plan", "flow.selected_repair_field", "invented"),
-    "execution_enum": ("plan", "outcome.execution", "unknown"),
+    "execution_enum": ("acknowledged", "outcome.execution", "unknown"),
     "evidence_enum": ("plan", "outcome.evidence", "unknown"),
     "outcome_keys": ("plan", "outcome.extra", True),
     "execution_alias": ("plan", "execution", "failed"),
@@ -105,12 +105,12 @@ DECODER_BAD = {
     "open_owner": ("plan", "plan.current_owner_id", "caregiver"),
     "text_keys": ("plan", "text.extra", "unexpected answer"),
     "text_labels": ("plan", "text.deadline_label", None),
-    "unresolved_failure": ("plan", "step", "unresolved"),
+    "unresolved_failure": ("failed", "outcome.execution", "attempted"),
 }
 for field in ["action_id", "action_text", "deadline_display", "original_owner_id", "original_owner_display", "fallback_route_id", "fallback_display"]:
     DECODER_BAD["plan_" + field] = ("documented" if field == "original_owner_id" else "plan", "plan." + field, "")
 for field in ["accepted_by", "accepted_scope", "escalation_path", "escalation_outcome"]:
-    DECODER_BAD["outcome_" + field] = ("plan", "outcome." + field, 1)
+    DECODER_BAD["outcome_" + field] = ("handoff_unknown" if field == "escalation_path" else "plan", "outcome." + field, 1)
 for field in ["stop_reason", "readback_attempt_id", "latest_restatement_id", "selected_repair_field"]:
     DECODER_BAD["flow_" + field] = ("plan", "flow." + field, 1)
 
@@ -133,18 +133,21 @@ def test_decoder_independent_invariant(tmp_path, case):
         del target[parts[-1]]
     else:
         target[parts[-1]] = value
-    if case in {"execution_enum", "evidence_enum"}:
+    if case in {"execution_enum", "evidence_enum", "unresolved_failure"}:
         bad[parts[-1]] = value
     if case == "stopped_open":
         bad["flow"].update(stop_reason="fictional-stop", stopped_disposition_version=1)
     if case == "open_owner":
         bad["plan"]["current_owner_display"] = "Caregiver"
         bad["action_owner_id"] = "caregiver"
-    if case in {"execution_enum", "unresolved_failure", "outcome_escalation_path"}:
-        bad["commands"] = [o for o in bad["commands"] if o["kind"] != "readback_started"]
-        bad["text"].pop("readback_label", None)
+    if case in {"execution_enum", "outcome_escalation_path"}:
+        # Actual neutral contact copy and cue/revoke offers survive the bad value.
+        assert good["step"] == "plan"
+        assert {offer["kind"] for offer in good["commands"]} == {"show_plan", "hide_plan", "revoke_share"}
     if case == "unresolved_failure":
-        bad["text"] = {"heading": "That request did not work", "show_label": "Show my plan", "hide_label": "Back to my answer"}
+        # Keep actual failed-screen copy/offers; only both execution aliases change.
+        assert good["step"] == "unresolved" and good["outcome"]["execution"] == "failed"
+        assert good["outcome"]["escalation_outcome"] is None
     script = f'''import {{decodeJourney}} from {json.dumps((ROOT / "frontend/lib/journey.ts").as_uri())};
 import {{readFileSync}} from "node:fs";
 const [good,bad]=JSON.parse(readFileSync(0,"utf8"));
@@ -322,7 +325,8 @@ def test_neutral_contact_wins_over_understood_round(tmp_path, case):
         assert service.project_journey("neutral-control").step == "barrier"
         if case == "acknowledged":
             service.change_consent("neutral-control", True)
-            opened = service.open_action("neutral-control", "fictional_provider", "neutral-control")
+            from _legacy_service_probes import historical_attempt
+            opened = historical_attempt(service, "neutral-control", purpose="neutral-control")
             from carerelay.domain.models import CallbackResult, ExecutionStatus, Origin
             service._store.record_callback_once(opened.attempt_id, "neutral-ack", CallbackResult(transition=ExecutionStatus.ACKNOWLEDGED), Origin.LOCAL_SIM, now_utc=fixture.SCENARIO_NOW_UTC)
         else:

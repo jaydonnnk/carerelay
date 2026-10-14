@@ -213,6 +213,1037 @@ def build_mutations():
     for name, pattern in re.findall(r'    "([a-z_]+)": r"([^"]+)",', boundary[start:end]):
         add("G07 detector " + name, 'tests/test_boundaries.py', f'    "{name}": r"{pattern}",',
             f'    "{name}": r"(?!)",', f'tests/test_boundaries.py::test_serialized_detection_controls[json-{name}]')
+    anchor_fixes = {'G03 pending feedback text': ('if interpretation == "pending" and not (step == "permission" and '
+                               'closure.execution is ExecutionStatus.ATTEMPTED):',
+                               'if False:'),
+ 'G06 one permission prompt': ('journey?.question && journey.step !== "barrier" && '
+                               'journey.question.text !== copy.heading',
+                               'journey?.question && journey.step !== "barrier"'),
+ 'G09 action form_duplicate': ('if (keys.length !== 1 || typeof token !== "string")',
+                               'if (keys.length === 0 || typeof token !== "string")'),
+ 'G09 action form_extra': ('if (keys.length !== 1 || typeof token !== "string")',
+                           'if (keys.length === 0 || typeof token !== "string")'),
+ 'G09 locator op_confirmation': ('value.disposition_version !== null || '
+                                 'value.parent_restatement_id !== null || value.confirmation_id '
+                                 '!== null ||\n'
+                                 '          value.purpose !== `episode:${value.kind}`',
+                                 'value.disposition_version !== null || '
+                                 'value.parent_restatement_id !== null || false ||\n'
+                                 '          value.purpose !== `episode:${value.kind}`'),
+ 'G13 intake prepare_parent': ('if kind not in {"select_example", "confirm_words", '
+                               '"select_barrier"} or (kind in {"select_example", "select_barrier"} '
+                               'and parent_id is not None):',
+                               'if kind not in {"select_example", "confirm_words", '
+                               '"select_barrier"}:'),
+ 'Slice16 G12 decoder accepts stopped pending navigation': ('["permission", "plan", "unresolved", '
+                                                            '"stopped"].includes(value.step as '
+                                                            'string) ? ["show_plan", "hide_plan", '
+                                                            '"revoke_share"]',
+                                                            '["permission", "plan", '
+                                                            '"unresolved"].includes(value.step as '
+                                                            'string) ? ["show_plan", "hide_plan", '
+                                                            '"revoke_share"]'),
+ 'Slice16 G18 frontend capability version_type': ('if (!["readback_started", "confirm_words", '
+                                                  '"score_words", "repair_words", "show_plan", '
+                                                  '"hide_plan", "h3", '
+                                                  '"supersede_extraction"].includes(value.kind) '
+                                                  '||\n'
+                                                  '          '
+                                                  '!Number.isSafeInteger(value.disposition_version) '
+                                                  '|| value.disposition_version < 1) return null;',
+                                                  'if (!["readback_started", "confirm_words", '
+                                                  '"score_words", "repair_words", "show_plan", '
+                                                  '"hide_plan", "h3", '
+                                                  '"supersede_extraction"].includes(value.kind) '
+                                                  '||\n'
+                                                  '          false || value.disposition_version < '
+                                                  '1) return null;'),
+ 'Slice16 G18 frontend capability version_zero': ('if (!["readback_started", "confirm_words", '
+                                                  '"score_words", "repair_words", "show_plan", '
+                                                  '"hide_plan", "h3", '
+                                                  '"supersede_extraction"].includes(value.kind) '
+                                                  '||\n'
+                                                  '          '
+                                                  '!Number.isSafeInteger(value.disposition_version) '
+                                                  '|| value.disposition_version < 1) return null;',
+                                                  'if (!["readback_started", "confirm_words", '
+                                                  '"score_words", "repair_words", "show_plan", '
+                                                  '"hide_plan", "h3", '
+                                                  '"supersede_extraction"].includes(value.kind) '
+                                                  '||\n'
+                                                  '          '
+                                                  '!Number.isSafeInteger(value.disposition_version) '
+                                                  '|| false) return null;'),
+ 'Slice16 G18 service entry event_digest': ('if binding.body_sha256 != '
+                                            'request_digest(binding.kind, {}):\n'
+                                            '            raise CommandConflict("event body '
+                                            'changed")',
+                                            'if False:\n'
+                                            '            raise CommandConflict("event body '
+                                            'changed")'),
+ 'Slice16 G18 service entry offer': ('if not any(o.kind == binding.kind for o in '
+                                     'journey.commands):\n'
+                                     '            raise CommandConflict("readback command is not '
+                                     'offered")',
+                                     'if False:\n'
+                                     '            raise CommandConflict("readback command is not '
+                                     'offered")'),
+ 'Slice16 G18 service entry purpose': ('if binding.purpose != self._readback_purpose(journey, '
+                                       'binding.kind):\n'
+                                       '            raise CommandConflict("readback purpose '
+                                       'changed")',
+                                       'if False:\n'
+                                       '            raise CommandConflict("readback purpose '
+                                       'changed")')}
+    rows = [Mutation(m.label, m.target, *anchor_fixes[m.label], m.selector)
+            if m.label in anchor_fixes else m for m in rows]
+    for item in [{'label': 'G13 S17 frontend capability admits select_barrier',
+  'new': '    } else if (["grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'old': '    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_capabilities_have_exact_fixed_purpose_and_no_readback_refs',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G13 S17 frontend capability admits grant_share',
+  'new': '    } else if (["select_barrier", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'old': '    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_capabilities_have_exact_fixed_purpose_and_no_readback_refs',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G13 S17 frontend capability admits decline_share',
+  'new': '    } else if (["select_barrier", "grant_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'old': '    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_capabilities_have_exact_fixed_purpose_and_no_readback_refs',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G13 S17 frontend capability admits revoke_share',
+  'new': '    } else if (["select_barrier", "grant_share", "decline_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'old': '    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_capabilities_have_exact_fixed_purpose_and_no_readback_refs',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G13 S17 frontend capability admits request',
+  'new': '    } else if (["select_barrier", "grant_share", "decline_share", '
+         '"revoke_share"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'old': '    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_capabilities_have_exact_fixed_purpose_and_no_readback_refs',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G13 S17 frontend safe disposition version',
+  'new': '    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (false || value.disposition_version < 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'old': '    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_capability_version_first_refusal',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G13 S17 frontend positive disposition version',
+  'new': '    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || false ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'old': '    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_capability_version_first_refusal[version_zero]',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G13 S17 frontend null parent',
+  'new': '    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          false || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'old': '    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_capabilities_have_exact_fixed_purpose_and_no_readback_refs',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G13 S17 frontend null confirmation',
+  'new': '    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || false ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'old': '    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_capabilities_have_exact_fixed_purpose_and_no_readback_refs',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G13 S17 frontend fixed purpose',
+  'new': '    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          false) return null;\n',
+  'old': '    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_capabilities_have_exact_fixed_purpose_and_no_readback_refs',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G13 S17 frontend request appointment purpose',
+  'new': '    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind}`) '
+         'return null;\n',
+  'old': '    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", '
+         '"request"].includes(value.kind)) {\n'
+         '      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version '
+         '< 1 ||\n'
+         '          value.parent_restatement_id !== null || value.confirmation_id !== null ||\n'
+         '          value.purpose !== `disposition:${value.disposition_version}:${value.kind === '
+         '"request" ? "request_appointment" : value.kind}`) return null;\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_capabilities_have_exact_fixed_purpose_and_no_readback_refs',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G06 S17 permission execution',
+  'new': 'if (false) return null;',
+  'old': 'if (value.step === "permission" && !["not_started", '
+         '"attempted"].includes(outcome.execution as string)) return null;',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_decoder_rejects_noninitial_execution',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 barrier execution',
+  'new': 'if (false) return null;',
+  'old': 'if (value.step === "barrier" && outcome.execution !== "not_started") return null;',
+  'selector': 'tests/test_journey_commands.py::test_s17_decoder_command_first_refusal[barrier_execution]',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 barrier choice count',
+  'new': 'false',
+  'old': 'offer.permitted_choice_ids.length !== 3',
+  'selector': 'tests/test_journey_commands.py::test_s17_decoder_command_first_refusal[barrier_choice_count]',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 barrier choice uniqueness',
+  'new': 'false',
+  'old': 'new Set(offer.permitted_choice_ids).size !== 3',
+  'selector': 'tests/test_journey_commands.py::test_s17_decoder_command_first_refusal[barrier_choice_duplicate]',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 barrier choice allowlist',
+  'new': 'false',
+  'old': '!offer.permitted_choice_ids.every(id => ["booking", "transport", "other"].some(k => k '
+         '=== id))',
+  'selector': 'tests/test_journey_commands.py::test_s17_decoder_command_first_refusal[barrier_choice_unknown]',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 barrier read-only preparation',
+  'new': '|| false) :',
+  'old': '|| offer.operation_token !== null) :',
+  'selector': 'tests/test_journey_commands.py::test_s17_decoder_command_first_refusal[barrier_token]',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 permission capability required',
+  'new': 'if (false) return null;',
+  'old': 'if (PERMISSION_KINDS.some(k => k === offer.kind) && offer.kind !== "select_barrier" && '
+         'offer.operation_token === null) return null;',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_decoder_refuses_request_on_waiting_stopped_or_redacted',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 waiting no request',
+  'new': 'permission: outcome.execution === "attempted" ? ["show_plan", "hide_plan", '
+         '"revoke_share", "request"] :',
+  'old': 'permission: outcome.execution === "attempted" ? ["show_plan", "hide_plan", '
+         '"revoke_share"] :',
+  'selector': 'tests/test_journey_commands.py::test_s17_decoder_command_first_refusal[waiting_request]',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 pending no request',
+  'new': '["permission", "plan", "unresolved", "stopped"].includes(value.step as string) ? '
+         '["show_plan", "hide_plan", "revoke_share", "request"] :',
+  'old': '["permission", "plan", "unresolved", "stopped"].includes(value.step as string) ? '
+         '["show_plan", "hide_plan", "revoke_share"] :',
+  'selector': 'tests/test_journey_commands.py::test_s17_decoder_command_first_refusal[pending_request]',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 stopped no request',
+  'new': 'stopped: ["show_plan", "hide_plan", "grant_share", "revoke_share", "request"],',
+  'old': 'stopped: ["show_plan", "hide_plan", "grant_share", "revoke_share"],',
+  'selector': 'tests/test_journey_commands.py::test_s17_decoder_command_first_refusal[stopped_request]',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 expired no request',
+  'new': 'expired: ["revoke_share", "request"], accepted:',
+  'old': 'expired: ["revoke_share"], accepted:',
+  'selector': 'tests/test_journey_commands.py::test_s17_decoder_command_first_refusal[expired_request]',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 acknowledged no request',
+  'new': '    plan: outcome.execution === "not_started" && outcome.escalation_path === null ? '
+         '["readback_started", "show_plan", "hide_plan", "grant_share", "revoke_share"] : '
+         '["show_plan", "hide_plan", "revoke_share", "request"],',
+  'old': '    plan: outcome.execution === "not_started" && outcome.escalation_path === null ? '
+         '["readback_started", "show_plan", "hide_plan", "grant_share", "revoke_share"] : '
+         '["show_plan", "hide_plan", "revoke_share"],',
+  'selector': 'tests/test_journey_commands.py::test_s17_decoder_command_first_refusal[acknowledged_request]',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 pending waiting remains neutral',
+  'new': 'true &&',
+  'old': '!(value.step === "permission" && outcome.execution === "attempted") &&',
+  'selector': 'tests/test_journey_commands.py::test_s17_pending_request_is_neutral_and_keeps_read_only_recovery',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 pending expiry revocation',
+  'new': '(value.step === "expired" ? [] :',
+  'old': '(value.step === "expired" ? ["revoke_share"] :',
+  'selector': 'tests/test_journey_commands.py::test_s17_pending_request_is_neutral_and_keeps_read_only_recovery',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 stopped unsupported copy',
+  'new': 'if (false) selectedTextKeys.push("feedback");',
+  'old': 'if (value.step === "stopped" && flow.stop_reason === "barrier_stop") '
+         'selectedTextKeys.push("feedback");',
+  'selector': 'tests/test_journey_commands.py::test_s17_actual_server_projections_and_tokens_decode_through_failure_and_stop',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 permission copy',
+  'new': 'if (false) selectedTextKeys.push("consent_label", "consent_error");',
+  'old': 'if (commandKinds.includes("grant_share")) selectedTextKeys.push("consent_label", '
+         '"consent_error");',
+  'selector': 'tests/test_journey_commands.py::test_s17_actual_server_projections_and_tokens_decode_through_failure_and_stop',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 request copy',
+  'new': 'if (false) selectedTextKeys.push("request_label");',
+  'old': 'if (value.step === "permission" && value.question !== null) '
+         'selectedTextKeys.push("request_label");',
+  'selector': 'tests/test_journey_commands.py::test_s17_actual_server_projections_and_tokens_decode_through_failure_and_stop',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 revocation copy',
+  'new': 'if (false) selectedTextKeys.push("decline_label");',
+  'old': 'if (commandKinds.includes("decline_share") || commandKinds.includes("revoke_share")) '
+         'selectedTextKeys.push("decline_label");',
+  'selector': 'tests/test_journey_commands.py::test_s17_actual_server_projections_and_tokens_decode_through_failure_and_stop',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G06 S17 barrier copy',
+  'new': 'if (false) selectedTextKeys.push("choice_error", "continue_label");',
+  'old': 'if (value.step === "barrier") selectedTextKeys.push("choice_error", "continue_label");',
+  'selector': 'tests/test_journey_commands.py::test_s17_actual_server_projections_and_tokens_decode_through_failure_and_stop',
+  'target': 'frontend/lib/journey.ts'},
+ {'label': 'G09 S17 preparation extra fields',
+  'new': 'export async function prepareBarrierChoice(form: FormData): Promise<{ ok: true; token: '
+         'string } | { ok: false }> {\n'
+         '  const keys = [...form.keys()].filter(k => !k.startsWith("$ACTION_"));\n'
+         '  const choice = form.get("choice_id");\n'
+         '  if (false || keys[0] !== "choice_id" || typeof choice !== "string" ||\n'
+         '      !["booking", "transport", "other"].includes(choice)) return { ok: false };\n'
+         '  const h = await headers(), c = await cookies(), key = process.env.CARERELAY_API_TOKEN '
+         '?? "";\n'
+         '  const locator = allowPreparation(h.get("origin"), h.get("host"), '
+         'c.get(LOCATOR_COOKIE)?.value,\n'
+         '    key, process.env.CARERELAY_LOOPBACK_TEST === "1");\n'
+         '  if (!locator) return { ok: false };\n'
+         '  const digest = barrierChoiceDigest(choice);\n'
+         '  const result = await prepareBarrierCommand(locator.episode_id, digest);\n'
+         '  if (!result.ok) return { ok: false };\n'
+         '  const binding = decodeOperation(result.value, key);\n'
+         '  if (!binding || binding.episode_id !== locator.episode_id || binding.kind !== '
+         '"select_barrier" ||\n'
+         '      binding.body_sha256 !== digest || binding.parent_restatement_id !== null || '
+         'binding.confirmation_id !== null) return { ok: false };\n'
+         '  return { ok: true, token: result.value };\n'
+         '}\n',
+  'old': 'export async function prepareBarrierChoice(form: FormData): Promise<{ ok: true; token: '
+         'string } | { ok: false }> {\n'
+         '  const keys = [...form.keys()].filter(k => !k.startsWith("$ACTION_"));\n'
+         '  const choice = form.get("choice_id");\n'
+         '  if (keys.length !== 1 || keys[0] !== "choice_id" || typeof choice !== "string" ||\n'
+         '      !["booking", "transport", "other"].includes(choice)) return { ok: false };\n'
+         '  const h = await headers(), c = await cookies(), key = process.env.CARERELAY_API_TOKEN '
+         '?? "";\n'
+         '  const locator = allowPreparation(h.get("origin"), h.get("host"), '
+         'c.get(LOCATOR_COOKIE)?.value,\n'
+         '    key, process.env.CARERELAY_LOOPBACK_TEST === "1");\n'
+         '  if (!locator) return { ok: false };\n'
+         '  const digest = barrierChoiceDigest(choice);\n'
+         '  const result = await prepareBarrierCommand(locator.episode_id, digest);\n'
+         '  if (!result.ok) return { ok: false };\n'
+         '  const binding = decodeOperation(result.value, key);\n'
+         '  if (!binding || binding.episode_id !== locator.episode_id || binding.kind !== '
+         '"select_barrier" ||\n'
+         '      binding.body_sha256 !== digest || binding.parent_restatement_id !== null || '
+         'binding.confirmation_id !== null) return { ok: false };\n'
+         '  return { ok: true, token: result.value };\n'
+         '}\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_barrier_preparation_first_refusal[form_extra]',
+  'target': 'frontend/app/actions.ts'},
+ {'label': 'G09 S17 preparation duplicate fields',
+  'new': 'export async function prepareBarrierChoice(form: FormData): Promise<{ ok: true; token: '
+         'string } | { ok: false }> {\n'
+         '  const keys = [...form.keys()].filter(k => !k.startsWith("$ACTION_"));\n'
+         '  const choice = form.get("choice_id");\n'
+         '  if (false || keys[0] !== "choice_id" || typeof choice !== "string" ||\n'
+         '      !["booking", "transport", "other"].includes(choice)) return { ok: false };\n'
+         '  const h = await headers(), c = await cookies(), key = process.env.CARERELAY_API_TOKEN '
+         '?? "";\n'
+         '  const locator = allowPreparation(h.get("origin"), h.get("host"), '
+         'c.get(LOCATOR_COOKIE)?.value,\n'
+         '    key, process.env.CARERELAY_LOOPBACK_TEST === "1");\n'
+         '  if (!locator) return { ok: false };\n'
+         '  const digest = barrierChoiceDigest(choice);\n'
+         '  const result = await prepareBarrierCommand(locator.episode_id, digest);\n'
+         '  if (!result.ok) return { ok: false };\n'
+         '  const binding = decodeOperation(result.value, key);\n'
+         '  if (!binding || binding.episode_id !== locator.episode_id || binding.kind !== '
+         '"select_barrier" ||\n'
+         '      binding.body_sha256 !== digest || binding.parent_restatement_id !== null || '
+         'binding.confirmation_id !== null) return { ok: false };\n'
+         '  return { ok: true, token: result.value };\n'
+         '}\n',
+  'old': 'export async function prepareBarrierChoice(form: FormData): Promise<{ ok: true; token: '
+         'string } | { ok: false }> {\n'
+         '  const keys = [...form.keys()].filter(k => !k.startsWith("$ACTION_"));\n'
+         '  const choice = form.get("choice_id");\n'
+         '  if (keys.length !== 1 || keys[0] !== "choice_id" || typeof choice !== "string" ||\n'
+         '      !["booking", "transport", "other"].includes(choice)) return { ok: false };\n'
+         '  const h = await headers(), c = await cookies(), key = process.env.CARERELAY_API_TOKEN '
+         '?? "";\n'
+         '  const locator = allowPreparation(h.get("origin"), h.get("host"), '
+         'c.get(LOCATOR_COOKIE)?.value,\n'
+         '    key, process.env.CARERELAY_LOOPBACK_TEST === "1");\n'
+         '  if (!locator) return { ok: false };\n'
+         '  const digest = barrierChoiceDigest(choice);\n'
+         '  const result = await prepareBarrierCommand(locator.episode_id, digest);\n'
+         '  if (!result.ok) return { ok: false };\n'
+         '  const binding = decodeOperation(result.value, key);\n'
+         '  if (!binding || binding.episode_id !== locator.episode_id || binding.kind !== '
+         '"select_barrier" ||\n'
+         '      binding.body_sha256 !== digest || binding.parent_restatement_id !== null || '
+         'binding.confirmation_id !== null) return { ok: false };\n'
+         '  return { ok: true, token: result.value };\n'
+         '}\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_barrier_preparation_first_refusal[form_duplicate]',
+  'target': 'frontend/app/actions.ts'},
+ {'label': 'G09 S17 preparation choice allowlist',
+  'new': 'export async function prepareBarrierChoice(form: FormData): Promise<{ ok: true; token: '
+         'string } | { ok: false }> {\n'
+         '  const keys = [...form.keys()].filter(k => !k.startsWith("$ACTION_"));\n'
+         '  const choice = form.get("choice_id");\n'
+         '  if (keys.length !== 1 || keys[0] !== "choice_id" || typeof choice !== "string" ||\n'
+         '      false) return { ok: false };\n'
+         '  const h = await headers(), c = await cookies(), key = process.env.CARERELAY_API_TOKEN '
+         '?? "";\n'
+         '  const locator = allowPreparation(h.get("origin"), h.get("host"), '
+         'c.get(LOCATOR_COOKIE)?.value,\n'
+         '    key, process.env.CARERELAY_LOOPBACK_TEST === "1");\n'
+         '  if (!locator) return { ok: false };\n'
+         '  const digest = barrierChoiceDigest(choice);\n'
+         '  const result = await prepareBarrierCommand(locator.episode_id, digest);\n'
+         '  if (!result.ok) return { ok: false };\n'
+         '  const binding = decodeOperation(result.value, key);\n'
+         '  if (!binding || binding.episode_id !== locator.episode_id || binding.kind !== '
+         '"select_barrier" ||\n'
+         '      binding.body_sha256 !== digest || binding.parent_restatement_id !== null || '
+         'binding.confirmation_id !== null) return { ok: false };\n'
+         '  return { ok: true, token: result.value };\n'
+         '}\n',
+  'old': 'export async function prepareBarrierChoice(form: FormData): Promise<{ ok: true; token: '
+         'string } | { ok: false }> {\n'
+         '  const keys = [...form.keys()].filter(k => !k.startsWith("$ACTION_"));\n'
+         '  const choice = form.get("choice_id");\n'
+         '  if (keys.length !== 1 || keys[0] !== "choice_id" || typeof choice !== "string" ||\n'
+         '      !["booking", "transport", "other"].includes(choice)) return { ok: false };\n'
+         '  const h = await headers(), c = await cookies(), key = process.env.CARERELAY_API_TOKEN '
+         '?? "";\n'
+         '  const locator = allowPreparation(h.get("origin"), h.get("host"), '
+         'c.get(LOCATOR_COOKIE)?.value,\n'
+         '    key, process.env.CARERELAY_LOOPBACK_TEST === "1");\n'
+         '  if (!locator) return { ok: false };\n'
+         '  const digest = barrierChoiceDigest(choice);\n'
+         '  const result = await prepareBarrierCommand(locator.episode_id, digest);\n'
+         '  if (!result.ok) return { ok: false };\n'
+         '  const binding = decodeOperation(result.value, key);\n'
+         '  if (!binding || binding.episode_id !== locator.episode_id || binding.kind !== '
+         '"select_barrier" ||\n'
+         '      binding.body_sha256 !== digest || binding.parent_restatement_id !== null || '
+         'binding.confirmation_id !== null) return { ok: false };\n'
+         '  return { ok: true, token: result.value };\n'
+         '}\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_barrier_preparation_first_refusal[choice_unknown]',
+  'target': 'frontend/app/actions.ts'},
+ {'label': 'G09 S17 prepared kind',
+  'new': 'export async function prepareBarrierChoice(form: FormData): Promise<{ ok: true; token: '
+         'string } | { ok: false }> {\n'
+         '  const keys = [...form.keys()].filter(k => !k.startsWith("$ACTION_"));\n'
+         '  const choice = form.get("choice_id");\n'
+         '  if (keys.length !== 1 || keys[0] !== "choice_id" || typeof choice !== "string" ||\n'
+         '      !["booking", "transport", "other"].includes(choice)) return { ok: false };\n'
+         '  const h = await headers(), c = await cookies(), key = process.env.CARERELAY_API_TOKEN '
+         '?? "";\n'
+         '  const locator = allowPreparation(h.get("origin"), h.get("host"), '
+         'c.get(LOCATOR_COOKIE)?.value,\n'
+         '    key, process.env.CARERELAY_LOOPBACK_TEST === "1");\n'
+         '  if (!locator) return { ok: false };\n'
+         '  const digest = barrierChoiceDigest(choice);\n'
+         '  const result = await prepareBarrierCommand(locator.episode_id, digest);\n'
+         '  if (!result.ok) return { ok: false };\n'
+         '  const binding = decodeOperation(result.value, key);\n'
+         '  if (!binding || binding.episode_id !== locator.episode_id || false ||\n'
+         '      binding.body_sha256 !== digest || binding.parent_restatement_id !== null || '
+         'binding.confirmation_id !== null) return { ok: false };\n'
+         '  return { ok: true, token: result.value };\n'
+         '}\n',
+  'old': 'export async function prepareBarrierChoice(form: FormData): Promise<{ ok: true; token: '
+         'string } | { ok: false }> {\n'
+         '  const keys = [...form.keys()].filter(k => !k.startsWith("$ACTION_"));\n'
+         '  const choice = form.get("choice_id");\n'
+         '  if (keys.length !== 1 || keys[0] !== "choice_id" || typeof choice !== "string" ||\n'
+         '      !["booking", "transport", "other"].includes(choice)) return { ok: false };\n'
+         '  const h = await headers(), c = await cookies(), key = process.env.CARERELAY_API_TOKEN '
+         '?? "";\n'
+         '  const locator = allowPreparation(h.get("origin"), h.get("host"), '
+         'c.get(LOCATOR_COOKIE)?.value,\n'
+         '    key, process.env.CARERELAY_LOOPBACK_TEST === "1");\n'
+         '  if (!locator) return { ok: false };\n'
+         '  const digest = barrierChoiceDigest(choice);\n'
+         '  const result = await prepareBarrierCommand(locator.episode_id, digest);\n'
+         '  if (!result.ok) return { ok: false };\n'
+         '  const binding = decodeOperation(result.value, key);\n'
+         '  if (!binding || binding.episode_id !== locator.episode_id || binding.kind !== '
+         '"select_barrier" ||\n'
+         '      binding.body_sha256 !== digest || binding.parent_restatement_id !== null || '
+         'binding.confirmation_id !== null) return { ok: false };\n'
+         '  return { ok: true, token: result.value };\n'
+         '}\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_barrier_preparation_first_refusal[kind]',
+  'target': 'frontend/app/actions.ts'},
+ {'label': 'G09 S17 prepared episode',
+  'new': 'export async function prepareBarrierChoice(form: FormData): Promise<{ ok: true; token: '
+         'string } | { ok: false }> {\n'
+         '  const keys = [...form.keys()].filter(k => !k.startsWith("$ACTION_"));\n'
+         '  const choice = form.get("choice_id");\n'
+         '  if (keys.length !== 1 || keys[0] !== "choice_id" || typeof choice !== "string" ||\n'
+         '      !["booking", "transport", "other"].includes(choice)) return { ok: false };\n'
+         '  const h = await headers(), c = await cookies(), key = process.env.CARERELAY_API_TOKEN '
+         '?? "";\n'
+         '  const locator = allowPreparation(h.get("origin"), h.get("host"), '
+         'c.get(LOCATOR_COOKIE)?.value,\n'
+         '    key, process.env.CARERELAY_LOOPBACK_TEST === "1");\n'
+         '  if (!locator) return { ok: false };\n'
+         '  const digest = barrierChoiceDigest(choice);\n'
+         '  const result = await prepareBarrierCommand(locator.episode_id, digest);\n'
+         '  if (!result.ok) return { ok: false };\n'
+         '  const binding = decodeOperation(result.value, key);\n'
+         '  if (!binding || false || binding.kind !== "select_barrier" ||\n'
+         '      binding.body_sha256 !== digest || binding.parent_restatement_id !== null || '
+         'binding.confirmation_id !== null) return { ok: false };\n'
+         '  return { ok: true, token: result.value };\n'
+         '}\n',
+  'old': 'export async function prepareBarrierChoice(form: FormData): Promise<{ ok: true; token: '
+         'string } | { ok: false }> {\n'
+         '  const keys = [...form.keys()].filter(k => !k.startsWith("$ACTION_"));\n'
+         '  const choice = form.get("choice_id");\n'
+         '  if (keys.length !== 1 || keys[0] !== "choice_id" || typeof choice !== "string" ||\n'
+         '      !["booking", "transport", "other"].includes(choice)) return { ok: false };\n'
+         '  const h = await headers(), c = await cookies(), key = process.env.CARERELAY_API_TOKEN '
+         '?? "";\n'
+         '  const locator = allowPreparation(h.get("origin"), h.get("host"), '
+         'c.get(LOCATOR_COOKIE)?.value,\n'
+         '    key, process.env.CARERELAY_LOOPBACK_TEST === "1");\n'
+         '  if (!locator) return { ok: false };\n'
+         '  const digest = barrierChoiceDigest(choice);\n'
+         '  const result = await prepareBarrierCommand(locator.episode_id, digest);\n'
+         '  if (!result.ok) return { ok: false };\n'
+         '  const binding = decodeOperation(result.value, key);\n'
+         '  if (!binding || binding.episode_id !== locator.episode_id || binding.kind !== '
+         '"select_barrier" ||\n'
+         '      binding.body_sha256 !== digest || binding.parent_restatement_id !== null || '
+         'binding.confirmation_id !== null) return { ok: false };\n'
+         '  return { ok: true, token: result.value };\n'
+         '}\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_barrier_preparation_first_refusal[episode]',
+  'target': 'frontend/app/actions.ts'},
+ {'label': 'G09 S17 prepared digest',
+  'new': 'export async function prepareBarrierChoice(form: FormData): Promise<{ ok: true; token: '
+         'string } | { ok: false }> {\n'
+         '  const keys = [...form.keys()].filter(k => !k.startsWith("$ACTION_"));\n'
+         '  const choice = form.get("choice_id");\n'
+         '  if (keys.length !== 1 || keys[0] !== "choice_id" || typeof choice !== "string" ||\n'
+         '      !["booking", "transport", "other"].includes(choice)) return { ok: false };\n'
+         '  const h = await headers(), c = await cookies(), key = process.env.CARERELAY_API_TOKEN '
+         '?? "";\n'
+         '  const locator = allowPreparation(h.get("origin"), h.get("host"), '
+         'c.get(LOCATOR_COOKIE)?.value,\n'
+         '    key, process.env.CARERELAY_LOOPBACK_TEST === "1");\n'
+         '  if (!locator) return { ok: false };\n'
+         '  const digest = barrierChoiceDigest(choice);\n'
+         '  const result = await prepareBarrierCommand(locator.episode_id, digest);\n'
+         '  if (!result.ok) return { ok: false };\n'
+         '  const binding = decodeOperation(result.value, key);\n'
+         '  if (!binding || binding.episode_id !== locator.episode_id || binding.kind !== '
+         '"select_barrier" ||\n'
+         '      false || binding.parent_restatement_id !== null || binding.confirmation_id !== '
+         'null) return { ok: false };\n'
+         '  return { ok: true, token: result.value };\n'
+         '}\n',
+  'old': 'export async function prepareBarrierChoice(form: FormData): Promise<{ ok: true; token: '
+         'string } | { ok: false }> {\n'
+         '  const keys = [...form.keys()].filter(k => !k.startsWith("$ACTION_"));\n'
+         '  const choice = form.get("choice_id");\n'
+         '  if (keys.length !== 1 || keys[0] !== "choice_id" || typeof choice !== "string" ||\n'
+         '      !["booking", "transport", "other"].includes(choice)) return { ok: false };\n'
+         '  const h = await headers(), c = await cookies(), key = process.env.CARERELAY_API_TOKEN '
+         '?? "";\n'
+         '  const locator = allowPreparation(h.get("origin"), h.get("host"), '
+         'c.get(LOCATOR_COOKIE)?.value,\n'
+         '    key, process.env.CARERELAY_LOOPBACK_TEST === "1");\n'
+         '  if (!locator) return { ok: false };\n'
+         '  const digest = barrierChoiceDigest(choice);\n'
+         '  const result = await prepareBarrierCommand(locator.episode_id, digest);\n'
+         '  if (!result.ok) return { ok: false };\n'
+         '  const binding = decodeOperation(result.value, key);\n'
+         '  if (!binding || binding.episode_id !== locator.episode_id || binding.kind !== '
+         '"select_barrier" ||\n'
+         '      binding.body_sha256 !== digest || binding.parent_restatement_id !== null || '
+         'binding.confirmation_id !== null) return { ok: false };\n'
+         '  return { ok: true, token: result.value };\n'
+         '}\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_barrier_preparation_first_refusal[digest]',
+  'target': 'frontend/app/actions.ts'},
+ {'label': 'G09 S17 permission extra fields',
+  'new': 'if (false) return { state: "recovery" };',
+  'old': 'if (keys.join(",") !== expected.join(",")) return { state: "recovery" };',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_action_first_refusal[form_extra]',
+  'target': 'frontend/app/actions.ts'},
+ {'label': 'G09 S17 permission duplicate fields',
+  'new': 'if (false) return { state: "recovery" };',
+  'old': 'if (keys.join(",") !== expected.join(",")) return { state: "recovery" };',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_action_first_refusal[form_duplicate]',
+  'target': 'frontend/app/actions.ts'},
+ {'label': 'G09 S17 unchecked agreement',
+  'new': 'if (false) return { state: "recovery" };',
+  'old': 'if (selected === "grant_share" && form.get("agreed") !== "yes") return { state: '
+         '"recovery" };',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_action_first_refusal[agreed_no]',
+  'target': 'frontend/app/actions.ts'},
+ {'label': 'G09 S17 permission choice allowlist',
+  'new': 'if (selected === "select_barrier" && typeof choice !== "string") return { state: '
+         '"recovery" };',
+  'old': 'if (selected === "select_barrier" && (typeof choice !== "string" || !["booking", '
+         '"transport", "other"].includes(choice))) return { state: "recovery" };',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_action_first_refusal[choice_unknown]',
+  'target': 'frontend/app/actions.ts'},
+ {'label': 'G09 S17 permission choice digest',
+  'new': 'false',
+  'old': 'binding.body_sha256 !== barrierChoiceDigest(choice)',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_action_first_refusal[choice_digest]',
+  'target': 'frontend/app/actions.ts'},
+ {'label': 'G09 S17 API choice allowlist',
+  'new': 'if (!choiceId) return { ok: false, reason: "unavailable", detail: "journey unavailable" '
+         '};',
+  'old': 'if (!choiceId || !["booking", "transport", "other"].includes(choiceId)) return { ok: '
+         'false, reason: "unavailable", detail: "journey unavailable" };',
+  'selector': 'tests/test_journey_commands.py::test_s17_real_frontend_command_routes_and_choice_digest',
+  'target': 'frontend/lib/api.ts'},
+ {'label': 'G07 S17 503 remains unavailable',
+  'new': 'if (response.status === 401 || response.status === 503) {',
+  'old': 'if (response.status === 401) {',
+  'selector': 'tests/test_journey_commands.py::test_s17_real_api_distinguishes_auth_refusal_from_unavailable',
+  'target': 'frontend/lib/api.ts'},
+ {'label': 'G07 S17 401 remains auth refusal',
+  'new': 'if (false) {',
+  'old': 'if (response.status === 401) {',
+  'selector': 'tests/test_journey_commands.py::test_s17_real_api_distinguishes_auth_refusal_from_unavailable',
+  'target': 'frontend/lib/api.ts'},
+ {'label': 'G09 S17 reused origin host guard via permission',
+  'new': 'false',
+  'old': 'url.host.toLowerCase() !== host.toLowerCase()',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_action_first_refusal[origin]',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G09 S17 reused cookie MAC guard via permission',
+  'new': 'false',
+  'old': '!timingSafeEqual(bytes, expected)',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_action_first_refusal[cookie]',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G09 S17 reused origin host guard via preparation',
+  'new': 'false',
+  'old': 'url.host.toLowerCase() !== host.toLowerCase()',
+  'selector': 'tests/test_journey_commands.py::test_s17_barrier_preparation_first_refusal[origin]',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G09 S17 reused cookie MAC guard via preparation',
+  'new': 'false',
+  'old': '!timingSafeEqual(bytes, expected)',
+  'selector': 'tests/test_journey_commands.py::test_s17_barrier_preparation_first_refusal[cookie]',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G09 S17 reused capability kind via permission',
+  'new': 'false',
+  'old': 'binding.kind !== kind',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_action_first_refusal[token_kind]',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G09 S17 reused capability episode via permission',
+  'new': 'false',
+  'old': 'binding.episode_id !== locator.episode_id',
+  'selector': 'tests/test_journey_commands.py::test_s17_permission_action_first_refusal[episode]',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G12 S17 frontend barrier digest kind',
+  'new': 'export function barrierChoiceDigest(choiceId: string): string {\n'
+         '  return createHash("sha256").update(ordered({ kind: "select_example",\n'
+         '    payload: { choice_id: choiceId }, schema: "carerelay-command-v1" })).digest("hex");\n'
+         '}\n',
+  'old': 'export function barrierChoiceDigest(choiceId: string): string {\n'
+         '  return createHash("sha256").update(ordered({ kind: "select_barrier",\n'
+         '    payload: { choice_id: choiceId }, schema: "carerelay-command-v1" })).digest("hex");\n'
+         '}\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_exact_barrier_choice_digest',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G12 S17 frontend barrier digest schema',
+  'new': 'export function barrierChoiceDigest(choiceId: string): string {\n'
+         '  return createHash("sha256").update(ordered({ kind: "select_barrier",\n'
+         '    payload: { choice_id: choiceId }, schema: "carerelay-command-v2" })).digest("hex");\n'
+         '}\n',
+  'old': 'export function barrierChoiceDigest(choiceId: string): string {\n'
+         '  return createHash("sha256").update(ordered({ kind: "select_barrier",\n'
+         '    payload: { choice_id: choiceId }, schema: "carerelay-command-v1" })).digest("hex");\n'
+         '}\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_exact_barrier_choice_digest',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G12 S17 frontend barrier digest field',
+  'new': 'export function barrierChoiceDigest(choiceId: string): string {\n'
+         '  return createHash("sha256").update(ordered({ kind: "select_barrier",\n'
+         '    payload: { choice: choiceId }, schema: "carerelay-command-v1" })).digest("hex");\n'
+         '}\n',
+  'old': 'export function barrierChoiceDigest(choiceId: string): string {\n'
+         '  return createHash("sha256").update(ordered({ kind: "select_barrier",\n'
+         '    payload: { choice_id: choiceId }, schema: "carerelay-command-v1" })).digest("hex");\n'
+         '}\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_exact_barrier_choice_digest',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G12 S17 frontend barrier digest exact choice',
+  'new': 'export function barrierChoiceDigest(choiceId: string): string {\n'
+         '  return createHash("sha256").update(ordered({ kind: "select_barrier",\n'
+         '    payload: { choice_id: "booking" }, schema: "carerelay-command-v1" '
+         '})).digest("hex");\n'
+         '}\n',
+  'old': 'export function barrierChoiceDigest(choiceId: string): string {\n'
+         '  return createHash("sha256").update(ordered({ kind: "select_barrier",\n'
+         '    payload: { choice_id: choiceId }, schema: "carerelay-command-v1" })).digest("hex");\n'
+         '}\n',
+  'selector': 'tests/test_journey_commands.py::test_s17_exact_barrier_choice_digest',
+  'target': 'frontend/lib/episode-locator.ts'},
+ {'label': 'G22 S17 checkbox starts unchecked',
+  'new': 'const [agreed, setAgreed] = useState(true), [pending, setPending] = useState(false);',
+  'old': 'const [agreed, setAgreed] = useState(false), [pending, setPending] = useState(false);',
+  'selector': 'tests/test_journey_commands.py::test_s17_real_react_render_starts_permission_unchecked_and_barrier_unselected',
+  'target': 'frontend/components/PatientJourney.tsx'},
+ {'label': 'G22 S17 barrier starts unselected',
+  'new': 'const [choice, setChoice] = useState("booking");',
+  'old': 'const [choice, setChoice] = useState("");',
+  'selector': 'tests/test_journey_commands.py::test_s17_real_react_render_starts_permission_unchecked_and_barrier_unselected',
+  'target': 'frontend/components/PatientJourney.tsx'},
+ {'label': 'G22 S17 unchecked choice disables request',
+  'new': 'disabled={pending || !request}',
+  'old': 'disabled={pending || !request || !agreed}',
+  'selector': 'tests/test_journey_commands.py::test_s17_real_react_render_starts_permission_unchecked_and_barrier_unselected',
+  'target': 'frontend/components/PatientJourney.tsx'},
+ {'label': 'G22 S17 barrier question appears once',
+  'new': '<legend>{journey.question.text}</legend>',
+  'old': '<legend>{journey.text.description}</legend>',
+  'selector': 'tests/test_journey_commands.py::test_s17_real_react_render_starts_permission_unchecked_and_barrier_unselected',
+  'target': 'frontend/components/PatientJourney.tsx'},
+ {'label': 'G22 S17 barrier description appears once',
+  'new': '(recovery || copy.description)',
+  'old': '(recovery || copy.description && journey?.step !== "barrier")',
+  'selector': 'tests/test_journey_commands.py::test_s17_real_react_render_starts_permission_unchecked_and_barrier_unselected',
+  'target': 'frontend/components/PatientJourney.tsx'},
+ {'label': 'Slice17 G32 final binding_version',
+  'new': 'False',
+  'old': 'binding.disposition_version != disposition.version',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[binding_version-dispatch '
+              'disposition changed]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final attempt_absent',
+ 'new': 'if attempt is None:\n'
+        '        return None\n'
+        '    if attempt.disposition_version != disposition.version:\n'
+        '        return "dispatch attempt version changed"',
+ 'old': 'if attempt is None or attempt.disposition_version != disposition.version:\n'
+        '        return "dispatch attempt version changed"',
+ 'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[attempt_absent-dispatch '
+             'attempt version changed]',
+ 'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final attempt_version',
+  'new': 'attempt is None',
+  'old': 'attempt is None or attempt.disposition_version != disposition.version',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[attempt_version-dispatch '
+              'attempt version changed]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final membership',
+  'new': 'False',
+  'old': 'bundle.snapshot.attempt.attempt_id != attempt.attempt_id',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[membership-dispatch '
+              'attempt membership changed]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final terminal',
+  'new': 'if False:',
+  'old': 'if attempt.execution is not ExecutionStatus.ATTEMPTED:',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[terminal-dispatch '
+              'attempt already terminal]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final route',
+  'new': 'attempt.route_id != route_id or route_id not in permitted_routes',
+  'old': 'route_id != "fictional_provider" or attempt.route_id != route_id or route_id not in '
+         'permitted_routes',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[route-dispatch '
+              'route changed]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final attempt_route',
+  'new': 'route_id != "fictional_provider" or route_id not in permitted_routes',
+  'old': 'route_id != "fictional_provider" or attempt.route_id != route_id or route_id not in '
+         'permitted_routes',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[attempt_route-dispatch '
+              'route changed]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final withdrawn',
+  'new': 'route_id != "fictional_provider" or attempt.route_id != route_id',
+  'old': 'route_id != "fictional_provider" or attempt.route_id != route_id or route_id not in '
+         'permitted_routes',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[withdrawn-dispatch '
+              'route changed]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final purpose',
+  'new': 'attempt_purpose != binding.purpose',
+  'old': 'binding.purpose != f"disposition:{disposition.version}:request_appointment" or '
+         'attempt_purpose != binding.purpose',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[purpose-dispatch '
+              'purpose changed]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final attempt_purpose',
+  'new': 'binding.purpose != f"disposition:{disposition.version}:request_appointment"',
+  'old': 'binding.purpose != f"disposition:{disposition.version}:request_appointment" or '
+         'attempt_purpose != binding.purpose',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[attempt_purpose-dispatch '
+              'purpose changed]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final stop',
+  'new': 'if False:',
+  'old': 'if bundle.snapshot.flow_stop_reason is not None:',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[stop-dispatch '
+              'flow stopped]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final consent',
+  'new': 'attempt.consent_version != bundle.snapshot.consent_version',
+  'old': 'not bundle.consent_granted or attempt.consent_version != bundle.snapshot.consent_version',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[consent-dispatch '
+              'consent changed]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final consent_version',
+  'new': 'not bundle.consent_granted',
+  'old': 'not bundle.consent_granted or attempt.consent_version != bundle.snapshot.consent_version',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[consent_version-dispatch '
+              'consent changed]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final expiry',
+  'new': 'now_utc >= disposition.clinical_deadline_utc',
+  'old': 'bundle.snapshot.expiry_event_id is not None or now_utc >= '
+         'disposition.clinical_deadline_utc',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[expiry-dispatch '
+              'deadline expired]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final deadline',
+  'new': 'bundle.snapshot.expiry_event_id is not None',
+  'old': 'bundle.snapshot.expiry_event_id is not None or now_utc >= '
+         'disposition.clinical_deadline_utc',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[deadline-dispatch '
+              'deadline expired]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final rounds',
+ 'new': 'if not rounds:\n'
+        '        return None\n'
+        '    if not rounds[-1].comparison.is_clean() or rounds[-1].hint_level is HintLevel.H3:\n'
+        '        return "dispatch understanding unavailable"',
+ 'old': 'if not rounds or not rounds[-1].comparison.is_clean() or rounds[-1].hint_level is '
+        'HintLevel.H3:\n'
+        '        return "dispatch understanding unavailable"',
+ 'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[rounds-dispatch '
+             'understanding unavailable]',
+ 'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final comparison',
+  'new': 'not rounds or rounds[-1].hint_level is HintLevel.H3',
+  'old': 'not rounds or not rounds[-1].comparison.is_clean() or rounds[-1].hint_level is '
+         'HintLevel.H3',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[comparison-dispatch '
+              'understanding unavailable]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final h3',
+  'new': 'not rounds or not rounds[-1].comparison.is_clean()',
+  'old': 'not rounds or not rounds[-1].comparison.is_clean() or rounds[-1].hint_level is '
+         'HintLevel.H3',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[h3-dispatch '
+              'understanding unavailable]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final policy',
+ 'new': 'if bundle.policy is None:\n'
+        '        return None\n'
+        '    if route_id not in bundle.policy.permitted_route_ids:\n'
+        '        return "dispatch recorded policy unavailable"',
+ 'old': 'if bundle.policy is None or route_id not in bundle.policy.permitted_route_ids:\n'
+        '        return "dispatch recorded policy unavailable"',
+ 'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[policy-dispatch '
+             'recorded policy unavailable]',
+ 'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final policy_route',
+  'new': 'bundle.policy is None',
+  'old': 'bundle.policy is None or route_id not in bundle.policy.permitted_route_ids',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[policy_route-dispatch '
+              'recorded policy unavailable]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final barrier',
+  'new': 'if False:',
+  'old': 'if barrier != "fictional_provider":',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[barrier-dispatch '
+              'supported barrier unavailable]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G32 final closure',
+  'new': 'if False:',
+  'old': 'if derive_closure(bundle.snapshot, now_utc).closure is not ClosureState.OPEN:',
+  'selector': 'tests/test_journey.py::test_s17_each_final_guard_has_an_isolated_counterexample[closure-dispatch '
+              'closure unavailable]',
+  'target': 'src/carerelay/domain/rules.py'},
+ {'label': 'Slice17 G35 permit original process',
+  'new': 'False',
+  'old': 'registered[2] != os.getpid()',
+  'selector': 'tests/test_journey.py::test_s17_forked_process_cannot_spend_original_permit',
+  'target': 'src/carerelay/journey_commands.py'},
+ {'label': 'Slice17 G35 consume once',
+  'new': 'pass',
+  'old': 'del _DISPATCH_PERMITS[id(permit)]',
+  'selector': 'tests/test_journey.py::test_s17_forged_reconstructed_and_spent_permits_refuse',
+  'target': 'src/carerelay/journey_commands.py'},
+ {'label': 'Slice17 G35 reconstructed capability',
+  'new': 'registered = next((r for r in _DISPATCH_PERMITS.values() if r[0] == permit), None)\n        if registered is None or registered[2] != os.getpid():\n            raise CommandInvalid("dispatch permit is not original")\n        del _DISPATCH_PERMITS[id(registered[0])]',
+  'old': 'registered = _DISPATCH_PERMITS.get(id(permit))\n        if registered is None or registered[2] != os.getpid():\n            raise CommandInvalid("dispatch permit is not original")\n        del _DISPATCH_PERMITS[id(permit)]',
+  'selector': 'tests/test_journey.py::test_s17_forged_reconstructed_and_spent_permits_refuse',
+  'target': 'src/carerelay/journey_commands.py'},
+ {'label': 'Slice17 G16 claim owns commit',
+  'new': 'journey_transaction(binding.episode_id, write=True)',
+  'old': 'journey_transaction(binding.episode_id, write=True, outermost=True)',
+  'selector': 'tests/test_journey.py::test_s17_nested_claim_cannot_dispatch_before_commit',
+  'target': 'src/carerelay/service.py'},
+ {'label': 'Slice17 G16 repository refuses outer nesting',
+  'new': 'if False:\n'
+         '                    raise StateError("action requires its own committing transaction")',
+  'old': 'if outermost:\n'
+         '                    raise StateError("action requires its own committing transaction")',
+  'selector': 'tests/test_journey.py::test_s17_nested_claim_cannot_dispatch_before_commit',
+  'target': 'src/carerelay/state.py'},
+ {'label': 'Slice17 G16 action state and receipt atomic',
+  'new': 'self._store._conn.commit()\n'
+         '            tx.complete_once(binding.operation_id, state="applied", '
+         'result_ref=attempt.attempt_id,',
+  'old': 'tx.complete_once(binding.operation_id, state="applied", result_ref=attempt.attempt_id,',
+  'selector': 'tests/test_journey.py::test_s17_action_crash_never_redispatches[receipt]',
+  'target': 'src/carerelay/tools.py'},
+ {'label': 'Slice17 G33 dispatch serialization',
+  'new': 'self._store._conn.execute("COMMIT")\n'
+         '            self._store._conn.execute("BEGIN")\n'
+         '            response = self._provider.submit_request(route_id, attempt_key)',
+  'old': 'response = self._provider.submit_request(route_id, attempt_key)',
+  'selector': 'tests/test_journey.py::test_s17_dispatch_holds_serialization_until_atomic_commit[stop]',
+  'target': 'src/carerelay/tools.py'},
+ {'label': 'Slice17 G12 barrier body',
+  'new': 'if False:',
+  'old': 'if binding.body_sha256 != request_digest(binding.kind, {"choice_id": choice_id}):',
+  'selector': 'tests/test_journey.py::test_s17_authenticated_command_routes_and_schema_refusals',
+  'target': 'src/carerelay/service.py'},
+ {'label': 'Slice17 G17 fresh receipt identity',
+  'new': 'pass',
+  'old': 'receipt = replace(receipt, replayed=False)',
+  'selector': 'tests/test_journey.py::test_s17_authenticated_command_routes_and_schema_refusals',
+  'target': 'src/carerelay/service.py'},
+ {'label': 'Slice17 G38 tool unavailable mapping',
+  'new': 'except (DomainError, StateError, CoordinatorUnavailable):',
+  'old': 'except (DomainError, StateError, CoordinatorUnavailable, ToolError):',
+  'selector': 'tests/test_journey.py::test_s17_invalid_observation_is_unavailable_with_pending_fence',
+  'target': 'src/carerelay/api.py'}]:
+        rows.append(Mutation(**item))
+    rows.append(Mutation("Slice17 G05 pending action retains terminal transfer", RULES,
+        'elif pending and closure.closure in {ClosureState.OPEN, ClosureState.EXPIRED_UNRESOLVED} and any(',
+        'elif pending and any(',
+        J + "test_s17_pending_action_keeps_valid_human_transfer_renderable[accepted]"))
+    rows.append(Mutation("Slice17 G05 barrier feedback stays on stopped screen", RULES,
+        'if step == "stopped" and snapshot.flow_stop_reason == "barrier_stop":',
+        'if snapshot.flow_stop_reason == "barrier_stop":',
+        J + "test_s17_unsupported_barrier_feedback_cannot_corrupt_terminal_screen[expired]"))
+    rows.append(Mutation("Slice17 G12 barrier receipt referent", SERVICE,
+        'result_kind="barrier", scored=False', 'result_kind="event", scored=False',
+        J + "test_s17_permission_dispatch_and_callback_are_separate"))
+    rows.append(Mutation("Slice17 G12 consent receipt referent", SERVICE,
+        'result_kind="consent", scored=False', 'result_kind="event", scored=False',
+        J + "test_s17_permission_dispatch_and_callback_are_separate"))
+    rows.append(Mutation("Slice17 G32 fresh tool-held clock", "src/carerelay/tools.py",
+        'now = self._now()', 'now = now_utc',
+        J + "test_s17_final_recheck_refuses_before_invocation[deadline]"))
     return rows
 
 
@@ -231,7 +1262,7 @@ def extend_mutations(add):
     ]:
         add("G03 step " + name, RULES, old, new, J + f"test_twelve_screens_and_contradictions[{case}]")
     add("G03 future command filtering", RULES, 'for kind in kinds if kind in IMPLEMENTED_JOURNEY_COMMANDS)',
-        'for kind in kinds)', J + "test_twelve_screens_and_contradictions[plan]")
+        'for kind in kinds)', J + "test_s17_command_offers_refuse_unimplemented_kind")
     add("G03 reveal metadata waiting", RULES, 'if visible:\n        screen_text.update(',
         'if visible and step != "permission":\n        screen_text.update(', F + "test_revealed_plan_metadata_survives_outcome_substate[waiting]")
     add("G03 reveal metadata handoff", RULES, 'if visible:\n        screen_text.update(',

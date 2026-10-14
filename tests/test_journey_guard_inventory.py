@@ -382,7 +382,7 @@ else if(["keys","schema","nonce","episode","operation","uuid_type","length"].inc
  if(test==="op_id")body.operation_id="bad/id";if(test==="op_episode")body.episode_id="wrong";
  if(test==="op_digest")body.body_sha256="A".repeat(64);
  if(test==="op_version")body.disposition_version=1;if(test==="op_parent")body.parent_restatement_id="parent";
- if(test==="op_confirmation")body.confirmation_id="confirmation";if(test==="op_kind"){body.kind="request";body.disposition_version=1;body.purpose="disposition:1:readback:none:request"}
+ if(test==="op_confirmation")body.confirmation_id="confirmation";if(test==="op_kind"){body.kind="future_readback";body.disposition_version=1;body.purpose="disposition:1:readback:none:future_readback"}
  if(test==="op_purpose")body.purpose="caller-purpose";if(test==="operation_fields")body.extra=true;
  function ordered(){return JSON.stringify(Object.fromEntries(Object.keys(body).sort().map(k=>[k,body[k]])))}
  let raw=test==="operation_body"?JSON.stringify(body,null,1):ordered(),payload;
