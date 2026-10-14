@@ -40,6 +40,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
+import json
 from datetime import datetime, timezone
 from datetime import tzinfo
 from typing import Protocol
@@ -1126,14 +1127,15 @@ class EpisodeService:
         return CommandResponse(receipt, self.project_journey(binding.episode_id))
 
     def score_confirmed(self, binding: OperationBinding) -> CommandResponse:
-        from carerelay.adp_extraction import ExtractionInput, ExtractionResult, eligible_offline_output
+        from carerelay.adp_extraction import (ExtractionInput, ExtractionResult, eligible_adp_output,
+            eligible_offline_output, trusted_adp_result, unvalidated_adp_result)
         from carerelay.journey_commands import CommandInvalid, CommandConflict, request_digest, validate_binding
         validate_binding(binding)
         if binding.kind not in {"score_words", "repair_words"} or binding.confirmation_id is None:
             raise CommandInvalid("unpermitted scoring")
         if binding.body_sha256 != request_digest(binding.kind, {"confirmation_id": binding.confirmation_id}):
             raise CommandConflict("scoring body changed")
-        with self._store.journey_transaction(binding.episode_id, write=True) as tx:
+        with self._store.journey_transaction(binding.episode_id, write=True, outermost=True) as tx:
             receipt = tx.find(binding)
             if receipt is None:
                 now = self._clock.now_utc()
@@ -1159,10 +1161,14 @@ class EpisodeService:
             return CommandResponse(receipt, self.project_journey(binding.episode_id))
         request = ExtractionInput(context.confirmed_text, frozenset(policy.action_aliases) | policy.permitted_action_ids,
             frozenset(policy.deadline_forms), frozenset(policy.owner_aliases) | policy.permitted_owner_ids,
-            binding.operation_id, "offline-fixture-v1", "carerelay-readback-v1")
+            binding.operation_id, getattr(self._readback_extractor, "instruction_version", "offline-fixture-v1"), "carerelay-readback-v1")
         try:
             result = self._readback_extractor.extract(request, budget_seconds=5.0)
-            raw = eligible_offline_output(result, confirmed_text=context.confirmed_text)
+            if result.mode == "adp" and (not trusted_adp_result(result)
+                    or result.correlation_id != request.correlation_id or result.instruction_version != request.instruction_version):
+                result = unvalidated_adp_result(request)
+            raw = (eligible_adp_output(result, confirmed_text=context.confirmed_text, correlation_id=binding.operation_id) if result.mode == "adp"
+                   else eligible_offline_output(result, confirmed_text=context.confirmed_text))
             if raw is None and result.validation == "valid":
                 failure = "refused" if result.raw is not None and result.raw.refused else "invalid"
                 result = replace(result, validation=failure, failure_category=failure)
@@ -1170,16 +1176,18 @@ class EpisodeService:
             result = ExtractionResult("local-sim", "transport", None, binding.operation_id, None,
                 "offline-fixture-v1", "carerelay-readback-v1", None, "transport")
             raw = None
-        with self._store.journey_transaction(binding.episode_id, write=True) as tx:
+        with self._store.journey_transaction(binding.episode_id, write=True, outermost=True) as tx:
             now = self._clock.now_utc()
             receipt = tx.find(binding)
+            was_terminal = receipt.state != "pending"
             if receipt.state != "pending":
                 pass
             elif not rules.readback_context_current(context, tx.load_bundle(binding.episode_id), now_utc=now):
                 snapshot = tx.load_snapshot(binding.episode_id)
                 if snapshot.disposition and now >= snapshot.disposition.clinical_deadline_utc and snapshot.expiry_event_id is None:
                     self._store.record_expiry_once(binding.episode_id, snapshot.disposition.version, now)
-                receipt = tx.complete_once(binding.operation_id, state="refused", result_ref=None, scored=False, now_utc=now)
+                receipt = tx.complete_once(binding.operation_id, state="refused", result_ref=None, scored=False, now_utc=now,
+                    provenance=self._extraction_provenance(replace(result, failure_category="current_state_changed")))
             elif raw is None:
                 tx._event("interpretation_unavailable", {"disposition_version": context.disposition_version,
                     "operation_id": binding.operation_id, "confirmation_id": context.confirmation_id}, now)
@@ -1198,19 +1206,27 @@ class EpisodeService:
                     "policy_version": context.policy_version, "confirmation_id": context.confirmation_id,
                     "raw": {**asdict(raw), "uncertain_fields": sorted(raw.uncertain_fields)},
                     "merged": {**asdict(extracted), "uncertain_fields": sorted(extracted.uncertain_fields)},
-                    "retained": [asdict(source) for source in retained], "mode": result.mode, "validation": result.validation}
+                    "retained": [asdict(source) for source in retained], "mode": result.mode, "validation": result.validation,
+                    "transport_provenance": result.transport_provenance, "interpreter": self._extraction_provenance(result)}
                 for source in metadata["retained"]:
                     if isinstance(source["canonical_value"], datetime):
                         source["canonical_value"] = source["canonical_value"].isoformat()
                 ref = tx.append_scored_round(context, extracted, comparison, now_utc=now, provenance=metadata)
                 receipt = tx.complete_once(binding.operation_id, state="applied", result_ref=ref, result_kind="restatement",
                     scored=True, now_utc=now, provenance=self._extraction_provenance(result))
+            if was_terminal:
+                # Audit the completed call without rewriting its immutable supersede receipt.
+                tx._event("extraction_observed", {**self._extraction_provenance(result),
+                    "operation_id": binding.operation_id, "correlation_id": binding.operation_id,
+                    "terminal_state": receipt.state, "scored": False,
+                    "instruction_observation": "configured operator assertion",
+                    "transport_provenance": result.transport_provenance}, now)
         return CommandResponse(receipt, self.project_journey(binding.episode_id))
 
     @staticmethod
     def _extraction_provenance(result):
         return {"interpreter_mode": result.mode, "instruction_version": result.instruction_version,
-            "schema_version": result.schema_version, "transport_profile": "offline",
+            "schema_version": result.schema_version, "transport_profile": result.transport_profile,
             "request_id": result.request_id, "trace_id": result.trace_id, "model_version": result.model_version,
             "validation": result.validation, "failure_category": result.failure_category}
 
@@ -1328,6 +1344,7 @@ class EpisodeService:
             available_origin=self._origin.value,
             simulated=policy_text.simulated,
             fixture_label=policy_text.fixture_label,
+
         )
 
     def project_ledger(self, episode_id: str) -> LedgerSurface:
@@ -1535,6 +1552,14 @@ class EpisodeService:
             fault_assertions=fault_assertions,
             simulated=closure.simulated,
             fixture_label=policy_text.fixture_label,
+            extractions=tuple({**{key: row[key] for key in (
+                "operation_id", "terminal_state", "scored", "interpreter_mode", "instruction_version", "schema_version",
+                "transport_profile", "request_id", "trace_id", "model_version", "validation", "failure_category")},
+                "correlation_id": row["operation_id"], "instruction_observation": "configured operator assertion",
+                "transport_provenance": "fake-offline" if row["transport_profile"] in {"fake-incremental-v1", "fake-complete-v1"}
+                    else "local-sim" if row["transport_profile"] == "offline" else "unknown"}
+                for row in bundle.commands if row["phase"] == "completed" and row["validation"] is not None)
+                + tuple(json.loads(payload) for kind, payload, _ in bundle.events if kind == "extraction_observed"),
         )
 
     def _fault_assertions(

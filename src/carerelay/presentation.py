@@ -197,6 +197,7 @@ class LedgerSurface:
     fault_assertions: tuple[FaultAssertion, ...]
     simulated: bool
     fixture_label: str
+    extractions: tuple[dict[str, object], ...] = ()
 
     def as_dict(self) -> dict[str, object]:
         """The serialised ledger. Order is stable so a test can pin it."""
@@ -210,6 +211,7 @@ class LedgerSurface:
             "events": list(self.events),
             "expiry": list(self.expiry),
             "restatements": list(self.restatements),
+            "extractions": list(self.extractions),
             "hint_events": list(self.hint_events),
             "barriers": list(self.barriers),
             "escalation": self.escalation,
