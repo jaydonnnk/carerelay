@@ -76,27 +76,58 @@ export function decodeOperation(token: string, key: string): OperationBinding | 
         !Number.isSafeInteger(value.expected_revision) || value.expected_revision < 0 ||
         typeof value.episode_id !== "string" || !UUID.test(value.episode_id) ||
         typeof value.operation_id !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(value.operation_id) ||
-        typeof value.body_sha256 !== "string" || !/^[0-9a-f]{64}$/.test(value.body_sha256) ||
-        value.disposition_version !== null || value.parent_restatement_id !== null || value.confirmation_id !== null ||
-        !["create", "select_example"].includes(value.kind) || value.purpose !== `episode:${value.kind}`) return null;
+        typeof value.body_sha256 !== "string" || !/^[0-9a-f]{64}$/.test(value.body_sha256)) return null;
+    if (["create", "select_example"].includes(value.kind)) {
+      if (value.disposition_version !== null || value.parent_restatement_id !== null || value.confirmation_id !== null ||
+          value.purpose !== `episode:${value.kind}`) return null;
+    } else {
+      if (!["readback_started", "confirm_words", "score_words", "repair_words", "show_plan", "hide_plan", "h3", "supersede_extraction"].includes(value.kind) ||
+          !Number.isSafeInteger(value.disposition_version) || value.disposition_version < 1) return null;
+      for (const ref of [value.parent_restatement_id, value.confirmation_id]) {
+        if (ref !== null && (typeof ref !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(ref))) return null;
+      }
+      const parts = value.purpose.split(":");
+      if (parts.length !== 5 || parts[0] !== "disposition" || parts[1] !== String(value.disposition_version) ||
+          parts[2] !== "readback" || !/^[A-Za-z0-9_-]{1,128}$/.test(parts[3]) || parts[4] !== value.kind) return null;
+      if (value.kind === "readback_started" && parts[3] !== "none") return null;
+      if (["confirm_words", "score_words", "repair_words", "h3", "supersede_extraction"].includes(value.kind) && parts[3] === "none") return null;
+      if (["readback_started", "show_plan", "hide_plan", "h3"].includes(value.kind) &&
+          (value.parent_restatement_id !== null || value.confirmation_id !== null)) return null;
+      if (value.kind === "confirm_words" && value.confirmation_id !== null) return null;
+      if (["score_words", "repair_words", "supersede_extraction"].includes(value.kind) && value.confirmation_id === null) return null;
+      if (value.kind === "score_words" && value.parent_restatement_id !== null) return null;
+      if (value.kind === "repair_words" && value.parent_restatement_id === null) return null;
+    }
     return value as OperationBinding;
   } catch { return null; }
 }
 
 /** Host/Origin and cookie checks happen before any backend call. */
 export function allowAction(origin: string | null, host: string | null, cookie: string | undefined,
-                            token: string, key: string, kind: "create" | "select_example",
+                            token: string, key: string, kind: string,
                             loopbackTest: boolean): EpisodeLocator | null {
+  try {
+    const locator = allowPreparation(origin, host, cookie, key, loopbackTest);
+    const binding = decodeOperation(token, key);
+    if (!locator || !binding || binding.kind !== kind || binding.episode_id !== locator.episode_id) return null;
+    if (kind === "create" && (binding.operation_id !== locator.operation_id || binding.expected_revision !== 0)) return null;
+    return locator;
+  } catch { return null; }
+}
+
+export function allowPreparation(origin: string | null, host: string | null, cookie: string | undefined,
+                                 key: string, loopbackTest: boolean): EpisodeLocator | null {
   try {
     if (!origin || !host) return null;
     const url = new URL(origin);
     if (url.username || url.password || url.search || url.hash || url.pathname !== "/" ||
         url.host.toLowerCase() !== host.toLowerCase()) return null;
     locatorCookieOptions(url, loopbackTest);
-    const locator = cookie ? decodeLocator(cookie, key) : null;
-    const binding = decodeOperation(token, key);
-    if (!locator || !binding || binding.kind !== kind || binding.episode_id !== locator.episode_id) return null;
-    if (kind === "create" && (binding.operation_id !== locator.operation_id || binding.expected_revision !== 0)) return null;
-    return locator;
+    return cookie ? decodeLocator(cookie, key) : null;
   } catch { return null; }
+}
+
+export function confirmedWordsDigest(text: string, parentId: string | null): string {
+  return createHash("sha256").update(ordered({ kind: "confirm_words",
+    payload: { parent_id: parentId, text }, schema: "carerelay-command-v1" })).digest("hex");
 }

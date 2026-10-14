@@ -1,5 +1,5 @@
 import "server-only";
-import { readJourney, readCommand, type Journey, type CommandResult } from "./journey";
+import { readJourney, readCommand, readConflict, readPrepared, type Journey, type CommandResult, type ReadbackKind } from "./journey";
 /**
  * The one place the frontend talks to the CareRelay API.
  *
@@ -37,6 +37,7 @@ export type PatientProjection = Journey;
 export type Result<T> =
   | { ok: true; value: T }
   | { ok: false; reason: "unavailable" | "unauthorised" | "not_found"; detail: string };
+export type CommandOutcome = Result<CommandResult> | { ok: false; reason: "conflict"; journey: Journey; detail: string };
 
 async function call<T>(
   path: string,
@@ -84,21 +85,53 @@ export async function getEpisode(episodeId: string): Promise<Result<PatientProje
 }
 
 /** Exact user-selected mutations; response loss is recovered by a separate GET. */
-export async function createCommand(episodeId: string, operationToken: string): Promise<Result<CommandResult>> {
+export async function createCommand(episodeId: string, operationToken: string): Promise<CommandOutcome> {
   return command(`/api/episodes`, episodeId, { operation_token: operationToken });
 }
-export async function selectExampleCommand(episodeId: string, operationToken: string): Promise<Result<CommandResult>> {
+export async function selectExampleCommand(episodeId: string, operationToken: string): Promise<CommandOutcome> {
   return command(`/api/episodes/${encodeURIComponent(episodeId)}/intake`, episodeId,
-    { operation_token: operationToken, example_id: "scripted-appointment" });
+    { operation_token: operationToken, example_id: "scripted-appointment" }, "select_example");
 }
-async function command(path: string, episodeId: string, body: Record<string, string>): Promise<Result<CommandResult>> {
+async function command(path: string, episodeId: string, body: Record<string, string>, kind: "create" | "select_example" | ReadbackKind = "create"): Promise<CommandOutcome> {
   try {
     const response = await fetch(`${API_URL}${path}`, { method: "POST", redirect: "error", cache: "no-store",
       signal: AbortSignal.timeout(5000), headers: { "Content-Type": "application/json", ...(API_TOKEN ? { Authorization: `Bearer ${API_TOKEN}` } : {}) },
       body: JSON.stringify(body) });
-    const value = await readCommand(response, episodeId);
+    if (response.status === 409) {
+      const journey = await readConflict(response, episodeId);
+      return journey ? { ok: false, reason: "conflict", journey, detail: "command conflict" } :
+        { ok: false, reason: "unavailable", detail: "journey unavailable" };
+    }
+    const value = await readCommand(response, episodeId, kind);
     return value ? { ok: true, value } : { ok: false, reason: "unavailable", detail: "journey unavailable" };
   } catch { return { ok: false, reason: "unavailable", detail: "journey unavailable" }; }
+}
+
+export async function prepareWordsCommand(episodeId: string, digest: string, parentId: string | null): Promise<Result<string>> {
+  try {
+    const query = new URLSearchParams({ prepare_kind: "confirm_words", body_sha256: digest });
+    if (parentId !== null) query.set("parent_id", parentId);
+    const response = await fetch(`${API_URL}/api/episodes/${encodeURIComponent(episodeId)}?${query}`, {
+      cache: "no-store", redirect: "error", signal: AbortSignal.timeout(5000),
+      headers: API_TOKEN ? { Authorization: `Bearer ${API_TOKEN}` } : {},
+    });
+    const token = await readPrepared(response);
+    return token ? { ok: true, value: token } : { ok: false, reason: "unavailable", detail: "journey unavailable" };
+  } catch { return { ok: false, reason: "unavailable", detail: "journey unavailable" }; }
+}
+
+export async function readbackCommand(episodeId: string, token: string, kind: ReadbackKind,
+                                     parentId: string | null, text?: string, oldId?: string): Promise<CommandOutcome> {
+  const base = `/api/episodes/${encodeURIComponent(episodeId)}`;
+  const body: Record<string, string> = { operation_token: token };
+  let path: string;
+  if (kind === "confirm_words" && text !== undefined) { path = `${base}/transcript-confirmations`; body.text = text; }
+  else if (kind === "score_words") path = `${base}/restatements`;
+  else if (kind === "repair_words" && parentId !== null) path = `${base}/restatements/${encodeURIComponent(parentId)}/repairs`;
+  else if (["readback_started", "show_plan", "hide_plan", "h3"].includes(kind)) path = `${base}/journey-events`;
+  else if (kind === "supersede_extraction" && oldId) path = `${base}/extractions/${encodeURIComponent(oldId)}/supersede`;
+  else return { ok: false, reason: "unavailable", detail: "journey unavailable" };
+  return command(path, episodeId, body, kind);
 }
 
 /**
@@ -157,6 +190,8 @@ export type Ledger = {
     repair_round: number;
     hint_level: string;
     dwell_seconds: number | null;
+    extraction_provenance: { mode: string; validation: string; confirmation_id: string;
+      retained: { field: string; source_restatement_id: string; source_confirmation_id: string }[] } | null;
   }[];
   escalation: { escalation_id: string; human_path: string | null } | null;
   acceptance: { acceptance_id: string } | null;

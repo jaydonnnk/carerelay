@@ -178,3 +178,17 @@ p.ledger-note {
 .journey button:disabled { cursor: wait; opacity: .65; }
 .journey form { margin-top: 1rem; }
 @media (max-width: 380px) { .journey-plan > div { grid-template-columns: 1fr; gap: .2rem; } }
+
+.journey textarea { display: block; box-sizing: border-box; width: 100%; min-height: 7em;
+  font: inherit; padding: .7em; color: var(--text); background: #fff;
+  border: 2px solid var(--accent); border-radius: .4rem; resize: vertical; }
+.journey label { font-weight: 650; }
+.journey .control { margin: .4rem .4rem .4rem 0; }
+.answer-preview { margin-block: 1.3rem; }
+.answer-preview blockquote { margin: .75rem 0; padding-left: 1rem; border-left: 3px solid var(--accent);
+  white-space: pre-wrap; overflow-wrap: anywhere; }
+.timing-repair { margin-block: 1rem; }
+.plan-dialog { box-sizing: border-box; width: min(36rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem);
+  overflow: auto; padding: 1.3rem; color: var(--text); background: #faf8f4; border: 2px solid var(--accent);
+  border-radius: .5rem; font: inherit; }
+.plan-dialog::backdrop { background: rgb(40 25 36 / 45%); }

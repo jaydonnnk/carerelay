@@ -9,8 +9,11 @@ export const RECOVERY_COPY = {
 } as const;
 export const JOURNEY_LABEL = "Demo only · fictional plan · no real care";
 export const MAX_JOURNEY_BYTES = 16384;
-export type CommandOffer = { kind: "select_example"; offer_id: string;
-  permitted_choice_ids: ["scripted-appointment"]; operation_token: string | null };
+export const READBACK_KINDS = ["readback_started", "confirm_words", "score_words", "repair_words",
+  "show_plan", "hide_plan", "h3", "supersede_extraction"] as const;
+export type ReadbackKind = typeof READBACK_KINDS[number];
+export type CommandOffer = { kind: "select_example" | ReadbackKind; offer_id: string;
+  permitted_choice_ids: string[]; operation_token: string | null };
 export type PlanView = { disposition_version: number; policy_version: string; action_id: string;
   action_text: string; deadline_utc: string; deadline_display: string; display_timezone: string;
   original_owner_id: string; original_owner_display: string; current_owner_id: string | null;
@@ -32,7 +35,7 @@ export type Journey = { schema_version: "carerelay-journey-v1"; episode_id: stri
 export type NoPlanJourney = Journey & { disposition_version: null; policy_version: null; step: "start";
   plan: null; outcome: null; revealed_plan: null; plan_redacted: false; question: null; lines: [] };
 export type CommandResult = { receipt: { operation_id: string; state: string; result_ref: string | null;
-  scored: false; replayed: boolean }; journey: Journey };
+  scored: boolean; replayed: boolean }; journey: Journey };
 
 const ROOT_KEYS = ["schema_version", "episode_id", "revision", "as_of_utc", "clock_mode",
   "disposition_version", "policy_version", "plan_redacted", "plan", "outcome", "revealed_plan",
@@ -92,17 +95,25 @@ export function decodeJourney(value: unknown, expectedId: string): Journey | nul
   if (!Array.isArray(value.lines) || !value.lines.every(x => bounded(x))) return null;
   if (!record(value.text) ||
       !Object.values(value.text).every(x => bounded(x))) return null;
-  if (!Array.isArray(value.commands) || value.commands.length > 1) return null;
+  if (!Array.isArray(value.commands)) return null;
+  const commandKinds: string[] = [];
   for (const offer of value.commands) {
     if (!record(offer) || !exactKeys(offer, ["kind", "offer_id", "permitted_choice_ids", "operation_token"]) ||
-        offer.kind !== "select_example" || !bounded(offer.offer_id, 128) ||
-        !Array.isArray(offer.permitted_choice_ids) || offer.permitted_choice_ids.length !== 1 ||
-        offer.permitted_choice_ids[0] !== "scripted-appointment" ||
+        !bounded(offer.offer_id, 128) ||
+        !Array.isArray(offer.permitted_choice_ids) ||
         (offer.operation_token !== null && (!bounded(offer.operation_token, 4096) ||
           !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(offer.operation_token)))) return null;
+    if (typeof offer.kind !== "string" || commandKinds.includes(offer.kind)) return null;
+    commandKinds.push(offer.kind);
+    if (offer.kind === "select_example" ?
+      (offer.permitted_choice_ids.length !== 1 || offer.permitted_choice_ids[0] !== "scripted-appointment") :
+      offer.kind === "supersede_extraction" ?
+      (offer.permitted_choice_ids.length !== 1 || !bounded(offer.permitted_choice_ids[0], 128)) :
+      offer.permitted_choice_ids.length !== 0) return null;
   }
-  if (flow.interpretation === "pending" && value.commands.length !== 0) return null;
   if (value.disposition_version === null) {
+    if (commandKinds.some(k => k !== "select_example")) return null;
+    if (flow.interpretation === "pending" && value.commands.length !== 0) return null;
     if (value.step !== "start" || value.plan_redacted !== false) return null;
     for (const key of ["policy_version", "plan", "outcome", "revealed_plan", "question", "closure", "execution", "evidence", "action_owner_id"]) {
       if (value[key] !== null) return null;
@@ -120,7 +131,6 @@ export function decodeJourney(value: unknown, expectedId: string): Journey | nul
   if (!Number.isSafeInteger(value.disposition_version) || Number(value.disposition_version) < 1) return null;
   if (value.policy_version !== "fixture-provisional-0") return null;
   if (!["plan", "readback", "repair", "barrier", "permission", "unresolved", "stopped", "expired", "accepted", "handoff", "documented"].includes(value.step as string)) return null;
-  if (value.commands.length !== 0) return null; // Future progression is not exposed in Slice 15.
   if (typeof value.plan_redacted !== "boolean" || typeof value.care_evidenced !== "boolean") return null;
   if (!record(value.outcome) || !exactKeys(value.outcome, OUTCOME_KEYS)) return null;
   const outcome = value.outcome;
@@ -170,7 +180,8 @@ export function decodeJourney(value: unknown, expectedId: string): Journey | nul
   if (value.care_evidenced && (outcome.evidence !== "documented" || outcome.closure !== "closed_with_evidence" || value.step !== "documented")) return null;
   if (value.step === "documented" && value.care_evidenced !== true) return null;
   if (value.step === "unresolved" && outcome.execution !== "failed" && outcome.escalation_outcome !== "failed") return null;
-  if (value.step === "repair" && (flow.selected_repair_field !== "deadline_utc" || Number(flow.completed_repairs) >= 2)) return null;
+  if (value.step === "repair" && (flow.selected_repair_field !== "deadline_utc" || Number(flow.completed_repairs) >= 2 ||
+      !["H2", "H3"].includes(flow.effective_hint as string))) return null;
   if (outcome.closure === "open" && value.plan && value.plan.current_owner_id !== value.plan.original_owner_id) return null;
   if (value.plan_redacted && (outcome.accepted_by !== null || outcome.escalation_path !== null)) return null;
   if (["readback", "repair"].includes(value.step as string) && flow.readback_attempt_id === null) return null;
@@ -179,6 +190,19 @@ export function decodeJourney(value: unknown, expectedId: string): Journey | nul
       (value.step === "permission" && outcome.execution !== "attempted"));
   if (needsQuestion !== (value.question !== null)) return null;
   if (value.step === "plan" && outcome.execution === "failed") return null;
+  const allowed: Record<string, string[]> = {
+    plan: outcome.execution === "not_started" && outcome.escalation_path === null ? ["readback_started", "show_plan", "hide_plan"] : ["show_plan", "hide_plan"],
+    readback: ["confirm_words", flow.latest_restatement_id === null ? "score_words" : "repair_words", "show_plan", "hide_plan", "h3"],
+    repair: ["confirm_words", "repair_words", "show_plan", "hide_plan", "h3"],
+    barrier: ["show_plan", "hide_plan"], permission: ["show_plan", "hide_plan"],
+    stopped: ["show_plan", "hide_plan"], unresolved: ["show_plan", "hide_plan"],
+    expired: [], accepted: [], handoff: [], documented: [],
+  };
+  const allowedKinds = flow.interpretation === "pending" ?
+    (flow.stopped && outcome.closure === "open" ? ["show_plan", "hide_plan"] :
+      ["readback", "repair"].includes(value.step as string) ? ["show_plan", "hide_plan", "h3", "supersede_extraction"] : []) :
+    allowed[value.step as string];
+  if (!commandKinds.every(k => allowedKinds.includes(k))) return null;
   const textKeys: Record<string, string[]> = {
     plan: ["heading", "action_label", "deadline_label", "owner_label"],
     readback: ["heading"], repair: ["heading"], barrier: ["heading", "description"],
@@ -188,7 +212,15 @@ export function decodeJourney(value: unknown, expectedId: string): Journey | nul
   };
   const selectedTextKeys = [...textKeys[value.step as string]];
   if (flow.card_visible) selectedTextKeys.push("revealed_heading", "reveal_action_label", "reveal_deadline_label", "reveal_owner_label");
-  if (["pending", "unavailable", "uncertain"].includes(flow.interpretation as string)) selectedTextKeys.push("feedback");
+  if (!flow.stopped && outcome.closure === "open" && ["pending", "unavailable", "uncertain"].includes(flow.interpretation as string) ||
+      (["readback", "repair"].includes(value.step as string) && flow.latest_restatement_id !== null && value.text.feedback !== undefined)) selectedTextKeys.push("feedback");
+  if (["readback", "repair"].includes(value.step as string)) {
+    selectedTextKeys.push("input_label", "input_help", "input_error", "review_label", "preview_label", "answer_label", "confirmation_label", "confirmation_help");
+    if (value.step === "repair") selectedTextKeys.push("repair_example_label", "repair_answer", "repair_plan_label", "repair_deadline");
+    if (value.text.saved_words !== undefined) selectedTextKeys.push("saved_words", "retry_label", "retry_help");
+  } else if (value.text.saved_words !== undefined) return null;
+  if (commandKinds.some(k => ["show_plan", "hide_plan"].includes(k))) selectedTextKeys.push("show_label", "hide_label");
+  if (commandKinds.includes("readback_started")) selectedTextKeys.push("readback_label");
   if (!exactKeys(value.text, selectedTextKeys)) return null;
   return value as Journey; // The complete bounded projection was checked above.
 }
@@ -209,7 +241,7 @@ export function reconcileJourney(current: Journey | null, next: Journey, fromRea
 }
 
 async function boundedJson(response: Response): Promise<unknown> {
-  if (!response.ok || !response.body) return null;
+  if (![200, 202, 409, 503].includes(response.status) || !response.body) return null;
   const reader = response.body.getReader();
   const chunks: Uint8Array[] = [];
   let count = 0;
@@ -229,16 +261,36 @@ async function boundedJson(response: Response): Promise<unknown> {
   finally { reader.releaseLock(); }
 }
 export async function readJourney(response: Response, expectedId: string): Promise<Journey | null> {
+  if (response.status !== 200) return null;
   return decodeJourney(await boundedJson(response), expectedId);
 }
-export async function readCommand(response: Response, expectedId: string): Promise<CommandResult | null> {
+export async function readCommand(response: Response, expectedId: string, kind?: CommandOffer["kind"] | "create"): Promise<CommandResult | null> {
   const value = await boundedJson(response);
   if (!record(value) || !exactKeys(value, ["receipt", "journey"]) || !record(value.receipt) ||
       !exactKeys(value.receipt, ["operation_id", "state", "result_ref", "scored", "replayed"])) return null;
   const r = value.receipt;
   if (!bounded(r.operation_id, 128) || !["pending", "applied", "refused", "unavailable", "superseded"].includes(r.state as string) ||
-      !nullableString(r.result_ref) || r.scored !== false || typeof r.replayed !== "boolean") return null;
+      !nullableString(r.result_ref) || typeof r.scored !== "boolean" || typeof r.replayed !== "boolean") return null;
+  if (r.scored && (r.state !== "applied" || !bounded(r.result_ref, 128))) return null;
+  const scoring = kind === "score_words" || kind === "repair_words";
+  if (r.scored && !scoring) return null;
+  if (scoring && r.state === "applied" && !r.scored) return null;
+  if ((response.status === 503) !== (r.state === "unavailable")) return null;
   const journey = decodeJourney(value.journey, expectedId);
   if (!journey || (r.state === "pending") !== (response.status === 202)) return null;
   return { receipt: r, journey } as CommandResult;
+}
+
+export async function readConflict(response: Response, expectedId: string): Promise<Journey | null> {
+  if (response.status !== 409) return null;
+  const value = await boundedJson(response);
+  return record(value) && exactKeys(value, ["detail", "journey"]) && typeof value.detail === "string" ?
+    decodeJourney(value.journey, expectedId) : null;
+}
+
+export async function readPrepared(response: Response): Promise<string | null> {
+  if (response.status !== 200) return null;
+  const value = await boundedJson(response);
+  return record(value) && exactKeys(value, ["operation_token"]) && bounded(value.operation_token, 4096) &&
+    /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value.operation_token) ? value.operation_token : null;
 }

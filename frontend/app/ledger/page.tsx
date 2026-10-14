@@ -190,7 +190,9 @@ export default async function LedgerPage() {
             <tr key={`restatement-${index}`}>
               <td>restatement, round {row.repair_round}</td>
               <td>{row.hint_level}</td>
-              <td>{row.outcome}</td>
+              <td>{row.outcome}<br />{row.extraction_provenance ?
+                `${row.extraction_provenance.mode} offline extraction, ${row.extraction_provenance.validation}` :
+                "legacy extraction: confirmation scope and offsets unknown"}</td>
               <td>{row.dwell_seconds === null ? "not recorded" : row.dwell_seconds}</td>
             </tr>
           ))}
