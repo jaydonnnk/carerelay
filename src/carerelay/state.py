@@ -292,6 +292,14 @@ class JourneyTransaction:
         self._insert(values)
         return CommandReceipt(operation_id, state, result_ref, scored, False)
 
+    def reserve_dispatch_once(self, attempt_key: str, *, now_utc: datetime) -> bool:
+        """A reservation is evidence of invocation, never permission to resume."""
+        for kind, payload, _ in self.store.list_events(self.episode_id):
+            if kind == "dispatch_started" and json.loads(payload).get("attempt_key") == attempt_key:
+                return False
+        self._event("dispatch_started", {"attempt_key": attempt_key, "simulated": True}, now_utc)
+        return True
+
     def append_confirmed_words(self, context, *, now_utc: datetime) -> str:
         from carerelay.journey_commands import CommandConflict, request_digest
         bundle = self.load_bundle(self.episode_id)
@@ -1022,9 +1030,11 @@ class SqliteEpisodeStore:
     # -- audit -------------------------------------------------------------
 
     @contextmanager
-    def journey_transaction(self, episode_id: str, *, write: bool) -> Iterator[JourneyTransaction]:
+    def journey_transaction(self, episode_id: str, *, write: bool, outermost: bool = False) -> Iterator[JourneyTransaction]:
         with self._mutex:
             if self._journey_tx is not None:
+                if outermost:
+                    raise StateError("action requires its own committing transaction")
                 if self._journey_tx.episode_id != episode_id or (write and not self._journey_write):
                     raise StateError("incompatible nested transaction")
                 yield self._journey_tx
@@ -2390,7 +2400,7 @@ class EpisodeStore(Protocol):
     def list_hint_events(self, episode_id: str) -> tuple[HintEventRecord, ...]: ...
     def record_transcript_confirmation(self, episode_id: str, *, text: str, now_utc: datetime) -> str: ...
     def has_transcript_confirmation(self, episode_id: str, confirmation_id: str) -> bool: ...
-    def journey_transaction(self, episode_id: str, *, write: bool) -> Iterator[JourneyTransaction]: ...
+    def journey_transaction(self, episode_id: str, *, write: bool, outermost: bool = False) -> Iterator[JourneyTransaction]: ...
     def create_with_claim_once(self, binding: OperationBinding, *, persona: str, now_utc: datetime) -> CommandReceipt: ...
     def load_journey_bundle(self, episode_id: str) -> JourneyBundle: ...
     def load_snapshot(self, episode_id: str) -> EpisodeSnapshot: ...

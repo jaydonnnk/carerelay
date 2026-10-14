@@ -6,10 +6,40 @@ import hashlib
 import hmac
 import json
 import re
+import os
+import threading
 from collections.abc import Mapping
 from dataclasses import asdict
 
-from carerelay.domain.models import OperationBinding
+from carerelay.domain.models import DispatchPermit, OperationBinding
+
+
+_DISPATCH_PERMITS = {}
+_PERMIT_LOCK = threading.Lock()
+
+
+def _register_dispatch(binding, claim, attempt_key):
+    """Only the newly claiming service path registers an original execution."""
+    if not claim.newly_claimed or binding.kind != "request":
+        raise CommandInvalid("replay has no dispatch authority")
+    permit = DispatchPermit(binding.operation_id, attempt_key, claim.claim_revision)
+    with _PERMIT_LOCK:
+        _DISPATCH_PERMITS[id(permit)] = (permit, binding, os.getpid())
+    return permit
+
+
+def _consume_dispatch(permit):
+    with _PERMIT_LOCK:
+        registered = _DISPATCH_PERMITS.get(id(permit))
+        if registered is None or registered[2] != os.getpid():
+            raise CommandInvalid("dispatch permit is not original")
+        del _DISPATCH_PERMITS[id(permit)]
+    return registered[1]
+
+
+def _discard_dispatch(permit):
+    with _PERMIT_LOCK:
+        _DISPATCH_PERMITS.pop(id(permit), None)
 
 COMMAND_KINDS = (
     "create", "select_example", "readback_started", "confirm_words", "score_words",

@@ -387,9 +387,11 @@ class PostgresEpisodeStore:
     # -- audit -------------------------------------------------------------
 
     @contextmanager
-    def journey_transaction(self, episode_id: str, *, write: bool) -> Iterator[JourneyTransaction]:
+    def journey_transaction(self, episode_id: str, *, write: bool, outermost: bool = False) -> Iterator[JourneyTransaction]:
         with self._mutex:
             if getattr(self, "_journey_tx", None) is not None:
+                if outermost:
+                    raise StateError("action requires its own committing transaction")
                 if self._journey_tx.episode_id != episode_id or (write and not self._journey_write):
                     raise StateError("incompatible nested transaction")
                 yield self._journey_tx

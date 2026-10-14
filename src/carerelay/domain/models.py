@@ -268,6 +268,15 @@ class ReadbackContext:
 
 
 @dataclass(frozen=True)
+class DispatchPermit:
+    """Internal identity capability; reconstruction conveys no authority."""
+
+    operation_id: str
+    attempt_key: str
+    claim_revision: int
+
+
+@dataclass(frozen=True)
 class PlanComparison:
     """Three disjoint, complete sets over `COMPARISON_FIELDS`.
 
