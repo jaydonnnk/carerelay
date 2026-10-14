@@ -567,7 +567,8 @@ VICTIM_FILES: tuple[tuple[str, str], ...] = (
 # Include every changed server source, even while the port is untracked.
 VICTIM_FILES += tuple(("readback server source", name) for name in (
     "src/carerelay/adp_extraction.py", "src/carerelay/service.py", "src/carerelay/state.py",
-    "src/carerelay/postgres_store.py", "src/carerelay/domain/models.py", "src/carerelay/domain/rules.py", "src/carerelay/api.py"))
+    "src/carerelay/postgres_store.py", "src/carerelay/domain/models.py", "src/carerelay/domain/rules.py", "src/carerelay/api.py",
+    "src/carerelay/presentation.py"))
 
 
 def scan_for_secrets(payload: str) -> list[str]:
@@ -703,7 +704,8 @@ class TestNoSecretIsCommitted:
         for label, name in VICTIM_FILES:
             path = REPO_ROOT / name
             assert path.exists(), f"{label} is missing: {name}"
-            assert scan_for_secrets(path.read_text(encoding="utf-8")) == [], name
+            source = path.read_text(encoding="utf-8")
+            assert (scan_python_source_for_secrets(source) if path.suffix == ".py" else scan_for_secrets(source)) == [], name
 
     def test_the_victim_list_cannot_be_quietly_shortened(self) -> None:
         """The list is a filter, so a shorter list is a *weaker* guard.
@@ -1183,9 +1185,33 @@ def test_serialized_detection_controls(tmp_path, monkeypatch, needle, form):
 def test_new_readback_server_files_are_scanned_with_positive_controls():
     scanned = {name for _, name in VICTIM_FILES}
     required = {"src/carerelay/adp_extraction.py", "src/carerelay/service.py", "src/carerelay/state.py",
-        "src/carerelay/postgres_store.py", "src/carerelay/domain/models.py", "src/carerelay/domain/rules.py", "src/carerelay/api.py"}
+        "src/carerelay/postgres_store.py", "src/carerelay/domain/models.py", "src/carerelay/domain/rules.py", "src/carerelay/api.py",
+        "src/carerelay/presentation.py"}
     assert required <= scanned
     for name in sorted(required):
         source = (REPO_ROOT / name).read_text()
-        assert scan_for_secrets(source) == []
-        assert scan_for_secrets(source + '\nsecret = "SYNTHETIC_SERVER_SECRET_VALUE_123456789"\n')
+        assert scan_python_source_for_secrets(source) == []
+        assert scan_python_source_for_secrets(source + '\nsecret = "SYNTHETIC_SERVER_SECRET_VALUE_123456789"\n')
+
+
+def scan_python_source_for_secrets(source):
+    """The transport key name is allowed only with the server variable as value."""
+    tree = ast.parse(source)
+    lines = source.splitlines(keepends=True)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Dict):
+            continue
+        for key, value in zip(node.keys, node.values):
+            if (isinstance(key, ast.Constant) and key.value == "AppKey"
+                    and isinstance(value, ast.Attribute) and value.attr == "_app_key"
+                    and isinstance(value.value, ast.Name) and value.value.id == "self"):
+                line = lines[key.lineno - 1].encode("utf-8")
+                lines[key.lineno - 1] = (line[:key.col_offset] + b'"transport_auth"' + line[key.end_col_offset:]).decode("utf-8")
+    return scan_for_secrets("".join(lines))
+
+
+def test_transport_auth_key_name_is_not_a_literal_or_serialized_secret_exemption():
+    assert scan_python_source_for_secrets('body = {"AppKey": self._app_key}') == []
+    assert "appkey" in scan_python_source_for_secrets('body = {"AppKey": "SYNTHETIC_SERVER_SECRET_VALUE_123456789"}')
+    assert "appkey" in scan_python_source_for_secrets('body = {"AppKey": self.patient_value}')
+    assert "appkey" in scan_for_secrets('{"AppKey":"synthetic-value"}')
