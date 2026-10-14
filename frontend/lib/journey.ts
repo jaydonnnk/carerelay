@@ -12,7 +12,9 @@ export const MAX_JOURNEY_BYTES = 16384;
 export const READBACK_KINDS = ["readback_started", "confirm_words", "score_words", "repair_words",
   "show_plan", "hide_plan", "h3", "supersede_extraction"] as const;
 export type ReadbackKind = typeof READBACK_KINDS[number];
-export type CommandOffer = { kind: "select_example" | ReadbackKind; offer_id: string;
+export const PERMISSION_KINDS = ["select_barrier", "grant_share", "decline_share", "revoke_share", "request"] as const;
+export type PermissionKind = typeof PERMISSION_KINDS[number];
+export type CommandOffer = { kind: "select_example" | ReadbackKind | PermissionKind; offer_id: string;
   permitted_choice_ids: string[]; operation_token: string | null };
 export type PlanView = { disposition_version: number; policy_version: string; action_id: string;
   action_text: string; deadline_utc: string; deadline_display: string; display_timezone: string;
@@ -104,12 +106,17 @@ export function decodeJourney(value: unknown, expectedId: string): Journey | nul
         (offer.operation_token !== null && (!bounded(offer.operation_token, 4096) ||
           !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(offer.operation_token)))) return null;
     if (typeof offer.kind !== "string" || commandKinds.includes(offer.kind)) return null;
+    if (!["select_example", ...READBACK_KINDS, ...PERMISSION_KINDS].some(k => k === offer.kind)) return null;
     commandKinds.push(offer.kind);
     if (offer.kind === "select_example" ?
       (offer.permitted_choice_ids.length !== 1 || offer.permitted_choice_ids[0] !== "scripted-appointment") :
       offer.kind === "supersede_extraction" ?
       (offer.permitted_choice_ids.length !== 1 || !bounded(offer.permitted_choice_ids[0], 128)) :
+      offer.kind === "select_barrier" ?
+      (offer.permitted_choice_ids.length !== 3 || new Set(offer.permitted_choice_ids).size !== 3 ||
+       !offer.permitted_choice_ids.every(id => ["booking", "transport", "other"].some(k => k === id)) || offer.operation_token !== null) :
       offer.permitted_choice_ids.length !== 0) return null;
+    if (PERMISSION_KINDS.some(k => k === offer.kind) && offer.kind !== "select_barrier" && offer.operation_token === null) return null;
   }
   if (value.disposition_version === null) {
     if (commandKinds.some(k => k !== "select_example")) return null;
@@ -180,6 +187,8 @@ export function decodeJourney(value: unknown, expectedId: string): Journey | nul
   if (value.care_evidenced && (outcome.evidence !== "documented" || outcome.closure !== "closed_with_evidence" || value.step !== "documented")) return null;
   if (value.step === "documented" && value.care_evidenced !== true) return null;
   if (value.step === "unresolved" && outcome.execution !== "failed" && outcome.escalation_outcome !== "failed") return null;
+  if (value.step === "permission" && !["not_started", "attempted"].includes(outcome.execution as string)) return null;
+  if (value.step === "barrier" && outcome.execution !== "not_started") return null;
   if (value.step === "repair" && (flow.selected_repair_field !== "deadline_utc" || Number(flow.completed_repairs) >= 2 ||
       !["H2", "H3"].includes(flow.effective_hint as string))) return null;
   if (outcome.closure === "open" && value.plan && value.plan.current_owner_id !== value.plan.original_owner_id) return null;
@@ -191,15 +200,18 @@ export function decodeJourney(value: unknown, expectedId: string): Journey | nul
   if (needsQuestion !== (value.question !== null)) return null;
   if (value.step === "plan" && outcome.execution === "failed") return null;
   const allowed: Record<string, string[]> = {
-    plan: outcome.execution === "not_started" && outcome.escalation_path === null ? ["readback_started", "show_plan", "hide_plan"] : ["show_plan", "hide_plan"],
+    plan: outcome.execution === "not_started" && outcome.escalation_path === null ? ["readback_started", "show_plan", "hide_plan", "grant_share", "revoke_share"] : ["show_plan", "hide_plan", "revoke_share"],
     readback: ["confirm_words", flow.latest_restatement_id === null ? "score_words" : "repair_words", "show_plan", "hide_plan", "h3"],
     repair: ["confirm_words", "repair_words", "show_plan", "hide_plan", "h3"],
-    barrier: ["show_plan", "hide_plan"], permission: ["show_plan", "hide_plan"],
-    stopped: ["show_plan", "hide_plan"], unresolved: ["show_plan", "hide_plan"],
-    expired: [], accepted: [], handoff: [], documented: [],
+    barrier: ["select_barrier", "show_plan", "hide_plan"],
+    permission: outcome.execution === "attempted" ? ["show_plan", "hide_plan", "revoke_share"] :
+      ["grant_share", "decline_share", "revoke_share", "request", "show_plan", "hide_plan"],
+    stopped: ["show_plan", "hide_plan", "grant_share", "revoke_share"], unresolved: ["show_plan", "hide_plan", "grant_share", "revoke_share"],
+    expired: ["revoke_share"], accepted: [], handoff: [], documented: [],
   };
   const allowedKinds = flow.interpretation === "pending" ?
-    (flow.stopped && outcome.closure === "open" ? ["show_plan", "hide_plan"] :
+    (value.step === "expired" ? ["revoke_share"] :
+      ["permission", "plan", "unresolved", "stopped"].includes(value.step as string) ? ["show_plan", "hide_plan", "revoke_share"] :
       ["readback", "repair"].includes(value.step as string) ? ["show_plan", "hide_plan", "h3", "supersede_extraction"] : []) :
     allowed[value.step as string];
   if (!commandKinds.every(k => allowedKinds.includes(k))) return null;
@@ -212,8 +224,11 @@ export function decodeJourney(value: unknown, expectedId: string): Journey | nul
   };
   const selectedTextKeys = [...textKeys[value.step as string]];
   if (flow.card_visible) selectedTextKeys.push("revealed_heading", "reveal_action_label", "reveal_deadline_label", "reveal_owner_label");
-  if (!flow.stopped && outcome.closure === "open" && ["pending", "unavailable", "uncertain"].includes(flow.interpretation as string) ||
+  if (!flow.stopped && outcome.closure === "open" &&
+      !(value.step === "permission" && outcome.execution === "attempted") &&
+      ["pending", "unavailable", "uncertain"].includes(flow.interpretation as string) ||
       (["readback", "repair"].includes(value.step as string) && flow.latest_restatement_id !== null && value.text.feedback !== undefined)) selectedTextKeys.push("feedback");
+  if (value.step === "stopped" && flow.stop_reason === "barrier_stop") selectedTextKeys.push("feedback");
   if (["readback", "repair"].includes(value.step as string)) {
     selectedTextKeys.push("input_label", "input_help", "input_error", "review_label", "preview_label", "answer_label", "confirmation_label", "confirmation_help");
     if (value.step === "repair") selectedTextKeys.push("repair_example_label", "repair_answer", "repair_plan_label", "repair_deadline");
@@ -221,6 +236,10 @@ export function decodeJourney(value: unknown, expectedId: string): Journey | nul
   } else if (value.text.saved_words !== undefined) return null;
   if (commandKinds.some(k => ["show_plan", "hide_plan"].includes(k))) selectedTextKeys.push("show_label", "hide_label");
   if (commandKinds.includes("readback_started")) selectedTextKeys.push("readback_label");
+  if (value.step === "barrier") selectedTextKeys.push("choice_error", "continue_label");
+  if (commandKinds.includes("grant_share")) selectedTextKeys.push("consent_label", "consent_error");
+  if (value.step === "permission" && value.question !== null) selectedTextKeys.push("request_label");
+  if (commandKinds.includes("decline_share") || commandKinds.includes("revoke_share")) selectedTextKeys.push("decline_label");
   if (!exactKeys(value.text, selectedTextKeys)) return null;
   return value as Journey; // The complete bounded projection was checked above.
 }

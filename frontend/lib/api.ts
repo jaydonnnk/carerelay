@@ -1,5 +1,5 @@
 import "server-only";
-import { readJourney, readCommand, readConflict, readPrepared, type Journey, type CommandResult, type ReadbackKind } from "./journey";
+import { readJourney, readCommand, readConflict, readPrepared, type Journey, type CommandResult, type ReadbackKind, type PermissionKind } from "./journey";
 /**
  * The one place the frontend talks to the CareRelay API.
  *
@@ -59,7 +59,7 @@ async function call<T>(
     return { ok: false, reason: "unavailable", detail: "the service could not be reached" };
   }
 
-  if (response.status === 401 || response.status === 503) {
+  if (response.status === 401) {
     return { ok: false, reason: "unauthorised", detail: `the service refused the call (${response.status})` };
   }
   if (response.status === 404) {
@@ -92,7 +92,7 @@ export async function selectExampleCommand(episodeId: string, operationToken: st
   return command(`/api/episodes/${encodeURIComponent(episodeId)}/intake`, episodeId,
     { operation_token: operationToken, example_id: "scripted-appointment" }, "select_example");
 }
-async function command(path: string, episodeId: string, body: Record<string, string>, kind: "create" | "select_example" | ReadbackKind = "create"): Promise<CommandOutcome> {
+async function command(path: string, episodeId: string, body: Record<string, string>, kind: "create" | "select_example" | ReadbackKind | PermissionKind = "create"): Promise<CommandOutcome> {
   try {
     const response = await fetch(`${API_URL}${path}`, { method: "POST", redirect: "error", cache: "no-store",
       signal: AbortSignal.timeout(5000), headers: { "Content-Type": "application/json", ...(API_TOKEN ? { Authorization: `Bearer ${API_TOKEN}` } : {}) },
@@ -132,6 +132,30 @@ export async function readbackCommand(episodeId: string, token: string, kind: Re
   else if (kind === "supersede_extraction" && oldId) path = `${base}/extractions/${encodeURIComponent(oldId)}/supersede`;
   else return { ok: false, reason: "unavailable", detail: "journey unavailable" };
   return command(path, episodeId, body, kind);
+}
+
+export async function prepareBarrierCommand(episodeId: string, digest: string): Promise<Result<string>> {
+  try {
+    const query = new URLSearchParams({ prepare_kind: "select_barrier", body_sha256: digest });
+    const response = await fetch(`${API_URL}/api/episodes/${encodeURIComponent(episodeId)}?${query}`, {
+      cache: "no-store", redirect: "error", signal: AbortSignal.timeout(5000),
+      headers: API_TOKEN ? { Authorization: `Bearer ${API_TOKEN}` } : {},
+    });
+    const token = await readPrepared(response);
+    return token ? { ok: true, value: token } : { ok: false, reason: "unavailable", detail: "journey unavailable" };
+  } catch { return { ok: false, reason: "unavailable", detail: "journey unavailable" }; }
+}
+
+export async function permissionCommand(episodeId: string, token: string, kind: PermissionKind,
+                                      choiceId?: string): Promise<CommandOutcome> {
+  const base = `/api/episodes/${encodeURIComponent(episodeId)}`;
+  const body: Record<string, string> = { operation_token: token };
+  if (kind === "select_barrier") {
+    if (!choiceId || !["booking", "transport", "other"].includes(choiceId)) return { ok: false, reason: "unavailable", detail: "journey unavailable" };
+    body.choice_id = choiceId;
+    return command(`${base}/barriers`, episodeId, body, kind);
+  }
+  return command(`${base}/${kind === "request" ? "actions" : "consents"}`, episodeId, body, kind);
 }
 
 /**

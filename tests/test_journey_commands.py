@@ -506,7 +506,7 @@ def test_additive_migration_twice_preserves_old_histories(tmp_path):
     service._store.close()
     service._store = old.SqliteEpisodeStore(path, check_same_thread=False)
     service._coordinator = LocalSimulationCoordinator(McpTools(service._store,
-        policy=fixture.policy(), provider=ScriptedProvider()))
+        policy=fixture.policy(), provider=ScriptedProvider(), now=lambda: service._clock.now_utc()))
     cases = ["start", "plan", "stopped", "accepted", "handoff", "expired", "h3", "failed"]
     for case in cases:
         service._clock = __import__("carerelay.service", fromlist=["ScenarioClock"]).ScenarioClock(fixture.SCENARIO_NOW_UTC)
@@ -609,3 +609,491 @@ def test_claim_and_terminal_uniqueness(tmp_path):
             conn.execute("INSERT INTO journey_commands(" + ",".join(row) + ") VALUES(" + ",".join("?" for _ in row) + ")", tuple(row.values()))
     assert conn.execute("SELECT COUNT(*) FROM journey_commands").fetchone()[0] == 2
     service._store.close()
+
+
+def s17_frontend_token(kind, *, purpose=None, parent=None, confirmation=None, **dimensions):
+    """Sign exact test capabilities so decoding is tested independently of issuance."""
+    payload = dict(operation_id="frontend-s17-op", episode_id="00000000-0000-4000-8000-000000000017",
+        disposition_version=1, expected_revision=5, kind=kind,
+        purpose=purpose or f"disposition:1:{'request_appointment' if kind == 'request' else kind}",
+        body_sha256="a" * 64, parent_restatement_id=parent, confirmation_id=confirmation,
+        token_schema="carerelay-command-v1")
+    payload.update(dimensions)
+    wire = base64.urlsafe_b64encode(canonical(payload)).rstrip(b"=").decode()
+    separated = hmac.new(S15_KEY, b"carerelay:command:v1", hashlib.sha256).digest()
+    signature = base64.urlsafe_b64encode(hmac.new(separated, wire.encode(), hashlib.sha256).digest()).rstrip(b"=").decode()
+    return wire + "." + signature
+
+
+def test_s17_permission_capabilities_have_exact_fixed_purpose_and_no_readback_refs():
+    kinds = ["select_barrier", "grant_share", "decline_share", "revoke_share", "request"]
+    good = [s17_frontend_token(kind) for kind in kinds]
+    bad = [s17_frontend_token(kind, purpose="disposition:1:caller-chosen") for kind in kinds]
+    bad += [s17_frontend_token(kind, parent="parent") for kind in kinds]
+    bad += [s17_frontend_token(kind, confirmation="confirmation") for kind in kinds]
+    result = node(f'''import {{decodeOperation}} from {json.dumps(module("episode-locator"))};
+import {{readFileSync}} from "node:fs";
+const d=JSON.parse(readFileSync(0,"utf8"));
+console.log(JSON.stringify(d.tokens.map(t=>decodeOperation(t,d.key)!==null)));''',
+        {"key": S15_KEY.decode(), "tokens": good + bad})
+    assert result == [True] * len(good) + [False] * len(bad)
+
+
+def test_s17_real_api_distinguishes_auth_refusal_from_unavailable():
+    # Execute the API module unchanged apart from its server-only marker and import
+    # resolution. Real loopback HTTP returns each status; fetch is not mocked.
+    result = node(f'''import {{readFileSync}} from "node:fs";
+import {{stripTypeScriptTypes}} from "node:module";
+import {{createServer}} from "node:http";
+const server=createServer((req,res)=>{{const status=Number(req.url.split('/')[3]);res.writeHead(status,{{'Content-Type':'application/json'}});res.end('{{"detail":"synthetic-control"}}');}});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+try {{
+ process.env.CARERELAY_API_URL='http://127.0.0.1:'+server.address().port;
+ let source=readFileSync('frontend/lib/api.ts','utf8').replace('import "server-only";','');
+ source=source.replace('"./journey"',{json.dumps(json.dumps(module("journey")))});
+ const api=await import('data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(source)).toString('base64'));
+ const results=[];
+ for(const status of [401,503,404]) results.push((await api.getLedger(String(status))).reason);
+ console.log(JSON.stringify(results));
+}} finally {{await new Promise(resolve=>server.close(resolve));}}''')
+    assert result == ["unauthorised", "unavailable", "not_found"]
+
+
+@pytest.fixture
+def s17_permission_projection(tmp_path):
+    service = make_service(tmp_path / "frontend-s17-projection.sqlite")
+    ep = "00000000-0000-4000-8000-000000000017"
+    try:
+        service.ensure_episode(ep, "fictional")
+        service.intake(ep, fixture.BOUND_COMPLAINT)
+        body = journey_surface(service.project_journey(ep))
+    finally:
+        service._store.close()
+    body["step"] = "permission"
+    body["commands"] = [{"kind": k, "offer_id": k, "permitted_choice_ids": [],
+        "operation_token": s17_frontend_token(k)} for k in ("grant_share", "decline_share", "request")]
+    body["question"] = {"question_id": "permission", "text": "May we share your plan?", "choices": []}
+    body["text"] = dict(heading="May we share your plan?", description="With the fictional provider, to request an appointment.",
+        shared="Shared: the action and deadline. No caregiver message.", consent_label="I agree to share this plan.",
+        consent_error="Agree above, or choose “Not now”.", request_label="Try the simulated request", decline_label="Not now")
+    return body
+
+
+def test_s17_permission_decoder_allows_only_separate_permission_commands(s17_permission_projection):
+    good = s17_permission_projection
+    bad = copy.deepcopy(good)
+    bad["commands"][0]["kind"] = "caller_dispatch"
+    result = node(f'''import {{decodeJourney}} from {json.dumps(module("journey"))};
+import {{readFileSync}} from "node:fs";
+const d=JSON.parse(readFileSync(0,'utf8'));
+console.log(JSON.stringify(d.map(x=>decodeJourney(x,x.episode_id)!==null)));''', [good, bad])
+    assert result == [True, False]
+
+
+def test_s17_permission_decoder_refuses_request_on_waiting_stopped_or_redacted(s17_permission_projection):
+    good = s17_permission_projection
+    variants = []
+    for case in ("waiting", "stopped", "redacted", "expired", "choices", "null_token"):
+        bad = copy.deepcopy(good)
+        if case == "waiting":
+            bad["outcome"]["execution"] = bad["execution"] = "attempted"
+            bad["question"] = None
+            bad["text"] = dict(heading="May we share your plan?", status="No reply yet.", notice="Simulated request.")
+        elif case == "stopped":
+            bad["flow"].update(stopped=True, stop_reason="h3", stopped_disposition_version=1)
+        elif case == "redacted":
+            bad["plan_redacted"] = True
+        elif case == "expired":
+            bad["outcome"]["expiry_recorded"] = True
+        elif case == "choices":
+            bad["commands"][-1]["permitted_choice_ids"] = ["booking"]
+        else:
+            bad["commands"][-1]["operation_token"] = None
+        variants.append(bad)
+    result = node(f'''import {{decodeJourney}} from {json.dumps(module("journey"))};
+import {{readFileSync}} from "node:fs";
+const d=JSON.parse(readFileSync(0,'utf8'));
+console.log(JSON.stringify(d.map(x=>decodeJourney(x,x.episode_id)!==null)));''', [good] + variants)
+    assert result == [True] + [False] * len(variants)
+
+
+def test_s17_real_frontend_command_routes_and_choice_digest(s17_permission_projection):
+    good = s17_permission_projection
+    result = node(f'''import {{readFileSync}} from 'node:fs';
+import {{stripTypeScriptTypes}} from 'node:module';
+import {{createServer}} from 'node:http';
+import {{createHash}} from 'node:crypto';
+import * as codec from {json.dumps(module("episode-locator"))};
+const d=JSON.parse(readFileSync(0,'utf8'));const calls=[];
+const server=createServer(async(req,res)=>{{let body='';for await(const part of req)body+=part;
+ calls.push({{method:req.method,url:req.url,body:body?JSON.parse(body):null}});
+ res.writeHead(200,{{'Content-Type':'application/json'}});
+ res.end(JSON.stringify(req.method==='GET'?{{operation_token:'synthetic.signature'}}:
+ {{receipt:{{operation_id:'synthetic-operation',state:'applied',result_ref:'synthetic-reference',scored:false,replayed:false}},journey:d}}));}});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+try{{process.env.CARERELAY_API_URL='http://127.0.0.1:'+server.address().port;
+ let source=readFileSync('frontend/lib/api.ts','utf8').replace('import "server-only";','');
+ source=source.replace('"./journey"',{json.dumps(json.dumps(module("journey")))});
+ const api=await import('data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(source)).toString('base64'));
+ const present=typeof api.prepareBarrierCommand==='function'&&typeof api.permissionCommand==='function'&&typeof codec.barrierChoiceDigest==='function';
+ let outcomes=[];let rejected=[];let digest=null;
+ if(present){{digest=codec.barrierChoiceDigest('booking');outcomes.push((await api.prepareBarrierCommand(d.episode_id,digest)).ok);
+ for(const kind of ['select_barrier','grant_share','decline_share','revoke_share','request']) outcomes.push((await api.permissionCommand(d.episode_id,'synthetic.signature',kind,kind==='select_barrier'?'booking':undefined)).ok);}}
+ if(present){{for(const choice of ['unapproved',undefined])rejected.push((await api.permissionCommand(d.episode_id,'synthetic.signature','select_barrier',choice)).ok);}}
+ console.log(JSON.stringify({{present,calls,outcomes,rejected,digest}}));
+}}finally{{await new Promise(resolve=>server.close(resolve));}}''', good)
+    assert result["present"] is True
+    assert result["outcomes"] == [True] * 6
+    assert result["rejected"] == [False, False]
+    expected_digest = hashlib.sha256(canonical({"kind": "select_barrier", "payload": {"choice_id": "booking"}, "schema": "carerelay-command-v1"})).hexdigest()
+    assert result["digest"] == expected_digest
+    from urllib.parse import parse_qs, urlsplit
+    prepared = result["calls"][0]
+    assert prepared["method"] == "GET" and prepared["body"] is None
+    assert parse_qs(urlsplit(prepared["url"]).query) == {"prepare_kind": ["select_barrier"], "body_sha256": [expected_digest]}
+    writes = result["calls"][1:]
+    base = "/api/episodes/" + good["episode_id"]
+    assert [call["url"] for call in writes] == [base + suffix for suffix in ("/barriers", "/consents", "/consents", "/consents", "/actions")]
+    assert [call["body"] for call in writes] == [{"operation_token": "synthetic.signature", "choice_id": "booking"}] + [{"operation_token": "synthetic.signature"}] * 4
+
+
+def test_s17_permission_server_action_rejects_unchecked_and_forged_context(s17_permission_projection):
+    result = node(f'''import {{readFileSync}} from 'node:fs';
+import {{stripTypeScriptTypes}} from 'node:module';
+import {{createServer}} from 'node:http';
+import * as codec from {json.dumps(module("episode-locator"))};
+const d=JSON.parse(readFileSync(0,'utf8'));let calls=0;
+const server=createServer(async(req,res)=>{{calls++;for await(const part of req){{}}
+ res.writeHead(200,{{'Content-Type':'application/json'}});res.end(JSON.stringify({{receipt:{{operation_id:'synthetic-operation',state:'applied',result_ref:'synthetic-reference',scored:false,replayed:false}},journey:d.journey}}));}});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+const load=async source=>import('data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(source)).toString('base64'));
+try{{process.env.CARERELAY_API_URL='http://127.0.0.1:'+server.address().port;process.env.CARERELAY_API_TOKEN=d.key;process.env.CARERELAY_LOOPBACK_TEST='1';
+ let apiSource=readFileSync('frontend/lib/api.ts','utf8').replace('import "server-only";','').replace('"./journey"',{json.dumps(json.dumps(module("journey")))});
+ const apiUrl='data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(apiSource)).toString('base64');
+ const locator={{schema:'carerelay-locator-v1',nonce:'00000000-0000-4000-8000-000000000001',operation_id:'00000000-0000-4000-8000-000000000002',episode_id:d.journey.episode_id}};
+ globalThis.s17Context={{origin:'http://127.0.0.1:8140',host:'127.0.0.1:8140',cookie:codec.encodeLocator(locator,d.key)}};
+ const ctxUrl='data:text/javascript;base64,'+Buffer.from('export async function headers(){{return new Map([["origin",globalThis.s17Context.origin],["host",globalThis.s17Context.host]])}};export async function cookies(){{return {{get:()=>({{value:globalThis.s17Context.cookie}})}}}}').toString('base64');
+ let source=readFileSync('frontend/app/actions.ts','utf8').replace('"next/headers"',JSON.stringify(ctxUrl)).replace('"@/lib/api"',JSON.stringify(apiUrl))
+ .replace('"@/lib/episode-locator"',{json.dumps(json.dumps(module("episode-locator")))})
+ .replace('"@/lib/journey"',{json.dumps(json.dumps(module("journey")))});
+ const actions=await load(source);const present=typeof actions.submitPermission==='function'&&typeof actions.prepareBarrierChoice==='function';const states=[];
+ if(present){{
+ const form=(kind,token)=>{{const f=new FormData();f.set('kind',kind);f.set('operation_token',token);return f;}};
+ const grant=form('grant_share',d.grant);states.push((await actions.submitPermission(grant)).state);
+ grant.set('agreed','yes');states.push((await actions.submitPermission(grant)).state);
+ const request=form('request',d.request);states.push((await actions.submitPermission(request)).state);
+ globalThis.s17Context.origin='https://attacker.invalid';states.push((await actions.submitPermission(request)).state);
+ globalThis.s17Context.origin='http://127.0.0.1:8140';globalThis.s17Context.cookie+='forged';states.push((await actions.submitPermission(request)).state);
+ globalThis.s17Context.cookie=codec.encodeLocator(locator,d.key);request.set('unexpected','yes');states.push((await actions.submitPermission(request)).state);
+ const swapped=form('grant_share',d.request);swapped.set('agreed','yes');states.push((await actions.submitPermission(swapped)).state);
+ }}console.log(JSON.stringify({{present,calls,states}}));
+}}finally{{await new Promise(resolve=>server.close(resolve));}}''',
+        {"key": S15_KEY.decode(), "journey": s17_permission_projection,
+         "grant": s17_frontend_token("grant_share"), "request": s17_frontend_token("request")})
+    assert result["present"] is True
+    assert result["states"] == ["recovery", "loaded", "loaded", "recovery", "recovery", "recovery", "recovery"]
+    assert result["calls"] == 2
+
+
+def test_s17_real_react_render_starts_permission_unchecked_and_barrier_unselected(s17_permission_projection):
+    permission = s17_permission_projection
+    barrier = copy.deepcopy(permission)
+    barrier["step"] = "barrier"
+    barrier["commands"] = [{"kind": "select_barrier", "offer_id": "select_barrier", "permitted_choice_ids": ["booking", "transport", "other"], "operation_token": None}]
+    barrier["question"] = {"question_id": "barrier", "text": "What makes it difficult?", "choices": [
+        {"choice_id": "booking", "text": "Finding an appointment"}, {"choice_id": "transport", "text": "Getting there"}, {"choice_id": "other", "text": "Something else"}]}
+    barrier["text"] = dict(heading="What makes it difficult?", description="Choose one.", choice_error="Choose one to continue.", continue_label="Continue")
+    result = node(f'''import {{readFileSync}} from 'node:fs';
+import ts from {json.dumps((ROOT / "frontend/node_modules/typescript/lib/typescript.js").as_uri())};
+import React from {json.dumps((ROOT / "frontend/node_modules/react/index.js").as_uri())};
+import {{renderToStaticMarkup}} from {json.dumps((ROOT / "frontend/node_modules/react-dom/server.node.js").as_uri())};
+const d=JSON.parse(readFileSync(0,'utf8'));globalThis.s17RenderCalls=0;
+const url=s=>'data:text/javascript;base64,'+Buffer.from(s).toString('base64');
+const transpile=s=>ts.transpileModule(s,{{compilerOptions:{{module:ts.ModuleKind.ESNext,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}}}).outputText
+ .replaceAll('"react"',{json.dumps(json.dumps((ROOT / "frontend/node_modules/react/index.js").as_uri()))})
+ .replaceAll('"react/jsx-runtime"',{json.dumps(json.dumps((ROOT / "frontend/node_modules/react/jsx-runtime.js").as_uri()))});
+const actionNames=['startExample','selectExample','prepareReadbackWords','submitReadback','prepareBarrierChoice','submitPermission'];
+const actions=url(actionNames.map(n=>'export async function '+n+'(){{globalThis.s17RenderCalls++;throw Error("render mutation")}}').join(';'));
+const nav=url('export function useRouter(){{return {{refresh(){{}}}}}}');
+const hint=url(transpile(readFileSync('frontend/components/HintCard.tsx','utf8')));
+let source=readFileSync('frontend/components/PatientJourney.tsx','utf8').replace('"next/navigation"',JSON.stringify(nav))
+ .replace('"@/app/actions"',JSON.stringify(actions)).replace('"@/lib/journey"',{json.dumps(json.dumps(module("journey")))})
+ .replace('"./HintCard"',JSON.stringify(hint));
+const {{PatientJourney}}=await import(url(transpile(source)));
+console.log(JSON.stringify({{html:d.map(journey=>renderToStaticMarkup(React.createElement(PatientJourney,{{state:'loaded',journey}}))),calls:globalThis.s17RenderCalls}}));''', [permission, barrier])
+    from html.parser import HTMLParser
+    class Inputs(HTMLParser):
+        def __init__(self):
+            super().__init__(); self.inputs = []; self.buttons = []
+        def handle_starttag(self, tag, attrs):
+            if tag == "input": self.inputs.append(dict(attrs))
+            if tag == "button": self.buttons.append(dict(attrs))
+    consent, choices = Inputs(), Inputs()
+    consent.feed(result["html"][0]); choices.feed(result["html"][1])
+    checkboxes = [x for x in consent.inputs if x.get("type") == "checkbox"]
+    assert len(checkboxes) == 1 and "checked" not in checkboxes[0]
+    assert checkboxes[0].get("id") == "share-plan-consent"
+    assert any("disabled" in button for button in consent.buttons)
+    assert "I agree to share this plan." in result["html"][0] and "Try the simulated request" in result["html"][0]
+    radios = [x for x in choices.inputs if x.get("type") == "radio"]
+    assert [x.get("value") for x in radios] == ["booking", "transport", "other"]
+    assert all("checked" not in x for x in radios)
+    assert "<fieldset" in result["html"][1] and "<legend" in result["html"][1]
+    assert result["html"][1].count("What makes it difficult?") == 1
+    assert result["html"][1].count("Choose one.") == 1
+    assert "<legend>Choose one.</legend>" in result["html"][1]
+    assert result["calls"] == 0
+
+
+def test_s17_actual_server_projections_and_tokens_decode_through_failure_and_stop(tmp_path):
+    from test_journey import s17_understood, s17_binding
+    from carerelay.domain.models import CallbackResult, ExecutionStatus, Origin
+    service = make_service(tmp_path / "frontend-s17-server.sqlite")
+    bodies, tokens = [], []
+    def capture(ep):
+        body = journey_surface(service.project_journey(ep))
+        bodies.append(body)
+        tokens.extend(o["operation_token"] for o in body["commands"] if o["operation_token"])
+    try:
+        ep = s17_understood(service)
+        capture(ep)
+        service.record_barrier_choice(s17_binding(service, ep, "select_barrier", "booking"), choice_id="booking")
+        capture(ep)
+        service.change_share_consent(s17_binding(service, ep, "decline_share"), granted=False)
+        capture(ep)
+        service.change_share_consent(s17_binding(service, ep, "grant_share"), granted=True)
+        capture(ep)
+        service.request_appointment(s17_binding(service, ep, "request"))
+        capture(ep)
+        service.receive_callback(ep, "fictional_provider", "frontend-actual-failure", CallbackResult(transition=ExecutionStatus.FAILED), Origin.LOCAL_SIM)
+        capture(ep)
+        stopped = s17_understood(service, "00000000-0000-4000-8000-000000000018")
+        service.record_barrier_choice(s17_binding(service, stopped, "select_barrier", "transport"), choice_id="transport")
+        capture(stopped)
+        key = service._operation_signing_key().decode()
+    finally:
+        service._store.close()
+    result = node(f'''import {{decodeJourney}} from {json.dumps(module("journey"))};
+import {{decodeOperation}} from {json.dumps(module("episode-locator"))};
+import {{readFileSync}} from 'node:fs';
+const d=JSON.parse(readFileSync(0,'utf8'));
+console.log(JSON.stringify({{projections:d.bodies.map(x=>decodeJourney(x,x.episode_id)!==null),tokens:d.tokens.map(t=>decodeOperation(t,d.key)!==null)}}));''',
+        {"bodies": bodies, "tokens": tokens, "key": key})
+    assert result["projections"] == [True] * len(bodies)
+    assert result["tokens"] == [True] * len(tokens)
+
+
+def test_s17_pending_request_is_neutral_and_keeps_read_only_recovery(tmp_path, monkeypatch):
+    from test_journey import s17_understood, s17_binding
+    from carerelay.service import ScenarioClock
+    from datetime import timedelta
+    service = make_service(tmp_path / "frontend-s17-pending.sqlite")
+    class LostOwningInvocation(BaseException):
+        pass
+    def lose_owner(*args, **kwargs):
+        raise LostOwningInvocation()
+    bodies = []
+    try:
+        ep = s17_understood(service)
+        service.record_barrier_choice(s17_binding(service, ep, "select_barrier", "booking"), choice_id="booking")
+        service.change_share_consent(s17_binding(service, ep, "grant_share"), granted=True)
+        binding = s17_binding(service, ep, "request")
+        monkeypatch.setattr(service._coordinator, "execute_tool", lose_owner)
+        with pytest.raises(LostOwningInvocation):
+            service.request_appointment(binding)
+        pending = service.request_appointment(binding)
+        assert pending.receipt.state == "pending" and pending.receipt.replayed
+        body = journey_surface(pending.journey)
+        assert body["step"] == "permission" and body["text"]["status"] == "No reply yet."
+        assert body["question"] is None and "feedback" not in body["text"]
+        assert {o["kind"] for o in body["commands"]} == {"show_plan", "hide_plan", "revoke_share"}
+        bodies.append(body)
+        service._clock = ScenarioClock(fixture.SCENARIO_NOW_UTC + timedelta(hours=10))
+        bodies.append(journey_surface(service.project_journey(ep)))
+    finally:
+        service._store.close()
+    result = node(f'''import {{decodeJourney}} from {json.dumps(module("journey"))};
+import {{readFileSync}} from 'node:fs';
+const d=JSON.parse(readFileSync(0,'utf8'));
+console.log(JSON.stringify(d.map(x=>decodeJourney(x,x.episode_id)!==null)));''', bodies)
+    assert result == [True, True]
+
+
+def test_s17_permission_decoder_rejects_noninitial_execution(s17_permission_projection):
+    good = s17_permission_projection
+    cases = [good]
+    for execution in ("acknowledged", "failed", "expired", "superseded"):
+        bad = copy.deepcopy(good)
+        bad["execution"] = bad["outcome"]["execution"] = execution
+        cases.append(bad)
+    result = node(f'''import {{decodeJourney}} from {json.dumps(module("journey"))};
+import {{readFileSync}} from 'node:fs';
+const d=JSON.parse(readFileSync(0,'utf8'));
+console.log(JSON.stringify(d.map(x=>decodeJourney(x,x.episode_id)!==null)));''', cases)
+    assert result == [True, False, False, False, False]
+
+
+def s17_action_boundary_script():
+    """Real server actions/crypto with test-only request and API boundary hooks.
+
+    The API hook isolates first refusal in the action from downstream validation.
+    The independent loopback HTTP tests above cover the actual API module.
+    """
+    return f'''import {{readFileSync}} from 'node:fs';
+import {{stripTypeScriptTypes}} from 'node:module';
+import * as codec from {json.dumps(module("episode-locator"))};
+const d=JSON.parse(readFileSync(0,'utf8'));const calls=[];
+const url=s=>'data:text/javascript;base64,'+Buffer.from(s).toString('base64');
+process.env.CARERELAY_API_TOKEN=d.key;process.env.CARERELAY_LOOPBACK_TEST='1';
+const locator={{schema:'carerelay-locator-v1',nonce:'00000000-0000-4000-8000-000000000001',operation_id:'00000000-0000-4000-8000-000000000002',episode_id:d.journey.episode_id}};
+const goodCookie=codec.encodeLocator(locator,d.key);
+globalThis.s17Boundary={{origin:'http://127.0.0.1:8140',host:'127.0.0.1:8140',cookie:goodCookie,token:d.prepared,calls,journey:d.journey}};
+const context=url('export async function headers(){{return new Map([["origin",globalThis.s17Boundary.origin],["host",globalThis.s17Boundary.host]])}};export async function cookies(){{return {{get:()=>({{value:globalThis.s17Boundary.cookie}})}}}}');
+const api=url(`export async function prepareBarrierCommand(...args){{globalThis.s17Boundary.calls.push({{method:'prepare',args}});return {{ok:true,value:globalThis.s17Boundary.token}}}}
+export async function permissionCommand(...args){{globalThis.s17Boundary.calls.push({{method:'permission',args}});return {{ok:true,value:{{journey:globalThis.s17Boundary.journey}}}}}}
+export async function createCommand(){{throw Error('unexpected creation')}};export async function selectExampleCommand(){{throw Error('unexpected selection')}};
+export async function prepareWordsCommand(){{throw Error('unexpected words')}};export async function readbackCommand(){{throw Error('unexpected readback')}};`);
+let source=readFileSync('frontend/app/actions.ts','utf8').replace('"next/headers"',JSON.stringify(context)).replace('"@/lib/api"',JSON.stringify(api))
+ .replace('"@/lib/episode-locator"',{json.dumps(json.dumps(module("episode-locator")))})
+ .replace('"@/lib/journey"',{json.dumps(json.dumps(module("journey")))});
+const actions=await import(url(stripTypeScriptTypes(source)));
+function form(kind,token){{const f=new FormData();f.set('kind',kind);f.set('operation_token',token);return f;}}
+'''
+
+
+@pytest.mark.parametrize("case", ["agreed_no", "choice_unknown", "choice_type", "choice_digest",
+    "form_extra", "form_duplicate", "form_missing_agreement", "unknown_kind", "token_type", "token_kind", "origin", "cookie", "episode"])
+def test_s17_permission_action_first_refusal(s17_permission_projection, case):
+    digest = hashlib.sha256(canonical({"kind": "select_barrier", "payload": {"choice_id": "booking"}, "schema": "carerelay-command-v1"})).hexdigest()
+    other_digest = hashlib.sha256(canonical({"kind": "select_barrier", "payload": {"choice_id": "unapproved"}, "schema": "carerelay-command-v1"})).hexdigest()
+    data = {"key": S15_KEY.decode(), "journey": s17_permission_projection, "case": case,
+        "request": s17_frontend_token("request"), "grant": s17_frontend_token("grant_share"),
+        "barrier": s17_frontend_token("select_barrier", body_sha256=digest),
+        "unknown_choice": s17_frontend_token("select_barrier", body_sha256=other_digest),
+        "wrong_episode": s17_frontend_token("request", episode_id="00000000-0000-4000-8000-000000000019")}
+    result = node(s17_action_boundary_script() + '''
+const good=form('grant_share',d.grant);good.set('agreed','yes');
+const control=await actions.submitPermission(good);calls.length=0;
+let bad=form('request',d.request);
+if(d.case==='agreed_no'||d.case==='form_missing_agreement'){bad=form('grant_share',d.grant);if(d.case==='agreed_no')bad.set('agreed','no');}
+if(d.case==='choice_unknown'||d.case==='choice_type'||d.case==='choice_digest'){
+ bad=form('select_barrier',d.case==='choice_unknown'?d.unknown_choice:d.barrier);
+ bad.set('choice_id',d.case==='choice_unknown'?'unapproved':d.case==='choice_type'?new Blob(['booking']):'transport');
+}
+if(d.case==='form_extra')bad.set('extra','unexpected');
+if(d.case==='form_duplicate')bad.append('kind','request');
+if(d.case==='unknown_kind')bad.set('kind','caller_dispatch');
+if(d.case==='token_type')bad.set('operation_token',new Blob(['synthetic.signature']));
+if(d.case==='token_kind'){bad=form('grant_share',d.request);bad.set('agreed','yes');}
+if(d.case==='origin')globalThis.s17Boundary.origin='https://attacker.invalid';
+if(d.case==='cookie'){const [payload,signature]=goodCookie.split('.');const data=JSON.parse(Buffer.from(payload,'base64url'));data.nonce='00000000-0000-4000-8000-000000000003';globalThis.s17Boundary.cookie=Buffer.from(JSON.stringify(data)).toString('base64url')+'.'+signature;}
+if(d.case==='episode')bad=form('request',d.wrong_episode);
+const defect=await actions.submitPermission(bad);
+console.log(JSON.stringify({control:control.state,defect:defect.state,calls}));''', data)
+    assert result["control"] == "loaded"
+    assert result["defect"] == "recovery"
+    assert result["calls"] == []
+
+
+@pytest.mark.parametrize("case", ["kind", "episode", "digest", "parent", "confirmation", "signature", "choice_unknown", "choice_type", "form_extra", "form_duplicate", "origin", "cookie"])
+def test_s17_barrier_preparation_first_refusal(s17_permission_projection, case):
+    digest = hashlib.sha256(canonical({"kind": "select_barrier", "payload": {"choice_id": "booking"}, "schema": "carerelay-command-v1"})).hexdigest()
+    good = s17_frontend_token("select_barrier", body_sha256=digest)
+    invalid = {
+        "kind": s17_frontend_token("grant_share", body_sha256=digest),
+        "episode": s17_frontend_token("select_barrier", body_sha256=digest, episode_id="00000000-0000-4000-8000-000000000019"),
+        "digest": s17_frontend_token("select_barrier", body_sha256="b" * 64),
+        "parent": s17_frontend_token("select_barrier", body_sha256=digest, parent="parent"),
+        "confirmation": s17_frontend_token("select_barrier", body_sha256=digest, confirmation="confirmation"),
+        "signature": good + "forged",
+    }.get(case, good)
+    result = node(s17_action_boundary_script() + '''
+const good=new FormData();good.set('choice_id','booking');
+const control=await actions.prepareBarrierChoice(good);calls.length=0;globalThis.s17Boundary.token=d.invalid;
+const bad=new FormData();bad.set('choice_id','booking');
+if(d.case==='choice_unknown')bad.set('choice_id','unapproved');
+if(d.case==='choice_type')bad.set('choice_id',new Blob(['booking']));
+if(d.case==='form_extra')bad.set('extra','unexpected');
+if(d.case==='form_duplicate')bad.append('choice_id','booking');
+if(d.case==='origin')globalThis.s17Boundary.origin='https://attacker.invalid';
+if(d.case==='cookie'){const [payload,signature]=goodCookie.split('.');const data=JSON.parse(Buffer.from(payload,'base64url'));data.nonce='00000000-0000-4000-8000-000000000003';globalThis.s17Boundary.cookie=Buffer.from(JSON.stringify(data)).toString('base64url')+'.'+signature;}
+const defect=await actions.prepareBarrierChoice(bad);
+console.log(JSON.stringify({control:control.ok,defect:defect.ok,calls}));''',
+        {"key": S15_KEY.decode(), "journey": s17_permission_projection, "case": case, "prepared": good, "invalid": invalid})
+    assert result["control"] is True and result["defect"] is False
+    if case in {"kind", "episode", "digest", "parent", "confirmation", "signature"}:
+        assert len(result["calls"]) == 1 and result["calls"][0]["method"] == "prepare"
+    else:
+        assert result["calls"] == []
+
+
+@pytest.mark.parametrize("case", ["version_zero", "version_type", "version_unsafe"])
+def test_s17_capability_version_first_refusal(case):
+    version = {"version_zero": 0, "version_type": "1", "version_unsafe": 9007199254740992}[case]
+    good = s17_frontend_token("grant_share")
+    bad = s17_frontend_token("grant_share", disposition_version=version, purpose=f"disposition:{version}:grant_share")
+    result = node(f'''import {{decodeOperation}} from {json.dumps(module("episode-locator"))};
+import {{readFileSync}} from 'node:fs';
+const d=JSON.parse(readFileSync(0,'utf8'));
+console.log(JSON.stringify(d.tokens.map(t=>decodeOperation(t,d.key)!==null)));''',
+        {"key": S15_KEY.decode(), "tokens": [good, bad]})
+    assert result == [True, False]
+
+
+@pytest.mark.parametrize("case", ["waiting_request", "pending_request", "stopped_request", "expired_request", "acknowledged_request",
+    "barrier_execution", "barrier_choice_count", "barrier_choice_duplicate", "barrier_choice_unknown", "barrier_token"])
+def test_s17_decoder_command_first_refusal(s17_permission_projection, case):
+    good = copy.deepcopy(s17_permission_projection)
+    if case.startswith("barrier_"):
+        good["step"] = "barrier"
+        good["commands"] = [{"kind": "select_barrier", "offer_id": "select_barrier", "permitted_choice_ids": ["booking", "transport", "other"], "operation_token": None}]
+        good["question"] = {"question_id": "barrier", "text": "What makes it difficult?", "choices": [
+            {"choice_id": "booking", "text": "Finding an appointment"}, {"choice_id": "transport", "text": "Getting there"}, {"choice_id": "other", "text": "Something else"}]}
+        good["text"] = dict(heading="What makes it difficult?", description="Choose one.", choice_error="Choose one to continue.", continue_label="Continue")
+    else:
+        good["commands"] = []
+        good["question"] = None
+        if case in {"waiting_request", "pending_request"}:
+            good["outcome"]["execution"] = good["execution"] = "attempted"
+            good["text"] = dict(heading="May we share your plan?", status="No reply yet.", notice="Simulated request.")
+            if case == "pending_request": good["flow"]["interpretation"] = "pending"
+        elif case == "stopped_request":
+            good["step"] = "stopped"
+            good["flow"].update(stopped=True, stop_reason="h3", stopped_disposition_version=1)
+            good["text"] = dict(heading="Let’s stop the questions")
+        elif case == "expired_request":
+            good["step"] = "expired"
+            good["outcome"].update(execution="expired", closure="expired_unresolved", expiry_recorded=True)
+            good.update(execution="expired", closure="expired_unresolved")
+            good["text"] = dict(heading="Your plan still needs action")
+        else:
+            good["step"] = "plan"
+            good["outcome"]["execution"] = good["execution"] = "acknowledged"
+            good["text"] = dict(heading="Your next step", action_label="What to do", deadline_label="Before", owner_label="Who acts")
+    bad = copy.deepcopy(good)
+    if not case.startswith("barrier_"):
+        bad["commands"] = [{"kind": "request", "offer_id": "request", "permitted_choice_ids": [], "operation_token": s17_frontend_token("request")}]
+    elif case == "barrier_execution":
+        bad["outcome"]["execution"] = bad["execution"] = "attempted"
+    elif case == "barrier_choice_count":
+        bad["commands"][0]["permitted_choice_ids"].append("booking")
+    elif case == "barrier_choice_duplicate":
+        bad["commands"][0]["permitted_choice_ids"] = ["booking", "transport", "booking"]
+    elif case == "barrier_choice_unknown":
+        bad["commands"][0]["permitted_choice_ids"] = ["booking", "transport", "unapproved"]
+    else:
+        bad["commands"][0]["operation_token"] = s17_frontend_token("select_barrier")
+    result = node(f'''import {{decodeJourney}} from {json.dumps(module("journey"))};
+import {{readFileSync}} from 'node:fs';
+const d=JSON.parse(readFileSync(0,'utf8'));
+console.log(JSON.stringify(d.map(x=>decodeJourney(x,x.episode_id)!==null)));''', [good, bad])
+    assert result == [True, False]
+
+
+@pytest.mark.parametrize("choice", ["booking", "transport", "other"])
+def test_s17_exact_barrier_choice_digest(choice):
+    result = node(f'''import {{barrierChoiceDigest}} from {json.dumps(module("episode-locator"))};
+import {{readFileSync}} from 'node:fs';
+const choice=JSON.parse(readFileSync(0,'utf8'));
+console.log(JSON.stringify(barrierChoiceDigest(choice)));''', choice)
+    assert result == hashlib.sha256(canonical({"kind": "select_barrier", "payload": {"choice_id": choice}, "schema": "carerelay-command-v1"})).hexdigest()

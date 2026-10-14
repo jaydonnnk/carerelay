@@ -1,8 +1,8 @@
 "use server";
 import { cookies, headers } from "next/headers";
-import { createCommand, selectExampleCommand, prepareWordsCommand, readbackCommand } from "@/lib/api";
-import { allowAction, allowPreparation, confirmedWordsDigest, decodeOperation, LOCATOR_COOKIE } from "@/lib/episode-locator";
-import { READBACK_KINDS, type Journey } from "@/lib/journey";
+import { createCommand, selectExampleCommand, prepareWordsCommand, readbackCommand, prepareBarrierCommand, permissionCommand } from "@/lib/api";
+import { allowAction, allowPreparation, confirmedWordsDigest, barrierChoiceDigest, decodeOperation, LOCATOR_COOKIE } from "@/lib/episode-locator";
+import { READBACK_KINDS, PERMISSION_KINDS, type Journey } from "@/lib/journey";
 
 export type ActionResult = { state: "loaded"; journey: Journey } | { state: "conflict"; journey: Journey } | { state: "recovery" };
 async function submit(form: FormData, kind: "create" | "select_example"): Promise<ActionResult> {
@@ -56,6 +56,45 @@ export async function submitReadback(form: FormData): Promise<ActionResult> {
   if (!locator || !binding) return { state: "recovery" };
   const result = await readbackCommand(locator.episode_id, token, selected, binding.parent_restatement_id,
     typeof text === "string" ? text : undefined, typeof oldId === "string" ? oldId : undefined);
+  return result.ok ? { state: "loaded", journey: result.value.journey } :
+    result.reason === "conflict" ? { state: "conflict", journey: result.journey } : { state: "recovery" };
+}
+
+export async function prepareBarrierChoice(form: FormData): Promise<{ ok: true; token: string } | { ok: false }> {
+  const keys = [...form.keys()].filter(k => !k.startsWith("$ACTION_"));
+  const choice = form.get("choice_id");
+  if (keys.length !== 1 || keys[0] !== "choice_id" || typeof choice !== "string" ||
+      !["booking", "transport", "other"].includes(choice)) return { ok: false };
+  const h = await headers(), c = await cookies(), key = process.env.CARERELAY_API_TOKEN ?? "";
+  const locator = allowPreparation(h.get("origin"), h.get("host"), c.get(LOCATOR_COOKIE)?.value,
+    key, process.env.CARERELAY_LOOPBACK_TEST === "1");
+  if (!locator) return { ok: false };
+  const digest = barrierChoiceDigest(choice);
+  const result = await prepareBarrierCommand(locator.episode_id, digest);
+  if (!result.ok) return { ok: false };
+  const binding = decodeOperation(result.value, key);
+  if (!binding || binding.episode_id !== locator.episode_id || binding.kind !== "select_barrier" ||
+      binding.body_sha256 !== digest || binding.parent_restatement_id !== null || binding.confirmation_id !== null) return { ok: false };
+  return { ok: true, token: result.value };
+}
+
+export async function submitPermission(form: FormData): Promise<ActionResult> {
+  const kind = form.get("kind"), token = form.get("operation_token"), choice = form.get("choice_id");
+  const selected = PERMISSION_KINDS.find(k => k === kind);
+  if (!selected || typeof token !== "string") return { state: "recovery" };
+  const keys = [...form.keys()].filter(k => !k.startsWith("$ACTION_")).sort();
+  const expected = ["kind", "operation_token", ...(selected === "select_barrier" ? ["choice_id"] :
+    selected === "grant_share" ? ["agreed"] : [])].sort();
+  if (keys.join(",") !== expected.join(",")) return { state: "recovery" };
+  if (selected === "grant_share" && form.get("agreed") !== "yes") return { state: "recovery" };
+  if (selected === "select_barrier" && (typeof choice !== "string" || !["booking", "transport", "other"].includes(choice))) return { state: "recovery" };
+  const h = await headers(), c = await cookies(), key = process.env.CARERELAY_API_TOKEN ?? "";
+  const locator = allowAction(h.get("origin"), h.get("host"), c.get(LOCATOR_COOKIE)?.value,
+    token, key, selected, process.env.CARERELAY_LOOPBACK_TEST === "1");
+  const binding = decodeOperation(token, key);
+  if (!locator || !binding || selected === "select_barrier" &&
+      (typeof choice !== "string" || binding.body_sha256 !== barrierChoiceDigest(choice))) return { state: "recovery" };
+  const result = await permissionCommand(locator.episode_id, token, selected, typeof choice === "string" ? choice : undefined);
   return result.ok ? { state: "loaded", journey: result.value.journey } :
     result.reason === "conflict" ? { state: "conflict", journey: result.journey } : { state: "recovery" };
 }

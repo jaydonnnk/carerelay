@@ -80,6 +80,10 @@ export function decodeOperation(token: string, key: string): OperationBinding | 
     if (["create", "select_example"].includes(value.kind)) {
       if (value.disposition_version !== null || value.parent_restatement_id !== null || value.confirmation_id !== null ||
           value.purpose !== `episode:${value.kind}`) return null;
+    } else if (["select_barrier", "grant_share", "decline_share", "revoke_share", "request"].includes(value.kind)) {
+      if (!Number.isSafeInteger(value.disposition_version) || value.disposition_version < 1 ||
+          value.parent_restatement_id !== null || value.confirmation_id !== null ||
+          value.purpose !== `disposition:${value.disposition_version}:${value.kind === "request" ? "request_appointment" : value.kind}`) return null;
     } else {
       if (!["readback_started", "confirm_words", "score_words", "repair_words", "show_plan", "hide_plan", "h3", "supersede_extraction"].includes(value.kind) ||
           !Number.isSafeInteger(value.disposition_version) || value.disposition_version < 1) return null;
@@ -130,4 +134,9 @@ export function allowPreparation(origin: string | null, host: string | null, coo
 export function confirmedWordsDigest(text: string, parentId: string | null): string {
   return createHash("sha256").update(ordered({ kind: "confirm_words",
     payload: { parent_id: parentId, text }, schema: "carerelay-command-v1" })).digest("hex");
+}
+
+export function barrierChoiceDigest(choiceId: string): string {
+  return createHash("sha256").update(ordered({ kind: "select_barrier",
+    payload: { choice_id: choiceId }, schema: "carerelay-command-v1" })).digest("hex");
 }

@@ -1,7 +1,7 @@
 "use client";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { startExample, selectExample, prepareReadbackWords, submitReadback, type ActionResult } from "@/app/actions";
+import { startExample, selectExample, prepareReadbackWords, submitReadback, prepareBarrierChoice, submitPermission, type ActionResult } from "@/app/actions";
 import { ENTRY_COPY, RECOVERY_COPY, JOURNEY_LABEL, reconcileJourney, type Journey, type PlanView, type CommandOffer } from "@/lib/journey";
 import { HintCard } from "./HintCard";
 
@@ -30,6 +30,85 @@ async function sendReadback(offer: CommandOffer, text?: string): Promise<ActionR
   if (text !== undefined) form.set("text", text);
   if (offer.kind === "supersede_extraction") form.set("old_operation_id", offer.permitted_choice_ids[0]);
   return submitReadback(form);
+}
+
+async function sendPermission(offer: CommandOffer, choiceId?: string): Promise<ActionResult> {
+  if (!offer.operation_token) return { state: "recovery" };
+  const form = new FormData(); form.set("kind", offer.kind); form.set("operation_token", offer.operation_token);
+  if (choiceId !== undefined) form.set("choice_id", choiceId);
+  if (offer.kind === "grant_share") form.set("agreed", "yes");
+  return submitPermission(form);
+}
+
+function BarrierForm({ journey, onResult }: { journey: Journey; onResult: (r: ActionResult) => void }) {
+  const [choice, setChoice] = useState("");
+  const [error, setError] = useState(false), [pending, setPending] = useState(false);
+  const firstChoice = useRef<HTMLInputElement>(null);
+  const prepared = useRef<{ choice: string; token: string } | null>(null);
+  const offer = journey.commands.find(o => o.kind === "select_barrier");
+  if (!offer || !journey.question) return null;
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!choice) { setError(true); firstChoice.current?.focus(); return; }
+    if (!offer || !offer.permitted_choice_ids.includes(choice)) return;
+    setPending(true);
+    try {
+      if (!prepared.current || prepared.current.choice !== choice) {
+        const form = new FormData(); form.set("choice_id", choice);
+        const result = await prepareBarrierChoice(form);
+        if (!result.ok) { onResult({ state: "recovery" }); return; }
+        prepared.current = { choice, token: result.token };
+      }
+      onResult(await sendPermission({ ...offer, operation_token: prepared.current.token }, choice));
+    } catch { onResult({ state: "recovery" }); }
+    finally { setPending(false); }
+  }
+  return <form onSubmit={submit} noValidate>
+    <fieldset className="journey-choices" disabled={pending} aria-describedby={error ? "barrier-error" : undefined}>
+      <legend>{journey.text.description}</legend>
+      {journey.question.choices.map((option, index) => <label className="journey-choice" key={option.choice_id}>
+        <input ref={index === 0 ? firstChoice : undefined} type="radio" name="choice_id" value={option.choice_id}
+          checked={choice === option.choice_id} onChange={() => { setChoice(option.choice_id); setError(false); prepared.current = null; }} />
+        <span>{option.text}</span>
+      </label>)}
+    </fieldset>
+    {error && <p id="barrier-error" role="alert">{journey.text.choice_error}</p>}
+    <button className="control primary" type="submit" disabled={pending}>{journey.text.continue_label}</button>
+    {pending && <p role="status">{RECOVERY_COPY.loading}</p>}
+  </form>;
+}
+
+function PermissionControls({ journey, onResult }: { journey: Journey; onResult: (r: ActionResult) => void }) {
+  const [agreed, setAgreed] = useState(false), [pending, setPending] = useState(false);
+  const grant = journey.commands.find(o => o.kind === "grant_share" && o.operation_token);
+  const request = journey.commands.find(o => o.kind === "request" && o.operation_token);
+  const declineKind = journey.step === "permission" && journey.question && !request ? "decline_share" : "revoke_share";
+  const decline = journey.commands.find(o => o.kind === declineKind && o.operation_token);
+  async function run(offer: CommandOffer) {
+    setPending(true);
+    try { onResult(await sendPermission(offer)); }
+    catch { onResult({ state: "recovery" }); }
+    finally { setPending(false); }
+  }
+  return <section>
+    {journey.text.shared && <p>{journey.text.shared}</p>}
+    {grant && <label className="journey-choice" htmlFor="share-plan-consent">
+      <input id="share-plan-consent" type="checkbox" checked={agreed} disabled={pending}
+        aria-describedby={!agreed ? "consent-help" : undefined}
+        onChange={event => {
+          const checked = event.target.checked; setAgreed(checked);
+          if (checked) void run(grant);
+          else if (decline) void run(decline);
+        }} />
+      <span>{journey.text.consent_label}</span>
+    </label>}
+    {grant && !agreed && <p id="consent-help">{journey.text.consent_error}</p>}
+    {journey.step === "permission" && journey.question && <button className="control primary" type="button"
+      disabled={pending || !request || !agreed} onClick={() => { if (request && agreed) void run(request); }}>{journey.text.request_label}</button>}
+    {decline && <button className="control" type="button" disabled={pending}
+      onClick={() => { setAgreed(false); void run(decline); }}>{journey.text.decline_label}</button>}
+    {pending && <p role="status">{RECOVERY_COPY.loading}</p>}
+  </section>;
 }
 
 function ReadbackForm({ journey, onResult, prepared }: { journey: Journey; onResult: (r: ActionResult) => void;
@@ -182,15 +261,18 @@ export function PatientJourney(props: Props) {
       <p className="demo-label">{journey?.fixture_label ?? JOURNEY_LABEL}</p>
       <h1>{recovery ? RECOVERY_COPY.heading : copy.heading}</h1>
       {!recovery && copy.status && <p className="journey-status">{copy.status}</p>}
-      {(recovery || copy.description) && <p>{recovery ? RECOVERY_COPY.description : copy.description}</p>}
+      {(recovery || copy.description && journey?.step !== "barrier") && <p>{recovery ? RECOVERY_COPY.description : copy.description}</p>}
       {journey?.step === "plan" && journey.plan && <PlanRows plan={journey.plan} labels={copy} />}
       {journey?.lines.map((line, i) => <p className="journey-line" key={i}>{line}</p>)}
-      {journey?.question && journey.question.text !== copy.heading && <p className="journey-question">{journey.question.text}</p>}
+      {journey?.question && journey.step !== "barrier" && journey.question.text !== copy.heading && <p className="journey-question">{journey.question.text}</p>}
       {copy.notice && <p className="demo-label">{copy.notice}</p>}
       {copy.feedback && <p role="status">{copy.feedback}</p>}
       {journey && ["readback", "repair"].includes(journey.step) && <ReadbackForm
         key={`${journey.flow.readback_attempt_id}:${journey.flow.latest_restatement_id}`} journey={journey}
         onResult={onResult} prepared={prepared} />}
+      {journey?.step === "barrier" && <BarrierForm key={journey.disposition_version} journey={journey} onResult={onResult} />}
+      {journey && journey.commands.some(o => ["grant_share", "decline_share", "revoke_share", "request"].includes(o.kind)) &&
+        <PermissionControls key={`${journey.disposition_version}:${journey.step}`} journey={journey} onResult={onResult} />}
       {readback && <button className="control primary" type="button" disabled={commandPending} onClick={() => run(readback)}>{copy.readback_label}</button>}
       {show && <button className="control" type="button" ref={showOpener} disabled={commandPending} onClick={() => run(show)}>{copy.show_label}</button>}
       <HintCard visible={journey?.revealed_plan != null} revision={journey?.revision ?? 0} title={copy.revealed_heading} closeLabel={copy.hide_label}
