@@ -234,6 +234,40 @@ class ExtractedPlan:
 
 
 @dataclass(frozen=True)
+class SourceSpan:
+    """Unicode code-point offsets into the exact confirmed words."""
+
+    text: str
+    start: int
+    end: int
+
+
+@dataclass(frozen=True)
+class RetainedMatch:
+    field: str
+    canonical_value: str | datetime
+    source_restatement_id: str
+    source_confirmation_id: str
+    source_span: SourceSpan
+
+
+@dataclass(frozen=True)
+class ReadbackContext:
+    episode_id: str
+    disposition_version: int
+    policy_version: str
+    attempt_id: str
+    parent_id: str | None
+    confirmation_id: str
+    confirmed_text: str
+    repair_field: str | None
+    completed_repairs: int
+    retained: tuple[RetainedMatch, ...]
+    effective_hint: HintLevel
+    claim_revision: int
+
+
+@dataclass(frozen=True)
 class PlanComparison:
     """Three disjoint, complete sets over `COMPARISON_FIELDS`.
 

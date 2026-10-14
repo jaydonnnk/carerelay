@@ -67,6 +67,9 @@ import json
 import re
 
 from carerelay.domain.models import (
+    ReadbackContext,
+    RetainedMatch,
+    SourceSpan,
     ChoiceView,
     CommandOffer,
     OutcomeView,
@@ -365,6 +368,222 @@ def restatement_stops(level: HintLevel, outcome: RecallOutcome, repair_round: in
     return level is HintLevel.H3 or (
         repair_round >= MAX_REPAIR_ROUNDS and outcome is RecallOutcome.NOT_RECALLED
     )
+
+
+def source_candidates(text: str, forms: frozenset[str]) -> tuple[SourceSpan, ...]:
+    """Recognise supported forms without normalising away source offsets."""
+    candidates = set()
+    for form in sorted(forms):
+        pattern = r"\s+".join(re.escape(part) for part in form.split())
+        if form and form[0].isascii() and form[0].isalnum():
+            pattern = r"(?<!\w)" + pattern
+        if form and form[-1].isascii() and form[-1].isalnum():
+            pattern += r"(?!\w)"
+        if pattern:
+            for match in re.finditer(pattern, text, re.IGNORECASE):
+                candidates.add(SourceSpan(match.group(), match.start(), match.end()))
+    return tuple(sorted((span for span in candidates if not any(
+        other.start <= span.start and span.end <= other.end and other != span
+        for other in candidates)), key=lambda span: (span.start, span.end)))
+
+
+_READBACK_DOUBT = re.compile(
+    r"\b(?:not|no|never|cannot|unsure|uncertain|maybe|perhaps|might|may|could|would|if|or)\b"
+    r"|\b\w+n['’]t\b|\?|？|不|没|未", re.IGNORECASE)
+_READBACK_BACKWARD = re.compile(
+    r"\b(?:actually|forget|instead|won['’]t|can['’]t|don['’]t)\b"
+    r"|^\s*(?:no|not|never)\s*[.!?;]?\s*$", re.IGNORECASE)
+_READBACK_MENTIONS = {
+    "action_id": re.compile(r"\b(?:go to|stay home|visit|wait|call|see the)\b", re.IGNORECASE),
+    "deadline_utc": re.compile(r"\b(?:today|tomorrow|before|after|tonight|next day)\b|今天|明天", re.IGNORECASE),
+    "next_owner_id": re.compile(r"\b(?:my neighbour|my neighbor|my daughter|my son|someone|she|he|they|we)\b", re.IGNORECASE),
+}
+
+
+def independent_uncertainty(confirmed_text: str, *, policy: PolicyFixture) -> frozenset[str]:
+    """Bounded whole-answer check independent of the extractor's assertions."""
+    forms = {
+        "action_id": frozenset(policy.action_aliases) | policy.permitted_action_ids,
+        "deadline_utc": frozenset(policy.deadline_forms),
+        "next_owner_id": frozenset(policy.owner_aliases) | policy.permitted_owner_ids,
+    }
+    uncertain = set()
+    for sentence in re.findall(r"[^.!?;]+[.!?;]?", confirmed_text):
+        if _READBACK_DOUBT.search(sentence):
+            if _READBACK_BACKWARD.search(sentence):
+                uncertain.update(COMPARISON_FIELDS)
+            for field, values in forms.items():
+                if source_candidates(sentence, values):
+                    uncertain.add(field)
+        elif _READBACK_BACKWARD.search(sentence) and re.search(
+            r"\b(?:forget|instead)\b", sentence, re.IGNORECASE):
+            uncertain.update(COMPARISON_FIELDS)
+        for field, mention in _READBACK_MENTIONS.items():
+            grounded = source_candidates(sentence, forms[field])
+            if any(not any(span.start <= hit.start() and hit.end() <= span.end
+                           for span in grounded) for hit in mention.finditer(sentence)):
+                uncertain.add(field)
+    for field, values in forms.items():
+        spans = source_candidates(confirmed_text, values)
+        if field == "deadline_utc":
+            resolved = {policy.deadline_forms.get(normalise(span.text)) for span in spans}
+        else:
+            aliases = policy.action_aliases if field == "action_id" else policy.owner_aliases
+            permitted = policy.permitted_action_ids if field == "action_id" else policy.permitted_owner_ids
+            resolved = {_resolve_id(span.text, aliases, permitted) for span in spans}
+        if len(resolved) > 1:
+            uncertain.add(field)
+    return frozenset(uncertain)
+
+
+def merge_field_repair(context: ReadbackContext, extracted: ExtractedPlan, *,
+                       whole_answer_doubt: frozenset[str], policy: PolicyFixture,
+                       now_utc: datetime, display_tz: tzinfo) -> tuple[ExtractedPlan, tuple[RetainedMatch, ...]]:
+    """Borrow only grounded known matches not replaced or contradicted now."""
+    if context.policy_version != policy.version:
+        raise DomainError("retention policy changed")
+    values = {"action_id": extracted.action_span, "deadline_utc": extracted.deadline_span,
+              "next_owner_id": extracted.next_owner_span}
+    uncertain = set(extracted.uncertain_fields) | set(whole_answer_doubt)
+    retained = []
+    for source in context.retained:
+        if source.field not in COMPARISON_FIELDS:
+            raise DomainError("unknown retained field")
+        if not source.source_restatement_id or not source.source_confirmation_id:
+            raise DomainError("retention has no grounded source")
+        if source.field == "action_id":
+            value = _resolve_id(source.source_span.text, policy.action_aliases, policy.permitted_action_ids)
+        elif source.field == "next_owner_id":
+            value = _resolve_id(source.source_span.text, policy.owner_aliases, policy.permitted_owner_ids)
+        else:
+            value = _resolve_deadline(source.source_span.text, now_utc, display_tz, policy.deadline_forms)
+        if value is None or value != source.canonical_value:
+            raise DomainError("retention source does not resolve to its value")
+        if context.repair_field is None:
+            continue
+        if source.field == context.repair_field:
+            continue
+        if values.get(source.field) is not None:
+            continue
+        if source.field in whole_answer_doubt:
+            continue
+        values[source.field] = source.source_span.text
+        uncertain.discard(source.field)
+        retained.append(source)
+    return ExtractedPlan(values["action_id"], values["deadline_utc"], values["next_owner_id"],
+                         frozenset(uncertain)), tuple(retained)
+
+
+def readback_confirmation(bundle: JourneyBundle, *, attempt_id: str | None,
+                          parent_id: str | None) -> dict[str, object] | None:
+    """Only the latest new explicit confirmation can authorise a check."""
+    current = None
+    for kind, payload, _ in bundle.events:
+        if kind != "words_confirmed":
+            continue
+        try:
+            event = json.loads(payload)
+        except (ValueError, TypeError):
+            raise JourneyUnavailable("invalid words confirmation") from None
+        if not isinstance(event, dict) or event.get("schema") != "confirmed-words-v1":
+            raise JourneyUnavailable("invalid words confirmation")
+        if event.get("disposition_version") != bundle.snapshot.disposition.version or event.get("attempt_id") != attempt_id:
+            continue
+        if event.get("episode_id") != bundle.episode_id or event.get("policy_version") != bundle.policy.version:
+            raise JourneyUnavailable("confirmation policy or episode mismatch")
+        if (not isinstance(event.get("text"), str) or not event["text"].strip() or len(event["text"]) > 2048
+                or not isinstance(event.get("confirmation_id"), str) or not event["confirmation_id"]):
+            raise JourneyUnavailable("invalid confirmed words")
+        current = event
+    return current if current is not None and current.get("parent_id") == parent_id else None
+
+
+def readback_context_current(context: ReadbackContext, bundle: JourneyBundle, *, now_utc: datetime) -> bool:
+    """Fresh final fence. Time comes from the caller, never a domain clock."""
+    disposition = bundle.snapshot.disposition
+    if disposition is None or context.episode_id != bundle.episode_id:
+        return False
+    if context.disposition_version != disposition.version or context.policy_version != disposition.policy_version:
+        return False
+    if bundle.revision != context.claim_revision:
+        return False
+    if bundle.snapshot.flow_stop_reason is not None or bundle.snapshot.expiry_event_id is not None:
+        return False
+    if now_utc >= disposition.clinical_deadline_utc:
+        return False
+    journey = derive_journey(bundle, now_utc=now_utc)
+    if context.attempt_id != journey.flow.readback_attempt_id or context.parent_id != journey.flow.latest_restatement_id:
+        return False
+    if context.effective_hint != journey.flow.effective_hint or context.effective_hint is HintLevel.H3:
+        return False
+    if context.completed_repairs != journey.flow.completed_repairs or context.completed_repairs >= MAX_REPAIR_ROUNDS:
+        return False
+    confirmed = readback_confirmation(bundle, attempt_id=context.attempt_id, parent_id=context.parent_id)
+    return confirmed is not None and confirmed["confirmation_id"] == context.confirmation_id and confirmed["text"] == context.confirmed_text
+
+
+def grounded_parent_matches(bundle: JourneyBundle, *, attempt_id: str,
+                            parent_id: str | None) -> tuple[RetainedMatch, ...]:
+    """Legacy rows have unknown provenance and supply no retained permission."""
+    if parent_id is None:
+        return ()
+    rows = {row.restatement_id: row for row in bundle.restatements}
+    parent = rows.get(parent_id)
+    if parent is None or parent.provenance is None:
+        return ()
+    if parent.disposition_version != bundle.snapshot.disposition.version or parent.provenance.get("attempt_id") != attempt_id:
+        raise JourneyUnavailable("retention parent is not this chain")
+    ancestors = set()
+    node = parent
+    while node is not None:
+        if node.restatement_id in ancestors:
+            raise JourneyUnavailable("cyclic retention chain")
+        ancestors.add(node.restatement_id)
+        previous = node.provenance.get("parent_id") if node.provenance else None
+        node = rows.get(previous) if previous is not None else None
+        if previous is not None and node is None:
+            raise JourneyUnavailable("missing retention ancestor")
+    confirmations = {}
+    for kind, payload, _ in bundle.events:
+        if kind == "words_confirmed":
+            event = json.loads(payload)
+            confirmations[event["confirmation_id"]] = event
+    result = []
+    raw_keys = {"action_id": "action_span", "deadline_utc": "deadline_span", "next_owner_id": "next_owner_span"}
+    for field in COMPARISON_FIELDS:
+        if field not in parent.comparison.matched:
+            continue
+        borrowed = next((r for r in parent.provenance.get("retained", []) if r["field"] == field), None)
+        source_id = borrowed["source_restatement_id"] if borrowed else parent.restatement_id
+        source = rows.get(source_id)
+        if source_id not in ancestors or source.provenance is None:
+            raise JourneyUnavailable("retention source is not an ancestor")
+        meta = source.provenance
+        if (source.disposition_version != bundle.snapshot.disposition.version or meta.get("policy_version") != bundle.policy.version
+                or meta.get("attempt_id") != attempt_id or field not in source.comparison.matched):
+            raise JourneyUnavailable("retention source binding changed")
+        confirmation_id = meta.get("confirmation_id")
+        event = confirmations.get(confirmation_id)
+        if (event is None or event.get("episode_id") != bundle.episode_id or event.get("attempt_id") != attempt_id
+                or event.get("disposition_version") != source.disposition_version or event.get("parent_id") != meta.get("parent_id")):
+            raise JourneyUnavailable("retention source confirmation changed")
+        span_data = meta["raw"][raw_keys[field]]
+        if not isinstance(span_data, dict):
+            raise JourneyUnavailable("retention has no source span")
+        span = SourceSpan(**span_data)
+        if (type(span.start) is not int or type(span.end) is not int or not 0 <= span.start < span.end <= len(event["text"])
+                or event["text"][span.start:span.end] != span.text):
+            raise JourneyUnavailable("retention offsets are not grounded")
+        if field == "action_id":
+            value = _resolve_id(span.text, bundle.policy.action_aliases, bundle.policy.permitted_action_ids)
+        elif field == "next_owner_id":
+            value = _resolve_id(span.text, bundle.policy.owner_aliases, bundle.policy.permitted_owner_ids)
+        else:
+            value = _resolve_deadline(span.text, source.created_at, timezone(timedelta(hours=8)), bundle.policy.deadline_forms)
+        if value is None:
+            raise JourneyUnavailable("retention value is unknown")
+        result.append(RetainedMatch(field, value, source_id, confirmation_id, span))
+    return tuple(result)
 
 
 def next_repair(comparison: PlanComparison, completed_rounds: int) -> str | None:
@@ -989,10 +1208,18 @@ def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjec
             ChoiceView("other", "Something else")))
     elif started is not None:
         step = "repair" if repair_field else "readback"
-        allowed = ("confirm_words", "repair_words" if repair_field else "score_words", "show_plan", "hide_plan", "h3")
+        allowed = ("confirm_words", "repair_words" if latest is not None else "score_words", "show_plan", "hide_plan", "h3")
         question = QuestionView(step, "When will you go?" if repair_field else "What will you do, when, and who will act?", ())
     if pending:
         question, allowed, interpretation = None, (), "pending"
+    confirmed = readback_confirmation(bundle, attempt_id=started, parent_id=latest.restatement_id if latest else None)
+    extraction_pending = any(r["phase"] == "claimed" and r["kind"] in {"score_words", "repair_words"}
+        and not any(t["operation_id"] == r["operation_id"] and t["phase"] == "completed" for t in bundle.commands)
+        for r in bundle.commands)
+    if extraction_pending and closure.closure is ClosureState.OPEN:
+        allowed = ("show_plan", "hide_plan") if stopped else ("show_plan", "hide_plan", "h3", "supersede_extraction")
+    elif not pending and step in {"readback", "repair"}:
+        allowed = tuple(k for k in allowed if k not in {"score_words", "repair_words"} or confirmed is not None)
     flow = FlowView(stopped, snapshot.flow_stop_reason, disposition.version if stopped else None,
         started, latest.restatement_id if latest else None, repair_field, completed_repairs,
         hint, visible, interpretation)
@@ -1006,12 +1233,35 @@ def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjec
     if visible:
         screen_text.update(revealed_heading="Your example plan", reveal_action_label="What to do",
                            reveal_deadline_label="Before", reveal_owner_label="Who acts")
-    if interpretation == "pending":
-        screen_text["feedback"] = "Loading. Nothing is confirmed yet."
-    elif interpretation == "unavailable":
-        screen_text["feedback"] = "We could not check that answer just now. Your plan has not changed."
-    elif interpretation == "uncertain":
-        screen_text["feedback"] = "We could not confirm that. Try different words, or show your plan."
+    if not stopped and closure.closure is ClosureState.OPEN:
+        if interpretation == "pending":
+            screen_text["feedback"] = "Loading. Nothing is confirmed yet."
+        elif interpretation == "unavailable":
+            screen_text["feedback"] = "We could not check that answer just now. Your plan has not changed."
+        elif interpretation == "uncertain":
+            screen_text["feedback"] = "We could not confirm that. Try different words, or show your plan."
+    if step in {"readback", "repair"}:
+        screen_text.update(input_label="Your words", input_help="Demo: use made-up words only.",
+            input_error="Add your words, or show your plan.", review_label="Review my answer",
+            preview_label="Preview only. Not checked or saved.", answer_label="Your answer",
+            confirmation_label="Save and check these words",
+            confirmation_help="This saves the words shown above and checks them against your example plan.")
+        if latest is not None and not latest.comparison.is_clean() and repair_field is None and interpretation not in {"pending", "unavailable"}:
+            screen_text["feedback"] = "We could not confirm that. Try different words, or show your plan."
+        if repair_field is not None and hint in {HintLevel.H2, HintLevel.H3}:
+            screen_text.update(repair_example_label="Example answer:", repair_answer=latest.extracted.deadline_span or "",
+                repair_plan_label="The plan says:", repair_deadline="before " + deadline)
+        if confirmed is not None:
+            screen_text["saved_words"] = confirmed["text"]
+        if extraction_pending:
+            screen_text["feedback"] = "Checking your saved words. Your plan has not changed."
+        if confirmed is not None:
+            screen_text.update(retry_label="Check these words again",
+                retry_help="This ends any previous check of these saved words and starts a new check.")
+    if any(k in allowed for k in ("show_plan", "hide_plan")):
+        screen_text.update(show_label="Show my plan", hide_label="Back to my answer")
+    if "readback_started" in allowed:
+        screen_text["readback_label"] = "Say it in your words"
     return replace(base, disposition_version=disposition.version, policy_version=disposition.policy_version,
         plan_redacted=redacted, plan=None if redacted else plan, outcome=outcome, flow=flow,
         step=step, question=question, commands=_journey_offers(allowed, pending=pending),
@@ -1037,7 +1287,8 @@ JOURNEY_SCREEN_TEXT = {
     "handoff": {"heading": "Handed to the nurse line", "notice": "Simulated handoff. Care is not confirmed."},
     "documented": {"heading": "Help is arranged."},
 }
-IMPLEMENTED_JOURNEY_COMMANDS = frozenset({"select_example"})
+IMPLEMENTED_JOURNEY_COMMANDS = frozenset({"select_example", "readback_started", "confirm_words", "score_words",
+    "repair_words", "show_plan", "hide_plan", "h3", "supersede_extraction"})
 
 
 def _journey_pending(rows: tuple[object, ...]) -> bool:
@@ -1046,7 +1297,7 @@ def _journey_pending(rows: tuple[object, ...]) -> bool:
 
 
 def _journey_offers(kinds: tuple[str, ...], *, pending: bool) -> tuple[CommandOffer, ...]:
-    if pending:
+    if pending and not set(kinds) <= {"show_plan", "hide_plan", "h3", "supersede_extraction"}:
         return ()
     return tuple(CommandOffer(kind, kind, ("scripted-appointment",) if kind == "select_example" else ())
                  for kind in kinds if kind in IMPLEMENTED_JOURNEY_COMMANDS)
