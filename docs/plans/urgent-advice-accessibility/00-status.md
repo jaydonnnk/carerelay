@@ -1,9 +1,133 @@
 # Status: CareRelay urgent-advice accessibility
 
-- Gate 1: Product, **RE-APPROVED 12 October 2026** for the revised concise patient journey, visual cues and copy in `01-product.md` and `patient-experience-copy.md`. The user explicitly approved Gate 1 and authorised committing the working tree and pushing to main. Previous approval: 8 October 2026.
+- Gate 1: Product, **narrowly RE-APPROVED 14 October 2026** for Slice 16's exact five confirmation/help and pending/retry strings in `patient-experience-copy.md`. The user answered "Approve these exact Gate 1 strings". The 12 October approved inventory is preserved. Approved strings are exposed only by the guarded offline Slice 16 controls; specialized non-timing and system-date copy remain blocked. Gates 2 to 4 contracts are unchanged.
 - Gate 2: Architecture, **RE-APPROVED 13 October 2026 (revision 4)** for the patient-experience journey and ADP read-back extraction design in `02-architecture.md` section 13. The user explicitly answered "Yep i approve gate 2" and requested a Gate 3 handoff. The previously approved section 5.2 durable-stop rule is unchanged. This architecture approval alone authorises no implementation.
 - Gate 3: Program Design, **RE-APPROVED 13 October 2026**, including section 9.12 identity correction. User answered "approve" after the reproduced no-event counterexample. Slice 14 is locally complete and shipped; Slice 15 Check is accepted with disclosed blocked viewport items and Slice 15 is shipped to main.
-- Gate 4: Slice plan, **RE-APPROVED 13 October 2026** for `04-slices.md` section 9. Its contract is unchanged. Slice 14 local Check is complete after Gate 3 section 9.12 re-approval. Slice 15 Check accepted 14 October 2026 by the user ("Yes, ship") with five viewport items disclosed as blocked, not passed, and carried to Slice 20; Slice 15 is shipped to main. Slices 16 to 21 have not started. No shipping, install or external authority follows.
+- Gate 4: Slice plan, **RE-APPROVED 13 October 2026** for `04-slices.md` section 9. Its contract is unchanged. Slice 15 Check accepted 14 October 2026 by the user ("Yes, ship") with viewport items disclosed as blocked, not passed, and carried to Slice 20; Slice 15 is shipped to main. Slice 16's offline/SQLite Check is ACCEPTED 14 October 2026. The user answered "I accept" and requested main publication and cleanup, then notification before Slice 17. Git shipping is authorised and in progress. Slices 17 to 21 have not started. No install or external-runtime authority follows.
+
+## Slice 16 Check acceptance and authorised shipping: 14 October 2026
+
+[verified] The user answered "I accept. Help me to push to main and clean up the
+working tree for unwanted files and then let me know before we start slice 17".
+This accepts the bounded offline/SQLite Check and authorises scoped commits,
+fast-forward into main, push of origin/main and cleanup. Stop and notify before
+Slice 17. No next-slice implementation is started by this shipping session.
+
+[verified] Shipping preflight: checkout `slice-16-confirmed-readback`; HEAD,
+local main and live remote main match `489dc2c`. External snapshot covers 225
+repository files plus index entries. The protected video hash matches the
+handoff. Fresh suite: 1,769 passed, 51 Postgres skips, one existing warning;
+frontend typecheck and build pass. All 631 named RED records match the current
+source/control fingerprints, with fourteen targets byte-identical to backups.
+The mutation run is inherited and verified current; it was not re-executed here.
+
+[verified] Cleanup removed three backed-up Finder metadata files: `.DS_Store`,
+`submission/.DS_Store` and `submission/usage-proof/.DS_Store`. Referenced source,
+fixtures, proof tools, future-engine tests and historical records are kept.
+The protected video remains untracked, unstaged and byte-preserved. Installed
+runtimes and dependencies, ignored real configuration and gate contracts are
+preserved. Main publication is in progress; a verified receipt follows.
+
+- [x] User accepts the local Check and explicitly authorises this shipping scope.
+- [x] Fresh suite/frontend checks, snapshot, fingerprint audit and cleanup.
+- [ ] Coherent scoped commits, safe fast-forward into main and remote publication.
+- [ ] Stop and notify before Slice 17.
+
+## Slice 16: local Check record before acceptance, 14 October 2026
+
+[verified] The user requested finish Slice 16 and stop, then prepare a handoff for
+Slices 17 and 18 with reference to the original assignment. The offline/SQLite
+exit is built on `slice-16-confirmed-readback`. This Check is READY. Human
+acceptance and Git shipping are pending; neither Slice 17 nor 18 has started.
+HEAD and local main are still `489dc2c9a977df4b1fff6cbc679993e96b33f43b`.
+No commit, merge, push, install, real configuration/credential change, external
+runtime, live ADP, real Postgres access, deployment or participant work occurred.
+
+- [x] Pre-edit tree/video snapshot, branch from verified main and reproduced baseline: 1,547 passed, 46 Postgres skips, one existing warning.
+- [x] Exact all-text confirmation and local unsaved review, unique attempt/latest-parent binding and grounded retention. Bare `tomorrow` stays uncertain; supported wrong-day then timing-only repair works.
+- [x] Claim/context outside extraction locks, current rechecks, owned pending claim and atomic score/provenance/stop/receipt. Unavailable consumes zero rounds; uncertain repairs consume rounds 1 and 2; H3 never passes. Pending stop retains safe Show/Hide only.
+- [x] One clean full named run: 631 RED, zero SURVIVED/NOT PROVEN, fourteen targets independently restored byte-exact. Earlier partial/failing runs are historical and not combined into this result.
+- [x] Post-restoration suite: 1,769 passed, 51 Postgres skips, one existing warning; frontend typecheck and production build pass. Current truthfulness: 39/39 RED, exact seven-target restores.
+- [x] Authenticated real HTTP: duplicate/pending one extraction, superseded late output, exact-body/parent/legacy refusal, unavailable without score/clinical stop, crash between score and receipt with rollback/restart, and genuinely lost replies after commit recovered without repeated extraction. The 2,048-codepoint response is within the 16KiB client bound.
+- [x] Visible production-browser keyboard review/confirm/repair, modal Tab/Shift-Tab/Escape/opener focus, pointer text control, escaped draft with zero HTTP/rows, 320px and enlarged-text-control screenshots, stale second-tab refusal, reload and hidden document/RSC checks.
+- [x] Thirty-eight stored cases agree across current API, SSR and RSC, with zero hidden-answer leaks in the declared hidden views. Scanner: 190 serialized surfaces, 4,180/4,180 positive injection controls. Actual DOM/AX observations are recorded separately.
+- [x] Slice review and architect cleanup: no new orphan or proposed deletion. Legacy fixture/probe/asset paths remain referenced. No provider, consent/request or clinical capability was added.
+- [ ] User Check acceptance, separately scoped Git shipping, and next-slice continuation.
+
+[verified] The confirmation-copy blocker was lifted by the user's exact Gate 1
+approval. Specialized non-timing and system-date strings remain blocked.
+The scenario remains 30 September 2026, 09:00 SGT; the stored deadline remains
+`2026-09-30T10:00:00+00:00`. No expected field fills uncertainty. The offline
+boundary also refuses embedded English words, and full-width questions remain
+uncertain. Those lexical checks are bounded, not general semantic validation.
+
+[unknown] The 51 skips include five new Postgres cases and establish no engine
+proof; actual disposable access remains Slice 19. Full screen-reader, browser
+zoom and complete accessibility proof remains Slice 20. Fresh visible Slice 16
+checks do not retroactively pass Slice 15's historically blocked items.
+`frontend/lib/api.ts:61` reason remains UNPROVEN-NO-CONTROL for Slice 17.
+Live ADP activation/profile/positive extraction remains Slice 21. Slice 9's
+participant run remains CUT with no participant validation; Slice 13 remains
+historical and unbuilt.
+
+[verified] Evidence and review: `docs/reviews/slice16-local-check-2026-10-14.md`.
+Full proof: `/tmp/carerelay-slice16-full-named-4/`.
+Final suite: `/tmp/carerelay-s16-post-mutation-final.log`.
+Current truthfulness: `/tmp/carerelay-s16-truthfulness-current-final.log`.
+Runtime and screenshots: `/tmp/carerelay-slice16-live/`.
+Handoff: `docs/handoffs/patient-experience-slice17-18-2026-10-14.md`.
+[verified] Every preview/test process started here is stopped. Ports 8315, 8316
+and 8317 are verified free. Temporary browser viewport override was reset.
+The unrelated video stays untracked/unstaged with its original SHA-256
+`cd5fbe68ab2d439f853ae8bd4b85bc6561216c951d1b374f73e62465c9c3a106`.
+Staged blob/mode entries equal HEAD; raw index cache bytes are not claimed unchanged.
+
+**Boundary:** stopped after Slice 16 as requested. No continuation to Slice 17
+or 18, acceptance or Git authority is inferred from preparing the handoff.
+Older dated sections below are historical snapshots.
+
+## Slice 16 preflight and narrow Gate 1 reopen: 14 October 2026
+
+[verified] The user authorised Slices 16, 17 and 18 one at a time, with each
+Check and explicit continuation boundary. This starts only Slice 16 on
+`slice-16-confirmed-readback`, created from local main and live origin/main
+`489dc2c9a977df4b1fff6cbc679993e96b33f43b`. No commit, merge or push is authorised.
+The preflight manifest at `/tmp/carerelay-slice16-snapshot.json` records 222
+file/index entries. The unrelated untracked video hash matches
+`cd5fbe68ab2d439f853ae8bd4b85bc6561216c951d1b374f73e62465c9c3a106`.
+
+[verified] Fresh pre-edit baseline: 1,547 passed, 46 Postgres skips and one
+existing Starlette warning, exit 0. Log: `/tmp/carerelay-slice16-baseline.log`.
+Existing Python and Node are used with the specified offline environment.
+The browser viewport has not yet been rechecked; no browser pass is claimed.
+
+[verified] Gate 1 is narrowly reopened for the five exact strings drafted in
+`patient-experience-copy.md`. Existing approved wording, Gates 2 to 4, policy,
+scenario date and stored deadline are preserved. Until approval, authorised
+work is limited to internals exposing no new patient string. New controls are
+absent, not inert. Slice 16 is INCOMPLETE; no exit Check has run.
+
+- [x] Verify current main, live remote and video; snapshot before branch/edit.
+- [x] Create Slice 16 branch and reproduce the pre-edit baseline.
+- [x] Draft exact confirmation/help and pending/retry copy; record narrow reopen.
+- [x] Obtain explicit Gate 1 re-approval before exposing any new string: "Approve these exact Gate 1 strings", 14 October 2026.
+- [ ] Complete Slice 16 implementation, guard proof, live Check and cleanup.
+
+Approval history: **14 October 2026, Gate 1 narrowly REOPENED and RE-APPROVED.**
+[verified] The user answered "Approve these exact Gate 1 strings" to the five
+strings shown in the approval request and now recorded in the copy inventory.
+This lifts the confirmation-copy blocker only. Gates 2 to 4, scenario/policy,
+other copy and clinical/external/Git boundaries are unchanged.
+
+[verified partial implementation] `adp_extraction.py` contains the port and
+explicitly offline exact-source extractor only. New pure domain types/functions
+check whole-answer doubt and field-only retention with grounded source references.
+They are not wired to patient progression. No ADP parser/transport, confirmation
+binding, store/service/API scoring, cue/recheck/cap or patient control is complete.
+The filtered domain mutation run is 46 RED, 0 SURVIVED, 0 NOT PROVEN with
+independently checked byte-exact restoration. Evidence:
+`/tmp/carerelay-slice16-domain-mutations-4/`. A full named run is in progress;
+neither this partial result nor the preflight frontend build is a Slice 16 Check.
 
 ## Slice 15 shipping receipt: 14 October 2026
 
@@ -444,18 +568,18 @@ authority. Provider-sharing consent grants no general ADP-processing authority.
 through Slice 15 is 18 to 30. The arithmetic and exclusions are in section 9.4;
 no full-upgrade promise for 16 October or current cutoff assertion is made.
 
-### Approved upgrade slices: Slices 14 and 15 shipped
+### Approved upgrade slices: Slices 14 and 15 shipped; Slice 16 shipping
 
 - [x] Slice 14: local Check complete and shipped to main 13 October 2026, `slice-14-journey-tracer`; no engine/deployed-behavior claim.
 - [x] Slice 15: explicit durable start/coherent stored journey, `slice-15-durable-start`, shipped to main 14 October 2026. Check accepted 14 October 2026 by the user ("Yes, ship"); five viewport items blocked, disclosed and carried to Slice 20.
-- [ ] Slice 16: confirmed offline read-back/field repair, `slice-16-confirmed-readback`.
+- [ ] Slice 16: offline/SQLite Check ACCEPTED on `slice-16-confirmed-readback`; authorised shipping to main is in progress. Stop and notify before Slice 17.
 - [ ] Slice 17: permission/truthful simulated failure, `slice-17-permission-failure`.
 - [ ] Slice 18: strict ADP extraction with offline transports, `slice-18-adp-boundary`.
 - [ ] Slice 19: disposable Postgres races/restarts, `slice-19-postgres-proof`.
 - [ ] Slice 20: production accessibility proof/remediation, `slice-20-accessibility-proof`.
 - [ ] Slice 21: separately authorised live ADP enablement, `slice-21-adp-enablement`.
 
-**Next work:** Slice 15 is shipped to main; next is "Continue to slice 16, or re-steer?" See the 14 October 2026 records at the top of this file. Slice 16 needs its own continuation, and its patient-flow entry stays blocked on the separate Gate 1 confirmation-copy approval.
+**Next boundary:** finish the authorised Slice 16 main publication and cleanup, then stop and notify before Slice 17. Exact confirmation copy is approved; specialized non-timing/system-date copy stays blocked. Slices 17 and 18 remain unstarted.
 
 ## Gate 3 reopen and re-approval: patient-experience program design, 13 October 2026
 
@@ -1795,13 +1919,13 @@ The map spans three folders, reorganised on 30 September 2026 so that a review a
 | `01-product.md` | **Gate 1 doc** | problem, success metric, announcement, product rules, screens |
 | `02-architecture.md` | **Gate 2 doc** | **revision 4 RE-APPROVED 13 Oct 2026.** Durable-stop amendment approved 12 Oct and preserved. D14 to D18 approve the journey/resume, screen mapping and ADP read-back architecture. Gate 3 section 9 is re-approved 13 Oct; Gate 4 upgrade section 9 is re-approved 13 Oct |
 | `03-program-design.md` | **Gate 3 doc** | **RE-APPROVED 13 Oct 2026.** Section 9 upgrade contracts approved; historical sections 1 to 8 retained |
-| `04-slices.md` | **Gate 4 doc** | **RE-APPROVED 13 Oct 2026.** Section 9 upgrade plan. **Corrected 14 Oct 2026:** Slice 14 is complete and shipped to `main`; Slice 15 is in progress on `slice-15-durable-start`; Slices 16 to 21 have not started. Historical Slices 0 to 13 retained |
+| `04-slices.md` | **Gate 4 doc** | **RE-APPROVED 13 Oct 2026.** Section 9 upgrade plan. **Corrected 14 Oct 2026:** Slices 14 and 15 are shipped to `main`; Slice 16's offline Check and five strings are accepted/approved, with authorised shipping in progress. Slices 17 to 21 are unstarted. Historical Slices 0 to 13 retained |
 | `03-planback-closure-contract.md` | supporting note | specification and feasibility for PlanBack and the Closure Contract. Carries the `03-` filename that Gate 3 needed |
 | `clinical-review-blocker.md` | supporting note | decision paper, 26 Sep: what the reviewer blocker actually blocks, and three routes through |
 | `research-workarounds.md` | supporting note | which blockers are workaroundable and which are hard gates. Listed here for the first time: it was named in `AGENTS.md` section 2 but was missing from this map |
 | `adp-and-deployment-impact.md` | supporting note | DRAFT, 30 Sep: what the ADP hackathon guide changes, where ADP collides with the §8 model-generated-text boundary and the D8 execution-substrate claim, and the Vercel/Render deployment assessment. Authorises nothing |
 | `mockups/` | Gate 1 assets | seven plain-HTML screens, throwaway by design |
-| `patient-experience-copy.md` | Gate 1 proposed copy | [verified] Exact main/dialog text from the twelve patient experience mockups; approved 12 October 2026 |
+| `patient-experience-copy.md` | Gate 1 copy | [verified] Exact main/dialog text approved 12 October 2026; five new Slice 16 strings explicitly approved 14 October 2026 |
 | `patient-experience-upgrade.md` | supporting execution note | [verified] Handoff reconciliation, incremental order, verification and manual dependencies |
 | `docs/handoffs/patient-experience-gate3-2026-10-13.md` (repo root) | session handoff | [verified] Approved Gate 2 receipt, dirty-worktree state, actionable Gate 3 assignment and separate review prompt |
 | `docs/handoffs/patient-experience-slices14-15-2026-10-13.md` (repo root) | implementation handoff | [verified] Gate 4 approval receipt, uncommitted tree, Slice 14 first/Slice 15 checkpoint and main handoff, tooling/proof limits |

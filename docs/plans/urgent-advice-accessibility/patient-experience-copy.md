@@ -1,4 +1,31 @@
-# Patient experience copy inventory: APPROVED 12 October 2026
+# Patient experience copy inventory: APPROVED with Slice 16 amendment
+
+## Slice 16 confirmation amendment: APPROVED 14 October 2026
+
+[verified] The user explicitly answered "Approve these exact Gate 1 strings"
+on 14 October 2026. Gate 1 is narrowly re-approved for these five non-clinical
+strings. `00-status.md` owns the receipt. Controls remain absent until the
+corresponding guarded Slice 16 behavior exists. The existing inventory below
+remains approved as recorded on 12 October 2026.
+
+[hypothesis] One explicit button confirms the exact words displayed in the local
+preview, saves them, then requests their check. Editing the draft removes that
+preview and invalidates its prepared token. Review remains local and unsaved.
+
+- Confirmation button: "Save and check these words"
+- Confirmation help: "This saves the words shown above and checks them against your example plan."
+- Pending status: "Checking your saved words. Your plan has not changed."
+- Explicit retry button: "Check these words again"
+- Explicit retry help: "This ends any previous check of these saved words and starts a new check."
+
+[hypothesis] The pending status replaces the local preview label after saving.
+An unavailable check reuses "We could not check that answer just now. Your plan
+has not changed." An uncertain result reuses "We could not confirm that. Try
+different words, or show your plan." Retry is an explicit action, never automatic.
+No specialized non-timing repair or system-date wording is proposed or approved.
+No clinical rule, deadline, outcome sentence, consent or real care claim changes.
+
+**Approval receipt:** "Approve these exact Gate 1 strings", 14 October 2026.
 
 [hypothesis] Revised following the user's request for concise wording, fewer
 boxes and visual cues. Gate 1 was explicitly approved 12 October 2026. These are exact main/dialog text

@@ -1,5 +1,56 @@
 # CareRelay reframe and accessibility plan
 
+**14 October 2026, Slice 16 Check accepted; shipping authorised. [verified]**
+The user answered "I accept" and requested main publication and cleanup, then
+notification before Slice 17. Fresh shipping checks: 1,769 passed, 51 Postgres
+skips, one existing warning; frontend typecheck/build pass. The 631 named RED
+records match all current target/control fingerprints and exact restores.
+Shipping is in progress; `00-status.md` owns the eventual receipt. Slice 17
+and 18 stay unstarted. The protected video stays untracked and byte-preserved.
+Older dated checkpoints below are historical.
+
+**14 October 2026, Slice 16 local Check ready; stopped. [verified]**
+`slice-16-confirmed-readback` remains uncommitted at `489dc2c`; local main is unchanged.
+Offline confirmed read-back, grounded repair, cue/cap, pending/supersede and atomic
+score/receipt are built. Current suite: 1,769 passed, 51 Postgres skips, one existing
+warning; typecheck/build pass. One full named run: 631 RED, zero SURVIVED/NOT PROVEN,
+exact fourteen-target restores; truthfulness 39/39 RED. Visible browser and local
+HTTP/scanner checks pass within the stated scope in `00-status.md`.
+The user requested finish Slice 16 and stop, then the Slice 17/18 handoff:
+`docs/handoffs/patient-experience-slice17-18-2026-10-14.md`.
+Check acceptance, Git shipping and next-slice continuation remain absent. No Slice
+17/18 was started. Real Postgres and full accessibility remain Slices 19 and 20;
+ADP stays disabled. The unrelated untracked video remains byte-preserved.
+Earlier checkpoints below are historical; `00-status.md` owns current state.
+
+**14 October 2026, Slice 16 confirmation copy re-approved. [verified]**
+The user answered "Approve these exact Gate 1 strings" for the five proposed
+confirmation/help and pending/retry strings. Gate 1 is narrowly RE-APPROVED;
+`00-status.md` owns the receipt. Approved prior copy and Gates 2 to 4 are
+preserved; specialized non-timing and system-date strings remain blocked.
+Slice 16 continues on `slice-16-confirmed-readback`. Its Check is incomplete,
+and controls stay absent until their guarded behavior exists. No Slice 17/18,
+Git shipping, installation, real configuration/credentials, external call,
+database access or deployment authority is added. Earlier checkpoints are history.
+
+**14 October 2026, Slice 16 preflight and domain-only work. [verified]**
+Slice 16 is INCOMPLETE on `slice-16-confirmed-readback`, from verified local/live
+remote main `489dc2c`. Fresh pre-edit baseline: 1,547 passed, 46 Postgres skips,
+one existing warning. Exact confirmation/help and pending/retry strings are
+proposed in `patient-experience-copy.md`; `00-status.md` records the narrow Gate 1
+reopen. Approval is pending. New patient controls remain absent.
+Only the offline extraction port and pure field-retention/whole-answer utilities
+are built. Confirmation binding, stores/service/API wiring, cue/cap/recheck,
+frontend and visible Check remain open. No Slice 17 or 18 has started, and no
+shipping, install, real config/credentials, external runtime, database access or
+deployment is authorised. The unrelated untracked video stays byte-preserved.
+Earlier checkpoints below are historical; `00-status.md` owns current state.
+
+- [ ] Slice 16: local Check ACCEPTED by the user 14 October 2026; authorised
+  shipping to main is in progress. Stop and notify before Slice 17.
+  Slice 17/18 handoff is `docs/handoffs/patient-experience-slice17-18-2026-10-14.md`.
+
+
 **14 October 2026, Slice 15 shipped to main. [verified]**
 After the user answered "Yes, ship", Slice 15 went out as eight scoped commits on `slice-15-durable-start`.
 Main advanced by a verified fast-forward-only ref update before checkout, then `origin/main` was pushed.

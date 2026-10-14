@@ -1,5 +1,14 @@
 # Product: CareRelay urgent-advice accessibility
 
+## Slice 16 confirmation amendment: RE-APPROVED 14 October 2026
+
+[verified] The user answered "Approve these exact Gate 1 strings" for the
+five confirmation/help and pending/retry strings in `patient-experience-copy.md`.
+Gate 1 is narrowly RE-APPROVED 14 October 2026. Controls remain absent until
+their guarded behavior is implemented. The 12 October approved wording and
+historical body below are preserved. No specialized non-timing or system-date
+copy is approved. `00-status.md` owns state; Gates 2 to 4 contracts are unchanged.
+
 ## Patient experience amendment: RE-APPROVED 12 October 2026
 
 **[verified] Gate 1 was explicitly RE-APPROVED 12 October 2026.** The user

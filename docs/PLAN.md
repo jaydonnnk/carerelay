@@ -1,5 +1,44 @@
 # CareRelay — Plan (updated 21 September 2026)
 
+**14 October 2026, Slice 16 Check accepted; shipping authorised. [verified]**
+The user answered "I accept" and requested main publication and cleanup, then
+notification before Slice 17. Fresh shipping checks: 1,769 passed, 51 Postgres
+skips, one existing warning; frontend typecheck/build pass. The 631 named RED
+records match all current target/control fingerprints and exact restores.
+Shipping is in progress; `00-status.md` owns the eventual receipt. Slice 17
+and 18 stay unstarted. The protected video stays untracked and byte-preserved.
+Older dated checkpoints below are historical.
+
+**14 October 2026, Slice 16 local Check ready. [verified]**
+Confirmed offline read-back and grounded repair are built on uncommitted
+`slice-16-confirmed-readback`. `00-status.md` owns the Check and its limits.
+The user requested stop after Slice 16 and a Slice 17/18 handoff; neither later
+slice started, and no acceptance, shipping, live ADP or engine authority follows.
+Earlier dated entries are historical.
+
+**14 October 2026, Slice 16 confirmation copy re-approved. [verified]**
+The user answered "Approve these exact Gate 1 strings" for the five proposed
+confirmation/help and pending/retry strings. Gate 1 is narrowly RE-APPROVED;
+`00-status.md` owns the receipt. Approved prior copy and Gates 2 to 4 are
+preserved; specialized non-timing and system-date strings remain blocked.
+Slice 16 continues on `slice-16-confirmed-readback`. Its Check is incomplete,
+and controls stay absent until their guarded behavior exists. No Slice 17/18,
+Git shipping, installation, real configuration/credentials, external call,
+database access or deployment authority is added. Earlier checkpoints are history.
+
+**14 October 2026, Slice 16 preflight and domain-only work. [verified]**
+Slice 16 is INCOMPLETE on `slice-16-confirmed-readback`, from verified local/live
+remote main `489dc2c`. Fresh pre-edit baseline: 1,547 passed, 46 Postgres skips,
+one existing warning. Exact confirmation/help and pending/retry strings are
+proposed in `patient-experience-copy.md`; `00-status.md` records the narrow Gate 1
+reopen. Approval is pending. New patient controls remain absent.
+Only the offline extraction port and pure field-retention/whole-answer utilities
+are built. Confirmation binding, stores/service/API wiring, cue/cap/recheck,
+frontend and visible Check remain open. No Slice 17 or 18 has started, and no
+shipping, install, real config/credentials, external runtime, database access or
+deployment is authorised. The unrelated untracked video stays byte-preserved.
+Earlier checkpoints below are historical; `00-status.md` owns current state.
+
 **14 October 2026, Slice 15 shipped to main. [verified]**
 After the user answered "Yes, ship", Slice 15 went out as eight scoped commits on `slice-15-durable-start`.
 Main advanced by a verified fast-forward-only ref update before checkout, then `origin/main` was pushed.
@@ -452,9 +491,9 @@ The patient restates the plan; **code, not a model, decides whether it matches.*
 
 1. Present the approved plan: action, deadline, next owner, fallback.
 2. Ask for a restatement in the patient's own words.
-3. **If the input was voice, confirm the transcript first.** The transcript is never evaluated before the patient has confirmed or corrected it. *(This corrects a defect in the current wireframe 2, which evaluated a draft transcript directly.)*
+3. **Gate 3 section 9.6 requires confirmation for every scored mode.** Exact words bind to the episode, plan version, attempt and latest parent. "Review my answer" remains a local, unsaved preview. Slice 16's five exact confirmation/help and pending/retry strings were approved 14 October 2026; the control stays absent until guarded implementation exists.
 4. Extract the three critical fields: `action`, `deadline`, `next_owner`.
-5. Compare deterministically. `deadline` compares as a **time bucket**, never as prose — “tomorrow” resolves to a date and fails. `action` compares against a **closed vocabulary of action ids**. `next_owner` compares against the named party.
+5. Compare deterministically using the recorded policy. A supported wrong-day form such as `tomorrow before 6pm` is a definite mismatch; bare `tomorrow` remains uncertain under `fixture-provisional-0`. Never fill the missing time from the expected plan. `action` compares against a closed vocabulary of action IDs; `next_owner` compares against the named party.
 6. All fields match → record `understanding_confirmed` and continue.
 7. Mismatch → repair **only the differing field**, then ask again. Maximum **2** repair rounds.
 8. Still mismatched → **stop** and route to the approved human/emergency path. Never continue on an unconfirmed plan.

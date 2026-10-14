@@ -89,3 +89,10 @@ Every factual claim in a CareRelay document carries one label. Keep this convent
 
 Reviews use a narrower set: `[verified]` observed in that session, `[estimate]` the
 reviewer's judgement, `[guess]` a hunch, `[unknown]` not established.
+
+## Slice 16 continuation records
+
+[verified] The accepted bounded local Check is recorded in
+[the Slice 16 review](reviews/slice16-local-check-2026-10-14.md).
+[The Slice 17/18 handoff](handoffs/patient-experience-slice17-18-2026-10-14.md)
+supplies the later contracts and limits. `00-status.md` owns shipping state.
