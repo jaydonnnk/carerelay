@@ -81,3 +81,13 @@ new mutation, HTTP, browser or Postgres run is claimed for this shipping session
 Cleanup removed three backed-up Finder metadata files. Referenced source, tests,
 fixtures, proof records and the protected video are kept. `00-status.md` owns
 the publication receipt. Stop and notify before Slice 17.
+
+[verified] Seven scoped commits were safely fast-forwarded into main and pushed.
+The first live remote verification matched local main at `a9cf97f`. The dated
+shipping receipt and written process log are published within that same request.
+The earlier review findings and runtime evidence remain historical as observed.
+
+[verified] The full suite on main reproduced 1,769 passed, 51 Postgres skips and
+one existing warning. Four untracked generated test/bytecode cache directories
+were moved to the external backup after that run. No product or proof file was
+removed. Publication redactions in older session logs are preserved.

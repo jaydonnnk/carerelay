@@ -1,13 +1,17 @@
 # CareRelay reframe and accessibility plan
 
-**14 October 2026, Slice 16 Check accepted; shipping authorised. [verified]**
-The user answered "I accept" and requested main publication and cleanup, then
-notification before Slice 17. Fresh shipping checks: 1,769 passed, 51 Postgres
-skips, one existing warning; frontend typecheck/build pass. The 631 named RED
-records match all current target/control fingerprints and exact restores.
-Shipping is in progress; `00-status.md` owns the eventual receipt. Slice 17
-and 18 stay unstarted. The protected video stays untracked and byte-preserved.
-Older dated checkpoints below are historical.
+**14 October 2026, Slice 16 shipped to main; stopped before Slice 17. [verified]**
+The user accepted the local Check and authorised main publication and cleanup.
+Seven scoped commits went onto `slice-16-confirmed-readback`; main advanced by
+verified fast-forward ref update before checkout and origin/main was pushed.
+The first live `ls-remote` verification matched local main at `a9cf97f`.
+This receipt publication is within the same shipping request; `00-status.md`
+owns the record. Fresh suite: 1,769 passed, 51 Postgres skips, one warning;
+typecheck/build pass. The 631 RED records match current source/control hashes.
+Three Finder metadata files and four generated cache directories were removed.
+Backups are outside the repository. Referenced proof/code and
+the protected untracked video are kept. Checkout is main; Slice 17/18 remain
+unstarted. Stop and notify before Slice 17. Older checkpoints are historical.
 
 **14 October 2026, Slice 16 local Check ready; stopped. [verified]**
 `slice-16-confirmed-readback` remains uncommitted at `489dc2c`; local main is unchanged.
@@ -46,8 +50,8 @@ shipping, install, real config/credentials, external runtime, database access or
 deployment is authorised. The unrelated untracked video stays byte-preserved.
 Earlier checkpoints below are historical; `00-status.md` owns current state.
 
-- [ ] Slice 16: local Check ACCEPTED by the user 14 October 2026; authorised
-  shipping to main is in progress. Stop and notify before Slice 17.
+- [x] Slice 16: local Check ACCEPTED and shipped to main 14 October 2026.
+  Cleanup complete. Stop and notify before Slice 17.
   Slice 17/18 handoff is `docs/handoffs/patient-experience-slice17-18-2026-10-14.md`.
 
 

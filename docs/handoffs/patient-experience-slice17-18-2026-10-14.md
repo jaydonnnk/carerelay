@@ -5,11 +5,16 @@ Dated 14 October 2026. `00-status.md` owns gate and slice state.
 ## Shipping update: 14 October 2026
 
 [verified] The user accepted the bounded Slice 16 local Check and authorised
-scoped commit, fast-forward into main, push of origin/main and cleanup.
-Shipping is in progress. Stop and notify before Slice 17. No Slice 17 branch
-or code is created by this shipping session. `00-status.md` owns its receipt.
-The build-session snapshot below is historical until the prompt is refreshed
-with verified publication state.
+scoped commits, fast-forward into main, push of origin/main and cleanup. Seven
+scoped commits were safely fast-forwarded before checkout and pushed. The first
+live remote check matched local main at `a9cf97f`. This receipt publication is
+within that shipping request. Checkout is main; tracked work is clean after
+publication, with only the protected video untracked. Three backed-up Finder
+metadata files and four generated cache directories were removed, with external
+backups. Referenced code/proof records are kept.
+Stop and notify before Slice 17. No Slice 17/18 branch or code is created here.
+`00-status.md` owns the receipt. The build-session snapshot below is historical;
+the refreshed next-chat context follows the current publication state.
 
 ## Build-session boundary before acceptance
 
@@ -104,11 +109,11 @@ uncommitted; line anchors below are for this source snapshot.
 
 ## Open work and inherited assignment boundaries
 
-[verified] Slice 16 still depends on user Check acceptance and separately scoped
-Git shipping before Slice 17 can branch from current main. The current slice's
-dirty changes are not a suitable base to carry onto a new branch from old main.
-Slice 17's accepted Check, shipping to main and explicit continuation similarly
-precede Slice 18. This handoff does not satisfy any of those dependencies.
+[verified] Slice 16's local Check is now accepted and it is shipped to main.
+The latest user instruction requires notification before starting Slice 17.
+No Slice 17 branch or implementation has started. Its own accepted Check,
+shipping to main and explicit continuation still precede Slice 18. This handoff
+grants no later implementation, shipping or external-runtime authority.
 
 [verified] Slice 17's contract is `04-slices.md` section 9: permission and truthful
 simulated failure. Its guard allocation is G03 to G07, G12 to G14, G16, G17,
@@ -176,68 +181,81 @@ and 8317 are verified free. Temporary browser viewport override was reset.
 
 CareRelay context for `/Users/jayd0/Desktop/carerelay`, 14 October 2026:
 
-The original assignment covered Slices 16, 17 and 18 one at a time, each on its
-own branch and ending in its own visible Check and explicit continuation.
-The latest steering was to finish Slice 16 and stop, with this handoff prepared
-for Slices 17 and 18. The current record is
-`docs/handoffs/patient-experience-slice17-18-2026-10-14.md`.
+Slice 16's bounded offline/SQLite local Check was explicitly accepted by the
+user with "I accept". The user authorised main publication and cleanup, then
+notification before Slice 17. Slice 16 is shipped to main. Seven scoped commits
+were safely fast-forwarded into main by guarded ref update before checkout,
+then origin/main was pushed and live `ls-remote` matched local main at the first
+publication tip `a9cf97f`. A receipt/log publication follows within that same
+request. Read current Git refs; do not treat that first tip as the final hash.
+Checkout is main. Tracked work is clean after publication; the only untracked
+path is `submission/usage-proof/Workbuddy_evidence.mp4`, preserved at SHA-256
+`cd5fbe68ab2d439f853ae8bd4b85bc6561216c951d1b374f73e62465c9c3a106`.
+Three Finder metadata files and four generated cache directories were removed,
+with external backups. Referenced source, tests,
+fixtures and historical proof records were kept. No later slice was started.
 
-Slice 16 is built and its offline/SQLite local Check is ready on dirty
-`slice-16-confirmed-readback`, HEAD/local main `489dc2c`. Current proof is
-1,769 passed, 51 Postgres skips, one warning, 631 named mutations RED with
-zero SURVIVED/NOT PROVEN and exact restores, plus 39/39 truthfulness RED.
-User Check acceptance and Git shipping remain absent. The five exact Gate 1
-confirmation/help/pending/retry strings are explicitly approved; other blocked
-copy stays blocked. ADP remains disabled. The video stays untracked at the hash
-in this handoff. The current browser supports visible checks, but full
-accessibility and old Slice 15 blockers still belong to Slice 20.
+Fresh shipping suite: 1,769 passed, 51 Postgres skips, one existing warning;
+frontend typecheck/build pass. The current recorded full named proof remains
+631 RED, zero SURVIVED/NOT PROVEN, with fourteen exact restores. All source and
+control fingerprints were verified current during shipping. The inherited
+truthfulness proof is 39/39 RED. No fresh mutation, HTTP or browser run is claimed
+for shipping. The accepted local Check and remaining limits are in
+`docs/reviews/slice16-local-check-2026-10-14.md` and `00-status.md`.
 
-The controlling read set from that starting assignment is AGENTS.md's top
-checkpoints and sections 3, 5 and 6; PROGRESS.md as operational memory;
-`docs/plans/urgent-advice-accessibility/00-status.md` as the only gate/slice
-state authority; Gate 3 `03-program-design.md` section 9, especially 9.5 to 9.10
-and 9.12; Gate 4 `04-slices.md` section 9, especially entry blockers, exit
-discipline, guard allocation, browser matrix and the Slice 17/18 contracts;
-`01-product.md` and `patient-experience-copy.md`; and the prior record
+The controlling read set remains AGENTS.md's latest checkpoints and sections
+3, 5 and 6; PROGRESS.md as operational memory; `00-status.md` as the only
+state authority; Gate 3 `03-program-design.md` section 9, especially 9.5 to
+9.10 and 9.12; Gate 4 `04-slices.md` section 9, especially entry/exit, guard
+allocation, browser matrix and Slice 17/18 contracts; `01-product.md`;
+`patient-experience-copy.md`; this handoff; and
 `docs/handoffs/patient-experience-slice15-continuation-4-2026-10-14.md`.
 
-The build/review skills remain `carerelay-slice-build` and
-`carerelay-slice-review`; `carerelay-slice-ship` applies only after explicit Git
-authority. The original per-slice discipline remains in effect, including
-fresh baseline and video/tree snapshot before editing, both-engine code with
-real Postgres explicitly skipped/unproven, fail-capable controls at the first
-refusal layer, one clean full named mutation run plus truthfulness, real
-HTTP curl, production-browser and positive scanner controls, architect cleanup,
-current records, LF/no-added-em-dash/diff checks and named-port cleanup.
+The build/review skills remain carerelay-slice-build and carerelay-slice-review.
+carerelay-slice-ship applies only after separately explicit Git authority.
+Preserve per-slice branches, fresh baseline and tree/video snapshot, both-engine
+code with real Postgres skipped/unproven, first-refusal controls, one current
+full named mutation run plus truthfulness, real local HTTP curl, visible
+production-browser and positive scanner controls, architect cleanup, current
+records, LF/no-added-em-dash/diff checks and named-port cleanup.
 
 Slice 17 is permission and truthful simulated failure on
-`slice-17-permission-failure`, from verified main only after Slice 16 is accepted,
-shipped and explicitly continued. Its guards and the api.ts reason control are
-listed in this handoff. Slice 18 is strict ADP extraction on
-`slice-18-adp-boundary`, from main only after Slice 17 is accepted, shipped and
-continued. The default ADP flag remains false and transports remain fake.
-The original no-install, no-real-config/credentials, no-external-runtime,
-no-live-ADP, no-Postgres-access, no-deployment, no-participant and no-Slice-19/20/21
-boundaries remain. Later blockers and the protected untracked video hash are
-unchanged. Git authority is separate and currently absent. Each authorised
-shipping close uses coherent named staging, no co-author, the safe fast-forward
-main ref update before checkout, push of origin/main and live ls-remote verification;
-tracking-ref loss does not prove push failure, and shipping-made-false records
-need a sweep. No approval or continuation is inferred from this context.
+`slice-17-permission-failure`, from verified current main, only after the user
+resumes it following this stop-and-notify boundary. Its guards remain G03 to
+G07, G12 to G14, G16, G17, G22, G31 to G35, G37 and G38.
+The inherited api.ts 401-versus-503 reason remains UNPROVEN-NO-CONTROL and belongs
+to Slice 17. No real provider, message, new actor, clinical branch or new copy.
 
-Wait for instructions before taking any action.
+Slice 18 is strict ADP extraction on `slice-18-adp-boundary`, from main only
+after Slice 17 is accepted, shipped and explicitly continued. Its guards remain
+G15, G18 to G21, G24 to G30, G34 and G38. The default ADP flag stays false;
+transports remain fake. The five exact Gate 1 confirmation/help/pending/retry
+strings are approved. Specialized non-timing/system-date copy stays blocked.
+
+No install, real config/credentials, external runtime, live ADP, real Postgres
+access, manual deployment, participant work or Slice 19/20/21 follows.
+Actual Postgres remains Slice 19, complete accessibility and old Slice 15
+blocked items remain Slice 20, and live ADP remains Slice 21. Slice 9's
+participant run was CUT; Slice 13 remains historical and unbuilt.
+Git shipping authority is exhausted after this publication. Every later ship
+needs separate authority, coherent named staging, no co-author, safe main ref
+update before checkout, push of origin/main and live ls-remote verification.
+Tracking-ref loss does not prove push failure; sweep shipping-made-stale records.
+No approval or continuation follows merely from this context.
+
+Wait for user instructions before starting Slice 17.
 
 ## Optional Prompt for Handoff Review
 
-Independently review the uncommitted Slice 16 in
+Independently review the shipped Slice 16 in
 `/Users/jayd0/Desktop/carerelay`, against Gate 3 section 9 and Gate 4's exact
 Slice 16 exit. Assume it may be flawed. Be unbiased, thorough and honest.
 The claimed scope is offline confirmed read-back, field repair, cue/cap and
 atomic claim/receipt handling, with the bounded evidence in this handoff and
 `00-status.md`; no real ADP, Postgres, deployment or participant proof is claimed.
 
-Re-run the documented baseline/current checks, inspect the actual diff including
-untracked source and tests, and stress-test confirmation, retention, pending,
+Re-run the documented baseline/current checks, inspect the committed Slice 16 diff and
+its source and tests, and stress-test confirmation, retention, pending,
 late answers, crashes, hidden HTML/RSC, SourceSpan bounds/word edges, question
 markers, and complete producer-to-frontend decoding. Probe every caller when a
 guard is masked. Require each named test to be fail-capable with an otherwise

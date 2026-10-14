@@ -4,11 +4,16 @@ Operational memory only. `00-status.md` owns gate and slice state.
 
 ## Current shipping task
 
-[verified] The user accepted Slice 16's bounded local Check and authorised main
-publication and cleanup. Fresh suite: 1,769 passed, 51 Postgres skips, one warning;
+[verified] Slice 16's bounded local Check was accepted, and main publication
+and cleanup were authorised. Seven scoped commits were fast-forwarded into main
+by a guarded ref update before checkout and pushed to origin/main. The first
+live remote check matched local main at `a9cf97f`. This receipt publication is
+within that request. Fresh suite: 1,769 passed, 51 Postgres skips, one warning;
 typecheck/build pass. All 631 named mutation records match current source and
-controls. Three backed-up Finder metadata files were removed. Shipping is in
-progress; stop and notify before Slice 17. `00-status.md` owns the receipt.
+controls. Three Finder metadata files and four generated cache directories were
+removed, with backups outside the repository. Referenced code,
+proof records and the protected untracked video are kept. Checkout is main.
+Stop and notify before Slice 17. `00-status.md` owns state and the receipt.
 The remainder records the earlier Slice 16 build session.
 
 ## Goal and scope
