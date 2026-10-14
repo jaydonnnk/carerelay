@@ -35,6 +35,15 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from _legacy_service_probes import (
+    KEY,
+    signed_create,
+    signed_intake,
+    service_intake,
+    service_hint,
+    service_consent,
+    service_action,
+)
 from carerelay.api import app, get_service  # noqa: E402
 from carerelay.coordinator import LocalSimulationCoordinator  # noqa: E402
 from carerelay.demo import fixture  # noqa: E402
@@ -68,6 +77,7 @@ def _service(clock_instant: datetime) -> EpisodeService:
         display_tz=fixture.DISPLAY_TZ,
         disposition_factory=fixture.disposition,
         bound_complaint=fixture.BOUND_COMPLAINT,
+        operation_signing_key=lambda: KEY,
         policy_provenance="test: provisional",
     )
 
@@ -93,21 +103,15 @@ def late_client() -> Iterator[TestClient]:
 
 @pytest.fixture()
 def assessed(client: TestClient) -> str:
-    client.post("/api/episodes")
-    response = client.post(
-        f"/api/episodes/{EPISODE}/intake",
-        json={"confirmed_text": fixture.BOUND_COMPLAINT},
-    )
+    signed_create(client)
+    response = signed_intake(client)
     assert response.status_code == 200
     return EPISODE
 
 
 def _open_attempt(client: TestClient) -> str:
-    client.post(f"/api/episodes/{EPISODE}/consents", json={"granted": True})
-    response = client.post(
-        f"/api/episodes/{EPISODE}/actions",
-        json={"route_id": ROUTE, "purpose_id": PURPOSE},
-    )
+    service_consent(client, EPISODE, json={"granted": True})
+    response = service_action(client, EPISODE, json={"route_id": ROUTE, "purpose_id": PURPOSE})
     assert response.status_code == 200
     return response.json()["attempt_id"]
 
@@ -127,7 +131,7 @@ class TestPermittedOptions:
 
     def test_every_route_carries_the_policy_display_text(self, client: TestClient, assessed):
         """A raw route id on a screen is the defect this read exists to prevent."""
-        client.post("/api/episodes")
+        signed_create(client)
         body = client.get(f"/api/episodes/{EPISODE}/options").json()
         display = fixture.policy_text().route_display_by_id
         for route in body["routes"]:
@@ -135,7 +139,7 @@ class TestPermittedOptions:
             assert route["display"] != route["route_id"]
 
     def test_the_label_and_the_wired_origin_travel_with_it(self, client: TestClient):
-        client.post("/api/episodes")
+        signed_create(client)
         body = client.get(f"/api/episodes/{EPISODE}/options").json()
         assert body["simulated"] is True
         assert body["fixture_label"] == fixture.FIXTURE_LABEL
@@ -144,7 +148,7 @@ class TestPermittedOptions:
     def test_before_assessment_there_is_no_disposition_version(
         self, client: TestClient
     ):
-        client.post("/api/episodes")
+        signed_create(client)
         body = client.get(f"/api/episodes/{EPISODE}/options").json()
         assert body["disposition_version"] is None
         assert body["routes"] == []
@@ -229,11 +233,8 @@ class TestTheLedgerNeverWrites:
         become a writer and the evidence is no longer independent of who looked
         at it.
         """
-        late_client.post("/api/episodes")
-        late_client.post(
-            f"/api/episodes/{EPISODE}/intake",
-            json={"confirmed_text": fixture.BOUND_COMPLAINT},
-        )
+        signed_create(late_client)
+        service_intake(late_client, EPISODE, json={"confirmed_text": fixture.BOUND_COMPLAINT})
         first = late_client.get(f"/api/episodes/{EPISODE}/ledger").json()
         assert first["expiry"] == []
         again = late_client.get(f"/api/episodes/{EPISODE}/ledger").json()
@@ -244,16 +245,12 @@ class TestTheLedgerNeverWrites:
     ):
         """The same clock, the other read. The ledger is not blind: it just writes
         nothing itself."""
-        late_client.post("/api/episodes")
-        late_client.post(
-            f"/api/episodes/{EPISODE}/intake",
-            json={"confirmed_text": fixture.BOUND_COMPLAINT},
-        )
+        signed_create(late_client)
+        service_intake(late_client, EPISODE, json={"confirmed_text": fixture.BOUND_COMPLAINT})
         assert late_client.get(f"/api/episodes/{EPISODE}/ledger").json()["expiry"] == []
-        # Assessed HTTP is unavailable in Slice 14; old expiry proof stays at service.
         response = late_client.get(f"/api/episodes/{EPISODE}")
-        assert response.status_code == 503
-        patient = app.dependency_overrides[get_service]().project_patient(EPISODE).as_dict()
+        assert response.status_code == 200, response.text
+        patient = response.json()
         assert patient["closure"] == "expired_unresolved"
         after = late_client.get(f"/api/episodes/{EPISODE}/ledger").json()
         assert len(after["expiry"]) == 1
@@ -264,10 +261,7 @@ class TestLedgerCarriesDwellSeconds:
     """`PLAN.md` 5.2.1, C8: judge-facing, never on the patient surface."""
 
     def test_a_hint_event_keeps_its_dwell_time(self, client: TestClient, assessed):
-        client.post(
-            f"/api/episodes/{assessed}/hint-events",
-            json={"hint_level": "H2", "event": "shown", "dwell_seconds": 12.5},
-        )
+        service_hint(client, assessed, json={"hint_level": "H2", "event": "shown", "dwell_seconds": 12.5})
         body = client.get(f"/api/episodes/{assessed}/ledger").json()
         assert body["hint_events"][0]["dwell_seconds"] == 12.5
         assert body["dwell_seconds_total"] == 12.5
@@ -279,17 +273,18 @@ class TestLedgerCarriesDwellSeconds:
     def test_the_hint_response_still_does_not_carry_it_back(
         self, client: TestClient, assessed
     ):
-        """C8 at the boundary: the write route never echoes dwell to the patient."""
-        response = client.post(
-            f"/api/episodes/{assessed}/hint-events",
-            json={"hint_level": "H2", "event": "shown", "dwell_seconds": 12.5},
-        )
-        assert "dwell_seconds" not in response.json()
+        """C8: actual patient HTTP keeps dwell in the ledger."""
+        service_hint(client, assessed, json={"hint_level": "H2", "event": "shown", "dwell_seconds": 12.5})
+        response = client.get(f"/api/episodes/{assessed}")
+        assert response.status_code == 200
+        assert "dwell_seconds" not in response.text
+        assert "12.5" not in response.text
+        assert client.get(f"/api/episodes/{assessed}/ledger").json()["dwell_seconds_total"] == 12.5
 
 
 class TestLedgerCarriesTheClosureInputs:
     def test_an_acceptance_shows_in_the_ledger(self, client: TestClient, assessed):
-        client.post(f"/api/episodes/{EPISODE}/consents", json={"granted": True})
+        service_consent(client, EPISODE, json={"granted": True})
         client.post(f"/api/episodes/{EPISODE}/acceptances", json={"accepted_by": "caregiver"})
         body = client.get(f"/api/episodes/{assessed}/ledger").json()
         assert body["acceptance"] is not None

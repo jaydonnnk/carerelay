@@ -320,6 +320,14 @@ def _one_row_per_table(path: str | Path) -> None:
                 stamp,
             ),
         ),
+        "journey_commands": (
+            "INSERT INTO journey_commands "
+            "(operation_id, phase, episode_id, expected_revision, claim_revision, "
+            "kind, purpose, body_sha256, scored, recorded_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            ("raw-command", "claimed", EPISODE_ID, 0, 0,
+             "create", "episode:create", "a" * 64, 0, stamp),
+        ),
         "events": (
             "INSERT OR IGNORE INTO events (episode_id, kind, payload, recorded_at) "
             "VALUES (?, ?, ?, ?)",

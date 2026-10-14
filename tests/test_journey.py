@@ -94,13 +94,15 @@ def test_unknown_and_auth_refusal(world, suffix):
         assert unauthenticated.get("/api/episodes/fictional-no-plan" + suffix).status_code == 401
 
 
-def test_assessed_refuses_without_a_stop_or_implicit_expiry(world):
+def test_assessed_reads_without_a_stop_or_implicit_expiry(world):
     client, service = world
     service.intake("fictional-no-plan", fixture.BOUND_COMPLAINT)
     before = service._store.list_events("fictional-no-plan")
     response = client.get("/api/episodes/fictional-no-plan")
-    assert response.status_code == 503
-    assert response.json() == {"detail": "journey unavailable"}
+    assert response.status_code == 200
+    assert response.json()["step"] == "plan"
+    assert response.json()["plan"]["deadline_utc"] == "2026-09-30T10:00:00+00:00"
+    assert response.json()["lines"] == list(fixture.demo_lines().as_tuple())
     assert service._store.list_events("fictional-no-plan") == before
     assert service._store.load_snapshot("fictional-no-plan").flow_stop_reason is None
     assert service.project_patient("fictional-no-plan").lines == fixture.demo_lines().as_tuple()
@@ -238,3 +240,322 @@ def test_reads_call_no_create_model_or_dispatch(world, monkeypatch):
         assert response.status_code == 200
         assert_no_plan(response.json())
     assert called == []
+
+
+def test_expiry_survives_unavailable_date_and_clock_regression(world):
+    from datetime import timedelta
+    from carerelay.service import ScenarioClock
+    client, service = world
+    episode = "fictional-no-plan"
+    service.intake(episode, fixture.BOUND_COMPLAINT)
+    deadline = service._store.load_snapshot(episode).disposition.clinical_deadline_utc
+    service._clock = ScenarioClock(fixture.SCENARIO_NOW_UTC + timedelta(days=1))
+    response = client.get("/api/episodes/" + episode)
+    assert response.status_code == 503
+    assert response.json() == {"detail": "journey unavailable"}
+    assert len(service._store.list_expiry_events(episode)) == 1
+    assert service._store.load_snapshot(episode).flow_stop_reason is None
+    service._clock = ScenarioClock(fixture.SCENARIO_NOW_UTC)
+    recovered = client.get("/api/episodes/" + episode)
+    assert recovered.status_code == 200
+    assert recovered.json()["step"] == "expired"
+    assert recovered.json()["outcome"]["expiry_recorded"] is True
+    assert recovered.json()["plan"]["deadline_utc"] == deadline.isoformat()
+    assert len(service._store.list_expiry_events(episode)) == 1
+
+
+MATRIX = {
+    "plan": ("plan", None, "open", "patient", False),
+    "readback": ("readback", "readback", "open", None, False),
+    "repair": ("repair", "repair", "open", None, False),
+    "uncertain": ("readback", "readback", "open", None, False),
+    "unavailable": ("readback", "readback", "open", None, False),
+    "barrier": ("barrier", "barrier", "open", "patient", False),
+    "permission": ("permission", "permission", "open", "patient", False),
+    "declined": ("permission", "permission", "open", "patient", False),
+    "waiting": ("permission", None, "open", "patient", False),
+    "acknowledged": ("plan", None, "open", "patient", False),
+    "failed": ("unresolved", None, "open", "patient", False),
+    "handoff_failed": ("unresolved", None, "open", "patient", False),
+    "handoff_attempted": ("plan", None, "open", "patient", False),
+    "handoff_unknown": ("plan", None, "open", "patient", False),
+    "stopped": ("stopped", None, "open", "patient", True),
+    "h3": ("stopped", None, "open", "patient", True),
+    "accepted": ("accepted", None, "closed_with_evidence", "caregiver", False),
+    "handoff": ("handoff", None, "escalated_to_human", "nurse_line", False),
+    "stopped_accepted": ("accepted", None, "closed_with_evidence", "caregiver", True),
+    "stopped_handoff": ("handoff", None, "escalated_to_human", "nurse_line", True),
+    "expired": ("expired", None, "expired_unresolved", "patient", False),
+    "expired_accepted": ("expired", None, "expired_unresolved", "caregiver", False),
+    "expired_handoff": ("expired", None, "expired_unresolved", "nurse_line", False),
+    "expired_stopped": ("expired", None, "expired_unresolved", "patient", True),
+    "documented": ("documented", None, "closed_with_evidence", "patient", False),
+    "expired_documented": ("documented", None, "closed_with_evidence", "patient", False),
+    "pending": ("plan", None, "open", "patient", False),
+}
+OUTCOME_LINES = {
+    "open": ["No one has agreed to help yet.", "Please act now.", "Please do it before 6pm today.", "If that does not work, call the fictional nurse line."],
+    "accepted": ["Someone has agreed to help.", "You do not need to act now.", "It is set for 6pm today.", "If that does not happen, call the fictional nurse line."],
+    "handoff": ["We have passed this to the fictional nurse line.", "You do not need to act now.", "It is set for 6pm today.", "If that does not work, call the fictional nurse line."],
+    "expired": ["No one has agreed to help yet.", "You can still do this.", "It is past 6pm today. Please go now.", "Call the fictional nurse line. They can help from here."],
+    "documented": ["Help is arranged.", "Nothing more is needed from you.", "It is set for 6pm today.", "If that does not happen, call the fictional nurse line."],
+}
+
+
+@pytest.mark.parametrize("case", MATRIX)
+def test_twelve_screens_and_contradictions(world, case):
+    from _journey_fixtures import seed_journey
+    client, service = world
+    episode = "matrix-" + case
+    seed_journey(service, episode, case)
+    response = client.get("/api/episodes/" + episode)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    step, question, closure, owner, stopped = MATRIX[case]
+    assert (body["step"], body["question"]["question_id"] if body["question"] else None,
+            body["closure"], body["action_owner_id"], body["flow"]["stopped"]) == MATRIX[case]
+    assert body["care_evidenced"] == (step == "documented")
+    assert body["commands"] == []
+    assert body["disposition_version"] == 1
+    assert body["policy_version"] == "fixture-provisional-0"
+    assert body["simulated"] and body["fixture_label"] == fixture.JOURNEY_LABEL
+    ledger = client.get(f"/api/episodes/{episode}/ledger").json()
+    assert ledger["axes"]["closure"] == closure
+    assert ledger["axes"]["care_evidenced"] == body["care_evidenced"]
+    assert body["outcome"]["execution"] == body["execution"] == ledger["axes"]["execution"]
+    assert body["outcome"]["evidence"] == body["evidence"] == ledger["axes"]["evidence"]
+    if question in {"readback", "repair"}:
+        assert body["plan_redacted"] and body["plan"] is body["revealed_plan"] is None
+        assert body["lines"] == []
+        assert "6pm" not in json.dumps(body)
+        assert "attend_same_day_review" not in json.dumps(body)
+    else:
+        assert body["plan"]["deadline_utc"] == "2026-09-30T10:00:00+00:00"
+        assert body["lines"] == OUTCOME_LINES.get(step, OUTCOME_LINES["open"])
+    if case == "pending": assert body["flow"]["interpretation"] == "pending"
+    if case == "waiting": assert body["text"]["status"] == "No reply yet."
+    if case in {"uncertain", "unavailable"}: assert body["flow"]["interpretation"] == case
+    with open_store(service._store.path) as reopened:
+        assert reopened.load_snapshot(episode).disposition.clinical_deadline_utc.isoformat() == "2026-09-30T10:00:00+00:00"
+
+
+def test_recorded_policy_selected(world, monkeypatch):
+    from dataclasses import replace
+    client, service = world
+    episode = "fictional-no-plan"
+    service.intake(episode, fixture.BOUND_COMPLAINT)
+    before = client.get("/api/episodes/" + episode).json()
+    service._policy = replace(service._policy, version="configured-B", permitted_route_ids=frozenset())
+    service._policy_text = replace(service._policy_text, policy_version="configured-B", deadline_display_by_version={1: "invented"})
+    monkeypatch.setattr(fixture, "policy", lambda: service._policy)
+    monkeypatch.setattr(fixture, "policy_text", lambda: service._policy_text)
+    assert client.get("/api/episodes/" + episode).json() == before
+    assert len(client.get(f"/api/episodes/{episode}/options").json()["routes"]) == 2
+
+
+@pytest.mark.parametrize("bad", ["empty", "overlap", "unknown", "wrong_outcome"])
+def test_corrupt_comparison_refuses_instead_of_understood(world, bad):
+    from dataclasses import replace
+    from carerelay.domain.models import PlanComparison, RecallOutcome
+    _, service = world
+    episode = "fictional-no-plan"
+    service.intake(episode, fixture.BOUND_COMPLAINT)
+    service.submit_restatement(episode, "see the doctor today before 6pm myself", "H1")
+    bundle = service._store.load_journey_bundle(episode)
+    row = bundle.restatements[-1]
+    if bad == "empty": row = replace(row, comparison=PlanComparison(frozenset(), frozenset(), frozenset()))
+    if bad == "overlap": row = replace(row, comparison=PlanComparison(frozenset({"action_id", "deadline_utc", "next_owner_id"}), frozenset(), frozenset({"action_id"})), outcome=RecallOutcome.NOT_RECALLED)
+    if bad == "unknown": row = replace(row, comparison=PlanComparison(frozenset({"action_id", "deadline_utc"}), frozenset(), frozenset({"bogus"})), outcome=RecallOutcome.NOT_RECALLED)
+    if bad == "wrong_outcome": row = replace(row, outcome=RecallOutcome.NOT_RECALLED)
+    with pytest.raises(rules.JourneyUnavailable):
+        rules.derive_journey(replace(bundle, restatements=(row,)), now_utc=fixture.SCENARIO_NOW_UTC)
+
+
+@pytest.mark.parametrize("field", ["action_id", "deadline_utc", "next_owner_id"])
+@pytest.mark.parametrize("bad", ["absent", "empty", "unknown", "uncertain"])
+def test_matched_comparison_requires_recorded_grounded_span(world, field, bad):
+    from dataclasses import replace
+    _, service = world
+    episode = "fictional-no-plan"
+    service.intake(episode, fixture.BOUND_COMPLAINT)
+    service.submit_restatement(episode, "see the doctor today before 6pm myself", "H1")
+    bundle = service._store.load_journey_bundle(episode)
+    assert rules.derive_journey(bundle, now_utc=fixture.SCENARIO_NOW_UTC).step == "barrier"
+    row = bundle.restatements[-1]
+    span = {"action_id": "action_span", "deadline_utc": "deadline_span", "next_owner_id": "next_owner_span"}[field]
+    change = {"uncertain_fields": frozenset({field})} if bad == "uncertain" else {span: {"absent": None, "empty": "", "unknown": "invented"}[bad]}
+    row = replace(row, extracted=replace(row.extracted, **change))
+    with pytest.raises(rules.JourneyUnavailable, match="ungrounded"):
+        rules.derive_journey(replace(bundle, restatements=(row,)), now_utc=fixture.SCENARIO_NOW_UTC)
+
+
+@pytest.mark.parametrize("field", ["action_id", "deadline_utc", "next_owner_id"])
+@pytest.mark.parametrize("bad", ["absent", "unknown", "uncertain"])
+def test_mismatched_comparison_requires_recorded_known_difference(world, field, bad):
+    from dataclasses import replace
+    from _journey_fixtures import seed_journey
+    _, service = world
+    episode = "mismatch-integrity"
+    seed_journey(service, episode, "repair")
+    bundle = service._store.load_journey_bundle(episode)
+    assert rules.derive_journey(bundle, now_utc=fixture.SCENARIO_NOW_UTC).step == "repair"
+    row = bundle.restatements[-1]
+    span = {"action_id": "action_span", "deadline_utc": "deadline_span", "next_owner_id": "next_owner_span"}[field]
+    changes = {"uncertain_fields": frozenset({field})} if bad == "uncertain" else {span: None if bad == "absent" else "invented"}
+    row = replace(row, extracted=replace(row.extracted, **changes), comparison=replace(row.comparison,
+        matched=row.comparison.matched - {field}, mismatched=row.comparison.mismatched | {field}))
+    with pytest.raises(rules.JourneyUnavailable, match="ungrounded recorded mismatch"):
+        rules.derive_journey(replace(bundle, restatements=(row,)), now_utc=fixture.SCENARIO_NOW_UTC)
+
+
+@pytest.mark.parametrize("case", ["unknown_hint_kind", "malformed_readback", "malformed_hint", "malformed_barrier"])
+def test_corrupt_current_journey_event_refuses_http_without_hiding_plan(world, case):
+    from _journey_fixtures import seed_journey
+    client, service = world
+    episode = "corrupt-event-" + case
+    seed_journey(service, episode, "readback")
+    service.record_hint_event(episode, "H2", "shown")
+    assert client.get("/api/episodes/" + episode).json()["flow"]["card_visible"] is True
+    kind = {"unknown_hint_kind": "hint_event", "malformed_readback": "readback_started", "malformed_hint": "hint_event", "malformed_barrier": "barrier_recorded"}[case]
+    payload = json.dumps({"disposition_version": 1, "hint_level": "H2", "kind": "invented"}) if case == "unknown_hint_kind" else "{bad"
+    service._store._conn.execute("INSERT INTO events(episode_id,kind,payload,recorded_at) VALUES(?,?,?,?)", (episode, kind, payload, fixture.SCENARIO_NOW_UTC.isoformat()))
+    before = list(service._store._conn.iterdump())
+    assert client.get("/api/episodes/" + episode).status_code == 503
+    assert list(service._store._conn.iterdump()) == before
+
+
+@pytest.mark.parametrize("change", ["stop", "consent", "acceptance"])
+def test_assessed_snapshot_never_mixes_revisions(world, change):
+    from carerelay.presentation import journey_surface
+    _, service = world
+    episode = "fictional-no-plan"
+    service.intake(episode, fixture.BOUND_COMPLAINT)
+    service.change_consent(episode, granted=True)
+    before = service._store.load_journey_bundle(episode)
+    writer = make_service(service._store.path)
+    fired = False
+    def concurrent(sql):
+        nonlocal fired
+        if not fired and "SELECT * FROM dispositions" in sql:
+            fired = True
+            if change == "stop": writer._store.record_flow_stop(episode, 1, "reassessment_stop", "nurse_line", now_utc=fixture.SCENARIO_NOW_UTC)
+            if change == "consent": writer.change_consent(episode, granted=False)
+            if change == "acceptance": writer.record_human_acceptance(episode, "caregiver", "handoff")
+    service._store._conn.set_trace_callback(concurrent)
+    try:
+        captured = service._store.load_journey_bundle(episode)
+    finally:
+        service._store._conn.set_trace_callback(None)
+        writer._store.close()
+    assert fired
+    assert captured == before
+    after = service._store.load_journey_bundle(episode)
+    assert after.revision > captured.revision
+    body = journey_surface(rules.derive_journey(captured, now_utc=fixture.SCENARIO_NOW_UTC))
+    assert body["step"] == "plan" and not body["flow"]["stopped"]
+    if change == "stop": assert after.snapshot.flow_stop_reason == "reassessment_stop"
+    if change == "consent": assert after.consent_granted is False
+    if change == "acceptance": assert after.snapshot.accepted_by == "caregiver"
+
+
+@pytest.mark.parametrize("case", ["plan", "stopped", "h3", "accepted", "handoff", "failed", "expired", "documented"])
+def test_fresh_interpreter_reads_stored_outcomes(world, case):
+    from _journey_fixtures import seed_journey
+    _, service = world
+    episode = "fresh-" + case
+    seed_journey(service, episode, case)
+    # Expiry is persisted first; the fresh scenario clock cannot undo it.
+    expected = journey_surface(service.project_journey(episode))
+    script = '''
+import json
+from carerelay.api import app
+from fastapi.testclient import TestClient
+with TestClient(app,headers={'Authorization':'Bearer synthetic-slice14-test-only'}) as c:
+ p=c.get('/api/episodes/'+EPISODE)
+ o=c.get('/api/episodes/'+EPISODE+'/options')
+ l=c.get('/api/episodes/'+EPISODE+'/ledger')
+ u=c.get('/api/episodes/absent')
+ print(json.dumps({'status':[p.status_code,o.status_code,l.status_code,u.status_code],'patient':p.json(),'ledger':l.json()}))
+'''.replace("EPISODE",repr(episode))
+    env = dict(os.environ, PYTHONPATH=str(ROOT/"src"), APP_DATABASE_URL=service._store.path,
+               APP_ENV="local", APP_CLOCK="scenario", CARERELAY_API_TOKEN="synthetic-slice14-test-only",
+               CARERELAY_TEST_DSN="postgresql://127.0.0.1:1/carerelay_disabled", PYTHONDONTWRITEBYTECODE="1")
+    child = subprocess.run([sys.executable,"-c",script],cwd=ROOT,env=env,capture_output=True,text=True)
+    assert child.returncode == 0, child.stderr
+    result = json.loads(child.stdout)
+    assert result["status"] == [200,200,200,404]
+    body = result["patient"]
+    for key in ["episode_id","step","plan","outcome","flow","lines","revision"]:
+        assert body[key] == expected[key], key
+    assert result["ledger"]["axes"]["closure"] == body["closure"]
+
+
+def test_malformed_stored_round_is_recovery_without_mutation(world):
+    client, service = world
+    episode = "fictional-no-plan"
+    service.intake(episode, fixture.BOUND_COMPLAINT)
+    service._store._conn.execute("INSERT INTO restatements (id,episode_id,disposition_version,hint_level,input_mode,transcript_confirmed,extracted_json,mismatches,repair_round,outcome,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        ("corrupt-round",episode,1,"H1","text",1,"{}","{}",0,"not_recalled",fixture.SCENARIO_NOW_UTC.isoformat()))
+    before = list(service._store._conn.iterdump())
+    response = client.get("/api/episodes/" + episode)
+    assert response.status_code == 503
+    assert response.json() == {"detail": "journey unavailable"}
+    assert list(service._store._conn.iterdump()) == before
+
+
+@pytest.mark.parametrize("event", ["missing", "duplicate", "foreign"])
+def test_corrupt_new_record_reference_is_unavailable(world, event):
+    client, service = world
+    episode = "fictional-no-plan"
+    service.intake(episode, fixture.BOUND_COMPLAINT)
+    result = service.escalate(episode, "nurse_line", "handed_off")
+    payload = {"schema": "record-v1"}
+    if event == "duplicate": payload["record_id"] = result.escalation_id
+    if event == "foreign": payload["record_id"] = "other-episode-record"
+    with service._store.journey_transaction(episode, write=True) as tx:
+        tx._event("escalation_recorded", payload, fixture.SCENARIO_NOW_UTC)
+    before = list(service._store._conn.iterdump())
+    response = client.get("/api/episodes/" + episode)
+    assert response.status_code == 503
+    assert response.json() == {"detail": "journey unavailable"}
+    assert list(service._store._conn.iterdump()) == before
+
+
+def test_repair_event_records_latest_parent_identity(world):
+    _, service = world
+    episode = "fictional-no-plan"
+    service.intake(episode, fixture.BOUND_COMPLAINT)
+    initial = service.submit_restatement(episode, "unsure", "H1")
+    repaired = service.repair_restatement(initial.restatement_id, "today before six", "H1")
+    events = [json.loads(payload) for kind,payload,_ in service._store.list_events(episode) if kind == "restatement_recorded"]
+    assert events[-1]["record_id"] == repaired.restatement_id
+    assert events[-1].get("parent_restatement_id") == initial.restatement_id
+    assert events[0].get("parent_restatement_id") is None
+
+
+def test_expiry_survives_corrupt_unrelated_round(world):
+    from carerelay.service import ScenarioClock
+    from datetime import timedelta
+    client, service = world
+    episode = "fictional-no-plan"
+    service.intake(episode, fixture.BOUND_COMPLAINT)
+    service._store._conn.execute("INSERT INTO restatements (id,episode_id,disposition_version,hint_level,input_mode,transcript_confirmed,extracted_json,mismatches,repair_round,outcome,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+        ("corrupt-round",episode,1,"H1","text",1,"{}","{}",0,"not_recalled",fixture.SCENARIO_NOW_UTC.isoformat()))
+    service._clock = ScenarioClock(fixture.SCENARIO_NOW_UTC + timedelta(hours=10))
+    assert client.get("/api/episodes/" + episode).status_code == 503
+    assert len(service._store.list_expiry_events(episode)) == 1
+    service._clock = ScenarioClock(fixture.SCENARIO_NOW_UTC)
+    assert service._store.load_snapshot(episode).expiry_event_id is not None
+
+
+def test_naive_stored_deadline_is_unavailable(world):
+    client, service = world
+    episode = "fictional-no-plan"
+    service._store.register_policy_version(fixture.POLICY_VERSION, content="fixture", provenance="fixture", approved_by=None, now_utc=fixture.SCENARIO_NOW_UTC)
+    service._store._conn.execute("INSERT INTO dispositions (episode_id,version_no,policy_version,action_id,clinical_deadline_utc,next_owner_id,fallback_route_id,source,created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+        (episode,1,fixture.POLICY_VERSION,fixture.ACTION_ID,"2026-09-30T10:00:00","patient","nurse_line","fixture",fixture.SCENARIO_NOW_UTC.isoformat()))
+    before = list(service._store._conn.iterdump())
+    response = client.get("/api/episodes/" + episode)
+    assert response.status_code == 503
+    assert response.json() == {"detail":"journey unavailable"}
+    assert list(service._store._conn.iterdump()) == before

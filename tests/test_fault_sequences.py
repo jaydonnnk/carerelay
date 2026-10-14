@@ -2,7 +2,8 @@
 
 `04-slices.md` names the seven: timeout, stale availability, duplicate callback,
 reordered callback, restart mid-episode, clock change and consent revocation.
-Each one drives the running product into a fault through the public API, then
+Each drives the service into a fault with explicit legacy service operations
+and real callback HTTP, then
 asserts at the serialized surfaces whichever of the five invariants that fault
 can falsify. **The coverage is per sequence, not uniform, and is stated rather
 than averaged:** I2 and I4 hold in all seven, because the approved tuple below
@@ -80,6 +81,13 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from _legacy_service_probes import (
+    KEY,
+    signed_create,
+    signed_intake,
+    service_consent,
+    service_action,
+)
 from carerelay.api import app, get_service  # noqa: E402
 from carerelay.coordinator import LocalSimulationCoordinator  # noqa: E402
 from carerelay.demo import fixture  # noqa: E402
@@ -233,6 +241,7 @@ def _install(
         display_tz=fixture.DISPLAY_TZ,
         disposition_factory=fixture.disposition,
         bound_complaint=fixture.BOUND_COMPLAINT,
+        operation_signing_key=lambda: KEY,
         policy_provenance="test: provisional",
     )
     app.dependency_overrides[get_service] = lambda: service
@@ -241,7 +250,7 @@ def _install(
         store=store,
         service=service,
         clock=clock,
-        client=TestClient(app),
+        client=TestClient(app, headers={"Authorization": "Bearer synthetic-fault-http"}),
     )
 
 
@@ -251,7 +260,8 @@ def _uninstall(world: FaultWorld) -> None:
 
 
 @pytest.fixture()
-def world(tmp_path: Path) -> Iterator[FaultWorld]:
+def world(tmp_path: Path, monkeypatch) -> Iterator[FaultWorld]:
+    monkeypatch.setenv("CARERELAY_API_TOKEN", "synthetic-fault-http")
     world = _install(tmp_path / "fault.sqlite3")
     try:
         yield world
@@ -260,13 +270,14 @@ def world(tmp_path: Path) -> Iterator[FaultWorld]:
 
 
 @pytest.fixture()
-def stale_world(tmp_path: Path) -> Iterator[FaultWorld]:
+def stale_world(tmp_path: Path, monkeypatch) -> Iterator[FaultWorld]:
     """A world whose tools no longer permit `ROUTE`.
 
     The service still plans under the fixture policy, which is the shape of an
     in-flight withdrawal: the plan was made when the route was permitted, and
     the execution-time recheck is the last gate that can still stop it.
     """
+    monkeypatch.setenv("CARERELAY_API_TOKEN", "synthetic-fault-http")
     narrow = replace(
         fixture.policy(),
         permitted_route_ids=frozenset({fixture.FALLBACK_ROUTE_ID}),
@@ -284,28 +295,20 @@ def stale_world(tmp_path: Path) -> Iterator[FaultWorld]:
 
 
 def _assess(world: FaultWorld) -> None:
-    created = world.client.post("/api/episodes")
+    created = signed_create(world.client)
     assert created.status_code == 200, created.text
-    response = world.client.post(
-        f"/api/episodes/{EPISODE}/intake",
-        json={"confirmed_text": fixture.BOUND_COMPLAINT},
-    )
+    response = signed_intake(world.client)
     assert response.status_code == 200, response.text
 
 
 def _grant(world: FaultWorld) -> int:
-    response = world.client.post(
-        f"/api/episodes/{EPISODE}/consents", json={"granted": True}
-    )
+    response = service_consent(world.client, EPISODE, json={"granted": True})
     assert response.status_code == 200, response.text
     return response.json()["version"]
 
 
 def _dispatch(world: FaultWorld, route: str = ROUTE, purpose: str = PURPOSE):
-    response = world.client.post(
-        f"/api/episodes/{EPISODE}/actions",
-        json={"route_id": route, "purpose_id": purpose},
-    )
+    response = service_action(world.client, EPISODE, json={"route_id": route, "purpose_id": purpose})
     assert response.status_code == 200, response.text
     return response
 
@@ -354,19 +357,26 @@ def _assert_healthy_surface(
     (`test_scanner_detects_injected_needle`): a negative scan without it is
     not evidence.
 
-    Slice 14 retires the bare fixture page and temporarily refuses assessed HTTP.
-    Exact legacy outcome assertions remain at the service serializer; authenticated
-    HTTP refusal is checked separately. This is not Slice 15 journey proof.
+    The Slice 15 assessed GET serves the complete stored journey.
     """
     projected = world.client.get(f"/api/episodes/{EPISODE}")
-    assert projected.status_code == 503, projected.text
-    assert projected.json() == {"detail": "journey unavailable"}
-    body = json.loads(json.dumps(world.service.project_patient(EPISODE).as_dict()))
+    assert projected.status_code == 200, projected.text
+    body = projected.json()
     assert tuple(body["lines"]) == expected_lines
     assert body["closure"] == expected_closure
     assert body["care_evidenced"] is False
     assert body["simulated"] is True
-    assert body["fixture_label"] == fixture.FIXTURE_LABEL
+    assert body["fixture_label"] == fixture.JOURNEY_LABEL
+    assert body["plan"]["deadline_utc"] == "2026-09-30T10:00:00+00:00"
+    assert body["plan"]["original_owner_id"] == "patient"
+    assert body["action_owner_id"] == "patient"
+    assert body["disposition_version"] == body["plan"]["disposition_version"] == 1
+    ledger = world.client.get(f"/api/episodes/{EPISODE}/ledger")
+    assert ledger.status_code == 200, ledger.text
+    assert body["closure"] == ledger.json()["axes"]["closure"]
+    assert body["execution"] == ledger.json()["axes"]["execution"]
+    assert body["evidence"] == ledger.json()["axes"]["evidence"]
+    assert body["flow"]["stopped"] is ledger.json()["axes"]["flow_stopped"]
 
     page = world.client.get("/", follow_redirects=False)
     assert page.status_code in (303, 503)
@@ -746,9 +756,7 @@ class TestConsentRevocationSequence:
         assert granted == 1
         opened = _dispatch(world).json()
 
-        revoked = world.client.post(
-            f"/api/episodes/{EPISODE}/consents", json={"granted": False}
-        )
+        revoked = service_consent(world.client, EPISODE, json={"granted": False})
         assert revoked.status_code == 200
         assert revoked.json()["version"] == 2
 
@@ -785,13 +793,11 @@ class TestConsentRevocationSequence:
         _assess(world)
         _grant(world)
         _dispatch(world)
-        world.client.post(f"/api/episodes/{EPISODE}/consents", json={"granted": False})
+        service_consent(world.client, EPISODE, json={"granted": False})
         first = _callback(world, "cb-revoke-2", "acknowledged").json()
         assert first["receipt"] == "refused"
 
-        regranted = world.client.post(
-            f"/api/episodes/{EPISODE}/consents", json={"granted": True}
-        )
+        regranted = service_consent(world.client, EPISODE, json={"granted": True})
         assert regranted.json()["version"] == 3
 
         again = _callback(world, "cb-revoke-3", "acknowledged").json()

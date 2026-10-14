@@ -1,0 +1,2043 @@
+[
+  {
+    "id": "owner_id_bound",
+    "target": "frontend/lib/journey.ts",
+    "old": "!nullableString(value.current_owner_id)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 69,
+    "trusted_screen": "documented",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "plan.current_owner_id",
+        "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      {
+        "op": "set",
+        "path": "action_owner_id",
+        "value": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Documented-care fixture has no open-owner or accepted/handoff equality check. The alias changes with the owner; display remains non-null."
+  },
+  {
+    "id": "owner_display_bound",
+    "target": "frontend/lib/journey.ts",
+    "old": "!nullableString(value.current_owner_display)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 69,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "plan.current_owner_display",
+        "value": ""
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Non-null empty display keeps owner pairing and owner alias valid."
+  },
+  {
+    "id": "line_values_bounded",
+    "target": "frontend/lib/journey.ts",
+    "old": "!value.lines.every(x => bounded(x))",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 92,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "lines.0",
+        "value": 1
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Length stays four; no line-text comparator exists elsewhere."
+  },
+  {
+    "id": "lines_array_typed_refusal",
+    "target": "frontend/lib/journey.ts",
+    "old": "!Array.isArray(value.lines)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 92,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "lines",
+        "value": null
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "threw",
+    "independent_because": "Removing this shape check dereferences null instead of returning recovery."
+  },
+  {
+    "id": "text_values_bounded",
+    "target": "frontend/lib/journey.ts",
+    "old": "!Object.values(value.text).every(x => bounded(x))",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 94,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "text.action_label",
+        "value": 1
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Known text key set stays exact and the heading remains valid."
+  },
+  {
+    "id": "commands_count",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.commands.length > 1",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 95,
+    "trusted_screen": "start_created",
+    "trusted_setup": [
+      "Use command_service and start_example(s15_binding()) before project_journey; this produces an actual durable create receipt and signed select offer."
+    ],
+    "bad_changes": [
+      {
+        "op": "duplicate",
+        "path": "commands.0",
+        "destination": "commands"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Both offers stay structurally valid. Only no-plan allows offers; no later count check applies."
+  },
+  {
+    "id": "commands_array_typed_refusal",
+    "target": "frontend/lib/journey.ts",
+    "old": "!Array.isArray(value.commands)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 95,
+    "trusted_screen": "start_created",
+    "trusted_setup": [
+      "Create through start_example as above."
+    ],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "commands",
+        "value": null
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "threw",
+    "independent_because": "Removing this shape check dereferences null instead of returning recovery."
+  },
+  {
+    "id": "offer_exact_keys",
+    "target": "frontend/lib/journey.ts",
+    "old": "!exactKeys(offer, [\"kind\", \"offer_id\", \"permitted_choice_ids\", \"operation_token\"])",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 97,
+    "trusted_screen": "start_created",
+    "trusted_setup": [
+      "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
+    ],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "commands.0.extra",
+        "value": true
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "All defined offer fields remain valid; only an extra key changes."
+  },
+  {
+    "id": "offer_kind",
+    "target": "frontend/lib/journey.ts",
+    "old": "offer.kind !== \"select_example\"",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 98,
+    "trusted_screen": "start_created",
+    "trusted_setup": [
+      "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
+    ],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "commands.0.kind",
+        "value": "request"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "No-plan otherwise permits the valid offer; no separate kind consumer checks it."
+  },
+  {
+    "id": "offer_id_bound",
+    "target": "frontend/lib/journey.ts",
+    "old": "!bounded(offer.offer_id, 128)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 98,
+    "trusted_screen": "start_created",
+    "trusted_setup": [
+      "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
+    ],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "commands.0.offer_id",
+        "value": ""
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "No other predicate reads offer_id."
+  },
+  {
+    "id": "offer_choice_count",
+    "target": "frontend/lib/journey.ts",
+    "old": "offer.permitted_choice_ids.length !== 1",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 99,
+    "trusted_screen": "start_created",
+    "trusted_setup": [
+      "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
+    ],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "commands.0.permitted_choice_ids",
+        "value": [
+          "scripted-appointment",
+          "scripted-appointment"
+        ]
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "The first value remains supported, isolating cardinality."
+  },
+  {
+    "id": "offer_choice_literal",
+    "target": "frontend/lib/journey.ts",
+    "old": "offer.permitted_choice_ids[0] !== \"scripted-appointment\"",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 100,
+    "trusted_screen": "start_created",
+    "trusted_setup": [
+      "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
+    ],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "commands.0.permitted_choice_ids",
+        "value": [
+          "other"
+        ]
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Cardinality remains exactly one."
+  },
+  {
+    "id": "offer_token_format",
+    "target": "frontend/lib/journey.ts",
+    "old": "!/^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$/.test(offer.operation_token)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 102,
+    "trusted_screen": "start_created",
+    "trusted_setup": [
+      "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
+    ],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "commands.0.operation_token",
+        "value": "junk"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "The token stays a nonempty bounded string but fails only its syntax."
+  },
+  {
+    "id": "offer_token_bound",
+    "target": "frontend/lib/journey.ts",
+    "old": "!bounded(offer.operation_token, 4096)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 101,
+    "trusted_screen": "start_created",
+    "trusted_setup": [
+      "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
+    ],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "commands.0.operation_token",
+        "value": {
+          "repeat": "a",
+          "count": 4095,
+          "suffix": ".b"
+        }
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "4097 code units and valid token syntax isolate the length limit."
+  },
+  {
+    "id": "offer_choice_array_typed_refusal",
+    "target": "frontend/lib/journey.ts",
+    "old": "!Array.isArray(offer.permitted_choice_ids)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 99,
+    "trusted_screen": "start_created",
+    "trusted_setup": [
+      "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
+    ],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "commands.0.permitted_choice_ids",
+        "value": null
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "threw",
+    "independent_because": "Without this check, the following length access throws instead of refusing."
+  },
+  {
+    "id": "pending_removes_commands",
+    "target": "frontend/lib/journey.ts",
+    "old": "if (flow.interpretation === \"pending\" && value.commands.length !== 0) return null;",
+    "new": "if (false) return null;",
+    "anchor_count": 1,
+    "source_line": 104,
+    "trusted_screen": "start_created",
+    "trusted_setup": [
+      "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
+    ],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "flow.interpretation",
+        "value": "pending"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "No-plan allows pending interpretation and the offer remains valid. This is separate from assessed future-command prohibition."
+  },
+  {
+    "id": "assessed_version_safe",
+    "target": "frontend/lib/journey.ts",
+    "old": "!Number.isSafeInteger(value.disposition_version)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 120,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "disposition_version",
+        "value": 9007199254740992
+      },
+      {
+        "op": "set",
+        "path": "plan.disposition_version",
+        "value": 9007199254740992
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Enclosing and plan versions change together; the positive lower bound still passes."
+  },
+  {
+    "id": "assessed_version_positive",
+    "target": "frontend/lib/journey.ts",
+    "old": "Number(value.disposition_version) < 1",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 120,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "disposition_version",
+        "value": 0
+      },
+      {
+        "op": "set",
+        "path": "plan.disposition_version",
+        "value": 0
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Enclosing and plan versions change together; the safe-integer check still passes."
+  },
+  {
+    "id": "assessed_policy",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.policy_version !== \"fixture-provisional-0\"",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 121,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "policy_version",
+        "value": "other-recorded-policy"
+      },
+      {
+        "op": "set",
+        "path": "plan.policy_version",
+        "value": "other-recorded-policy"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Plan/enclosing policy equality stays valid, isolating the approved wire policy allowlist."
+  },
+  {
+    "id": "assessed_step",
+    "target": "frontend/lib/journey.ts",
+    "old": "![\"plan\", \"readback\", \"repair\", \"barrier\", \"permission\", \"unresolved\", \"stopped\", \"expired\", \"accepted\", \"handoff\", \"documented\"].includes(value.step as string)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 122,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "step",
+        "value": "invented"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "threw",
+    "independent_because": "The guard prevents selecting an undefined text key set and throwing."
+  },
+  {
+    "id": "assessed_no_future_commands",
+    "target": "frontend/lib/journey.ts",
+    "old": "if (value.commands.length !== 0) return null; // Future progression is not exposed in Slice 15.",
+    "new": "if (false) return null; // Future progression is not exposed in Slice 15.",
+    "anchor_count": 1,
+    "source_line": 123,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "commands",
+        "value": [
+          {
+            "kind": "select_example",
+            "offer_id": "fictional-offer",
+            "permitted_choice_ids": [
+              "scripted-appointment"
+            ],
+            "operation_token": null
+          }
+        ]
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Offer is fully structurally valid; pending is false, isolating assessed command prohibition."
+  },
+  {
+    "id": "plan_redaction_boolean",
+    "target": "frontend/lib/journey.ts",
+    "old": "typeof value.plan_redacted !== \"boolean\"",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 124,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "plan_redacted",
+        "value": 0
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "False-like 0 takes the valid full-plan branch if this type guard disappears."
+  },
+  {
+    "id": "care_boolean",
+    "target": "frontend/lib/journey.ts",
+    "old": "typeof value.care_evidenced !== \"boolean\"",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 124,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "care_evidenced",
+        "value": 0
+      },
+      {
+        "op": "set",
+        "path": "outcome.care_evidenced",
+        "value": 0
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "False-like 0 preserves aliases and does not trigger care=true semantic rules."
+  },
+  {
+    "id": "expiry_flag_boolean",
+    "target": "frontend/lib/journey.ts",
+    "old": "typeof outcome.expiry_recorded !== \"boolean\"",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 130,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "outcome.expiry_recorded",
+        "value": 0
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "False-like 0 does not trigger sticky-expiry semantics."
+  },
+  {
+    "id": "active_stop_version_null",
+    "target": "frontend/lib/journey.ts",
+    "old": "flow.stopped_disposition_version !== null || flow.stop_reason !== null",
+    "new": "false || flow.stop_reason !== null",
+    "anchor_count": 1,
+    "source_line": 134,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "flow.stopped_disposition_version",
+        "value": 1
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Active stop_reason remains null, isolating active version-null constraint."
+  },
+  {
+    "id": "active_stop_reason_null",
+    "target": "frontend/lib/journey.ts",
+    "old": "flow.stopped_disposition_version !== null || flow.stop_reason !== null",
+    "new": "flow.stopped_disposition_version !== null || false",
+    "anchor_count": 1,
+    "source_line": 134,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "flow.stop_reason",
+        "value": "fictional-stop"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Active stopped_disposition_version remains null, isolating active reason-null constraint."
+  },
+  {
+    "id": "redacted_only_readback_or_repair",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.step !== \"readback\" && value.step !== \"repair\"",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 136,
+    "trusted_screen": "barrier",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "plan_redacted",
+        "value": true
+      },
+      {
+        "op": "set",
+        "path": "plan",
+        "value": null
+      },
+      {
+        "op": "set",
+        "path": "lines",
+        "value": []
+      },
+      {
+        "op": "set",
+        "path": "action_owner_id",
+        "value": null
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Barrier remains otherwise valid with its required question/text/choices. The one semantic defect is hiding a non-readback screen."
+  },
+  {
+    "id": "redacted_plan_null",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.plan !== null || value.lines.length !== 0 || value.action_owner_id !== null",
+    "new": "false || value.lines.length !== 0 || value.action_owner_id !== null",
+    "anchor_count": 1,
+    "source_line": 137,
+    "trusted_screen": "readback",
+    "trusted_setup": [
+      "After seed_journey, call service.record_hint_event(episode,\"H2\",\"shown\"), then project_journey."
+    ],
+    "bad_changes": [
+      {
+        "op": "copy",
+        "path": "plan",
+        "from_path": "revealed_plan"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Use a shown readback so revealed_plan provides a valid canonical plan. All plan identity/owner fields remain internally consistent."
+  },
+  {
+    "id": "redacted_lines_empty",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.plan !== null || value.lines.length !== 0 || value.action_owner_id !== null",
+    "new": "value.plan !== null || false || value.action_owner_id !== null",
+    "anchor_count": 1,
+    "source_line": 137,
+    "trusted_screen": "readback",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "lines",
+        "value": [
+          "answer-bearing response"
+        ]
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Plan and owner remain null, isolating answer-bearing line omission."
+  },
+  {
+    "id": "redacted_owner_null",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.plan !== null || value.lines.length !== 0 || value.action_owner_id !== null",
+    "new": "value.plan !== null || value.lines.length !== 0 || false",
+    "anchor_count": 1,
+    "source_line": 137,
+    "trusted_screen": "readback",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "action_owner_id",
+        "value": "patient"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Plan stays null; the full-plan owner-alias branch is not entered."
+  },
+  {
+    "id": "unredacted_four_lines",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.lines.length !== 4",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 139,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "lines",
+        "value": [
+          "one bounded line"
+        ]
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "General line container/item validation passes; only exact assessed line count fails."
+  },
+  {
+    "id": "readback_requires_redaction",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.step === \"readback\" || value.step === \"repair\"",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 141,
+    "trusted_screen": "readback",
+    "trusted_setup": [
+      "After seed_journey, call service.record_hint_event(episode,\"H2\",\"shown\"), then project_journey."
+    ],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "plan_redacted",
+        "value": false
+      },
+      {
+        "op": "copy",
+        "path": "plan",
+        "from_path": "revealed_plan"
+      },
+      {
+        "op": "set",
+        "path": "action_owner_id",
+        "value": "patient"
+      },
+      {
+        "op": "set",
+        "path": "lines",
+        "value": [
+          "bounded one",
+          "bounded two",
+          "bounded three",
+          "bounded four"
+        ]
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Shown readback supplies an actual stored revealed plan; plan/reveal equality, question, text and owner aliases stay valid."
+  },
+  {
+    "id": "visible_reveal_valid_plan",
+    "target": "frontend/lib/journey.ts",
+    "old": "!planView(value.revealed_plan, value.disposition_version, value.policy_version)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 144,
+    "trusted_screen": "readback",
+    "trusted_setup": [
+      "After seed_journey, call service.record_hint_event(episode,\"H2\",\"shown\"), then project_journey."
+    ],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "revealed_plan.extra",
+        "value": true
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Redacted readback has plan=null, avoiding the separate plan/reveal equality guard."
+  },
+  {
+    "id": "visible_reveal_requires_cue",
+    "target": "frontend/lib/journey.ts",
+    "old": "![\"H2\", \"H3\"].includes(flow.effective_hint as string)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 144,
+    "trusted_screen": "readback",
+    "trusted_setup": [
+      "After seed_journey, call service.record_hint_event(episode,\"H2\",\"shown\"), then project_journey."
+    ],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "flow.effective_hint",
+        "value": "H1"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "H1 is a valid hint enum; readback stays redacted and all reveal metadata is present."
+  },
+  {
+    "id": "reveal_plan_equality",
+    "target": "frontend/lib/journey.ts",
+    "old": "!PLAN_KEYS.every(key => (value.plan as Record<string, unknown>)[key] === (value.revealed_plan as Record<string, unknown>)[key])",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 145,
+    "trusted_screen": "plan",
+    "trusted_setup": [
+      "After seed_journey, call service.record_hint_event(episode,\"H2\",\"shown\"), then project_journey."
+    ],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "revealed_plan.action_text",
+        "value": "Other bounded action"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Both plan objects remain structurally valid; only equality differs."
+  },
+  {
+    "id": "hidden_reveal_null",
+    "target": "frontend/lib/journey.ts",
+    "old": "else if (value.revealed_plan !== null) return null;",
+    "new": "else if (false) return null;",
+    "anchor_count": 1,
+    "source_line": 146,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "copy",
+        "path": "revealed_plan",
+        "from_path": "plan"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Visibility stays false and the text key set stays the hidden one; only hidden payload exists."
+  },
+  {
+    "id": "choice_exact_keys",
+    "target": "frontend/lib/journey.ts",
+    "old": "!exactKeys(choice, [\"choice_id\", \"text\"])",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 152,
+    "trusted_screen": "barrier",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "question.choices.0.extra",
+        "value": true
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Membership/cardinality/uniqueness stay valid."
+  },
+  {
+    "id": "choice_text_bound",
+    "target": "frontend/lib/journey.ts",
+    "old": "!bounded(choice.text)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 153,
+    "trusted_screen": "barrier",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "question.choices.0.text",
+        "value": ""
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Choice identity and question set remain valid."
+  },
+  {
+    "id": "choices_array_typed_refusal",
+    "target": "frontend/lib/journey.ts",
+    "old": "!Array.isArray(value.question.choices)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 149,
+    "trusted_screen": "readback",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "question.choices",
+        "value": null
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "threw",
+    "independent_because": "Without this shape check, the following length access throws rather than typed refusal."
+  },
+  {
+    "id": "barrier_choice_membership",
+    "target": "frontend/lib/journey.ts",
+    "old": "!choiceIds.every(id => [\"booking\", \"transport\", \"other\"].some(allowed => id === allowed))",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 159,
+    "trusted_screen": "barrier",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "question.choices.2.choice_id",
+        "value": "invented"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Length3 and uniqueness3 remain valid."
+  },
+  {
+    "id": "barrier_choice_uniqueness",
+    "target": "frontend/lib/journey.ts",
+    "old": "choiceIds.length !== 3 || new Set(choiceIds).size !== choiceIds.length",
+    "new": "choiceIds.length !== 3 || false",
+    "anchor_count": 1,
+    "source_line": 158,
+    "trusted_screen": "barrier",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "question.choices.2.choice_id",
+        "value": "booking"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Length3 and supported membership remain valid; only uniqueness rejects."
+  },
+  {
+    "id": "stopped_step_requires_stop",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.step === \"stopped\" && flow.stopped !== true",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 161,
+    "trusted_screen": "stopped",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "flow.stopped",
+        "value": false
+      },
+      {
+        "op": "set",
+        "path": "flow.stop_reason",
+        "value": null
+      },
+      {
+        "op": "set",
+        "path": "flow.stopped_disposition_version",
+        "value": null
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Coupled active-flow aliases change together. Use ordinary reassessment-stop fixture with H1 rather than H3."
+  },
+  {
+    "id": "active_closure_open",
+    "target": "frontend/lib/journey.ts",
+    "old": "[\"plan\", \"readback\", \"repair\", \"barrier\", \"permission\", \"stopped\", \"unresolved\"].includes(value.step as string) && outcome.closure !== \"open\"",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 165,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "outcome.closure",
+        "value": "closed_with_evidence"
+      },
+      {
+        "op": "set",
+        "path": "closure",
+        "value": "closed_with_evidence"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Coupled closure aliases agree; care=false; no terminal screen-specific predicate applies."
+  },
+  {
+    "id": "expired_closure",
+    "target": "frontend/lib/journey.ts",
+    "old": "outcome.closure !== \"expired_unresolved\"",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 166,
+    "trusted_screen": "expired_accepted",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "outcome.closure",
+        "value": "closed_with_evidence"
+      },
+      {
+        "op": "set",
+        "path": "closure",
+        "value": "closed_with_evidence"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Expiry step and care=false remain valid; expiry_recorded already true is permitted for expired step."
+  },
+  {
+    "id": "accepted_closure",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.step === \"accepted\" && (outcome.closure !== \"closed_with_evidence\"",
+    "new": "value.step === \"accepted\" && (false",
+    "anchor_count": 1,
+    "source_line": 167,
+    "trusted_screen": "accepted",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "outcome.closure",
+        "value": "escalated_to_human"
+      },
+      {
+        "op": "set",
+        "path": "closure",
+        "value": "escalated_to_human"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "All accepted identity/scope/owner values remain valid. Choose another terminal closure to avoid open-owner constraints."
+  },
+  {
+    "id": "accepted_scope",
+    "target": "frontend/lib/journey.ts",
+    "old": "outcome.accepted_scope !== \"handoff\"",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 167,
+    "trusted_screen": "accepted",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "outcome.accepted_scope",
+        "value": "other"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Nonempty nullable string remains valid; only handoff scope rejects."
+  },
+  {
+    "id": "accepted_owner_present",
+    "target": "frontend/lib/journey.ts",
+    "old": "!outcome.accepted_by ||",
+    "new": "false ||",
+    "anchor_count": 1,
+    "source_line": 168,
+    "trusted_screen": "accepted",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "outcome.accepted_by",
+        "value": null
+      },
+      {
+        "op": "set",
+        "path": "plan.current_owner_id",
+        "value": null
+      },
+      {
+        "op": "set",
+        "path": "plan.current_owner_display",
+        "value": null
+      },
+      {
+        "op": "set",
+        "path": "action_owner_id",
+        "value": null
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Null accepted_by and null current-owner aliases agree, so the later owner equality does not mask presence refusal."
+  },
+  {
+    "id": "accepted_owner_differs_original",
+    "target": "frontend/lib/journey.ts",
+    "old": "outcome.accepted_by === (value.plan as PlanView).original_owner_id",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 168,
+    "trusted_screen": "accepted",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "outcome.accepted_by",
+        "value": "patient"
+      },
+      {
+        "op": "set",
+        "path": "plan.current_owner_id",
+        "value": "patient"
+      },
+      {
+        "op": "set",
+        "path": "plan.current_owner_display",
+        "value": "You"
+      },
+      {
+        "op": "set",
+        "path": "action_owner_id",
+        "value": "patient"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Present owner/current aliases remain equal; only failure to transfer from original owner rejects."
+  },
+  {
+    "id": "accepted_owner_alias",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.action_owner_id !== outcome.accepted_by",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 168,
+    "trusted_screen": "accepted",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "outcome.accepted_by",
+        "value": "other-caregiver"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Present nonoriginal accepting owner differs only from current owner alias."
+  },
+  {
+    "id": "handoff_closure",
+    "target": "frontend/lib/journey.ts",
+    "old": "outcome.closure !== \"escalated_to_human\"",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 169,
+    "trusted_screen": "handoff",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "outcome.closure",
+        "value": "closed_with_evidence"
+      },
+      {
+        "op": "set",
+        "path": "closure",
+        "value": "closed_with_evidence"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "All path/outcome/current-owner values remain valid; care=false."
+  },
+  {
+    "id": "handoff_path_present",
+    "target": "frontend/lib/journey.ts",
+    "old": "!outcome.escalation_path ||",
+    "new": "false ||",
+    "anchor_count": 1,
+    "source_line": 169,
+    "trusted_screen": "handoff",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "outcome.escalation_path",
+        "value": null
+      },
+      {
+        "op": "set",
+        "path": "plan.current_owner_id",
+        "value": null
+      },
+      {
+        "op": "set",
+        "path": "plan.current_owner_display",
+        "value": null
+      },
+      {
+        "op": "set",
+        "path": "action_owner_id",
+        "value": null
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Null path/current-owner aliases agree, isolating path presence."
+  },
+  {
+    "id": "handoff_outcome_success",
+    "target": "frontend/lib/journey.ts",
+    "old": "![\"handed_off\", \"handed_over\"].includes(outcome.escalation_outcome as string)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 170,
+    "trusted_screen": "handoff",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "outcome.escalation_outcome",
+        "value": "attempted"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Bounded path and current owner remain correct; outcome is a bounded string but not completed transfer."
+  },
+  {
+    "id": "handoff_owner_alias",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.action_owner_id !== outcome.escalation_path",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 170,
+    "trusted_screen": "handoff",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "outcome.escalation_path",
+        "value": "human_operator"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Present bounded path differs only from current owner."
+  },
+  {
+    "id": "documented_evidence",
+    "target": "frontend/lib/journey.ts",
+    "old": "outcome.evidence !== \"documented\"",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 171,
+    "trusted_screen": "documented",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "outcome.evidence",
+        "value": "self_reported"
+      },
+      {
+        "op": "set",
+        "path": "evidence",
+        "value": "self_reported"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Care=true/closed/documented step and aliases remain valid; only evidence strength changes."
+  },
+  {
+    "id": "documented_closure",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.care_evidenced && (outcome.evidence !== \"documented\" || outcome.closure !== \"closed_with_evidence\"",
+    "new": "value.care_evidenced && (outcome.evidence !== \"documented\" || false",
+    "anchor_count": 1,
+    "source_line": 171,
+    "trusted_screen": "documented",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "outcome.closure",
+        "value": "open"
+      },
+      {
+        "op": "set",
+        "path": "closure",
+        "value": "open"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Documented fixture retains patient current/original owner equality; no active-step closure rule applies."
+  },
+  {
+    "id": "documented_step_when_care",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.step !== \"documented\")) return null;",
+    "new": "false)) return null;",
+    "anchor_count": 1,
+    "source_line": 171,
+    "trusted_screen": "accepted",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "care_evidenced",
+        "value": true
+      },
+      {
+        "op": "set",
+        "path": "outcome.care_evidenced",
+        "value": true
+      },
+      {
+        "op": "set",
+        "path": "evidence",
+        "value": "documented"
+      },
+      {
+        "op": "set",
+        "path": "outcome.evidence",
+        "value": "documented"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "The defect is displaying accepted rather than documented after evidence appears. Accepted identity/scope/current owner remain valid.",
+    "requires_redundancy_removal": [
+      "accepted_care_false",
+      "handoff_care_false",
+      "expired_care_false"
+    ]
+  },
+  {
+    "id": "documented_step_requires_care",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.step === \"documented\" && value.care_evidenced !== true",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 172,
+    "trusted_screen": "documented",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "care_evidenced",
+        "value": false
+      },
+      {
+        "op": "set",
+        "path": "outcome.care_evidenced",
+        "value": false
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Top/outcome booleans agree; care=false no longer triggers its central implication; only documented-step care requirement rejects."
+  },
+  {
+    "id": "repair_field",
+    "target": "frontend/lib/journey.ts",
+    "old": "flow.selected_repair_field !== \"deadline_utc\"",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 174,
+    "trusted_screen": "repair",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "flow.selected_repair_field",
+        "value": "action_id"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Other valid enum field isolates timing-only repair screen rule."
+  },
+  {
+    "id": "repair_cap",
+    "target": "frontend/lib/journey.ts",
+    "old": "Number(flow.completed_repairs) >= 2",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 174,
+    "trusted_screen": "repair",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "flow.completed_repairs",
+        "value": 2
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "2 passes general 0..2 bound; step repair requires <2."
+  },
+  {
+    "id": "plan_failed",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.step === \"plan\" && outcome.execution === \"failed\"",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 182,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "outcome.execution",
+        "value": "failed"
+      },
+      {
+        "op": "set",
+        "path": "execution",
+        "value": "failed"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Aliases agree; open closure/owner/full-plan/question/text remain valid."
+  },
+  {
+    "id": "reconcile_sticky_stop",
+    "target": "frontend/lib/journey.ts",
+    "old": "current.flow.stopped && !next.flow.stopped",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 202,
+    "trusted_screen": "stopped",
+    "trusted_setup": [],
+    "bad_changes": [],
+    "entrypoint": "reconcileJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Use valid stopped current and valid plan next for same episode/version; next.revision=current.revision+1, fromRead=true.",
+    "current_screen": "stopped",
+    "next_screen": "plan",
+    "next_changes": [
+      {
+        "op": "set_relative",
+        "path": "revision",
+        "relative_to": "current.revision",
+        "delta": 1
+      }
+    ],
+    "fromRead": true
+  },
+  {
+    "id": "reconcile_sticky_expiry",
+    "target": "frontend/lib/journey.ts",
+    "old": "current.outcome?.expiry_recorded && !next.outcome?.expiry_recorded",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 203,
+    "trusted_screen": "expired_accepted",
+    "trusted_setup": [],
+    "bad_changes": [],
+    "entrypoint": "reconcileJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Use actual recorded-expiry current and valid accepted next for same episode/version; next.revision=current.revision+1, fromRead=true.",
+    "current_screen": "expired_accepted",
+    "next_screen": "accepted",
+    "next_changes": [
+      {
+        "op": "set_relative",
+        "path": "revision",
+        "relative_to": "current.revision",
+        "delta": 1
+      }
+    ],
+    "fromRead": true
+  },
+  {
+    "id": "command_outer_keys",
+    "target": "frontend/lib/journey.ts",
+    "old": "!exactKeys(value, [\"receipt\", \"journey\"])",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 237,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "extra",
+        "value": true
+      }
+    ],
+    "entrypoint": "readCommand",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "All existing fields remain valid.",
+    "good_receipt": {
+      "operation_id": "fictional-operation",
+      "state": "applied",
+      "result_ref": "fictional-result",
+      "scored": false,
+      "replayed": false
+    },
+    "http_status": 200
+  },
+  {
+    "id": "command_receipt_keys",
+    "target": "frontend/lib/journey.ts",
+    "old": "!exactKeys(value.receipt, [\"operation_id\", \"state\", \"result_ref\", \"scored\", \"replayed\"])",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 238,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "receipt.extra",
+        "value": true
+      }
+    ],
+    "entrypoint": "readCommand",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Only an extra receipt key differs.",
+    "good_receipt": {
+      "operation_id": "fictional-operation",
+      "state": "applied",
+      "result_ref": "fictional-result",
+      "scored": false,
+      "replayed": false
+    },
+    "http_status": 200
+  },
+  {
+    "id": "receipt_operation_id",
+    "target": "frontend/lib/journey.ts",
+    "old": "!bounded(r.operation_id, 128)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 240,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "receipt.operation_id",
+        "value": ""
+      }
+    ],
+    "entrypoint": "readCommand",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "No other predicate compares receipt operation identity.",
+    "good_receipt": {
+      "operation_id": "fictional-operation",
+      "state": "applied",
+      "result_ref": "fictional-result",
+      "scored": false,
+      "replayed": false
+    },
+    "http_status": 200
+  },
+  {
+    "id": "receipt_state",
+    "target": "frontend/lib/journey.ts",
+    "old": "![\"pending\", \"applied\", \"refused\", \"unavailable\", \"superseded\"].includes(r.state as string)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 240,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "receipt.state",
+        "value": "unknown"
+      }
+    ],
+    "entrypoint": "readCommand",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "status=200 and nonpending state still agree.",
+    "good_receipt": {
+      "operation_id": "fictional-operation",
+      "state": "applied",
+      "result_ref": "fictional-result",
+      "scored": false,
+      "replayed": false
+    },
+    "http_status": 200
+  },
+  {
+    "id": "receipt_result_ref",
+    "target": "frontend/lib/journey.ts",
+    "old": "!nullableString(r.result_ref)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 241,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "receipt.result_ref",
+        "value": ""
+      }
+    ],
+    "entrypoint": "readCommand",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "No other predicate reads result_ref.",
+    "good_receipt": {
+      "operation_id": "fictional-operation",
+      "state": "applied",
+      "result_ref": "fictional-result",
+      "scored": false,
+      "replayed": false
+    },
+    "http_status": 200
+  },
+  {
+    "id": "receipt_scored",
+    "target": "frontend/lib/journey.ts",
+    "old": "r.scored !== false",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 241,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "receipt.scored",
+        "value": true
+      }
+    ],
+    "entrypoint": "readCommand",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Other receipt fields and status remain valid.",
+    "good_receipt": {
+      "operation_id": "fictional-operation",
+      "state": "applied",
+      "result_ref": "fictional-result",
+      "scored": false,
+      "replayed": false
+    },
+    "http_status": 200
+  },
+  {
+    "id": "receipt_replayed",
+    "target": "frontend/lib/journey.ts",
+    "old": "typeof r.replayed !== \"boolean\"",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 241,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "receipt.replayed",
+        "value": 0
+      }
+    ],
+    "entrypoint": "readCommand",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Other receipt fields and status remain valid.",
+    "good_receipt": {
+      "operation_id": "fictional-operation",
+      "state": "applied",
+      "result_ref": "fictional-result",
+      "scored": false,
+      "replayed": false
+    },
+    "http_status": 200
+  },
+  {
+    "id": "command_journey_whole_decode",
+    "target": "frontend/lib/journey.ts",
+    "old": "!journey || (r.state === \"pending\")",
+    "new": "false || (r.state === \"pending\")",
+    "anchor_count": 1,
+    "source_line": 243,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "journey.schema_version",
+        "value": "unknown"
+      }
+    ],
+    "entrypoint": "readCommand",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "decodeJourney returns null. Removing only the outer journey check returns an invalid command result.",
+    "good_receipt": {
+      "operation_id": "fictional-operation",
+      "state": "applied",
+      "result_ref": "fictional-result",
+      "scored": false,
+      "replayed": false
+    },
+    "http_status": 200
+  },
+  {
+    "id": "pending_requires_202",
+    "target": "frontend/lib/journey.ts",
+    "old": "(r.state === \"pending\") !== (response.status === 202)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 243,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "receipt.state",
+        "value": "pending"
+      }
+    ],
+    "entrypoint": "readCommand",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Receipt and journey shapes remain valid; only pending/status equivalence differs.",
+    "good_receipt": {
+      "operation_id": "fictional-operation",
+      "state": "applied",
+      "result_ref": "fictional-result",
+      "scored": false,
+      "replayed": false
+    },
+    "http_status": 200,
+    "bad_http_status": 200
+  },
+  {
+    "id": "202_requires_pending",
+    "target": "frontend/lib/journey.ts",
+    "old": "(r.state === \"pending\") !== (response.status === 202)",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 243,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "receipt.state",
+        "value": "applied"
+      }
+    ],
+    "entrypoint": "readCommand",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Receipt and journey shapes remain valid; only pending/status equivalence differs.",
+    "good_receipt": {
+      "operation_id": "fictional-operation",
+      "state": "applied",
+      "result_ref": "fictional-result",
+      "scored": false,
+      "replayed": false
+    },
+    "http_status": 200,
+    "bad_http_status": 202
+  },
+  {
+    "id": "response_success_status",
+    "target": "frontend/lib/journey.ts",
+    "old": "!response.ok",
+    "new": "false",
+    "anchor_count": 1,
+    "source_line": 213,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [],
+    "entrypoint": "readCommand",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "A 500 response with a fully valid body must never decode as success; body remains present.",
+    "good_receipt": {
+      "operation_id": "fictional-operation",
+      "state": "applied",
+      "result_ref": "fictional-result",
+      "scored": false,
+      "replayed": false
+    },
+    "http_status": 200,
+    "bad_http_status": 500
+  },
+  {
+    "id": "strict_utf8",
+    "target": "frontend/lib/journey.ts",
+    "old": "new TextDecoder(\"utf-8\", { fatal: true })",
+    "new": "new TextDecoder(\"utf-8\", { fatal: false })",
+    "anchor_count": 1,
+    "source_line": 228,
+    "trusted_screen": "plan",
+    "trusted_setup": [],
+    "bad_changes": [],
+    "entrypoint": "readJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "Insert 0xFF only inside a JSON action_text string. Lossy decoding would create a bounded replacement character and otherwise-valid JSON.",
+    "bad_wire_operation": {
+      "op": "replace_utf8_first_byte_in_field",
+      "path": "plan.action_text",
+      "replacement_byte": 255
+    }
+  },
+  {
+    "id": "entry_step",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.step !== \"start\" || value.plan_redacted !== false",
+    "new": "value.plan_redacted !== false",
+    "anchor_count": 1,
+    "source_line": 106,
+    "trusted_screen": "start",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "step",
+        "value": "plan"
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "A no-plan body naming an assessed step still satisfies every null alias, the entry copy keys and the idle flow checks, so only the step clause refuses it."
+  },
+  {
+    "id": "entry_redaction",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.step !== \"start\" || value.plan_redacted !== false",
+    "new": "value.step !== \"start\"",
+    "anchor_count": 1,
+    "source_line": 106,
+    "trusted_screen": "start",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "plan_redacted",
+        "value": true
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "plan_redacted true with a null plan is not contradicted by the redaction rules, which only bind readback and repair steps."
+  },
+  {
+    "id": "entry_care",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.care_evidenced !== false || value.lines.length !== 0",
+    "new": "value.lines.length !== 0",
+    "anchor_count": 1,
+    "source_line": 110,
+    "trusted_screen": "start",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "care_evidenced",
+        "value": true
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "The documented-care rule is scoped to an assessed outcome, which a no-plan body does not carry, so nothing else refuses care_evidenced true here."
+  },
+  {
+    "id": "entry_lines",
+    "target": "frontend/lib/journey.ts",
+    "old": "value.care_evidenced !== false || value.lines.length !== 0",
+    "new": "value.care_evidenced !== false",
+    "anchor_count": 1,
+    "source_line": 110,
+    "trusted_screen": "start",
+    "trusted_setup": [],
+    "bad_changes": [
+      {
+        "op": "set",
+        "path": "lines",
+        "value": [
+          "An invented line."
+        ]
+      }
+    ],
+    "entrypoint": "decodeJourney",
+    "expected_good": "decoded",
+    "expected_bad": "null",
+    "expected_without_guard": "decoded",
+    "independent_because": "The unredacted four-line rule applies only to an assessed plan; a no-plan body carrying guidance lines is refused by this clause alone."
+  }
+]

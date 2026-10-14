@@ -6,6 +6,16 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
+from _legacy_service_probes import (
+    KEY,
+    signed_create,
+    signed_intake,
+    service_restatement,
+    service_repair,
+    service_consent,
+    service_action,
+    service_barrier,
+)
 from carerelay.api import app, get_service
 from carerelay.coordinator import LocalSimulationCoordinator
 from carerelay.demo import fixture
@@ -26,6 +36,7 @@ def make_service(path):
         clock=ScenarioClock(fixture.SCENARIO_NOW_UTC), policy=fixture.policy(),
         policy_text=fixture.policy_text(), display_tz=fixture.DISPLAY_TZ,
         disposition_factory=fixture.disposition, bound_complaint=fixture.BOUND_COMPLAINT,
+        operation_signing_key=lambda: KEY,
         policy_provenance="test: non-clinical fixture",
     )
 
@@ -50,8 +61,8 @@ def api(tmp_path, monkeypatch):
     path = tmp_path / "truthfulness.sqlite"
     with connected(path, token) as (client, service):
         assert TestClient(app).get(BASE).status_code == 401
-        assert client.post("/api/episodes").status_code == 200
-        assert client.post(BASE + "/intake", json={"confirmed_text": fixture.BOUND_COMPLAINT}).status_code == 200
+        assert signed_create(client).status_code == 200
+        assert signed_intake(client).status_code == 200
         yield client, service, path, token
 
 
@@ -59,21 +70,26 @@ def surfaces(client):
     patient = client.get(BASE)
     ledger = client.get(BASE + "/ledger")
     alias = client.get(f"/ledger/{EPISODE}")
-    # Slice 14 blocks assessed patient HTTP until the complete Slice 15 projection.
-    # Retain all old serialized outcome assertions through the unchanged service,
-    # plus authenticated HTTP ledger/mutation guards and exact recovery refusal.
-    assert patient.status_code == 503, patient.text
-    assert patient.json() == {"detail": "journey unavailable"}
+    assert patient.status_code == 200, patient.text
     assert ledger.status_code == alias.status_code == 200, (ledger.text, alias.text)
     assert ledger.json() == alias.json()
-    service = app.dependency_overrides.get(get_service, get_service)()
-    legacy = json.loads(json.dumps(service.project_patient(EPISODE).as_dict()))
-    return legacy, ledger.json()
+    body = patient.json()
+    axes = ledger.json()["axes"]
+    assert body["closure"] == body["outcome"]["closure"] == axes["closure"]
+    assert body["execution"] == body["outcome"]["execution"] == axes["execution"]
+    assert body["evidence"] == body["outcome"]["evidence"] == axes["evidence"]
+    assert body["flow"]["stopped"] is axes["flow_stopped"]
+    assert body["action_owner_id"] == body["plan"]["current_owner_id"] == axes["action_owner_id"]
+    assert body["plan"]["deadline_utc"] == "2026-09-30T10:00:00+00:00"
+    assert body["plan"]["original_owner_id"] == "patient"
+    assert body["disposition_version"] == body["plan"]["disposition_version"] == 1
+    return body, ledger.json()
 
 
 def assert_unresolved(patient, ledger):
     assert patient["simulated"] is ledger["simulated"] is True
-    assert patient["fixture_label"] == ledger["fixture_label"] == fixture.FIXTURE_LABEL
+    assert patient["fixture_label"] == fixture.JOURNEY_LABEL
+    assert ledger["fixture_label"] == fixture.FIXTURE_LABEL
     assert patient["closure"] == "open"
     assert patient["lines"] == ["No one has agreed to help yet.", "Please act now.",
                                  "Please do it before 6pm today.",
@@ -112,11 +128,11 @@ class TestFailedHandoff:
 
 
 def consent(client, granted=True):
-    assert client.post(BASE + "/consents", json={"granted": granted}).status_code == 200
+    assert service_consent(client, EPISODE, json={"granted": granted}).status_code == 200
 
 
 def action(client):
-    response = client.post(BASE + "/actions", json={"route_id": "fictional_provider", "purpose_id": "handoff-test"})
+    response = service_action(client, EPISODE, json={"route_id": "fictional_provider", "purpose_id": "handoff-test"})
     assert response.status_code == 200
     return response.json()
 
@@ -227,7 +243,7 @@ class TestReadBackPolarity:
     ])
     def test_negated_or_uncertain_answers_are_not_understanding(self, api, text):
         client, _, _, _ = api
-        response = client.post(BASE + "/restatements", json={"text": text, "hint_level": "H0"})
+        response = service_restatement(client, EPISODE, json={"text": text, "hint_level": "H0"})
         assert response.status_code == 200
         body = response.json()
         assert body["understood"] is False
@@ -247,7 +263,7 @@ class TestReadBackPolarity:
     ])
     def test_known_positive_answers_still_match(self, api, text):
         client, _, _, _ = api
-        response = client.post(BASE + "/restatements", json={"text": text, "hint_level": "H0"})
+        response = service_restatement(client, EPISODE, json={"text": text, "hint_level": "H0"})
         assert response.status_code == 200
         assert response.json()["understood"] is True
         assert response.json()["outcome"] == "recall_unaided"
@@ -256,7 +272,7 @@ class TestReadBackPolarity:
     @pytest.mark.parametrize("owner_text", ["Appointment:", "theme", "myselfish"])
     def test_partial_answer_does_not_invent_an_owner_from_a_substring(self, api, owner_text):
         client, _, _, _ = api
-        response = client.post(BASE + "/restatements", json={
+        response = service_restatement(client, EPISODE, json={
             "text": f"{owner_text} see the doctor today before 6pm.", "hint_level": "H0"})
         assert response.status_code == 200
         assert response.json()["understood"] is False
@@ -268,8 +284,10 @@ BAD = "I will see the doctor tomorrow before 6pm myself."
 
 
 def readback(client, text=BAD, hint="H0", parent=None):
-    suffix = "/restatements" if parent is None else f"/restatements/{parent}/repairs"
-    return client.post(BASE + suffix, json={"text": text, "hint_level": hint})
+    payload = {"text": text, "hint_level": hint}
+    if parent is None:
+        return service_restatement(client, EPISODE, json=payload)
+    return service_repair(client, EPISODE, parent, json=payload)
 
 
 def exhaust_repairs(client):
@@ -298,7 +316,7 @@ class TestDurableStops:
         assert response.status_code == 200
         assert response.json()["outcome"] == "stop_at_human_path"
         with connected(path, token) as (restarted, _):
-            response = restarted.post(BASE + "/actions", json={"route_id": "fictional_provider", "purpose_id": "after-stop"})
+            response = service_action(restarted, EPISODE, json={"route_id": "fictional_provider", "purpose_id": "after-stop"})
             assert response.status_code == 409
             assert_unresolved(*surfaces(restarted))
 
@@ -343,19 +361,20 @@ class TestStopAlternatesAndRecovery:
         elif cause == "reassessment":
             client.post(BASE + "/reassessments", json={})
         else:
-            assert client.post(BASE + "/barriers", json={"barrier_text": "no route", "proposed_route_id": "invented"}).status_code == 422
+            assert service_barrier(client, EPISODE, json={"barrier_text": "no route", "proposed_route_id": "invented"}).status_code == 422
         script = '''
 import json, os, sys
-from test_truthfulness import connected, BASE, GOOD, surfaces
+from test_truthfulness import connected, BASE, GOOD, surfaces, EPISODE
+from _legacy_service_probes import service_hint, service_consent, service_restatement, service_repair, service_action, service_barrier
 with connected(sys.argv[1], os.environ["CARERELAY_API_TOKEN"]) as (client, service):
     answers = {}
-    answers["hint"] = client.post(BASE + "/hint-events", json={"hint_level": "H2", "event": "shown"}).status_code
-    answers["consent"] = client.post(BASE + "/consents", json={"granted": True}).status_code
-    answers["restatement"] = client.post(BASE + "/restatements", json={"text": GOOD, "hint_level": "H0"}).status_code
-    answers["repair"] = client.post(BASE + "/restatements/" + sys.argv[2] + "/repairs", json={"text": GOOD, "hint_level": "H0"}).status_code
-    answers["action"] = client.post(BASE + "/actions", json={"route_id": "fictional_provider", "purpose_id": "handoff-test"}).status_code
-    answers["new_action"] = client.post(BASE + "/actions", json={"route_id": "nurse_line", "purpose_id": "alternate"}).status_code
-    answers["barrier"] = client.post(BASE + "/barriers", json={"barrier_text": "retry", "proposed_route_id": "nurse_line"}).status_code
+    answers["hint"] = service_hint(client, EPISODE, json={"hint_level": "H2", "event": "shown"}).status_code
+    answers["consent"] = service_consent(client, EPISODE, json={"granted": True}).status_code
+    answers["restatement"] = service_restatement(client, EPISODE, json={"text": GOOD, "hint_level": "H0"}).status_code
+    answers["repair"] = service_repair(client, EPISODE, sys.argv[2], json={"text": GOOD, "hint_level": "H0"}).status_code
+    answers["action"] = service_action(client, EPISODE, json={"route_id": "fictional_provider", "purpose_id": "handoff-test"}).status_code
+    answers["new_action"] = service_action(client, EPISODE, json={"route_id": "nurse_line", "purpose_id": "alternate"}).status_code
+    answers["barrier"] = service_barrier(client, EPISODE, json={"barrier_text": "retry", "proposed_route_id": "nurse_line"}).status_code
     patient, ledger = surfaces(client)
     print(json.dumps({"answers": answers, "patient": patient, "ledger": ledger}))
 '''
@@ -461,17 +480,25 @@ with connected(sys.argv[1], os.environ["CARERELAY_API_TOKEN"]) as (client, servi
         with connected(path, token) as (restarted, reloaded):
             reloaded._policy = policy
             reloaded._policy_text = text
-            patient, ledger = surfaces(restarted)
+            # The test-only tomorrow branch has no approved journey date copy.
+            # Keep its legacy service proof while HTTP truthfully refuses.
+            refused = restarted.get(BASE)
+            assert refused.status_code == 503
+            assert refused.json() == {"detail": "journey unavailable"}
+            patient = json.loads(json.dumps(reloaded.project_patient(EPISODE).as_dict()))
+            ledger_response = restarted.get(BASE + "/ledger")
+            assert ledger_response.status_code == 200
+            ledger = ledger_response.json()
             assert ledger["axes"]["flow_stopped"] is False
             assert ledger["disposition_version"] == 2
             assert patient["lines"][2] == "Please do it before 6pm tomorrow."
             assert len([e for e in ledger["events"] if e["kind"] == "flow_stopped"]) == 1
             assert readback(restarted, GOOD, parent=old_round).status_code == 409
-            assert restarted.post(BASE + "/actions", json={"route_id": "fictional_provider", "purpose_id": "handoff-test"}).status_code == 409
+            assert service_action(restarted, EPISODE, json={"route_id": "fictional_provider", "purpose_id": "handoff-test"}).status_code == 409
             tools = McpTools(reloaded._store, policy=policy, provider=ScriptedProvider())
             with pytest.raises(UnknownAttemptKey):
                 tools.submit_simulated_request(EPISODE, "fictional_provider", opened["idempotency_key"], now_utc=fixture.SCENARIO_NOW_UTC)
-            assert restarted.post(BASE + "/actions", json={"route_id": "fictional_provider", "purpose_id": "new-version-purpose"}).status_code == 200
+            assert service_action(restarted, EPISODE, json={"route_id": "fictional_provider", "purpose_id": "new-version-purpose"}).status_code == 200
             assert reloaded._store.list_dispositions(EPISODE)[0] == original
 
 

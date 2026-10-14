@@ -1,8 +1,9 @@
-"""Slice 1 API tests. Each assertion must be able to fail (Gate 4 standing rules).
+"""API and explicit legacy service tests. Each assertion must be able to fail (Gate 4 standing rules).
 
-A test that cannot fail tests nothing, so each route contract below is paired
-with the failure it is meant to catch: a removed route, a missing label, an
-empty line. The `AssertionsHaveTeeth` class proves the two safety-shaped
+Actual HTTP checks cover the current wire contract. Retired operations use
+explicit EpisodeService probes whose status/body classify service outcomes,
+not HTTP responses. Separate authenticated POST checks prove retirement writes
+nothing. Original safety selectors remain stable for the mutation harnesses. The `AssertionsHaveTeeth` class proves the two safety-shaped
 assertions are not vacuous.
 """
 
@@ -19,7 +20,20 @@ from fastapi.testclient import TestClient
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
-from carerelay.api import app, get_service  # noqa: E402
+from _legacy_service_probes import (
+    KEY,
+    signed_create,
+    signed_intake,
+    service_intake,
+    service_restatement,
+    service_repair,
+    service_confirmation,
+    service_hint,
+    service_consent,
+    service_action,
+    service_barrier,
+)
+from carerelay.api import app, get_service, COORDINATOR_FALLBACK_TEXT  # noqa: E402
 from carerelay.coordinator import (  # noqa: E402
     AllowedPlanValues,
     CoordinatorUnavailable,
@@ -50,8 +64,8 @@ def _tools(store) -> McpTools:
 
 
 @pytest.fixture()
-def client() -> TestClient:
-    return TestClient(app)
+def client(planback_client) -> TestClient:
+    return planback_client
 
 
 @pytest.fixture()
@@ -72,6 +86,7 @@ def planback_client() -> Iterator[TestClient]:
         display_tz=fixture.DISPLAY_TZ,
         disposition_factory=fixture.disposition,
         bound_complaint=fixture.BOUND_COMPLAINT,
+        operation_signing_key=lambda: KEY,
         policy_provenance="test: provisional",
     )
     app.dependency_overrides[get_service] = lambda: service
@@ -82,21 +97,21 @@ def planback_client() -> Iterator[TestClient]:
 
 @pytest.fixture()
 def assessed(planback_client: TestClient) -> str:
-    planback_client.post("/api/episodes")
-    response = planback_client.post(
-        f"/api/episodes/{EPISODE}/intake",
-        json={"confirmed_text": fixture.BOUND_COMPLAINT},
-    )
+    signed_create(planback_client)
+    response = signed_intake(planback_client)
     assert response.status_code == 200
     return EPISODE
 
 
 class TestEpisodeContract:
     def test_create_episode_returns_an_id_and_no_disposition(self, client: TestClient):
-        response = client.post("/api/episodes")
+        response = signed_create(client)
         assert response.status_code == 200
         body = response.json()
-        assert body["episode_id"] == fixture.DEMO_EPISODE_ID
+        assert body["journey"]["episode_id"] == fixture.DEMO_EPISODE_ID
+        assert body["receipt"]["state"] == "applied"
+        assert body["journey"]["plan"] is None
+        assert body["journey"]["disposition_version"] is None
         # 02-architecture.md 3.1: creating an episode must NOT write a disposition.
         assert "disposition" not in body
 
@@ -104,7 +119,7 @@ class TestEpisodeContract:
         assert client.get("/api/episodes/does-not-exist").status_code == 404
 
     def test_no_plan_has_no_fixture_guidance(self, planback_client: TestClient):
-        planback_client.post("/api/episodes")
+        signed_create(planback_client)
         response = planback_client.get(f"/api/episodes/{EPISODE}")
         assert response.status_code == 200
         body = response.json()
@@ -130,15 +145,11 @@ class TestEpisodeContract:
         assert client.get("/static/style.css").status_code == 200
 
 
-def legacy_patient_after_refusal(client):
-    """Slice 14 refuses assessed GET. Keep old copy/expiry regression proof at
-    the existing service serializer, alongside the new HTTP refusal assertion.
-    This is explicitly not assessed journey/browser proof (Slice 15).
-    """
+def assessed_patient(client):
+    """Actual Slice 15 assessed HTTP, retaining the approved safety assertions."""
     response = client.get(f"/api/episodes/{EPISODE}")
-    assert response.status_code == 503
-    assert response.json() == {"detail": "journey unavailable"}
-    return json.loads(json.dumps(app.dependency_overrides[get_service]().project_patient(EPISODE).as_dict()))
+    assert response.status_code == 200, response.text
+    return response.json()
 
 
 # ---------------------------------------------------------------------------
@@ -165,6 +176,7 @@ def _service_with(store, coordinator) -> EpisodeService:
         display_tz=fixture.DISPLAY_TZ,
         disposition_factory=fixture.disposition,
         bound_complaint=fixture.BOUND_COMPLAINT,
+        operation_signing_key=lambda: KEY,
         policy_provenance="test: provisional",
     )
 
@@ -180,12 +192,10 @@ def dead_client() -> Iterator[TestClient]:
 
 
 class TestPlanBackRouteContracts:
+    """Retired PlanBack operations probed explicitly at the service boundary."""
     def test_intake_issues_the_preauthored_plan(self, planback_client: TestClient):
-        planback_client.post("/api/episodes")
-        body = planback_client.post(
-            f"/api/episodes/{EPISODE}/intake",
-            json={"confirmed_text": fixture.BOUND_COMPLAINT},
-        ).json()
+        signed_create(planback_client)
+        body = service_intake(planback_client, EPISODE, json={"confirmed_text": fixture.BOUND_COMPLAINT}).json()
         assert body["disposition_version"] == 1
         assert body["action_id"] == "attend_same_day_review"
         assert body["fallback_route_id"] == "nurse_line"
@@ -193,11 +203,8 @@ class TestPlanBackRouteContracts:
     def test_a_complaint_the_fixture_is_not_bound_to_stops_at_the_human_path(
         self, planback_client: TestClient
     ):
-        planback_client.post("/api/episodes")
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/intake",
-            json={"confirmed_text": "something this fixture does not cover"},
-        )
+        signed_create(planback_client)
+        response = service_intake(planback_client, EPISODE, json={"confirmed_text": "something this fixture does not cover"})
         assert response.status_code == 422
         assert response.json()["detail"]["stopped_at"] == "human_path"
 
@@ -226,11 +233,8 @@ class TestPlanBackRouteContracts:
         the disjoint case and nothing else. This parametrisation is what the old
         test name claimed to prove.
         """
-        planback_client.post("/api/episodes")
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/intake",
-            json={"confirmed_text": red_flag_text},
-        )
+        signed_create(planback_client)
+        response = service_intake(planback_client, EPISODE, json={"confirmed_text": red_flag_text})
         assert response.status_code == 422, (
             f"{red_flag_text!r} was bound to the demo plan; the binding rule is "
             "a substring match, so a complaint carrying a red flag is accepted"
@@ -245,65 +249,41 @@ class TestPlanBackRouteContracts:
         This is the control for the parametrised test above: the exact bound
         complaint, normalised for case and whitespace, still scores 200.
         """
-        planback_client.post("/api/episodes")
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/intake",
-            json={"confirmed_text": f"  {fixture.BOUND_COMPLAINT.upper()}  "},
-        )
+        signed_create(planback_client)
+        response = service_intake(planback_client, EPISODE, json={"confirmed_text": f"  {fixture.BOUND_COMPLAINT.upper()}  "})
         assert response.status_code == 200
         assert response.json()["disposition_version"] == 1
 
     def test_a_clean_restatement_is_understood(self, planback_client, assessed):
-        body = planback_client.post(
-            f"/api/episodes/{assessed}/restatements",
-            json={"text": CORRECT, "hint_level": "H0"},
-        ).json()
+        body = service_restatement(planback_client, assessed, json={"text": CORRECT, "hint_level": "H0"}).json()
         assert body["understood"] is True
         assert body["mismatches"] == []
         assert body["outcome"] == "recall_unaided"
 
     def test_a_mismatch_names_one_field_to_repair(self, planback_client, assessed):
-        body = planback_client.post(
-            f"/api/episodes/{assessed}/restatements",
-            json={"text": WRONG_DAY, "hint_level": "H0"},
-        ).json()
+        body = service_restatement(planback_client, assessed, json={"text": WRONG_DAY, "hint_level": "H0"}).json()
         assert body["mismatches"] == ["deadline_utc"]
         assert body["next_repair_field"] == "deadline_utc"
         assert body["routes_to_human_path"] is False
 
     def test_two_repairs_then_the_human_path(self, planback_client, assessed):
-        first = planback_client.post(
-            f"/api/episodes/{assessed}/restatements",
-            json={"text": WRONG_DAY, "hint_level": "H0"},
-        ).json()
+        first = service_restatement(planback_client, assessed, json={"text": WRONG_DAY, "hint_level": "H0"}).json()
         rid = first["restatement_id"]
 
-        second = planback_client.post(
-            f"/api/episodes/{assessed}/restatements/{rid}/repairs",
-            json={"text": WRONG_DAY, "hint_level": "H0"},
-        ).json()
+        second = service_repair(planback_client, assessed, rid, json={"text": WRONG_DAY, "hint_level": "H0"}).json()
         assert second["repair_round"] == 1
 
-        third = planback_client.post(
-            f"/api/episodes/{assessed}/restatements/{second['restatement_id']}/repairs",
-            json={"text": WRONG_DAY, "hint_level": "H0"},
-        ).json()
+        third = service_repair(planback_client, assessed, second['restatement_id'], json={"text": WRONG_DAY, "hint_level": "H0"}).json()
         assert third["repair_round"] == 2
         assert third["routes_to_human_path"] is True
         assert third["human_path_route_id"] == "nurse_line"
 
-        capped = planback_client.post(
-            f"/api/episodes/{assessed}/restatements/{third['restatement_id']}/repairs",
-            json={"text": WRONG_DAY, "hint_level": "H0"},
-        )
+        capped = service_repair(planback_client, assessed, third['restatement_id'], json={"text": WRONG_DAY, "hint_level": "H0"})
         assert capped.status_code == 409
 
     def test_a_restatement_before_any_plan_is_refused(self, planback_client):
-        planback_client.post("/api/episodes")
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/restatements",
-            json={"text": CORRECT, "hint_level": "H0"},
-        )
+        signed_create(planback_client)
+        response = service_restatement(planback_client, EPISODE, json={"text": CORRECT, "hint_level": "H0"})
         assert response.status_code == 409
 
 
@@ -311,41 +291,29 @@ class TestTranscriptConfirmationRoute:
     def test_an_unconfirmed_voice_restatement_is_refused(
         self, planback_client, assessed
     ):
-        response = planback_client.post(
-            f"/api/episodes/{assessed}/restatements",
-            json={"text": CORRECT, "hint_level": "H0", "input_mode": "voice"},
-        )
+        response = service_restatement(planback_client, assessed, json={"text": CORRECT, "hint_level": "H0", "input_mode": "voice"})
         assert response.status_code == 409
 
     def test_a_confirmation_binds_to_the_text_being_scored(
         self, planback_client, assessed
     ):
-        confirmation_id = planback_client.post(
-            f"/api/episodes/{assessed}/transcript-confirmations",
-            json={"corrected_text": CORRECT},
-        ).json()["confirmation_id"]
+        confirmation_id = service_confirmation(planback_client, assessed, json={"corrected_text": CORRECT}).json()["confirmation_id"]
 
-        ok = planback_client.post(
-            f"/api/episodes/{assessed}/restatements",
-            json={
+        ok = service_restatement(planback_client, assessed, json={
                 "text": CORRECT,
                 "hint_level": "H0",
                 "input_mode": "voice",
                 "transcript_confirmation_id": confirmation_id,
-            },
-        )
+            })
         assert ok.status_code == 200
         assert ok.json()["understood"] is True
 
-        swapped = planback_client.post(
-            f"/api/episodes/{assessed}/restatements",
-            json={
+        swapped = service_restatement(planback_client, assessed, json={
                 "text": "a different sentence entirely",
                 "hint_level": "H0",
                 "input_mode": "voice",
                 "transcript_confirmation_id": confirmation_id,
-            },
-        )
+            })
         assert swapped.status_code == 409
 
 
@@ -355,25 +323,19 @@ class TestPatientSurfaceHasNoDwell:
     def test_the_restatement_response_carries_no_dwell_marker(
         self, planback_client, assessed
     ):
-        body = planback_client.post(
-            f"/api/episodes/{assessed}/restatements",
-            json={"text": CORRECT, "hint_level": "H0", "dwell_seconds": 4.2},
-        ).json()
+        body = service_restatement(planback_client, assessed, json={"text": CORRECT, "hint_level": "H0", "dwell_seconds": 4.2}).json()
         assert "dwell_seconds" not in body
         assert "4.2" not in str(body)
 
     def test_the_hint_event_response_carries_no_dwell_marker(
         self, planback_client, assessed
     ):
-        body = planback_client.post(
-            f"/api/episodes/{assessed}/hint-events",
-            json={"hint_level": "H2", "event": "shown", "dwell_seconds": 4.2},
-        ).json()
-        assert body == {
-            "episode_id": assessed,
-            "hint_level": "H2",
-            "card_visible": True,
-        }, f"the hint response leaked a field: {body}"
+        service_hint(planback_client, assessed, json={"hint_level": "H2", "event": "shown", "dwell_seconds": 4.2})
+        response = planback_client.get(f"/api/episodes/{assessed}")
+        assert response.status_code == 200
+        assert response.json()["flow"]["card_visible"] is True
+        assert "dwell_seconds" not in response.text
+        assert "4.2" not in response.text
 
     def test_the_dwell_marker_would_be_caught_if_it_were_there(self):
         """A negative scan that has never detected its needle is not evidence."""
@@ -384,10 +346,7 @@ class TestPlanBackCarriesTheSimulatedLabel:
     def test_the_label_is_inside_the_restatement_projection(
         self, planback_client, assessed
     ):
-        body = planback_client.post(
-            f"/api/episodes/{assessed}/restatements",
-            json={"text": CORRECT, "hint_level": "H0"},
-        ).json()
+        body = service_restatement(planback_client, assessed, json={"text": CORRECT, "hint_level": "H0"}).json()
         assert body["simulated"] is True
         assert body["fixture_label"] == fixture.FIXTURE_LABEL
 
@@ -396,34 +355,29 @@ class TestCoordinatorUnavailable:
     def test_the_flow_stops_with_a_text_fallback_and_scored_false(
         self, dead_client: TestClient
     ):
-        dead_client.post("/api/episodes")
-        dead_client.post(
-            f"/api/episodes/{EPISODE}/intake",
-            json={"confirmed_text": fixture.BOUND_COMPLAINT},
-        )
-        response = dead_client.post(
-            f"/api/episodes/{EPISODE}/restatements",
-            json={"text": CORRECT, "hint_level": "H0"},
-        )
-        assert response.status_code == 503
-        detail = response.json()["detail"]
-        assert detail["scored"] is False
-        assert detail["text_fallback"]
+        signed_create(dead_client)
+        service_intake(dead_client, EPISODE, json={"confirmed_text": fixture.BOUND_COMPLAINT})
+        service = app.dependency_overrides[get_service]()
+        before = service._store.list_restatements(EPISODE)
+        with pytest.raises(CoordinatorUnavailable):
+            service.submit_restatement(EPISODE, CORRECT, "H0")
+        assert service._store.list_restatements(EPISODE) == before == ()
+        # Exercise the production fallback serializer, not a helper's mapping.
+        from carerelay.api import _coordinator_down
+        unavailable = _coordinator_down()
+        assert unavailable.status_code == 503
+        assert unavailable.detail["scored"] is False
+        assert unavailable.detail["text_fallback"] == COORDINATOR_FALLBACK_TEXT
+        assert dead_client.get(f"/api/episodes/{EPISODE}").json()["step"] == "plan"
 
     def test_the_fallback_is_never_a_200_with_empty_mismatches(
         self, dead_client: TestClient
     ):
-        """A 200 carrying empty mismatches would read as "you understood your
+        """A service success carrying empty mismatches would read as "you understood your
         plan", which is a false completion of exactly the kind I2 forbids."""
-        dead_client.post("/api/episodes")
-        dead_client.post(
-            f"/api/episodes/{EPISODE}/intake",
-            json={"confirmed_text": fixture.BOUND_COMPLAINT},
-        )
-        response = dead_client.post(
-            f"/api/episodes/{EPISODE}/restatements",
-            json={"text": CORRECT, "hint_level": "H0"},
-        )
+        signed_create(dead_client)
+        service_intake(dead_client, EPISODE, json={"confirmed_text": fixture.BOUND_COMPLAINT})
+        response = service_restatement(dead_client, EPISODE, json={"text": CORRECT, "hint_level": "H0"})
         assert response.status_code != 200
 
 
@@ -436,10 +390,7 @@ class TestBarrierRoute:
     def test_a_permitted_route_returns_200(
         self, planback_client: TestClient, assessed: str
     ) -> None:
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/barriers",
-            json={"barrier_text": "no transport today", "proposed_route_id": "nurse_line"},
-        )
+        response = service_barrier(planback_client, EPISODE, json={"barrier_text": "no transport today", "proposed_route_id": "nurse_line"})
         assert response.status_code == 200
         body = response.json()
         assert body["permitted_route_id"] == "nurse_line"
@@ -450,37 +401,26 @@ class TestBarrierRoute:
         self, planback_client: TestClient, assessed: str
     ) -> None:
         """Reporting a barrier without proposing a route is the common case."""
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/barriers",
-            json={"barrier_text": "no transport today"},
-        )
+        response = service_barrier(planback_client, EPISODE, json={"barrier_text": "no transport today"})
         assert response.status_code == 200
         assert response.json()["permitted_route_id"] is None
 
     def test_a_hallucinated_route_is_422_and_says_it_was_recorded(
         self, planback_client: TestClient, assessed: str
     ) -> None:
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/barriers",
-            json={"barrier_text": "no transport", "proposed_route_id": "teleport_clinic"},
-        )
+        response = service_barrier(planback_client, EPISODE, json={"barrier_text": "no transport", "proposed_route_id": "teleport_clinic"})
         assert response.status_code == 422
         detail = response.json()["detail"]
         assert detail["stopped_at"] == "human_path"
         assert detail["barrier_recorded"] is True
 
     def test_a_barrier_with_no_plan_is_409(self, planback_client: TestClient) -> None:
-        planback_client.post("/api/episodes")
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/barriers",
-            json={"barrier_text": "no transport today"},
-        )
+        signed_create(planback_client)
+        response = service_barrier(planback_client, EPISODE, json={"barrier_text": "no transport today"})
         assert response.status_code == 409
 
     def test_an_unknown_episode_is_404(self, planback_client: TestClient) -> None:
-        response = planback_client.post(
-            "/api/episodes/nope/barriers", json={"barrier_text": "no transport today"}
-        )
+        response = service_barrier(planback_client, "nope", json={"barrier_text": "no transport today"})
         assert response.status_code == 404
 
 
@@ -556,7 +496,7 @@ class TestReassessmentRoute:
     def test_a_reassessment_with_no_plan_is_409(
         self, planback_client: TestClient
     ) -> None:
-        planback_client.post("/api/episodes")
+        signed_create(planback_client)
         response = planback_client.post(
             f"/api/episodes/{EPISODE}/reassessments", json={}
         )
@@ -570,49 +510,44 @@ PURPOSE = "book_transport"
 
 
 class TestActionRoutes:
-    """The Slice 6 action route.
+    """Legacy action safety at EpisodeService; transport is retired in Slice 15.
 
-    Every status code below was also observed against a live server on
-    3 October 2026, because a 409 rendered by `TestClient` and a 409 rendered by
-    uvicorn are not the same claim.
+    Probe status/body classify the service outcome and are not HTTP evidence.
     """
 
     @staticmethod
     def _consent(client: TestClient) -> None:
-        response = client.post(
-            f"/api/episodes/{EPISODE}/consents", json={"granted": True}
-        )
+        response = service_consent(client, EPISODE, json={"granted": True})
         assert response.status_code == 200
 
     def test_consent_returns_a_version_and_carries_the_label(
         self, planback_client: TestClient, assessed: str
     ) -> None:
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/consents", json={"granted": True}
-        )
+        response = service_consent(planback_client, EPISODE, json={"granted": True})
         assert response.status_code == 200
         body = response.json()
         assert body["version"] == 1
-        assert body["granted"] is True
-        assert body["simulated"] is True
+        service = app.dependency_overrides[get_service]()
+        assert service._store.load_journey_bundle(assessed).consent_granted is True
+        patient = planback_client.get(f"/api/episodes/{assessed}")
+        assert patient.status_code == 200
+        assert patient.json()["simulated"] is True
+        assert patient.json()["fixture_label"] == fixture.JOURNEY_LABEL
 
     def test_an_action_without_consent_is_409(
         self, planback_client: TestClient, assessed: str
     ) -> None:
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/actions",
-            json={"route_id": ROUTE, "purpose_id": PURPOSE},
-        )
-        assert response.status_code == 409
+        from carerelay.service import ConsentRequired
+        service = app.dependency_overrides[get_service]()
+        with pytest.raises(ConsentRequired):
+            service.open_action(EPISODE, ROUTE, PURPOSE)
+        assert service._store.list_attempts(EPISODE) == ()
 
     def test_an_action_opens_an_attempt_and_names_its_origin(
         self, planback_client: TestClient, assessed: str
     ) -> None:
         self._consent(planback_client)
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/actions",
-            json={"route_id": ROUTE, "purpose_id": PURPOSE},
-        )
+        response = service_action(planback_client, EPISODE, json={"route_id": ROUTE, "purpose_id": PURPOSE})
         assert response.status_code == 200
         body = response.json()
         assert body["duplicate"] is False
@@ -625,16 +560,10 @@ class TestActionRoutes:
     def test_a_double_tap_returns_the_first_attempt_and_no_outcome(
         self, planback_client: TestClient, assessed: str
     ) -> None:
-        """I3, at the HTTP boundary: the payload says it dispatched nothing."""
+        """I3 at the service boundary: the second call dispatched nothing."""
         self._consent(planback_client)
-        first = planback_client.post(
-            f"/api/episodes/{EPISODE}/actions",
-            json={"route_id": ROUTE, "purpose_id": PURPOSE},
-        ).json()
-        second = planback_client.post(
-            f"/api/episodes/{EPISODE}/actions",
-            json={"route_id": ROUTE, "purpose_id": PURPOSE},
-        ).json()
+        first = service_action(planback_client, EPISODE, json={"route_id": ROUTE, "purpose_id": PURPOSE}).json()
+        second = service_action(planback_client, EPISODE, json={"route_id": ROUTE, "purpose_id": PURPOSE}).json()
         assert second["attempt_id"] == first["attempt_id"]
         assert second["idempotency_key"] == first["idempotency_key"]
         assert second["duplicate"] is True
@@ -645,20 +574,14 @@ class TestActionRoutes:
         self, planback_client: TestClient, assessed: str
     ) -> None:
         self._consent(planback_client)
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/actions",
-            json={"route_id": "somewhere_else", "purpose_id": PURPOSE},
-        )
+        response = service_action(planback_client, EPISODE, json={"route_id": "somewhere_else", "purpose_id": PURPOSE})
         assert response.status_code == 422
         assert response.json()["detail"]["stopped_at"] == "human_path"
 
     def test_an_action_on_an_unknown_episode_is_404(
         self, planback_client: TestClient
     ) -> None:
-        response = planback_client.post(
-            "/api/episodes/nope/actions",
-            json={"route_id": ROUTE, "purpose_id": PURPOSE},
-        )
+        response = service_action(planback_client, "nope", json={"route_id": ROUTE, "purpose_id": PURPOSE})
         assert response.status_code == 404
 
 
@@ -667,10 +590,7 @@ class TestCallbackRoute:
 
     def _opened(self, client: TestClient, assessed: str) -> str:
         TestActionRoutes._consent(client)
-        response = client.post(
-            f"/api/episodes/{EPISODE}/actions",
-            json={"route_id": ROUTE, "purpose_id": PURPOSE},
-        )
+        response = service_action(client, EPISODE, json={"route_id": ROUTE, "purpose_id": PURPOSE})
         assert response.status_code == 200
         return response.json()["attempt_id"]
 
@@ -714,9 +634,7 @@ class TestCallbackRoute:
         consent moved, which must not be displayed as "nothing arrived".
         """
         self._opened(planback_client, assessed)
-        revoked = planback_client.post(
-            f"/api/episodes/{EPISODE}/consents", json={"granted": False}
-        )
+        revoked = service_consent(planback_client, EPISODE, json={"granted": False})
         assert revoked.status_code == 200
         response = planback_client.post(
             f"/api/episodes/{EPISODE}/callbacks/{ROUTE}",
@@ -796,7 +714,7 @@ class TestAuthIsFailClosed:
         self, planback_client: TestClient
     ) -> None:
         """The control: with nothing configured, the demo is unchanged."""
-        assert planback_client.post("/api/episodes").status_code == 200
+        assert signed_create(planback_client).status_code == 200
 
     def test_health_stays_open_when_auth_is_armed(
         self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
@@ -809,7 +727,7 @@ class TestAuthIsFailClosed:
         self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("CARERELAY_API_TOKEN", "t" * 32)
-        response = planback_client.post("/api/episodes")
+        response = signed_create(planback_client)
         assert response.status_code == 401
         assert response.headers["www-authenticate"] == "Bearer"
 
@@ -817,18 +735,14 @@ class TestAuthIsFailClosed:
         self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("CARERELAY_API_TOKEN", "t" * 32)
-        response = planback_client.post(
-            "/api/episodes", headers={"Authorization": "Bearer " + "w" * 32}
-        )
+        response = signed_create(planback_client, headers={"Authorization": "Bearer " + "w" * 32})
         assert response.status_code == 401
 
     def test_the_right_token_passes(
         self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setenv("CARERELAY_API_TOKEN", "t" * 32)
-        response = planback_client.post(
-            "/api/episodes", headers={"Authorization": "Bearer " + "t" * 32}
-        )
+        response = signed_create(planback_client, headers={"Authorization": "Bearer " + "t" * 32})
         assert response.status_code == 200
 
     def test_a_non_bearer_scheme_is_401(
@@ -836,9 +750,7 @@ class TestAuthIsFailClosed:
     ) -> None:
         """A caller cannot smuggle the token in as a Basic credential."""
         monkeypatch.setenv("CARERELAY_API_TOKEN", "t" * 32)
-        response = planback_client.post(
-            "/api/episodes", headers={"Authorization": "Basic " + "t" * 32}
-        )
+        response = signed_create(planback_client, headers={"Authorization": "Basic " + "t" * 32})
         assert response.status_code == 401
 
     def test_armed_with_no_token_configured_is_503_not_open(
@@ -852,7 +764,7 @@ class TestAuthIsFailClosed:
         """
         monkeypatch.setenv("APP_ENV", "public")
         monkeypatch.delenv("CARERELAY_API_TOKEN", raising=False)
-        response = planback_client.post("/api/episodes")
+        response = signed_create(planback_client)
         assert response.status_code == 503
 
     def test_public_env_is_armed_even_without_the_second_flag(
@@ -861,12 +773,12 @@ class TestAuthIsFailClosed:
         """The deployment arms itself from `APP_ENV` alone."""
         monkeypatch.setenv("APP_ENV", "public")
         monkeypatch.setenv("CARERELAY_API_TOKEN", "t" * 32)
-        assert planback_client.post("/api/episodes").status_code == 401
+        assert signed_create(planback_client).status_code == 401
 
     def test_the_patient_fallback_page_is_not_guarded(
         self, planback_client: TestClient, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        """It renders the fixture's static four lines and reads no record."""
+        """The bare-root recovery reads no record."""
         monkeypatch.setenv("CARERELAY_API_TOKEN", "t" * 32)
         # The unconfigured bare root now refuses; it never serves guidance.
         assert planback_client.get("/", follow_redirects=False).status_code == 503
@@ -1001,72 +913,47 @@ class TestMalformedEnumsAreTypedRefusals:
     def test_an_unknown_hint_level_is_422_not_500(
         self, planback_client: TestClient, assessed: str
     ) -> None:
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/hint-events",
-            json={"hint_level": "H9", "event": "shown"},
-        )
+        response = service_hint(planback_client, EPISODE, json={"hint_level": "H9", "event": "shown"})
         assert response.status_code == 422
 
     def test_an_auto_hide_event_is_422_not_500(
         self, planback_client: TestClient, assessed: str
     ) -> None:
         """`auto_hide` is not in the vocabulary, because C8 forbids it."""
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/hint-events",
-            json={"hint_level": "H2", "event": "auto_hide"},
-        )
+        response = service_hint(planback_client, EPISODE, json={"hint_level": "H2", "event": "auto_hide"})
         assert response.status_code == 422
 
     def test_the_permitted_set_is_reported_so_the_refusal_is_actionable(
         self, planback_client: TestClient, assessed: str
     ) -> None:
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/hint-events",
-            json={"hint_level": "H9", "event": "shown"},
-        )
+        response = service_hint(planback_client, EPISODE, json={"hint_level": "H9", "event": "shown"})
         assert "H3" in response.json()["detail"]
 
     def test_a_malformed_hint_level_on_a_restatement_is_422(
         self, planback_client: TestClient, assessed: str
     ) -> None:
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/restatements",
-            json={"text": CORRECT, "hint_level": "H9"},
-        )
+        response = service_restatement(planback_client, EPISODE, json={"text": CORRECT, "hint_level": "H9"})
         assert response.status_code == 422
 
     def test_a_malformed_input_mode_is_422(
         self, planback_client: TestClient, assessed: str
     ) -> None:
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/restatements",
-            json={"text": CORRECT, "hint_level": "H0", "input_mode": "telepathy"},
-        )
+        response = service_restatement(planback_client, EPISODE, json={"text": CORRECT, "hint_level": "H0", "input_mode": "telepathy"})
         assert response.status_code == 422
 
     def test_a_malformed_mode_on_a_repair_is_422(
         self, planback_client: TestClient, assessed: str
     ) -> None:
-        first = planback_client.post(
-            f"/api/episodes/{EPISODE}/restatements",
-            json={"text": WRONG_DAY, "hint_level": "H0"},
-        )
+        first = service_restatement(planback_client, EPISODE, json={"text": WRONG_DAY, "hint_level": "H0"})
         assert first.status_code == 200
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/restatements/"
-            f"{first.json()['restatement_id']}/repairs",
-            json={"text": CORRECT, "hint_level": "H1", "input_mode": "telepathy"},
-        )
+        response = service_repair(planback_client, EPISODE, first.json()['restatement_id'], json={"text": CORRECT, "hint_level": "H1", "input_mode": "telepathy"})
         assert response.status_code == 422
 
     def test_the_control_a_well_formed_event_still_records(
         self, planback_client: TestClient, assessed: str
     ) -> None:
         """Next to every defect case: the feature itself is not broken."""
-        response = planback_client.post(
-            f"/api/episodes/{EPISODE}/hint-events",
-            json={"hint_level": "H2", "event": "shown"},
-        )
+        response = service_hint(planback_client, EPISODE, json={"hint_level": "H2", "event": "shown"})
         assert response.status_code == 200
         assert response.json()["card_visible"] is True
 
@@ -1099,6 +986,7 @@ def overdue_client() -> Iterator[tuple[TestClient, object]]:
         display_tz=fixture.DISPLAY_TZ,
         disposition_factory=fixture.disposition,
         bound_complaint=fixture.BOUND_COMPLAINT,
+        operation_signing_key=lambda: KEY,
         policy_provenance="test: provisional",
     )
     app.dependency_overrides[get_service] = lambda: service
@@ -1115,18 +1003,15 @@ class TestExpiryReadPath:
     ) -> None:
         """A patient read is what turns an overdue deadline into a recorded fact."""
         client, store = overdue_client
-        client.post("/api/episodes")
-        client.post(
-            f"/api/episodes/{EPISODE}/intake",
-            json={"confirmed_text": fixture.BOUND_COMPLAINT},
-        )
+        signed_create(client)
+        service_intake(client, EPISODE, json={"confirmed_text": fixture.BOUND_COMPLAINT})
         assert store.list_expiry_events(EPISODE) == (), "nothing has read the episode"
 
-        body = legacy_patient_after_refusal(client)
+        body = assessed_patient(client)
         assert body["closure"] == "expired_unresolved"
         assert len(store.list_expiry_events(EPISODE)) == 1
 
-        legacy_patient_after_refusal(client)
+        assessed_patient(client)
         assert len(store.list_expiry_events(EPISODE)) == 1, (
             "the second read recorded a second expiry event"
         )
@@ -1135,7 +1020,7 @@ class TestExpiryReadPath:
         self, planback_client: TestClient, assessed: str
     ) -> None:
         """The control, at the same route: nothing is recorded early."""
-        body = legacy_patient_after_refusal(planback_client)
+        body = assessed_patient(planback_client)
         assert body["closure"] == "open"
         assert "It is past" not in body["lines"][2]
 
@@ -1144,12 +1029,9 @@ class TestExpiryReadPath:
     ) -> None:
         """Copy rules 4 and 5: the route is named and the deadline stays visible."""
         client, _ = overdue_client
-        client.post("/api/episodes")
-        client.post(
-            f"/api/episodes/{EPISODE}/intake",
-            json={"confirmed_text": fixture.BOUND_COMPLAINT},
-        )
-        lines = legacy_patient_after_refusal(client)["lines"]
+        signed_create(client)
+        service_intake(client, EPISODE, json={"confirmed_text": fixture.BOUND_COMPLAINT})
+        lines = assessed_patient(client)["lines"]
         assert len(lines) == 4
         assert fixture.DEADLINE_DISPLAY in lines[2]
         assert fixture.FALLBACK_ROUTE_TEXT in lines[3]
@@ -1167,21 +1049,18 @@ class TestSerializedPatientAndLedgerLabels:
         simulated label travels **inside** the serialized patient surface rather
         than only in page chrome (D11)."""
         client, _ = overdue_client
-        client.post("/api/episodes")
-        client.post(
-            f"/api/episodes/{EPISODE}/intake",
-            json={"confirmed_text": fixture.BOUND_COMPLAINT},
-        )
-        body = legacy_patient_after_refusal(client)
+        signed_create(client)
+        service_intake(client, EPISODE, json={"confirmed_text": fixture.BOUND_COMPLAINT})
+        body = assessed_patient(client)
 
         assert fixture.DEADLINE_DISPLAY in body["lines"][2]
         assert fixture.FALLBACK_ROUTE_TEXT in body["lines"][3]
 
         # The label is in the same serialized object that carries the four lines.
         assert body["simulated"] is True
-        assert body["fixture_label"] == fixture.FIXTURE_LABEL
+        assert body["fixture_label"] == fixture.JOURNEY_LABEL
         serialized = json.dumps(body, ensure_ascii=False)
-        assert fixture.FIXTURE_LABEL in serialized
+        assert fixture.JOURNEY_LABEL in serialized
 
     def test_the_label_check_would_catch_a_projection_that_dropped_it(self) -> None:
         """A negative scan that has never detected its needle is not evidence."""
@@ -1199,7 +1078,7 @@ class TestAcceptanceClosesTheHandoffAndNeverEvidencesCare:
     ) -> None:
         """Gate 4's named Slice 10 test. A named acceptance closes the handoff
         obligation and never sets `care_evidenced`."""
-        planback_client.post(f"/api/episodes/{EPISODE}/consents", json={"granted": True})
+        service_consent(planback_client, EPISODE, json={"granted": True})
         response = planback_client.post(
             f"/api/episodes/{EPISODE}/acceptances",
             json={"accepted_by": "caregiver", "accepted_scope": "handoff"},
@@ -1217,11 +1096,11 @@ class TestAcceptanceClosesTheHandoffAndNeverEvidencesCare:
         """F4, closed 8 October 2026. The derived screen serves the approved
         resolved rendering, and an acceptance alone says "agreed": it never
         sets `care_evidenced`, so line 1 never claims care happened."""
-        planback_client.post(f"/api/episodes/{EPISODE}/consents", json={"granted": True})
+        service_consent(planback_client, EPISODE, json={"granted": True})
         planback_client.post(
             f"/api/episodes/{EPISODE}/acceptances", json={"accepted_by": "caregiver"}
         )
-        body = legacy_patient_after_refusal(planback_client)
+        body = assessed_patient(planback_client)
         assert body["closure"] == "closed_with_evidence"
         assert body["care_evidenced"] is False
         assert body["lines"][0] == "Someone has agreed to help."
@@ -1245,7 +1124,7 @@ class TestAcceptanceClosesTheHandoffAndNeverEvidencesCare:
         self, planback_client: TestClient
     ) -> None:
         """There is no handoff obligation to close before there is a plan."""
-        planback_client.post("/api/episodes")
+        signed_create(planback_client)
         response = planback_client.post(
             f"/api/episodes/{EPISODE}/acceptances",
             json={"accepted_by": "caregiver"},
@@ -1281,7 +1160,7 @@ class TestClosureRenderingsThroughTheDerivedRoute:
         `state.record_callback_once` writes a real one, and the route must serve
         "Help is arranged." from it.
         """
-        planback_client.post(f"/api/episodes/{EPISODE}/consents", json={"granted": True})
+        service_consent(planback_client, EPISODE, json={"granted": True})
         service = app.dependency_overrides[get_service]()
         service._store.record_evidence(
             EPISODE,
@@ -1293,7 +1172,7 @@ class TestClosureRenderingsThroughTheDerivedRoute:
             ),
             now_utc=fixture.SCENARIO_NOW_UTC,
         )
-        body = legacy_patient_after_refusal(planback_client)
+        body = assessed_patient(planback_client)
         assert body["closure"] == "closed_with_evidence"
         assert body["care_evidenced"] is True
         assert body["lines"][0] == "Help is arranged."
@@ -1311,7 +1190,7 @@ class TestClosureRenderingsThroughTheDerivedRoute:
             f"/api/episodes/{EPISODE}/escalations", json={"human_path": "nurse_line"}
         )
         assert response.status_code == 200
-        body = legacy_patient_after_refusal(planback_client)
+        body = assessed_patient(planback_client)
         assert body["closure"] == "escalated_to_human"
         assert body["lines"][0] == (
             f"We have passed this to {fixture.FALLBACK_ROUTE_TEXT}."
@@ -1319,3 +1198,38 @@ class TestClosureRenderingsThroughTheDerivedRoute:
         assert body["lines"][1] == "You do not need to act now."
         assert fixture.DEADLINE_DISPLAY in body["lines"][2]
         assert "Please act now" not in " ".join(body["lines"])
+
+
+class TestRetiredPatientWrites:
+    """Real authenticated HTTP must refuse before any persisted change."""
+
+    @pytest.mark.parametrize("suffix,payload", [
+        ("transcript-confirmations", {"corrected_text": CORRECT}),
+        ("hint-events", {"hint_level": "H2", "event": "shown", "dwell_seconds": 4.2}),
+        ("restatements", {"text": CORRECT, "hint_level": "H0"}),
+        ("restatements/legacy-parent/repairs", {"text": CORRECT, "hint_level": "H0"}),
+        ("barriers", {"barrier_text": "no transport", "proposed_route_id": "fictional_provider"}),
+        ("actions", {"route_id": "fictional_provider", "purpose_id": "retired-post"}),
+        ("consents", {"granted": True}),
+    ])
+    def test_retired_post_refuses_without_state_change(self, planback_client, assessed, monkeypatch, suffix, payload):
+        monkeypatch.setenv("CARERELAY_API_TOKEN", "synthetic-retirement-http")
+        service = app.dependency_overrides[get_service]()
+        before = tuple(service._store._conn.iterdump())
+        response = planback_client.post(f"/api/episodes/{assessed}/{suffix}", json=payload,
+            headers={"Authorization": "Bearer synthetic-retirement-http"})
+        assert response.status_code == 422
+        assert response.json() == {"detail": "journey command unavailable"}
+        assert tuple(service._store._conn.iterdump()) == before
+
+    def test_unsigned_create_and_free_text_intake_do_not_write(self, planback_client):
+        service = app.dependency_overrides[get_service]()
+        before = tuple(service._store._conn.iterdump())
+        assert planback_client.post("/api/episodes").status_code == 422
+        assert tuple(service._store._conn.iterdump()) == before
+        assert signed_create(planback_client).status_code == 200
+        before = tuple(service._store._conn.iterdump())
+        response = planback_client.post(f"/api/episodes/{EPISODE}/intake",
+            json={"confirmed_text": fixture.BOUND_COMPLAINT})
+        assert response.status_code == 422
+        assert tuple(service._store._conn.iterdump()) == before
