@@ -8,7 +8,7 @@
 ## Slice 15 shipping receipt: 14 October 2026
 
 **14 October 2026, Slice 15 shipped to main. [verified]**
-After the user answered "Yes, ship", Slice 15 was committed on `slice-15-durable-start` in eight scoped commits, from `79a2b2a` (domain and store receipts) to `ecc2fd2` (lessons): stores, service and API, frontend, behaviour tests, guard and mutation tooling, review and handoffs, the Check record, and lessons.
+After the user answered "Yes, ship", Slice 15 was committed on `slice-15-durable-start` in eight scoped commits, from `d162e72` (domain and store receipts) to `ecc2fd2` (lessons): stores, service and API, frontend, behaviour tests, guard and mutation tooling, review and handoffs, the Check record, and lessons.
 Main advanced from `b91a4ad` by a fast-forward-only ref update before checkout; the post-checkout status showed no deleted file and `git merge --ff-only` reported already up to date.
 The full suite on main before the push: 1,547 passed, 46 Postgres skips, one existing warning, exit 0.
 `origin/main` was pushed and `git ls-remote --heads origin` confirmed the live remote main is in sync with local main.
