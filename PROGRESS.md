@@ -63,7 +63,7 @@ Scanner: 50 real surfaces, 1,100 of 1,100 injection controls detected; 28 fixtur
 Live durable-start, lost-response recovery, restart, rotation, forged identity, missing key/locator and seven retired writes (422, zero rows) passed over real HTTP.
 Blocked, not passed: live keystrokes, pointer click, screenshots, 320px reflow and enlarged text (viewport 0x0, hidden), and two simultaneous tabs.
 `frontend/lib/api.ts:61` is UNPROVEN-NO-CONTROL for Slice 17; real Postgres is Slice 19.
-The user answered "Yes, ship" to whether the disclosed blocker satisfies the Check; `00-status.md` records that decision. Scoped shipping follows.
+The user answered "Yes, ship" to whether the disclosed blocker satisfies the Check; `00-status.md` records that decision. Slice 15 then shipped: eight scoped commits, fast-forward into main and a verified push of origin/main; `00-status.md` holds the receipt.
 The three preview processes on 8275/8276/8277 are stopped after the records.
 
 ## Third continuation: finishing the local Check

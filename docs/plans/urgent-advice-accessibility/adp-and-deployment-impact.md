@@ -1,5 +1,14 @@
 # ADP and deployment: impact on the approved architecture
 
+**14 October 2026, Slice 15 shipped to main. [verified]**
+After the user answered "Yes, ship", Slice 15 went out as eight scoped commits on `slice-15-durable-start`.
+Main advanced by a verified fast-forward-only ref update before checkout, then `origin/main` was pushed.
+`git ls-remote --heads origin` confirmed live remote main is in sync with local main; the suite on main was 1,547 passed, 46 Postgres skips, one warning.
+The slice branch was not pushed. Checkout is `main`; no Slice 16 branch exists. `00-status.md` holds the receipt.
+The shipping authority is exhausted. Next boundary: "Continue to slice 16, or re-steer?"
+Slice 16 patient-flow entry stays blocked on the separate Gate 1 confirmation-copy approval.
+The unrelated untracked video was excluded and remains byte-preserved.
+
 **14 October 2026, Slice 15 local verification complete, Check recorded. [verified]**
 Every locally runnable Slice 15 Check item passes on dirty `slice-15-durable-start`; `00-status.md` owns the record.
 Current source: 1,547 passed, 46 Postgres skips, one existing warning; typecheck and production build pass.

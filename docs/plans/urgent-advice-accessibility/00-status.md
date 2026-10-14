@@ -2,8 +2,20 @@
 
 - Gate 1: Product, **RE-APPROVED 12 October 2026** for the revised concise patient journey, visual cues and copy in `01-product.md` and `patient-experience-copy.md`. The user explicitly approved Gate 1 and authorised committing the working tree and pushing to main. Previous approval: 8 October 2026.
 - Gate 2: Architecture, **RE-APPROVED 13 October 2026 (revision 4)** for the patient-experience journey and ADP read-back extraction design in `02-architecture.md` section 13. The user explicitly answered "Yep i approve gate 2" and requested a Gate 3 handoff. The previously approved section 5.2 durable-stop rule is unchanged. This architecture approval alone authorises no implementation.
-- Gate 3: Program Design, **RE-APPROVED 13 October 2026**, including section 9.12 identity correction. User answered "approve" after the reproduced no-event counterexample. Slice 14 is locally complete and shipped; Slice 15 Check is accepted with disclosed blocked viewport items.
-- Gate 4: Slice plan, **RE-APPROVED 13 October 2026** for `04-slices.md` section 9. Its contract is unchanged. Slice 14 local Check is complete after Gate 3 section 9.12 re-approval. Slice 15 Check accepted 14 October 2026 by the user ("Yes, ship") with five viewport items disclosed as blocked, not passed, and carried to Slice 20. Slices 16 to 21 have not started. No shipping, install or external authority follows.
+- Gate 3: Program Design, **RE-APPROVED 13 October 2026**, including section 9.12 identity correction. User answered "approve" after the reproduced no-event counterexample. Slice 14 is locally complete and shipped; Slice 15 Check is accepted with disclosed blocked viewport items and Slice 15 is shipped to main.
+- Gate 4: Slice plan, **RE-APPROVED 13 October 2026** for `04-slices.md` section 9. Its contract is unchanged. Slice 14 local Check is complete after Gate 3 section 9.12 re-approval. Slice 15 Check accepted 14 October 2026 by the user ("Yes, ship") with five viewport items disclosed as blocked, not passed, and carried to Slice 20; Slice 15 is shipped to main. Slices 16 to 21 have not started. No shipping, install or external authority follows.
+
+## Slice 15 shipping receipt: 14 October 2026
+
+**14 October 2026, Slice 15 shipped to main. [verified]**
+After the user answered "Yes, ship", Slice 15 was committed on `slice-15-durable-start` in eight scoped commits, from `79a2b2a` (domain and store receipts) to `ecc2fd2` (lessons): stores, service and API, frontend, behaviour tests, guard and mutation tooling, review and handoffs, the Check record, and lessons.
+Main advanced from `b91a4ad` by a fast-forward-only ref update before checkout; the post-checkout status showed no deleted file and `git merge --ff-only` reported already up to date.
+The full suite on main before the push: 1,547 passed, 46 Postgres skips, one existing warning, exit 0.
+`origin/main` was pushed and `git ls-remote --heads origin` confirmed the live remote main is in sync with local main.
+The slice branch was not pushed; no publication of it was requested. Checkout is `main`; no Slice 16 branch was opened.
+`submission/usage-proof/Workbuddy_evidence.mp4` stayed untracked, excluded from every commit and byte-identical at `cd5fbe68ab2d439f853ae8bd4b85bc6561216c951d1b374f73e62465c9c3a106`.
+No installation, real configuration or credential change, external runtime call or manual deployment occurred; the push may trigger configured remote automation, whose hosted behaviour was not checked.
+The shipping authority is now exhausted; Slice 16 needs its own continuation and Git authority.
 
 ## Slice 15: local verification battery complete, Check recorded, 14 October 2026
 
@@ -432,10 +444,10 @@ authority. Provider-sharing consent grants no general ADP-processing authority.
 through Slice 15 is 18 to 30. The arithmetic and exclusions are in section 9.4;
 no full-upgrade promise for 16 October or current cutoff assertion is made.
 
-### Approved upgrade slices: Slice 14 shipped, Slice 15 locally verified
+### Approved upgrade slices: Slices 14 and 15 shipped
 
 - [x] Slice 14: local Check complete and shipped to main 13 October 2026, `slice-14-journey-tracer`; no engine/deployed-behavior claim.
-- [ ] Slice 15: explicit durable start/coherent stored journey, `slice-15-durable-start`. Check accepted 14 October 2026 by the user ("Yes, ship"); five viewport items blocked, disclosed and carried to Slice 20.
+- [x] Slice 15: explicit durable start/coherent stored journey, `slice-15-durable-start`, shipped to main 14 October 2026. Check accepted 14 October 2026 by the user ("Yes, ship"); five viewport items blocked, disclosed and carried to Slice 20.
 - [ ] Slice 16: confirmed offline read-back/field repair, `slice-16-confirmed-readback`.
 - [ ] Slice 17: permission/truthful simulated failure, `slice-17-permission-failure`.
 - [ ] Slice 18: strict ADP extraction with offline transports, `slice-18-adp-boundary`.
@@ -443,7 +455,7 @@ no full-upgrade promise for 16 October or current cutoff assertion is made.
 - [ ] Slice 20: production accessibility proof/remediation, `slice-20-accessibility-proof`.
 - [ ] Slice 21: separately authorised live ADP enablement, `slice-21-adp-enablement`.
 
-**Next work:** Slice 15 main publication, then "Continue to slice 16, or re-steer?" See the 14 October 2026 completion record at the top of this file. Slice 16 does not start before Slice 15 is published, and its patient-flow entry stays blocked on the separate Gate 1 confirmation-copy approval.
+**Next work:** Slice 15 is shipped to main; next is "Continue to slice 16, or re-steer?" See the 14 October 2026 records at the top of this file. Slice 16 needs its own continuation, and its patient-flow entry stays blocked on the separate Gate 1 confirmation-copy approval.
 
 ## Gate 3 reopen and re-approval: patient-experience program design, 13 October 2026
 
