@@ -564,6 +564,12 @@ VICTIM_FILES: tuple[tuple[str, str], ...] = (
 )
 
 
+# Include every changed server source, even while the port is untracked.
+VICTIM_FILES += tuple(("readback server source", name) for name in (
+    "src/carerelay/adp_extraction.py", "src/carerelay/service.py", "src/carerelay/state.py",
+    "src/carerelay/postgres_store.py", "src/carerelay/domain/models.py", "src/carerelay/domain/rules.py", "src/carerelay/api.py"))
+
+
 def scan_for_secrets(payload: str) -> list[str]:
     """Return the secret-shaped markers present in a payload.
 
@@ -1172,3 +1178,14 @@ def test_serialized_detection_controls(tmp_path, monkeypatch, needle, form):
     finally:
         app.dependency_overrides.clear()
         service._store.close()
+
+
+def test_new_readback_server_files_are_scanned_with_positive_controls():
+    scanned = {name for _, name in VICTIM_FILES}
+    required = {"src/carerelay/adp_extraction.py", "src/carerelay/service.py", "src/carerelay/state.py",
+        "src/carerelay/postgres_store.py", "src/carerelay/domain/models.py", "src/carerelay/domain/rules.py", "src/carerelay/api.py"}
+    assert required <= scanned
+    for name in sorted(required):
+        source = (REPO_ROOT / name).read_text()
+        assert scan_for_secrets(source) == []
+        assert scan_for_secrets(source + '\nsecret = "SYNTHETIC_SERVER_SECRET_VALUE_123456789"\n')

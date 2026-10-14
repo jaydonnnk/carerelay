@@ -27,6 +27,82 @@ class SQLiteCursor:
         return [dict(row) for row in self.cursor.fetchall()]
 
 
+@pytest.fixture
+def pg_readback():
+    """Only the explicitly supplied disposable DSN may run these engine cases."""
+    import psycopg
+    from carerelay.postgres_store import probe_dsn
+    dsn = probe_dsn()
+    try:
+        with psycopg.connect(dsn, connect_timeout=2):
+            pass
+    except psycopg.OperationalError:
+        pytest.skip("Postgres unavailable: Slice 16 engine cases unproven until authorised Slice 19")
+    service = make_service(dsn)
+    try:
+        yield service, dsn
+    finally:
+        service._store.close()
+
+
+def test_postgres_confirmed_repair_and_replay(pg_readback):
+    import uuid
+    from test_field_repair import start_readback, confirm, score
+    service, dsn = pg_readback
+    ep = start_readback(service, "fictional-pg16-" + uuid.uuid4().hex)
+    confirm(service, ep, "go to the clinic tomorrow before 6pm myself")
+    score(service, ep)
+    confirm(service, ep, "today before six")
+    binding, applied = score(service, ep)
+    assert applied.journey.step == "barrier" and applied.journey.flow.completed_repairs == 1
+    other = make_service(dsn)
+    try:
+        replay = other.score_confirmed(binding)
+        assert replay.receipt.replayed and replay.receipt.scored
+        assert len(other._store.list_restatements(ep)) == 2
+        assert other._store.list_restatements(ep)[-1].provenance["mode"] == "local-sim"
+    finally:
+        other._store.close()
+
+
+@pytest.mark.parametrize("change", ["cue", "stop", "expiry", "revision"])
+def test_postgres_two_connections_fence_late_readback(pg_readback, change):
+    import uuid
+    from concurrent.futures import ThreadPoolExecutor
+    from carerelay.journey_commands import verify_operation
+    from carerelay.service import ScenarioClock
+    from test_field_repair import start_readback, confirm, PausedExtractor, event, KEY
+    service, dsn = pg_readback
+    ep = start_readback(service, "fictional-pg16-" + uuid.uuid4().hex)
+    confirm(service, ep, "go to the clinic today before six myself")
+    offer = next(o for o in service.project_journey(ep).commands if o.kind == "score_words")
+    binding = verify_operation(offer.operation_token, signing_key=KEY)
+    paused = PausedExtractor()
+    service._readback_extractor = paused
+    other = make_service(dsn)
+    try:
+        with ThreadPoolExecutor(1) as worker:
+            result = worker.submit(service.score_confirmed, binding)
+            assert paused.entered.wait(2)
+            try:
+                duplicate = other.score_confirmed(binding)
+                assert duplicate.receipt.state == "pending" and not duplicate.receipt.scored
+                if change == "cue": event(other, ep, "show_plan")
+                elif change == "stop": other._store.record_flow_stop(ep, 1, "fixture-stop", "nurse_line", now_utc=fixture.SCENARIO_NOW_UTC)
+                elif change == "expiry": service._clock = ScenarioClock(fixture.SCENARIO_NOW_UTC + timedelta(hours=10))
+                else:
+                    with other._store.journey_transaction(ep, write=True) as tx:
+                        tx._event("fixture-audit", {}, fixture.SCENARIO_NOW_UTC)
+            finally:
+                paused.release.set()
+            assert result.result(2).receipt.state == "refused"
+        assert other._store.list_restatements(ep) == ()
+        assert other._store.load_snapshot(ep).disposition.clinical_deadline_utc.isoformat() == "2026-09-30T10:00:00+00:00"
+    finally:
+        paused.release.set()
+        other._store.close()
+
+
 @pytest.mark.parametrize("regression", [False, True])
 @pytest.mark.parametrize("record", ["escalation", "acceptance", "restatement", "attempt"])
 def test_event_order_survives_equal_or_regressed_clock(tmp_path, monkeypatch, regression, record):

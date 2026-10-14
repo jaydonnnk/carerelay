@@ -5,7 +5,7 @@
     "old": "!nullableString(value.current_owner_id)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 69,
+    "source_line": 72,
     "trusted_screen": "documented",
     "trusted_setup": [],
     "bad_changes": [
@@ -32,7 +32,7 @@
     "old": "!nullableString(value.current_owner_display)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 69,
+    "source_line": 72,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -54,7 +54,7 @@
     "old": "!value.lines.every(x => bounded(x))",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 92,
+    "source_line": 95,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -76,7 +76,7 @@
     "old": "!Array.isArray(value.lines)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 92,
+    "source_line": 95,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -98,7 +98,7 @@
     "old": "!Object.values(value.text).every(x => bounded(x))",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 94,
+    "source_line": 97,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -117,10 +117,10 @@
   {
     "id": "commands_count",
     "target": "frontend/lib/journey.ts",
-    "old": "value.commands.length > 1",
+    "old": "commandKinds.includes(offer.kind)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 95,
+    "source_line": 106,
     "trusted_screen": "start_created",
     "trusted_setup": [
       "Use command_service and start_example(s15_binding()) before project_journey; this produces an actual durable create receipt and signed select offer."
@@ -136,7 +136,7 @@
     "expected_good": "decoded",
     "expected_bad": "null",
     "expected_without_guard": "decoded",
-    "independent_because": "Both offers stay structurally valid. Only no-plan allows offers; no later count check applies."
+    "independent_because": "A kind may appear once; closed membership and uniqueness structurally bound the set without a second size guard."
   },
   {
     "id": "commands_array_typed_refusal",
@@ -144,7 +144,7 @@
     "old": "!Array.isArray(value.commands)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 95,
+    "source_line": 98,
     "trusted_screen": "start_created",
     "trusted_setup": [
       "Create through start_example as above."
@@ -168,7 +168,7 @@
     "old": "!exactKeys(offer, [\"kind\", \"offer_id\", \"permitted_choice_ids\", \"operation_token\"])",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 97,
+    "source_line": 101,
     "trusted_screen": "start_created",
     "trusted_setup": [
       "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
@@ -189,10 +189,10 @@
   {
     "id": "offer_kind",
     "target": "frontend/lib/journey.ts",
-    "old": "offer.kind !== \"select_example\"",
+    "old": "commandKinds.some(k => k !== \"select_example\")",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 98,
+    "source_line": 115,
     "trusted_screen": "start_created",
     "trusted_setup": [
       "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
@@ -201,7 +201,7 @@
       {
         "op": "set",
         "path": "commands.0.kind",
-        "value": "request"
+        "value": "supersede_extraction"
       }
     ],
     "entrypoint": "decodeJourney",
@@ -216,7 +216,7 @@
     "old": "!bounded(offer.offer_id, 128)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 98,
+    "source_line": 102,
     "trusted_screen": "start_created",
     "trusted_setup": [
       "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
@@ -237,10 +237,10 @@
   {
     "id": "offer_choice_count",
     "target": "frontend/lib/journey.ts",
-    "old": "offer.permitted_choice_ids.length !== 1",
-    "new": "false",
+    "old": "(offer.permitted_choice_ids.length !== 1 || offer.permitted_choice_ids[0] !== \"scripted-appointment\")",
+    "new": "(false || offer.permitted_choice_ids[0] !== \"scripted-appointment\")",
     "anchor_count": 1,
-    "source_line": 99,
+    "source_line": 109,
     "trusted_screen": "start_created",
     "trusted_setup": [
       "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
@@ -267,7 +267,7 @@
     "old": "offer.permitted_choice_ids[0] !== \"scripted-appointment\"",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 100,
+    "source_line": 109,
     "trusted_screen": "start_created",
     "trusted_setup": [
       "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
@@ -293,7 +293,7 @@
     "old": "!/^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$/.test(offer.operation_token)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 102,
+    "source_line": 105,
     "trusted_screen": "start_created",
     "trusted_setup": [
       "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
@@ -317,7 +317,7 @@
     "old": "!bounded(offer.operation_token, 4096)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 101,
+    "source_line": 104,
     "trusted_screen": "start_created",
     "trusted_setup": [
       "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
@@ -345,7 +345,7 @@
     "old": "!Array.isArray(offer.permitted_choice_ids)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 99,
+    "source_line": 103,
     "trusted_screen": "start_created",
     "trusted_setup": [
       "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
@@ -369,7 +369,7 @@
     "old": "if (flow.interpretation === \"pending\" && value.commands.length !== 0) return null;",
     "new": "if (false) return null;",
     "anchor_count": 1,
-    "source_line": 104,
+    "source_line": 116,
     "trusted_screen": "start_created",
     "trusted_setup": [
       "Use command_service and start_example(s15_binding()) before project_journey. Do not fabricate a select offer on an uncreated seed."
@@ -393,7 +393,7 @@
     "old": "!Number.isSafeInteger(value.disposition_version)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 120,
+    "source_line": 131,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -420,7 +420,7 @@
     "old": "Number(value.disposition_version) < 1",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 120,
+    "source_line": 131,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -447,7 +447,7 @@
     "old": "value.policy_version !== \"fixture-provisional-0\"",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 121,
+    "source_line": 132,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -474,7 +474,7 @@
     "old": "![\"plan\", \"readback\", \"repair\", \"barrier\", \"permission\", \"unresolved\", \"stopped\", \"expired\", \"accepted\", \"handoff\", \"documented\"].includes(value.step as string)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 122,
+    "source_line": 133,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -493,33 +493,31 @@
   {
     "id": "assessed_no_future_commands",
     "target": "frontend/lib/journey.ts",
-    "old": "if (value.commands.length !== 0) return null; // Future progression is not exposed in Slice 15.",
-    "new": "if (false) return null; // Future progression is not exposed in Slice 15.",
+    "old": "if (!commandKinds.every(k => allowedKinds.includes(k))) return null;",
+    "new": "if (false) return null;",
     "anchor_count": 1,
-    "source_line": 123,
+    "source_line": 205,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
       {
-        "op": "set",
+        "op": "append",
         "path": "commands",
-        "value": [
-          {
-            "kind": "select_example",
-            "offer_id": "fictional-offer",
-            "permitted_choice_ids": [
-              "scripted-appointment"
-            ],
-            "operation_token": null
-          }
-        ]
+        "value": {
+          "kind": "select_example",
+          "offer_id": "fictional-offer",
+          "permitted_choice_ids": [
+            "scripted-appointment"
+          ],
+          "operation_token": null
+        }
       }
     ],
     "entrypoint": "decodeJourney",
     "expected_good": "decoded",
     "expected_bad": "null",
     "expected_without_guard": "decoded",
-    "independent_because": "Offer is fully structurally valid; pending is false, isolating assessed command prohibition."
+    "independent_because": "Existing valid offers and their copy remain. An additional well-shaped intake offer must be refused by assessed state membership."
   },
   {
     "id": "plan_redaction_boolean",
@@ -527,7 +525,7 @@
     "old": "typeof value.plan_redacted !== \"boolean\"",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 124,
+    "source_line": 134,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -549,7 +547,7 @@
     "old": "typeof value.care_evidenced !== \"boolean\"",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 124,
+    "source_line": 134,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -576,7 +574,7 @@
     "old": "typeof outcome.expiry_recorded !== \"boolean\"",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 130,
+    "source_line": 139,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -598,7 +596,7 @@
     "old": "flow.stopped_disposition_version !== null || flow.stop_reason !== null",
     "new": "false || flow.stop_reason !== null",
     "anchor_count": 1,
-    "source_line": 134,
+    "source_line": 143,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -620,7 +618,7 @@
     "old": "flow.stopped_disposition_version !== null || flow.stop_reason !== null",
     "new": "flow.stopped_disposition_version !== null || false",
     "anchor_count": 1,
-    "source_line": 134,
+    "source_line": 143,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -642,7 +640,7 @@
     "old": "value.step !== \"readback\" && value.step !== \"repair\"",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 136,
+    "source_line": 145,
     "trusted_screen": "barrier",
     "trusted_setup": [],
     "bad_changes": [
@@ -679,7 +677,7 @@
     "old": "value.plan !== null || value.lines.length !== 0 || value.action_owner_id !== null",
     "new": "false || value.lines.length !== 0 || value.action_owner_id !== null",
     "anchor_count": 1,
-    "source_line": 137,
+    "source_line": 146,
     "trusted_screen": "readback",
     "trusted_setup": [
       "After seed_journey, call service.record_hint_event(episode,\"H2\",\"shown\"), then project_journey."
@@ -703,7 +701,7 @@
     "old": "value.plan !== null || value.lines.length !== 0 || value.action_owner_id !== null",
     "new": "value.plan !== null || false || value.action_owner_id !== null",
     "anchor_count": 1,
-    "source_line": 137,
+    "source_line": 146,
     "trusted_screen": "readback",
     "trusted_setup": [],
     "bad_changes": [
@@ -727,7 +725,7 @@
     "old": "value.plan !== null || value.lines.length !== 0 || value.action_owner_id !== null",
     "new": "value.plan !== null || value.lines.length !== 0 || false",
     "anchor_count": 1,
-    "source_line": 137,
+    "source_line": 146,
     "trusted_screen": "readback",
     "trusted_setup": [],
     "bad_changes": [
@@ -749,7 +747,7 @@
     "old": "value.lines.length !== 4",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 139,
+    "source_line": 148,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -773,7 +771,7 @@
     "old": "value.step === \"readback\" || value.step === \"repair\"",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 141,
+    "source_line": 150,
     "trusted_screen": "readback",
     "trusted_setup": [
       "After seed_journey, call service.record_hint_event(episode,\"H2\",\"shown\"), then project_journey."
@@ -817,7 +815,7 @@
     "old": "!planView(value.revealed_plan, value.disposition_version, value.policy_version)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 144,
+    "source_line": 153,
     "trusted_screen": "readback",
     "trusted_setup": [
       "After seed_journey, call service.record_hint_event(episode,\"H2\",\"shown\"), then project_journey."
@@ -838,10 +836,10 @@
   {
     "id": "visible_reveal_requires_cue",
     "target": "frontend/lib/journey.ts",
-    "old": "![\"H2\", \"H3\"].includes(flow.effective_hint as string)",
-    "new": "false",
+    "old": "!planView(value.revealed_plan, value.disposition_version, value.policy_version) || ![\"H2\", \"H3\"].includes(flow.effective_hint as string)",
+    "new": "!planView(value.revealed_plan, value.disposition_version, value.policy_version)",
     "anchor_count": 1,
-    "source_line": 144,
+    "source_line": 153,
     "trusted_screen": "readback",
     "trusted_setup": [
       "After seed_journey, call service.record_hint_event(episode,\"H2\",\"shown\"), then project_journey."
@@ -865,7 +863,7 @@
     "old": "!PLAN_KEYS.every(key => (value.plan as Record<string, unknown>)[key] === (value.revealed_plan as Record<string, unknown>)[key])",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 145,
+    "source_line": 154,
     "trusted_screen": "plan",
     "trusted_setup": [
       "After seed_journey, call service.record_hint_event(episode,\"H2\",\"shown\"), then project_journey."
@@ -889,7 +887,7 @@
     "old": "else if (value.revealed_plan !== null) return null;",
     "new": "else if (false) return null;",
     "anchor_count": 1,
-    "source_line": 146,
+    "source_line": 155,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -911,7 +909,7 @@
     "old": "!exactKeys(choice, [\"choice_id\", \"text\"])",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 152,
+    "source_line": 161,
     "trusted_screen": "barrier",
     "trusted_setup": [],
     "bad_changes": [
@@ -933,7 +931,7 @@
     "old": "!bounded(choice.text)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 153,
+    "source_line": 162,
     "trusted_screen": "barrier",
     "trusted_setup": [],
     "bad_changes": [
@@ -955,7 +953,7 @@
     "old": "!Array.isArray(value.question.choices)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 149,
+    "source_line": 158,
     "trusted_screen": "readback",
     "trusted_setup": [],
     "bad_changes": [
@@ -977,7 +975,7 @@
     "old": "!choiceIds.every(id => [\"booking\", \"transport\", \"other\"].some(allowed => id === allowed))",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 159,
+    "source_line": 168,
     "trusted_screen": "barrier",
     "trusted_setup": [],
     "bad_changes": [
@@ -999,7 +997,7 @@
     "old": "choiceIds.length !== 3 || new Set(choiceIds).size !== choiceIds.length",
     "new": "choiceIds.length !== 3 || false",
     "anchor_count": 1,
-    "source_line": 158,
+    "source_line": 167,
     "trusted_screen": "barrier",
     "trusted_setup": [],
     "bad_changes": [
@@ -1021,7 +1019,7 @@
     "old": "value.step === \"stopped\" && flow.stopped !== true",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 161,
+    "source_line": 170,
     "trusted_screen": "stopped",
     "trusted_setup": [],
     "bad_changes": [
@@ -1053,7 +1051,7 @@
     "old": "[\"plan\", \"readback\", \"repair\", \"barrier\", \"permission\", \"stopped\", \"unresolved\"].includes(value.step as string) && outcome.closure !== \"open\"",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 165,
+    "source_line": 174,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -1080,7 +1078,7 @@
     "old": "outcome.closure !== \"expired_unresolved\"",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 166,
+    "source_line": 175,
     "trusted_screen": "expired_accepted",
     "trusted_setup": [],
     "bad_changes": [
@@ -1107,7 +1105,7 @@
     "old": "value.step === \"accepted\" && (outcome.closure !== \"closed_with_evidence\"",
     "new": "value.step === \"accepted\" && (false",
     "anchor_count": 1,
-    "source_line": 167,
+    "source_line": 176,
     "trusted_screen": "accepted",
     "trusted_setup": [],
     "bad_changes": [
@@ -1134,7 +1132,7 @@
     "old": "outcome.accepted_scope !== \"handoff\"",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 167,
+    "source_line": 176,
     "trusted_screen": "accepted",
     "trusted_setup": [],
     "bad_changes": [
@@ -1156,7 +1154,7 @@
     "old": "!outcome.accepted_by ||",
     "new": "false ||",
     "anchor_count": 1,
-    "source_line": 168,
+    "source_line": 177,
     "trusted_screen": "accepted",
     "trusted_setup": [],
     "bad_changes": [
@@ -1193,7 +1191,7 @@
     "old": "outcome.accepted_by === (value.plan as PlanView).original_owner_id",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 168,
+    "source_line": 177,
     "trusted_screen": "accepted",
     "trusted_setup": [],
     "bad_changes": [
@@ -1230,7 +1228,7 @@
     "old": "value.action_owner_id !== outcome.accepted_by",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 168,
+    "source_line": 177,
     "trusted_screen": "accepted",
     "trusted_setup": [],
     "bad_changes": [
@@ -1252,7 +1250,7 @@
     "old": "outcome.closure !== \"escalated_to_human\"",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 169,
+    "source_line": 178,
     "trusted_screen": "handoff",
     "trusted_setup": [],
     "bad_changes": [
@@ -1279,7 +1277,7 @@
     "old": "!outcome.escalation_path ||",
     "new": "false ||",
     "anchor_count": 1,
-    "source_line": 169,
+    "source_line": 178,
     "trusted_screen": "handoff",
     "trusted_setup": [],
     "bad_changes": [
@@ -1316,7 +1314,7 @@
     "old": "![\"handed_off\", \"handed_over\"].includes(outcome.escalation_outcome as string)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 170,
+    "source_line": 179,
     "trusted_screen": "handoff",
     "trusted_setup": [],
     "bad_changes": [
@@ -1338,7 +1336,7 @@
     "old": "value.action_owner_id !== outcome.escalation_path",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 170,
+    "source_line": 179,
     "trusted_screen": "handoff",
     "trusted_setup": [],
     "bad_changes": [
@@ -1360,7 +1358,7 @@
     "old": "outcome.evidence !== \"documented\"",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 171,
+    "source_line": 180,
     "trusted_screen": "documented",
     "trusted_setup": [],
     "bad_changes": [
@@ -1387,7 +1385,7 @@
     "old": "value.care_evidenced && (outcome.evidence !== \"documented\" || outcome.closure !== \"closed_with_evidence\"",
     "new": "value.care_evidenced && (outcome.evidence !== \"documented\" || false",
     "anchor_count": 1,
-    "source_line": 171,
+    "source_line": 180,
     "trusted_screen": "documented",
     "trusted_setup": [],
     "bad_changes": [
@@ -1414,7 +1412,7 @@
     "old": "value.step !== \"documented\")) return null;",
     "new": "false)) return null;",
     "anchor_count": 1,
-    "source_line": 171,
+    "source_line": 180,
     "trusted_screen": "accepted",
     "trusted_setup": [],
     "bad_changes": [
@@ -1456,7 +1454,7 @@
     "old": "value.step === \"documented\" && value.care_evidenced !== true",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 172,
+    "source_line": 181,
     "trusted_screen": "documented",
     "trusted_setup": [],
     "bad_changes": [
@@ -1483,7 +1481,7 @@
     "old": "flow.selected_repair_field !== \"deadline_utc\"",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 174,
+    "source_line": 183,
     "trusted_screen": "repair",
     "trusted_setup": [],
     "bad_changes": [
@@ -1505,7 +1503,7 @@
     "old": "Number(flow.completed_repairs) >= 2",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 174,
+    "source_line": 183,
     "trusted_screen": "repair",
     "trusted_setup": [],
     "bad_changes": [
@@ -1527,7 +1525,7 @@
     "old": "value.step === \"plan\" && outcome.execution === \"failed\"",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 182,
+    "source_line": 192,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -1540,6 +1538,21 @@
         "op": "set",
         "path": "execution",
         "value": "failed"
+      },
+      {
+        "op": "set",
+        "path": "commands",
+        "value": []
+      },
+      {
+        "op": "set",
+        "path": "text",
+        "value": {
+          "heading": "Your next step",
+          "action_label": "What to do",
+          "deadline_label": "Before",
+          "owner_label": "Who acts"
+        }
       }
     ],
     "entrypoint": "decodeJourney",
@@ -1554,7 +1567,7 @@
     "old": "current.flow.stopped && !next.flow.stopped",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 202,
+    "source_line": 233,
     "trusted_screen": "stopped",
     "trusted_setup": [],
     "bad_changes": [],
@@ -1581,7 +1594,7 @@
     "old": "current.outcome?.expiry_recorded && !next.outcome?.expiry_recorded",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 203,
+    "source_line": 234,
     "trusted_screen": "expired_accepted",
     "trusted_setup": [],
     "bad_changes": [],
@@ -1608,7 +1621,7 @@
     "old": "!exactKeys(value, [\"receipt\", \"journey\"])",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 237,
+    "source_line": 269,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -1638,7 +1651,7 @@
     "old": "!exactKeys(value.receipt, [\"operation_id\", \"state\", \"result_ref\", \"scored\", \"replayed\"])",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 238,
+    "source_line": 270,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -1668,7 +1681,7 @@
     "old": "!bounded(r.operation_id, 128)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 240,
+    "source_line": 272,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -1698,7 +1711,7 @@
     "old": "![\"pending\", \"applied\", \"refused\", \"unavailable\", \"superseded\"].includes(r.state as string)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 240,
+    "source_line": 272,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -1728,7 +1741,7 @@
     "old": "!nullableString(r.result_ref)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 241,
+    "source_line": 273,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -1755,10 +1768,10 @@
   {
     "id": "receipt_scored",
     "target": "frontend/lib/journey.ts",
-    "old": "r.scored !== false",
-    "new": "false",
+    "old": "if (r.scored && !scoring) return null;",
+    "new": "if (false) return null;",
     "anchor_count": 1,
-    "source_line": 241,
+    "source_line": 276,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -1788,7 +1801,7 @@
     "old": "typeof r.replayed !== \"boolean\"",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 241,
+    "source_line": 273,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -1818,7 +1831,7 @@
     "old": "!journey || (r.state === \"pending\")",
     "new": "false || (r.state === \"pending\")",
     "anchor_count": 1,
-    "source_line": 243,
+    "source_line": 280,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -1848,7 +1861,7 @@
     "old": "(r.state === \"pending\") !== (response.status === 202)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 243,
+    "source_line": 280,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -1879,7 +1892,7 @@
     "old": "(r.state === \"pending\") !== (response.status === 202)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 243,
+    "source_line": 280,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [
@@ -1907,10 +1920,10 @@
   {
     "id": "response_success_status",
     "target": "frontend/lib/journey.ts",
-    "old": "!response.ok",
+    "old": "![200, 202, 409, 503].includes(response.status)",
     "new": "false",
     "anchor_count": 1,
-    "source_line": 213,
+    "source_line": 244,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [],
@@ -1935,7 +1948,7 @@
     "old": "new TextDecoder(\"utf-8\", { fatal: true })",
     "new": "new TextDecoder(\"utf-8\", { fatal: false })",
     "anchor_count": 1,
-    "source_line": 228,
+    "source_line": 259,
     "trusted_screen": "plan",
     "trusted_setup": [],
     "bad_changes": [],
@@ -1956,7 +1969,7 @@
     "old": "value.step !== \"start\" || value.plan_redacted !== false",
     "new": "value.plan_redacted !== false",
     "anchor_count": 1,
-    "source_line": 106,
+    "source_line": 117,
     "trusted_screen": "start",
     "trusted_setup": [],
     "bad_changes": [
@@ -1978,7 +1991,7 @@
     "old": "value.step !== \"start\" || value.plan_redacted !== false",
     "new": "value.step !== \"start\"",
     "anchor_count": 1,
-    "source_line": 106,
+    "source_line": 117,
     "trusted_screen": "start",
     "trusted_setup": [],
     "bad_changes": [
@@ -2000,7 +2013,7 @@
     "old": "value.care_evidenced !== false || value.lines.length !== 0",
     "new": "value.lines.length !== 0",
     "anchor_count": 1,
-    "source_line": 110,
+    "source_line": 121,
     "trusted_screen": "start",
     "trusted_setup": [],
     "bad_changes": [
@@ -2022,7 +2035,7 @@
     "old": "value.care_evidenced !== false || value.lines.length !== 0",
     "new": "value.care_evidenced !== false",
     "anchor_count": 1,
-    "source_line": 110,
+    "source_line": 121,
     "trusted_screen": "start",
     "trusted_setup": [],
     "bad_changes": [

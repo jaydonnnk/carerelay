@@ -79,12 +79,13 @@ console.log(JSON.stringify([decodeJourney(good,good.episode_id)!==null,decodeJou
 
 
 @pytest.mark.parametrize("case", ["missing_question", "answer_copy", "owner_answer", "wrong_question_id", "unexpected_choice"])
-def test_redacted_readback_requires_question_and_omits_answers(plan, case):
-    good = copy.deepcopy(plan)
-    good.update(step="readback", plan_redacted=True, plan=None, action_owner_id=None, lines=[],
-                text={"heading": "What is your plan?"},
-                question={"question_id": "readback", "text": "What will you do, when, and who will act?", "choices": []})
-    good["flow"]["readback_attempt_id"] = "fictional-round"
+def test_redacted_readback_requires_question_and_omits_answers(plan, tmp_path, case):
+    # Use a real redacted projection with Slice 16's guarded offers and copy.
+    from _journey_fixtures import seed_journey
+    service = make_service(tmp_path / "hidden.sqlite")
+    seed_journey(service, "fictional-hidden", "readback")
+    good = journey_surface(service.project_journey("fictional-hidden"))
+    service._store.close()
     bad = copy.deepcopy(good)
     if case == "missing_question":
         bad["question"] = None
@@ -158,19 +159,89 @@ const hooks={
   if(!previous||deps.some((v,i)=>v!==previous[i]))effects.push(effect);slots[n]=deps},
  useActionState(){throw Error("forms not mounted by this hook driver")}
 };
+const hintMod={exports:{}};const hintCode=ts.transpileModule(readFileSync("frontend/components/HintCard.tsx","utf8"),{
+ compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
+new Function("require","module","exports",hintCode)(name=>name==="react"?hooks:require(name),hintMod,hintMod.exports);
 const module={exports:{}};
 new Function("require","module","exports",code)(name=>{
  if(name==="react")return hooks;
  if(name==="next/navigation")return {useRouter:()=>({refresh:()=>{refreshes++}})};
  if(name==="@/app/actions")return {};
  if(name==="@/lib/journey")return journey;
+ if(name==="./HintCard")return hintMod.exports;
  return require(name);
 },module,module.exports);
 globalThis.requestAnimationFrame=callback=>callback();
 index=0;module.exports.PatientJourney({state:"loaded",journey:stopped});for(const effect of effects)effect();
-slots[6]({state:"loaded",journey:plan});
+const callbacks=slots.filter(value=>typeof value==="function");
+if(callbacks.length!==1)throw Error("missing result callback");
+callbacks[0]({state:"loaded",journey:plan});
 console.log(JSON.stringify({step:slots[1].journey.step,stopped:slots[1].journey.flow.stopped,refreshes}));
 ''', plan) == {"step": "stopped", "stopped": True, "refreshes": 1}
+
+
+def test_readback_transition_replaces_the_answer_bearing_document(plan, tmp_path):
+    from _journey_fixtures import seed_journey
+    service = make_service(tmp_path / "document.sqlite")
+    seed_journey(service, plan["episode_id"], "readback")
+    redacted = journey_surface(service.project_journey(plan["episode_id"]))
+    service._store.close()
+    result = node('''import {readFileSync} from "node:fs";import {createRequire} from "node:module";
+import * as journey from "./frontend/lib/journey.ts";
+const [plan,next]=JSON.parse(readFileSync(0,"utf8")),require=createRequire(process.cwd()+"/frontend/package.json"),ts=require("typescript");
+const React=require("react"),paths=[];
+const hooks={useState:v=>[typeof v==="function"?v():v,()=>{}],useRef:v=>({current:v}),useEffect(){},useActionState(){throw Error("not mounted")}};
+const mod={exports:{}},code=ts.transpileModule(readFileSync("frontend/components/PatientJourney.tsx","utf8"),{
+ compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
+new Function("require","module","exports",code)(name=>{
+ if(name==="react")return hooks;if(name==="next/navigation")return {useRouter:()=>({refresh(){}})};
+ if(name==="@/lib/journey")return journey;
+ if(name==="@/app/actions")return {submitReadback:async()=>({state:"loaded",journey:next})};
+ if(name==="./HintCard")return {HintCard(){return null}};return require(name);
+},mod,mod.exports);
+globalThis.window={location:{assign:path=>paths.push(path)}};globalThis.requestAnimationFrame=f=>f();
+function find(node){if(!React.isValidElement(node))return null;
+ if(node.type==="button"&&node.props.children===plan.text.readback_label)return node;
+ for(const child of React.Children.toArray(node.props.children)){const found=find(child);if(found)return found}return null}
+const button=find(mod.exports.PatientJourney({state:"loaded",journey:plan}));
+if(!button)throw Error("missing start-readback control");await button.props.onClick();
+console.log(JSON.stringify(paths));''', [plan, redacted])
+    assert result == ["/"]
+
+
+def test_hide_response_keeps_focus_on_the_show_opener(plan, tmp_path):
+    from _journey_fixtures import seed_journey
+    from carerelay.journey_commands import verify_operation
+    from _legacy_service_probes import KEY
+    service = make_service(tmp_path / "focus.sqlite")
+    ep = "fictional-focus"
+    seed_journey(service, ep, "readback")
+    initial = journey_surface(service.project_journey(ep))
+    def command(kind):
+        offer = next(o for o in service.project_journey(ep).commands if o.kind == kind)
+        return journey_surface(service.record_journey_event(verify_operation(offer.operation_token, signing_key=KEY)).journey)
+    shown, hidden = command("show_plan"), command("hide_plan")
+    service._store.close()
+    observed = node('''import {readFileSync} from "node:fs";import {createRequire} from "node:module";
+import * as journey from "./frontend/lib/journey.ts";
+const [initial,plan,next]=JSON.parse(readFileSync(0,"utf8")),require=createRequire(process.cwd()+"/frontend/package.json"),ts=require("typescript"),React=require("react");
+const focused=[];
+const hooks={useState:v=>[v?.state==="loaded"?{state:"loaded",journey:plan}:typeof v==="function"?v():v,()=>{}],useRef:v=>({current:v}),useEffect(){},useActionState(){throw Error("not mounted")}};
+const mod={exports:{}},code=ts.transpileModule(readFileSync("frontend/components/PatientJourney.tsx","utf8"),{
+ compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
+function HintCard(){}
+new Function("require","module","exports",code)(name=>{
+ if(name==="react")return hooks;if(name==="next/navigation")return {useRouter:()=>({refresh(){}})};
+ if(name==="@/lib/journey")return journey;if(name==="@/app/actions")return {submitReadback:async()=>({state:"loaded",journey:next})};
+ if(name==="./HintCard")return {HintCard};return require(name);
+},mod,mod.exports);
+globalThis.window={location:{assign(){},search:""}};globalThis.requestAnimationFrame=f=>f();
+const nodes=[];function walk(node){if(!React.isValidElement(node))return;nodes.push(node);React.Children.forEach(node.props.children,walk)}
+walk(mod.exports.PatientJourney({state:"loaded",journey:initial}));
+const main=nodes.find(n=>n.type==="main"),show=nodes.find(n=>n.type==="button"&&n.props.children===plan.text.show_label),card=nodes.find(n=>n.type===HintCard);
+main.props.ref.current={focus:()=>focused.push("main")};show.props.ref.current={focus:()=>focused.push("show")};
+card.props.onHide();await new Promise(resolve=>setImmediate(resolve));console.log(JSON.stringify(focused));''', [initial, shown, hidden])
+    assert observed == ["show"]
 
 
 @pytest.mark.parametrize("case", ["waiting", "handoff"])

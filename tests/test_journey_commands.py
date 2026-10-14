@@ -36,6 +36,30 @@ from carerelay.state import JourneyTransaction, SqliteEpisodeStore
 S15_KEY = b"synthetic-slice15-codec-only"
 
 
+def test_s16_server_capabilities_decode_at_the_real_frontend_boundary(tmp_path):
+    from test_field_repair import start_readback, confirm
+    from _legacy_service_probes import KEY
+    service = make_service(tmp_path / "frontend-cap.sqlite")
+    try:
+        ep = start_readback(service, "00000000-0000-4000-8000-000000000016")
+        readback = service.project_journey(ep)
+        confirm(service, ep, "go to the clinic today before six myself")
+        ready = service.project_journey(ep)
+        tokens = [o.operation_token for o in (*readback.commands, *ready.commands) if o.operation_token]
+        assert tokens
+        script = '''import {readFileSync} from "node:fs";
+import {decodeOperation} from "./frontend/lib/episode-locator.ts";
+const data=JSON.parse(readFileSync(0,"utf8"));
+console.log(JSON.stringify(data.tokens.map(token=>decodeOperation(token,data.key)!==null)));
+'''
+        result = subprocess.run(["node", "--input-type=module", "-e", script], cwd=ROOT,
+            input=json.dumps({"tokens": tokens, "key": KEY.decode()}), capture_output=True, text=True)
+        assert result.returncode == 0, result.stderr
+        assert json.loads(result.stdout) == [True] * len(tokens)
+    finally:
+        service._store.close()
+
+
 def s15_binding(episode="fictional-s15", operation="fictional-s15-create"):
     return OperationBinding(operation, episode, None, 0, "create", PURPOSES["create"],
                             request_digest("create", {}), None, None)

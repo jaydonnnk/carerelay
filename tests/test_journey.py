@@ -315,7 +315,19 @@ def test_twelve_screens_and_contradictions(world, case):
     assert (body["step"], body["question"]["question_id"] if body["question"] else None,
             body["closure"], body["action_owner_id"], body["flow"]["stopped"]) == MATRIX[case]
     assert body["care_evidenced"] == (step == "documented")
-    assert body["commands"] == []
+    # Slice 16 adds guarded recall/cue commands. Assert each screen's exact
+    # capabilities so a wrong progression offer cannot hide behind a blanket [].
+    expected_commands = {
+        "plan": ["readback_started", "show_plan", "hide_plan"],
+        "readback": ["confirm_words", "show_plan", "hide_plan", "h3"],
+        "repair": ["confirm_words", "show_plan", "hide_plan", "h3"],
+        "uncertain": ["confirm_words", "show_plan", "hide_plan", "h3"],
+        "unavailable": ["confirm_words", "show_plan", "hide_plan", "h3"],
+    }
+    cues_only = {"barrier", "permission", "declined", "waiting", "acknowledged", "failed",
+                 "handoff_failed", "handoff_attempted", "handoff_unknown", "stopped", "h3"}
+    expected = expected_commands.get(case, ["show_plan", "hide_plan"] if case in cues_only else [])
+    assert [o["kind"] for o in body["commands"]] == expected
     assert body["disposition_version"] == 1
     assert body["policy_version"] == "fixture-provisional-0"
     assert body["simulated"] and body["fixture_label"] == fixture.JOURNEY_LABEL
@@ -327,7 +339,11 @@ def test_twelve_screens_and_contradictions(world, case):
     if question in {"readback", "repair"}:
         assert body["plan_redacted"] and body["plan"] is body["revealed_plan"] is None
         assert body["lines"] == []
-        assert "6pm" not in json.dumps(body)
+        if question == "repair":
+            assert body["flow"]["effective_hint"] == "H2"
+            assert body["text"]["repair_deadline"] == "before 6pm today"
+        else:
+            assert "6pm" not in json.dumps(body)
         assert "attend_same_day_review" not in json.dumps(body)
     else:
         assert body["plan"]["deadline_utc"] == "2026-09-30T10:00:00+00:00"
