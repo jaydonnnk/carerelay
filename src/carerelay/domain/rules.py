@@ -61,9 +61,17 @@ decision and D2 keeps safety decisions in the module that cannot do I/O.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from datetime import datetime, timedelta, tzinfo
+from dataclasses import replace
+from datetime import datetime, timedelta, timezone, tzinfo
+import json
+import re
 
 from carerelay.domain.models import (
+    ChoiceView,
+    CommandOffer,
+    OutcomeView,
+    PlanView,
+    QuestionView,
     FlowView,
     JourneyBundle,
     JourneyProjection,
@@ -837,12 +845,208 @@ class JourneyUnavailable(DomainError):
 
 
 def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjection:
-    """Read-only tracer. Do not manufacture a partial assessed journey."""
-    if bundle.snapshot.disposition is not None:
-        raise JourneyUnavailable("assessed journey is not implemented")
-    if not bundle.episode_id or not 0 <= bundle.revision <= 9007199254740991:
+    """Select a screen from one stored snapshot; never perform or infer care."""
+    if not bundle.episode_id or type(bundle.revision) is not int or not 0 <= bundle.revision <= 9007199254740991:
         raise JourneyUnavailable("invalid journey identity or revision")
-    return JourneyProjection(
+    base = JourneyProjection(
         episode_id=bundle.episode_id, revision=bundle.revision,
         as_of_utc=now_utc, flow=FlowView(), text={}, fixture_label="",
     )
+    pending = _journey_pending(bundle.commands)
+    disposition = bundle.snapshot.disposition
+    if disposition is None:
+        created = any(r["phase"] == "completed" and r["kind"] == "create" and
+                      r["terminal_state"] == "applied" for r in bundle.commands)
+        return replace(base, flow=replace(base.flow, interpretation="pending" if pending else "idle"),
+                       commands=_journey_offers(("select_example",) if created else (), pending=pending))
+    policy, text = bundle.policy, bundle.policy_text
+    if policy is None or text is None or policy.version != disposition.policy_version or text.policy_version != disposition.policy_version:
+        raise JourneyUnavailable("recorded policy unavailable")
+    if disposition.action_id not in policy.permitted_action_ids:
+        raise JourneyUnavailable("recorded action is outside its policy")
+    validate_owner(disposition.next_owner_id, policy.permitted_owner_ids)
+    validate_route(disposition.fallback_route_id, policy.permitted_route_ids)
+    # This upgrade has one immutable allowlisted fixture bundle. Unknown bundles
+    # refuse; a configured replacement cannot rename a recorded action.
+    action = JOURNEY_ACTION_TEXT.get(disposition.policy_version, {}).get(disposition.action_id)
+    deadline = text.deadline_display_by_version.get(disposition.version)
+    original_owner = text.owner_display_by_id.get(disposition.next_owner_id)
+    fallback = text.route_display_by_id.get(disposition.fallback_route_id)
+    if not action or not deadline or not original_owner or not fallback:
+        raise JourneyUnavailable("approved plan display unavailable")
+    # The only approved relative-day display is the stored local day. No new
+    # date sentence or shifted deadline is invented on a later-day resume.
+    display_tz = timezone(timedelta(hours=8))
+    if now_utc.tzinfo is None or disposition.clinical_deadline_utc.astimezone(display_tz).date() != now_utc.astimezone(display_tz).date():
+        raise JourneyUnavailable("approved date display unavailable")
+    closure = derive_closure(bundle.snapshot, now_utc)
+    current_owner = None
+    if closure.action_owner_id is not None:
+        current_owner = text.owner_display_by_id.get(closure.action_owner_id) or text.route_display_by_id.get(closure.action_owner_id)
+        if current_owner is None:
+            raise JourneyUnavailable("current owner display unavailable")
+    original_owner = "You" if disposition.next_owner_id == text.self_owner_id else original_owner
+    current_owner = "You" if closure.action_owner_id == text.self_owner_id else current_owner
+    plan = PlanView(disposition.version, disposition.policy_version, disposition.action_id,
+        action, disposition.clinical_deadline_utc, deadline, "Asia/Singapore",
+        disposition.next_owner_id, original_owner, closure.action_owner_id, current_owner,
+        disposition.fallback_route_id, fallback)
+    snapshot = bundle.snapshot
+    outcome = OutcomeView(closure.execution, closure.evidence, closure.closure,
+        closure.care_evidenced, snapshot.accepted_by, snapshot.accepted_scope,
+        snapshot.escalated_human_path, snapshot.escalation_outcome, snapshot.expiry_event_id is not None)
+    rounds = tuple(r for r in bundle.restatements if r.disposition_version == disposition.version)
+    for row in rounds:
+        matched, mismatched, uncertain = row.comparison.matched, row.comparison.mismatched, row.comparison.uncertain
+        if matched | mismatched | uncertain != frozenset(COMPARISON_FIELDS):
+            raise JourneyUnavailable("incomplete comparison partition")
+        if matched & mismatched or matched & uncertain or mismatched & uncertain:
+            raise JourneyUnavailable("overlapping comparison partition")
+        grounded = compare_plan(disposition, row.extracted, policy=policy,
+                                now_utc=row.created_at, display_tz=display_tz)
+        for field in COMPARISON_FIELDS:
+            if field in matched and field not in grounded.matched:
+                raise JourneyUnavailable("ungrounded recorded match")
+            if field in mismatched and field not in grounded.mismatched:
+                raise JourneyUnavailable("ungrounded recorded mismatch")
+        recalled = row.outcome in {RecallOutcome.RECALL_UNAIDED, RecallOutcome.RECALL_SCAFFOLDED, RecallOutcome.RECALL_CUED}
+        if recalled != (row.comparison.is_clean() and row.hint_level is not HintLevel.H3):
+            raise JourneyUnavailable("inconsistent recall outcome")
+    latest = rounds[-1] if rounds else None
+    started = None
+    barrier = False
+    hint = HintLevel.H1
+    visible = False
+    interpretation = "idle"
+    for kind, payload, _ in bundle.events:
+        if kind not in {"readback_started", "hint_event", "barrier_recorded", "interpretation_unavailable"}:
+            continue
+        try:
+            event = json.loads(payload)
+        except (ValueError, TypeError):
+            legacy = re.fullmatch(r"version=(\d+) permitted_route=([A-Za-z0-9_-]+) stopped_at_human_path=([01])", payload) if kind == "barrier_recorded" else None
+            if legacy is None:
+                raise JourneyUnavailable("invalid journey event")
+            event = {"disposition_version": int(legacy[1]), "permitted_route_id": legacy[2]}
+        if not isinstance(event, dict):
+            raise JourneyUnavailable("invalid journey event")
+        if event.get("disposition_version", disposition.version) != disposition.version:
+            continue
+        if kind == "readback_started":
+            started = event.get("readback_attempt_id")
+            if not isinstance(started, str) or not started:
+                raise JourneyUnavailable("invalid readback identity")
+        elif kind == "hint_event":
+            level = require_hint_level(event.get("hint_level"))
+            if "disposition_version" not in event and disposition.version != 1:
+                continue
+            visible = require_hint_event_kind(event.get("kind")) is HintEventKind.SHOWN
+            if level is HintLevel.H3:
+                hint = HintLevel.H3
+            elif hint is not HintLevel.H3 and (visible or level is HintLevel.H2):
+                hint = HintLevel.H2
+        elif kind == "barrier_recorded":
+            barrier = event.get("permitted_route_id") == "fictional_provider"
+        elif kind == "interpretation_unavailable":
+            interpretation = "unavailable"
+    stopped = snapshot.flow_stop_reason is not None
+    repair_field = None
+    completed_repairs = latest.repair_round if latest else 0
+    if latest is not None:
+        if latest.hint_level is HintLevel.H3 or (latest.hint_level is HintLevel.H2 and hint is not HintLevel.H3):
+            hint = latest.hint_level
+        if interpretation != "unavailable":
+            interpretation = "uncertain" if latest.comparison.uncertain else "scored"
+        if "deadline_utc" in latest.comparison.mismatched and completed_repairs < MAX_REPAIR_ROUNDS:
+            repair_field = "deadline_utc"
+    step, question, allowed = "plan", None, ("readback_started", "show_plan", "hide_plan", "grant_share", "revoke_share")
+    if closure.care_evidenced:
+        step, allowed = "documented", ()
+    elif closure.closure is ClosureState.EXPIRED_UNRESOLVED:
+        step, allowed = "expired", ("revoke_share",)
+    elif closure.closure is ClosureState.CLOSED_WITH_EVIDENCE:
+        step, allowed = "accepted", ()
+    elif closure.closure is ClosureState.ESCALATED_TO_HUMAN:
+        step, allowed = "handoff", ()
+    elif stopped:
+        step, allowed = "stopped", ("show_plan", "hide_plan", "grant_share", "revoke_share")
+    elif closure.execution is ExecutionStatus.FAILED or snapshot.escalation_outcome == "failed":
+        step, allowed = "unresolved", ("show_plan", "hide_plan", "grant_share", "revoke_share")
+    elif closure.execution is ExecutionStatus.ACKNOWLEDGED or snapshot.escalation_id is not None:
+        # Contact/acknowledgement cannot choose a success or failure heading.
+        step, allowed = "plan", ("show_plan", "hide_plan", "revoke_share")
+    elif closure.execution is ExecutionStatus.ATTEMPTED:
+        step, allowed = "permission", ("show_plan", "hide_plan", "revoke_share")
+    elif barrier:
+        step, allowed = "permission", ("grant_share", "decline_share", "revoke_share", "show_plan", "hide_plan")
+        if bundle.consent_granted:
+            allowed += ("request",)
+        question = QuestionView("permission", "May we share your plan?", ())
+    elif latest is not None and latest.comparison.is_clean() and latest.hint_level is not HintLevel.H3:
+        step, allowed = "barrier", ("select_barrier", "show_plan", "hide_plan")
+        question = QuestionView("barrier", "What makes it difficult?", (
+            ChoiceView("booking", "Finding an appointment"), ChoiceView("transport", "Getting there"),
+            ChoiceView("other", "Something else")))
+    elif started is not None:
+        step = "repair" if repair_field else "readback"
+        allowed = ("confirm_words", "repair_words" if repair_field else "score_words", "show_plan", "hide_plan", "h3")
+        question = QuestionView(step, "When will you go?" if repair_field else "What will you do, when, and who will act?", ())
+    if pending:
+        question, allowed, interpretation = None, (), "pending"
+    flow = FlowView(stopped, snapshot.flow_stop_reason, disposition.version if stopped else None,
+        started, latest.restatement_id if latest else None, repair_field, completed_repairs,
+        hint, visible, interpretation)
+    redacted = step in {"readback", "repair"}
+    lines = () if redacted else patient_lines(snapshot, closure, text)
+    screen_text = dict(JOURNEY_SCREEN_TEXT[step])
+    if step == "permission" and closure.execution is ExecutionStatus.ATTEMPTED:
+        screen_text = {"heading": "May we share your plan?", "status": "No reply yet.", "notice": "Simulated request."}
+    if step == "handoff" and snapshot.escalated_human_path != "nurse_line":
+        screen_text = {"heading": lines[0], "notice": "Simulated handoff. Care is not confirmed."}
+    if visible:
+        screen_text.update(revealed_heading="Your example plan", reveal_action_label="What to do",
+                           reveal_deadline_label="Before", reveal_owner_label="Who acts")
+    if interpretation == "pending":
+        screen_text["feedback"] = "Loading. Nothing is confirmed yet."
+    elif interpretation == "unavailable":
+        screen_text["feedback"] = "We could not check that answer just now. Your plan has not changed."
+    elif interpretation == "uncertain":
+        screen_text["feedback"] = "We could not confirm that. Try different words, or show your plan."
+    return replace(base, disposition_version=disposition.version, policy_version=disposition.policy_version,
+        plan_redacted=redacted, plan=None if redacted else plan, outcome=outcome, flow=flow,
+        step=step, question=question, commands=_journey_offers(allowed, pending=pending),
+        lines=lines, text=screen_text, revealed_plan=plan if visible else None,
+        simulated=text.simulated, fixture_label=text.fixture_label)
+
+
+# Exact approved fixture wording, pinned to the recorded version. This is a
+# closed catalog, not a generated action or a configured-policy fallback.
+JOURNEY_ACTION_TEXT = {"fixture-provisional-0": {
+    "attend_same_day_review": "Go to the fictional provider's same-day review.",
+}}
+JOURNEY_SCREEN_TEXT = {
+    "plan": {"heading": "Your next step", "action_label": "What to do", "deadline_label": "Before", "owner_label": "Who acts"},
+    "readback": {"heading": "What is your plan?"},
+    "repair": {"heading": "Let’s check the time"},
+    "barrier": {"heading": "What makes it difficult?", "description": "Choose one."},
+    "permission": {"heading": "May we share your plan?", "description": "With the fictional provider, to request an appointment.", "shared": "Shared: the action and deadline. No caregiver message."},
+    "unresolved": {"heading": "The request did not work"},
+    "stopped": {"heading": "Let’s stop the questions"},
+    "expired": {"heading": "Your plan still needs action"},
+    "accepted": {"heading": "Your daughter agreed", "notice": "Simulated agreement. Care is not confirmed."},
+    "handoff": {"heading": "Handed to the nurse line", "notice": "Simulated handoff. Care is not confirmed."},
+    "documented": {"heading": "Help is arranged."},
+}
+IMPLEMENTED_JOURNEY_COMMANDS = frozenset({"select_example"})
+
+
+def _journey_pending(rows: tuple[object, ...]) -> bool:
+    completed = {r["operation_id"] for r in rows if r["phase"] == "completed"}
+    return any(r["phase"] == "claimed" and r["operation_id"] not in completed for r in rows)
+
+
+def _journey_offers(kinds: tuple[str, ...], *, pending: bool) -> tuple[CommandOffer, ...]:
+    if pending:
+        return ()
+    return tuple(CommandOffer(kind, kind, ("scripted-appointment",) if kind == "select_example" else ())
+                 for kind in kinds if kind in IMPLEMENTED_JOURNEY_COMMANDS)

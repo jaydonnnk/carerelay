@@ -68,16 +68,21 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
+import threading
 import uuid
 from collections.abc import Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
+from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Protocol, runtime_checkable
 
 from carerelay.domain import rules
 from carerelay.domain.models import (
+    OperationBinding,
+    CommandReceipt,
+    ClaimResult,
     JourneyBundle,
     COMPARISON_FIELDS,
     MAX_REPAIR_ROUNDS,
@@ -143,6 +148,138 @@ DEFAULT_KEY_NAMESPACE = "carerelay.attempt.v1"
 
 DEFAULT_BUSY_TIMEOUT_MS = 5000
 
+
+def _order_by_events(rows, events, kind: str):
+    """Use recorded identities for new rows; retain legacy order without inventing it."""
+    by_id = {row["id"]: row for row in rows}
+    ordered_ids = []
+    for event_kind, payload, _ in events:
+        if event_kind != kind:
+            continue
+        try:
+            body = json.loads(payload)
+        except (ValueError, TypeError):
+            # Attempts already carried their identity in the historical format.
+            body = {"record_id": payload.split(" ", 1)[0][8:]} if kind == "attempt_opened" and payload.startswith("attempt=") else {}
+        record_id = body.get("record_id") if isinstance(body, dict) else None
+        if record_id is None:
+            if isinstance(body, dict) and body.get("schema") == "record-v1":
+                raise InvalidJourneyRecord("missing recorded event identity")
+            continue
+        if record_id not in by_id or record_id in ordered_ids:
+            raise InvalidJourneyRecord("invalid recorded event identity")
+        ordered_ids.append(record_id)
+    referenced = set(ordered_ids)
+    return tuple(row for row in rows if row["id"] not in referenced) + tuple(by_id[key] for key in ordered_ids)
+
+
+class JourneyTransaction:
+    """Receipt SQL on the connection/cursor owned by one repository transaction."""
+
+    def __init__(self, store: object, episode_id: str, execute: object) -> None:
+        self.store = store
+        self.episode_id = episode_id
+        self.execute = execute
+
+    def load_snapshot(self, episode_id: str) -> EpisodeSnapshot:
+        if episode_id != self.episode_id:
+            raise StateError("transaction episode mismatch")
+        try:
+            return self.store.load_snapshot(episode_id)
+        except (ValueError, TypeError, KeyError) as error:
+            raise InvalidJourneyRecord("corrupt journey snapshot") from error
+
+    def load_bundle(self, episode_id: str) -> JourneyBundle:
+        try:
+            return self._load_bundle(episode_id)
+        except (ValueError, TypeError, KeyError) as error:
+            raise InvalidJourneyRecord("corrupt journey record") from error
+
+    def _load_bundle(self, episode_id: str) -> JourneyBundle:
+        if episode_id != self.episode_id:
+            raise StateError("transaction episode mismatch")
+        row = self.execute("SELECT id FROM episodes WHERE id = ?", (episode_id,)).fetchone()
+        if row is None:
+            raise EpisodeNotFound(episode_id)
+        snapshot = self.store.load_snapshot(episode_id)
+        revision = self.execute("SELECT COALESCE(MAX(id), 0) AS revision FROM events WHERE episode_id = ?", (episode_id,)).fetchone()["revision"]
+        consent = self.execute("SELECT state FROM consents WHERE episode_id = ? AND scope = ? ORDER BY version DESC LIMIT 1", (episode_id, CLINICAL_SCOPE)).fetchone()
+        policy = policy_text = None
+        if snapshot.disposition is not None:
+            from carerelay.demo import fixture
+            version = snapshot.disposition.policy_version
+            registered = self.execute("SELECT version FROM policy_versions WHERE version = ?", (version,)).fetchone()
+            resolved = fixture.recorded_policy_bundle(version) if registered is not None else None
+            if resolved is not None:
+                policy, policy_text = resolved
+        commands = tuple(dict(r) for r in self.execute("SELECT * FROM journey_commands WHERE episode_id = ? ORDER BY id", (episode_id,)).fetchall())
+        return JourneyBundle(episode_id=row["id"], snapshot=snapshot, revision=revision,
+            policy=policy, policy_text=policy_text, events=self.store.list_events(episode_id),
+            restatements=self.store.list_restatements(episode_id), commands=commands,
+            consent_granted=consent is not None and consent["state"] == "granted")
+
+    def find(self, binding: OperationBinding) -> CommandReceipt | None:
+        from carerelay.journey_commands import CommandConflict
+        row = self.execute("SELECT * FROM journey_commands WHERE operation_id = ? AND phase = 'claimed'", (binding.operation_id,)).fetchone()
+        if row is None:
+            return None
+        for key, value in asdict(binding).items():
+            if key != "token_schema" and row[key] != value:
+                raise CommandConflict("operation binding conflict")
+        terminal = self.execute("SELECT * FROM journey_commands WHERE operation_id = ? AND phase = 'completed'", (binding.operation_id,)).fetchone()
+        return CommandReceipt(binding.operation_id,
+            terminal["terminal_state"] if terminal else "pending",
+            terminal["result_ref"] if terminal else None,
+            bool(terminal["scored"]) if terminal else False, True)
+
+    def _event(self, kind: str, payload: dict[str, object], now_utc: datetime) -> int:
+        self.execute("INSERT INTO events(episode_id, kind, payload, recorded_at) VALUES (?, ?, ?, ?)",
+            (self.episode_id, kind, json.dumps(payload, sort_keys=True, separators=(",", ":")), _iso(now_utc)))
+        return self.execute("SELECT MAX(id) AS revision FROM events WHERE episode_id = ?", (self.episode_id,)).fetchone()["revision"]
+
+    def claim_once(self, binding: OperationBinding, *, now_utc: datetime) -> ClaimResult:
+        from carerelay.journey_commands import CommandConflict, validate_binding
+        validate_binding(binding)
+        if binding.episode_id != self.episode_id:
+            raise CommandConflict("transaction episode mismatch")
+        existing = self.find(binding)
+        if existing is not None:
+            row = self.execute("SELECT claim_revision FROM journey_commands WHERE operation_id = ? AND phase = 'claimed'", (binding.operation_id,)).fetchone()
+            return ClaimResult(existing, False, row["claim_revision"])
+        bundle = self.load_bundle(binding.episode_id)
+        version = bundle.snapshot.disposition.version if bundle.snapshot.disposition else None
+        if binding.expected_revision != bundle.revision or binding.disposition_version != version:
+            raise CommandConflict("stale unclaimed operation")
+        if binding.parent_restatement_id is not None or binding.confirmation_id is not None:
+            raise CommandConflict("start cannot carry a scoring parent")
+        revision = self._event("command_claimed", {"operation_id": binding.operation_id, "kind": binding.kind}, now_utc)
+        values = asdict(binding)
+        values.pop("token_schema")
+        values.update(phase="claimed", claim_revision=revision, scored=0, recorded_at=_iso(now_utc))
+        self._insert(values)
+        return ClaimResult(CommandReceipt(binding.operation_id, "pending", None, False, False), True, revision)
+
+    def _insert(self, values: dict[str, object]) -> None:
+        columns = tuple(values)
+        self.execute("INSERT INTO journey_commands (" + ",".join(columns) + ") VALUES (" + ",".join("?" for _ in columns) + ")", tuple(values[x] for x in columns))
+
+    def complete_once(self, operation_id: str, *, state: str, result_ref: str | None,
+                      scored: bool, now_utc: datetime, result_kind: str | None = None) -> CommandReceipt:
+        from carerelay.journey_commands import CommandConflict
+        row = self.execute("SELECT * FROM journey_commands WHERE operation_id = ? AND phase = 'claimed' AND episode_id = ?", (operation_id, self.episode_id)).fetchone()
+        if row is None:
+            raise CommandConflict("completion has no claim")
+        terminal = self.execute("SELECT * FROM journey_commands WHERE operation_id = ? AND phase = 'completed'", (operation_id,)).fetchone()
+        if terminal is not None:
+            return CommandReceipt(operation_id, terminal["terminal_state"], terminal["result_ref"], bool(terminal["scored"]), True)
+        self._event("command_completed", {"operation_id": operation_id, "state": state}, now_utc)
+        values = dict(row)
+        values.pop("id")
+        values.update(phase="completed", terminal_state=state, result_kind=result_kind,
+                      result_ref=result_ref, scored=int(scored), recorded_at=_iso(now_utc))
+        self._insert(values)
+        return CommandReceipt(operation_id, state, result_ref, scored, False)
+
 #: Every table in this schema. The clinical record is append-only, and so is
 #: everything else here: nothing in the product has a legitimate UPDATE or DELETE.
 APPEND_ONLY_TABLES: tuple[str, ...] = (
@@ -160,6 +297,7 @@ APPEND_ONLY_TABLES: tuple[str, ...] = (
     "expiry_events",
     "restatements",
     "events",
+    "journey_commands",
 )
 
 
@@ -170,6 +308,10 @@ APPEND_ONLY_TABLES: tuple[str, ...] = (
 
 class StateError(Exception):
     """Base class for a refusal to record or to read."""
+
+
+class InvalidJourneyRecord(StateError):
+    """Malformed stored fields; recovery must preserve any valid expiry fact."""
 
 
 class EpisodeNotFound(StateError):
@@ -370,7 +512,10 @@ def _iso(value: datetime) -> str:
 
 
 def _parse(text: str) -> datetime:
-    return datetime.fromisoformat(text)
+    value = datetime.fromisoformat(text)
+    if value.tzinfo is None:
+        raise InvalidJourneyRecord("stored timestamps must be timezone-aware")
+    return value
 
 
 # ---------------------------------------------------------------------------
@@ -529,6 +674,52 @@ CREATE TABLE IF NOT EXISTS events (
     payload TEXT NOT NULL DEFAULT '',
     recorded_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS journey_commands (
+    id INTEGER PRIMARY KEY,
+    operation_id TEXT NOT NULL,
+    phase TEXT NOT NULL CHECK (phase IN ('claimed','completed')),
+    episode_id TEXT NOT NULL REFERENCES episodes(id),
+    disposition_version INTEGER,
+    expected_revision INTEGER NOT NULL CHECK (expected_revision >= 0),
+    claim_revision INTEGER NOT NULL CHECK (claim_revision >= 0),
+    kind TEXT NOT NULL CHECK (kind IN ('create', 'select_example', 'readback_started', 'confirm_words', 'score_words', 'repair_words', 'show_plan', 'hide_plan', 'h3', 'select_barrier', 'grant_share', 'decline_share', 'revoke_share', 'request', 'supersede_extraction')),
+    purpose TEXT NOT NULL,
+    body_sha256 TEXT NOT NULL CHECK (length(body_sha256) = 64 AND body_sha256 NOT GLOB '*[^0-9a-f]*'),
+    parent_restatement_id TEXT REFERENCES restatements(id),
+    confirmation_id TEXT,
+    terminal_state TEXT CHECK (terminal_state IN ('applied','refused','unavailable','superseded')),
+    result_kind TEXT CHECK (result_kind IN ('episode','disposition','confirmation','restatement','hint','barrier','consent','attempt','event')),
+    result_ref TEXT,
+    interpreter_mode TEXT,
+    instruction_version TEXT,
+    schema_version TEXT,
+    transport_profile TEXT,
+    request_id TEXT,
+    trace_id TEXT,
+    model_version TEXT,
+    validation TEXT,
+    failure_category TEXT,
+    scored INTEGER NOT NULL CHECK (scored IN (0,1)),
+    recorded_at TEXT NOT NULL,
+    UNIQUE (operation_id, phase),
+    CHECK ((phase = 'claimed' AND terminal_state IS NULL AND result_kind IS NULL
+            AND result_ref IS NULL AND scored = 0)
+        OR (phase = 'completed' AND terminal_state IS NOT NULL)),
+    CHECK (scored = 0 OR (terminal_state = 'applied' AND kind IN ('score_words','repair_words')
+            AND result_kind IS NOT NULL AND result_kind = 'restatement' AND result_ref IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS journey_commands_episode_id ON journey_commands(episode_id, id);
+CREATE INDEX IF NOT EXISTS journey_commands_pending ON journey_commands(episode_id) WHERE phase = 'claimed';
+CREATE INDEX IF NOT EXISTS events_episode_id ON events(episode_id, id);
+CREATE INDEX IF NOT EXISTS restatements_episode_version_time ON restatements(episode_id, disposition_version, created_at, id);
+CREATE TRIGGER IF NOT EXISTS journey_commands_claim_binding
+BEFORE INSERT ON journey_commands WHEN NEW.phase = 'completed'
+BEGIN
+    SELECT RAISE(ABORT, 'completion requires matching claim') WHERE NOT EXISTS (
+        SELECT 1 FROM journey_commands AS claim WHERE claim.phase = 'claimed' AND claim.operation_id IS NEW.operation_id AND claim.episode_id IS NEW.episode_id AND claim.disposition_version IS NEW.disposition_version AND claim.expected_revision IS NEW.expected_revision AND claim.claim_revision IS NEW.claim_revision AND claim.kind IS NEW.kind AND claim.purpose IS NEW.purpose AND claim.body_sha256 IS NEW.body_sha256 AND claim.parent_restatement_id IS NEW.parent_restatement_id AND claim.confirmation_id IS NEW.confirmation_id
+    );
+END;
 """
 
 
@@ -686,6 +877,9 @@ class SqliteEpisodeStore:
         self.path = str(path)
         self.key_namespace = key_namespace
         self.busy_timeout_ms = busy_timeout_ms
+        self._mutex = threading.RLock()
+        self._journey_tx = None
+        self._journey_write = False
         self._conn = sqlite3.connect(
             self.path,
             isolation_level=None,
@@ -725,6 +919,12 @@ class SqliteEpisodeStore:
 
     @contextmanager
     def _write(self) -> Iterator[sqlite3.Connection]:
+        with self._mutex, self._write_unlocked() as conn:
+            yield conn
+
+
+    @contextmanager
+    def _write_unlocked(self) -> Iterator[sqlite3.Connection]:
         """`BEGIN IMMEDIATE` around one logical write.
 
         IMMEDIATE, not deferred: the write lock is taken at the start of the
@@ -741,6 +941,11 @@ class SqliteEpisodeStore:
         `LockContention`, so the action path can tell "retry" from "refuse"
         instead of treating a lock wait as a policy stop.
         """
+        if self._journey_tx is not None:
+            if not self._journey_write:
+                raise StateError("a read transaction cannot write")
+            yield self._conn
+            return
         try:
             self._conn.execute("BEGIN IMMEDIATE")
         except sqlite3.OperationalError as exc:
@@ -757,6 +962,54 @@ class SqliteEpisodeStore:
             self._conn.execute("COMMIT")
 
     # -- audit -------------------------------------------------------------
+
+    @contextmanager
+    def journey_transaction(self, episode_id: str, *, write: bool) -> Iterator[JourneyTransaction]:
+        with self._mutex:
+            if self._journey_tx is not None:
+                if self._journey_tx.episode_id != episode_id or (write and not self._journey_write):
+                    raise StateError("incompatible nested transaction")
+                yield self._journey_tx
+                return
+            try:
+                self._conn.execute("BEGIN IMMEDIATE" if write else "BEGIN")
+                self._journey_write = write
+                self._journey_tx = JourneyTransaction(self, episode_id, self._conn.execute)
+                if self._conn.execute("SELECT id FROM episodes WHERE id = ?", (episode_id,)).fetchone() is None:
+                    raise EpisodeNotFound(episode_id)
+                yield self._journey_tx
+                self._conn.execute("COMMIT")
+            except sqlite3.Error as exc:
+                if self._conn.in_transaction:
+                    self._conn.rollback()
+                raise StateError("journey transaction unavailable") from exc
+            except BaseException:
+                if self._conn.in_transaction:
+                    self._conn.rollback()
+                raise
+            finally:
+                self._journey_tx = None
+                self._journey_write = False
+
+    def create_with_claim_once(self, binding: OperationBinding, *, persona: str,
+                               now_utc: datetime) -> CommandReceipt:
+        from carerelay.journey_commands import CommandConflict, CommandInvalid, PURPOSES, validate_binding
+        validate_binding(binding)
+        if binding.kind != "create" or binding.purpose != PURPOSES["create"]:
+            raise CommandInvalid("not a creation capability")
+        with self._mutex, self._write():
+            tx = JourneyTransaction(self, binding.episode_id, self._conn.execute)
+            existing = tx.find(binding)
+            if existing is not None:
+                return existing
+            if self._conn.execute("SELECT 1 FROM episodes WHERE id = ?", (binding.episode_id,)).fetchone():
+                raise CommandConflict("candidate already belongs to another operation")
+            self._conn.execute("INSERT INTO episodes(id,persona,created_at) VALUES(?,?,?)",
+                               (binding.episode_id, persona, _iso(now_utc)))
+            tx.claim_once(binding, now_utc=now_utc)
+            tx._event("episode_created", {"source": "scripted-example"}, now_utc)
+            return tx.complete_once(binding.operation_id, state="applied", result_ref=binding.episode_id,
+                                    scored=False, result_kind="episode", now_utc=now_utc)
 
     def _append_event(
         self, episode_id: str, kind: str, payload: str, now_utc: datetime
@@ -1491,7 +1744,7 @@ class SqliteEpisodeStore:
             self._append_event(
                 episode_id,
                 "human_acceptance_recorded",
-                f"accepted_by={accepted_by} scope={scope}",
+                json.dumps({"schema": "record-v1", "record_id": acceptance_id, "accepted_by": accepted_by, "scope": scope}),
                 now_utc,
             )
         return acceptance_id
@@ -1583,7 +1836,7 @@ class SqliteEpisodeStore:
             self._append_event(
                 episode_id,
                 "escalation_recorded",
-                f"human_path={human_path} outcome={outcome}",
+                json.dumps({"schema": "record-v1", "record_id": escalation_id, "human_path": human_path, "outcome": outcome}),
                 now_utc,
             )
         return escalation_id
@@ -1728,6 +1981,10 @@ class SqliteEpisodeStore:
                     f"{disposition_version} to compare against"
                 )
 
+            parents = self._conn.execute("SELECT id, disposition_version FROM restatements WHERE episode_id = ? ORDER BY rowid", (episode_id,)).fetchall()
+            parents = _order_by_events(parents, self.list_events(episode_id), "restatement_recorded") if parents else ()
+            parents = tuple(row for row in parents if row["disposition_version"] == disposition_version)
+            parent_id = parents[-1]["id"] if repair_round > 0 and parents else None
             restatement_id = uuid.uuid4().hex
             self._conn.execute(
                 "INSERT INTO restatements "
@@ -1768,8 +2025,7 @@ class SqliteEpisodeStore:
             self._append_event(
                 episode_id,
                 "restatement_recorded",
-                f"hint={hint_level.value} round={repair_round} "
-                f"outcome={outcome.value}",
+                json.dumps({"schema": "record-v1", "record_id": restatement_id, "parent_restatement_id": parent_id, "disposition_version": disposition_version, "hint": hint_level.value, "round": repair_round, "outcome": outcome.value}),
                 now_utc,
             )
             if rules.restatement_stops(hint_level, outcome, repair_round):
@@ -1783,6 +2039,7 @@ class SqliteEpisodeStore:
             "SELECT * FROM restatements WHERE episode_id = ? ORDER BY rowid",
             (episode_id,),
         ).fetchall()
+        rows = _order_by_events(rows, self.list_events(episode_id), "restatement_recorded")
         return tuple(_restatement_from_row(row) for row in rows)
 
     def get_restatement(self, restatement_id: str) -> RestatementRecord:
@@ -1889,34 +2146,10 @@ class SqliteEpisodeStore:
     def load_journey_bundle(self, episode_id: str) -> JourneyBundle:
         """One read transaction, including the verified stored identity/revision.
 
-        Only no-plan is exposed in Slice 14. Assessed bundles are refused by the
-        domain; their policy/command enrichment belongs to Slice 15.
+        Recorded policy, rounds and receipts share that transaction's snapshot.
         """
-        try:
-            self._conn.execute("BEGIN")
-            row = self._conn.execute("SELECT id FROM episodes WHERE id = ?", (episode_id,)).fetchone()
-            if row is None:
-                raise EpisodeNotFound(episode_id)
-            snapshot = self.load_snapshot(episode_id)
-            revision = self._conn.execute(
-                "SELECT COALESCE(MAX(id), 0) FROM events WHERE episode_id = ?", (episode_id,)
-            ).fetchone()[0]
-            consent = self._current_consent(episode_id, CLINICAL_SCOPE)
-            bundle = JourneyBundle(
-                episode_id=row["id"], snapshot=snapshot, revision=revision,
-                policy=None, policy_text=None, events=self.list_events(episode_id),
-                restatements=(), commands=(), consent_granted=consent is not None and consent[1] == "granted",
-            )
-            self._conn.execute("COMMIT")
-            return bundle
-        except sqlite3.Error as exc:
-            if self._conn.in_transaction:
-                self._conn.rollback()
-            raise StateError("journey read unavailable") from exc
-        except BaseException:
-            if self._conn.in_transaction:
-                self._conn.rollback()
-            raise
+        with self.journey_transaction(episode_id, write=False) as tx:
+            return tx.load_bundle(episode_id)
 
     def load_snapshot(self, episode_id: str) -> EpisodeSnapshot:
         """Everything `domain.derive_closure` is allowed to look at.
@@ -1947,9 +2180,11 @@ class SqliteEpisodeStore:
         )
 
         attempt_row = self._conn.execute(
-            "SELECT * FROM attempts WHERE episode_id = ? ORDER BY rowid DESC LIMIT 1",
+            "SELECT * FROM attempts WHERE episode_id = ? ORDER BY rowid",
             (episode_id,),
-        ).fetchone()
+        ).fetchall()
+        attempt_rows = _order_by_events(attempt_row, self.list_events(episode_id), "attempt_opened")
+        attempt_row = attempt_rows[-1] if attempt_rows else None
         attempt = (
             self._attempt_snapshot(attempt_row) if attempt_row is not None else None
         )
@@ -1958,14 +2193,18 @@ class SqliteEpisodeStore:
         stop_reason = self._flow_stop_reason(episode_id, disposition.version) if disposition else None
         acceptance = self._conn.execute(
             "SELECT id, accepted_by, scope FROM human_acceptances WHERE episode_id = ? "
-            "ORDER BY rowid DESC LIMIT 1",
+            "ORDER BY rowid",
             (episode_id,),
-        ).fetchone()
+        ).fetchall()
+        acceptances = _order_by_events(acceptance, self.list_events(episode_id), "human_acceptance_recorded")
+        acceptance = acceptances[-1] if acceptances else None
         escalation = self._conn.execute(
             "SELECT id, human_path, outcome FROM escalations WHERE episode_id = ? "
-            "ORDER BY rowid DESC LIMIT 1",
+            "ORDER BY rowid",
             (episode_id,),
-        ).fetchone()
+        ).fetchall()
+        escalations = _order_by_events(escalation, self.list_events(episode_id), "escalation_recorded")
+        escalation = escalations[-1] if escalations else None
         expiry = (
             self._conn.execute(
                 "SELECT id FROM expiry_events WHERE episode_id = ? "
@@ -2088,6 +2327,8 @@ class EpisodeStore(Protocol):
     def list_hint_events(self, episode_id: str) -> tuple[HintEventRecord, ...]: ...
     def record_transcript_confirmation(self, episode_id: str, *, text: str, now_utc: datetime) -> str: ...
     def has_transcript_confirmation(self, episode_id: str, confirmation_id: str) -> bool: ...
+    def journey_transaction(self, episode_id: str, *, write: bool) -> Iterator[JourneyTransaction]: ...
+    def create_with_claim_once(self, binding: OperationBinding, *, persona: str, now_utc: datetime) -> CommandReceipt: ...
     def load_journey_bundle(self, episode_id: str) -> JourneyBundle: ...
     def load_snapshot(self, episode_id: str) -> EpisodeSnapshot: ...
     def derive_closure(

@@ -522,7 +522,7 @@ class FlowView:
 
 @dataclass(frozen=True)
 class JourneyProjection:
-    """Slice 14's no-plan subset. Assessed journeys are unavailable until Slice 15."""
+    """Coherent stored journey; only implemented command offers reach the patient."""
 
     episode_id: str
     revision: int
@@ -531,15 +531,102 @@ class JourneyProjection:
     text: Mapping[str, str]
     fixture_label: str
     schema_version: str = "carerelay-journey-v1"
-    disposition_version: None = None
-    policy_version: None = None
+    disposition_version: int | None = None
+    policy_version: str | None = None
     clock_mode: str = "scenario"
     plan_redacted: bool = False
-    plan: None = None
-    outcome: None = None
+    plan: PlanView | None = None
+    outcome: OutcomeView | None = None
     step: str = "start"
-    question: None = None
-    commands: tuple[object, ...] = ()
+    question: QuestionView | None = None
+    commands: tuple[CommandOffer, ...] = ()
     lines: tuple[str, ...] = ()
-    revealed_plan: None = None
+    revealed_plan: PlanView | None = None
     simulated: bool = True
+
+
+@dataclass(frozen=True)
+class OperationBinding:
+    operation_id: str
+    episode_id: str
+    disposition_version: int | None
+    expected_revision: int
+    kind: str
+    purpose: str
+    body_sha256: str
+    parent_restatement_id: str | None
+    confirmation_id: str | None
+    token_schema: str = "carerelay-command-v1"
+
+
+@dataclass(frozen=True)
+class CommandReceipt:
+    operation_id: str
+    state: str
+    result_ref: str | None
+    scored: bool
+    replayed: bool
+
+
+@dataclass(frozen=True)
+class CommandResponse:
+    receipt: CommandReceipt
+    journey: JourneyProjection
+
+
+@dataclass(frozen=True)
+class ClaimResult:
+    receipt: CommandReceipt
+    newly_claimed: bool
+    claim_revision: int
+
+
+@dataclass(frozen=True)
+class PlanView:
+    disposition_version: int
+    policy_version: str
+    action_id: str
+    action_text: str
+    deadline_utc: datetime
+    deadline_display: str
+    display_timezone: str
+    original_owner_id: str
+    original_owner_display: str
+    current_owner_id: str | None
+    current_owner_display: str | None
+    fallback_route_id: str
+    fallback_display: str
+
+
+@dataclass(frozen=True)
+class OutcomeView:
+    execution: ExecutionStatus
+    evidence: EvidenceLevel
+    closure: ClosureState
+    care_evidenced: bool
+    accepted_by: str | None
+    accepted_scope: str | None
+    escalation_path: str | None
+    escalation_outcome: str | None
+    expiry_recorded: bool
+
+
+@dataclass(frozen=True)
+class ChoiceView:
+    choice_id: str
+    text: str
+
+
+@dataclass(frozen=True)
+class QuestionView:
+    question_id: str
+    text: str
+    choices: tuple[ChoiceView, ...]
+
+
+@dataclass(frozen=True)
+class CommandOffer:
+    kind: str
+    offer_id: str
+    permitted_choice_ids: tuple[str, ...]
+    operation_token: str | None = None

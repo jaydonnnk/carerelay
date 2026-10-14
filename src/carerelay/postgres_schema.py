@@ -74,6 +74,7 @@ APPEND_ONLY_TABLES: tuple[str, ...] = (
     "expiry_events",
     "restatements",
     "events",
+    "journey_commands",
 )
 
 #: Tables in `SCHEMA_SQL` that are deliberately **not** append-only, with the
@@ -249,6 +250,61 @@ CREATE TABLE IF NOT EXISTS events (
     payload TEXT NOT NULL DEFAULT '',
     recorded_at TEXT NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS journey_commands (
+    id SERIAL PRIMARY KEY,
+    operation_id TEXT NOT NULL,
+    phase TEXT NOT NULL CHECK (phase IN ('claimed','completed')),
+    episode_id TEXT NOT NULL REFERENCES episodes(id),
+    disposition_version INTEGER,
+    expected_revision INTEGER NOT NULL CHECK (expected_revision >= 0),
+    claim_revision INTEGER NOT NULL CHECK (claim_revision >= 0),
+    kind TEXT NOT NULL CHECK (kind IN ('create', 'select_example', 'readback_started', 'confirm_words', 'score_words', 'repair_words', 'show_plan', 'hide_plan', 'h3', 'select_barrier', 'grant_share', 'decline_share', 'revoke_share', 'request', 'supersede_extraction')),
+    purpose TEXT NOT NULL,
+    body_sha256 TEXT NOT NULL CHECK (body_sha256 ~ '^[0-9a-f]{64}$'),
+    parent_restatement_id TEXT REFERENCES restatements(id),
+    confirmation_id TEXT,
+    terminal_state TEXT CHECK (terminal_state IN ('applied','refused','unavailable','superseded')),
+    result_kind TEXT CHECK (result_kind IN ('episode','disposition','confirmation','restatement','hint','barrier','consent','attempt','event')),
+    result_ref TEXT,
+    interpreter_mode TEXT,
+    instruction_version TEXT,
+    schema_version TEXT,
+    transport_profile TEXT,
+    request_id TEXT,
+    trace_id TEXT,
+    model_version TEXT,
+    validation TEXT,
+    failure_category TEXT,
+    scored INTEGER NOT NULL CHECK (scored IN (0,1)),
+    recorded_at TEXT NOT NULL,
+    UNIQUE (operation_id, phase),
+    CHECK ((phase = 'claimed' AND terminal_state IS NULL AND result_kind IS NULL
+            AND result_ref IS NULL AND scored = 0)
+        OR (phase = 'completed' AND terminal_state IS NOT NULL)),
+    CHECK (scored = 0 OR (terminal_state = 'applied' AND kind IN ('score_words','repair_words')
+            AND result_kind IS NOT NULL AND result_kind = 'restatement' AND result_ref IS NOT NULL))
+);
+CREATE INDEX IF NOT EXISTS journey_commands_episode_id ON journey_commands(episode_id, id);
+CREATE INDEX IF NOT EXISTS journey_commands_pending ON journey_commands(episode_id) WHERE phase = 'claimed';
+CREATE INDEX IF NOT EXISTS events_episode_id ON events(episode_id, id);
+CREATE INDEX IF NOT EXISTS restatements_episode_version_time ON restatements(episode_id, disposition_version, created_at, id);
+CREATE OR REPLACE FUNCTION carerelay_require_command_claim() RETURNS trigger AS $$
+BEGIN
+    IF NEW.phase = 'completed' AND NOT EXISTS (
+        SELECT 1 FROM journey_commands AS claim WHERE claim.phase = 'claimed' AND claim.operation_id IS NOT DISTINCT FROM NEW.operation_id AND claim.episode_id IS NOT DISTINCT FROM NEW.episode_id AND claim.disposition_version IS NOT DISTINCT FROM NEW.disposition_version AND claim.expected_revision IS NOT DISTINCT FROM NEW.expected_revision AND claim.claim_revision IS NOT DISTINCT FROM NEW.claim_revision AND claim.kind IS NOT DISTINCT FROM NEW.kind AND claim.purpose IS NOT DISTINCT FROM NEW.purpose AND claim.body_sha256 IS NOT DISTINCT FROM NEW.body_sha256 AND claim.parent_restatement_id IS NOT DISTINCT FROM NEW.parent_restatement_id AND claim.confirmation_id IS NOT DISTINCT FROM NEW.confirmation_id
+    ) THEN
+        RAISE EXCEPTION 'completion requires matching claim';
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+DO $$ BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_trigger WHERE tgname = 'journey_commands_claim_binding') THEN
+        CREATE TRIGGER journey_commands_claim_binding BEFORE INSERT ON journey_commands
+            FOR EACH ROW EXECUTE FUNCTION carerelay_require_command_claim();
+    END IF;
+END $$;
 """
 
 

@@ -62,6 +62,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 import uuid
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
@@ -74,6 +75,8 @@ from psycopg.rows import dict_row
 from . import postgres_schema
 from .domain import rules
 from .domain.models import (
+    OperationBinding,
+    CommandReceipt,
     JourneyBundle,
     MAX_REPAIR_ROUNDS,
     TERMINAL_TRANSITIONS,
@@ -97,6 +100,8 @@ from .domain.models import (
     RecallOutcome,
 )
 from .state import (
+    JourneyTransaction,
+    _order_by_events,
     DEFAULT_KEY_NAMESPACE,
     CLINICAL_SCOPE,
     AttemptNotFound,
@@ -203,6 +208,8 @@ class PostgresEpisodeStore:
         lock_timeout_s: float = 5.0,
         key_namespace: str = DEFAULT_KEY_NAMESPACE,
     ) -> None:
+        self._mutex = threading.RLock()
+        self._journey_tx = None
         self.dsn = dsn
         self.connect_timeout_s = connect_timeout_s
         #: The per-transaction lock wait, in seconds (D2). A float so a test can
@@ -258,7 +265,18 @@ class PostgresEpisodeStore:
     # -- transactions ------------------------------------------------------
 
     @contextmanager
-    def _write(self) -> Iterator[psycopg.Cursor]:
+    def _write(self, episode_id: str | None = None, *, attempt_id: str | None = None) -> Iterator[psycopg.Cursor]:
+        with self._mutex, self._write_unlocked(episode_id, attempt_id=attempt_id) as cur:
+            yield cur
+
+    @contextmanager
+    def _read(self) -> Iterator[psycopg.Cursor]:
+        with self._mutex, self._read_unlocked() as cur:
+            yield cur
+
+
+    @contextmanager
+    def _write_unlocked(self, episode_id: str | None = None, *, attempt_id: str | None = None) -> Iterator[psycopg.Cursor]:
         """One logical write, in one transaction, with a bounded lock wait.
 
         This wrapper owns the transaction boundary and the translation of a lock
@@ -288,6 +306,17 @@ class PostgresEpisodeStore:
         site by `_lock_or_absent`, because it is a row lock and the row differs
         per operation. SQLite's equivalent is a database-wide lock taken here.
         """
+        if getattr(self, "_journey_tx", None) is not None:
+            if not self._journey_write:
+                raise StateError("a read transaction cannot write")
+            if attempt_id is not None:
+                self._journey_cursor.execute("SELECT episode_id FROM attempts WHERE id = %s", (attempt_id,))
+                attempt = self._journey_cursor.fetchone()
+                episode_id = attempt["episode_id"] if attempt else None
+            if episode_id is not None and episode_id != self._journey_tx.episode_id:
+                raise StateError("nested writer episode mismatch")
+            yield self._journey_cursor
+            return
         cur = self._conn.cursor(row_factory=dict_row)
         timeout = f"{self.lock_timeout_s}s"
         try:
@@ -295,6 +324,13 @@ class PostgresEpisodeStore:
             # it is a validated number, not caller text, so this is not an
             # injection surface.
             cur.execute(f"SET LOCAL lock_timeout = '{timeout}'")
+            if attempt_id is not None:
+                cur.execute("SELECT episode_id FROM attempts WHERE id = %s", (attempt_id,))
+                attempt = cur.fetchone()
+                episode_id = attempt["episode_id"] if attempt else None
+            if episode_id is not None:
+                cur.execute("SELECT id FROM episodes WHERE id = %s FOR UPDATE", (episode_id,))
+                cur.fetchone()
             yield cur
         except psycopg.errors.LockNotAvailable as exc:
             self._conn.rollback()
@@ -311,7 +347,7 @@ class PostgresEpisodeStore:
             cur.close()
 
     @contextmanager
-    def _read(self) -> Iterator[psycopg.Cursor]:
+    def _read_unlocked(self) -> Iterator[psycopg.Cursor]:
         """One read, on a cursor that leaves no transaction behind.
 
         psycopg opens a transaction on the first statement of a connection with
@@ -325,8 +361,12 @@ class PostgresEpisodeStore:
         therefore takes the caller's cursor; the public `list_*` methods are the
         only ones that open their own.
         """
+        if getattr(self, "_journey_tx", None) is not None:
+            yield self._journey_cursor
+            return
         cur = self._conn.cursor(row_factory=dict_row)
         try:
+            cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
             yield cur
         finally:
             self._conn.rollback()
@@ -345,6 +385,66 @@ class PostgresEpisodeStore:
         return cur.fetchone()
 
     # -- audit -------------------------------------------------------------
+
+    @contextmanager
+    def journey_transaction(self, episode_id: str, *, write: bool) -> Iterator[JourneyTransaction]:
+        with self._mutex:
+            if getattr(self, "_journey_tx", None) is not None:
+                if self._journey_tx.episode_id != episode_id or (write and not self._journey_write):
+                    raise StateError("incompatible nested transaction")
+                yield self._journey_tx
+                return
+            manager = self._write(episode_id) if write else self._read()
+            with manager as cur:
+                self._journey_cursor = cur
+                self._journey_write = write
+                self._journey_tx = JourneyTransaction(self, episode_id,
+                    lambda sql, args=(): cur.execute(sql.replace("?", "%s"), args))
+                try:
+                    cur.execute("SELECT id FROM episodes WHERE id = %s", (episode_id,))
+                    if cur.fetchone() is None:
+                        raise EpisodeNotFound(episode_id)
+                    yield self._journey_tx
+                finally:
+                    self._journey_tx = None
+                    self._journey_cursor = None
+                    self._journey_write = False
+
+    def create_with_claim_once(self, binding: OperationBinding, *, persona: str,
+                               now_utc: datetime) -> CommandReceipt:
+        from carerelay.journey_commands import CommandConflict, CommandInvalid, PURPOSES, validate_binding
+        validate_binding(binding)
+        if binding.kind != "create" or binding.purpose != PURPOSES["create"]:
+            raise CommandInvalid("not a creation capability")
+        try:
+            with self._write() as cur:
+                tx = JourneyTransaction(self, binding.episode_id,
+                    lambda sql, args=(): cur.execute(sql.replace("?", "%s"), args))
+                existing = tx.find(binding)
+                if existing is not None:
+                    return existing
+                cur.execute("SELECT 1 FROM episodes WHERE id = %s", (binding.episode_id,))
+                if cur.fetchone():
+                    raise CommandConflict("candidate already belongs to another operation")
+                cur.execute("INSERT INTO episodes(id,persona,created_at) VALUES(%s,%s,%s)",
+                            (binding.episode_id, persona, _iso(now_utc)))
+                # All public read/write wrappers use this transaction-bound cursor.
+                self._journey_tx, self._journey_cursor, self._journey_write = tx, cur, True
+                try:
+                    tx.claim_once(binding, now_utc=now_utc)
+                    tx._event("episode_created", {"source": "scripted-example"}, now_utc)
+                    return tx.complete_once(binding.operation_id, state="applied", result_ref=binding.episode_id,
+                                            scored=False, result_kind="episode", now_utc=now_utc)
+                finally:
+                    self._journey_tx = self._journey_cursor = None
+                    self._journey_write = False
+        except psycopg.errors.UniqueViolation:
+            # The failed absent-row insert has rolled back; inspect the winner only.
+            with self.journey_transaction(binding.episode_id, write=False) as tx:
+                receipt = tx.find(binding)
+                if receipt is None:
+                    raise CommandConflict("candidate collision")
+                return receipt
 
     def _append_event(
         self,
@@ -377,7 +477,7 @@ class PostgresEpisodeStore:
     # -- episode, policy, disposition --------------------------------------
 
     def create_episode(self, episode_id: str, persona: str, *, now_utc: datetime) -> None:
-        with self._write() as cur:
+        with self._write(episode_id) as cur:
             cur.execute(
                 "INSERT INTO episodes (id, persona, created_at) VALUES (%s, %s, %s)",
                 (episode_id, persona, _iso(now_utc)),
@@ -444,7 +544,7 @@ class PostgresEpisodeStore:
         than inherited, because the record has to refuse to hold their violation
         and the SQLite triggers cannot do that for a different engine.
         """
-        with self._write() as cur:
+        with self._write(disposition.episode_id) as cur:
             cur.execute(
                 "SELECT MAX(version_no) AS top FROM dispositions WHERE episode_id = %s",
                 (disposition.episode_id,),
@@ -519,7 +619,7 @@ class PostgresEpisodeStore:
         opened under version 1 therefore stays stamped 1 forever, and the
         mismatch against version 2 is what refuses its in-flight callback.
         """
-        with self._write() as cur:
+        with self._write(episode_id) as cur:
             cur.execute(
                 "SELECT MAX(version) AS top FROM consents "
                 "WHERE episode_id = %s AND scope = %s",
@@ -627,7 +727,7 @@ class PostgresEpisodeStore:
         A refusal that is only raised leaves the ledger unable to say the episode
         stopped. Writing first and raising second keeps both facts.
         """
-        with self._write() as cur:
+        with self._write(episode_id) as cur:
             self._append_event(
                 cur, episode_id, "refused", f"surface={surface} {reason}", now_utc
             )
@@ -652,7 +752,7 @@ class PostgresEpisodeStore:
         """Persist a versioned stop without claiming a responsibility transfer."""
         payload = json.dumps({"disposition_version": disposition_version,
                               "reason": reason, "human_path": human_path})
-        with self._write() as cur:
+        with self._write(episode_id) as cur:
             self._append_event(cur, episode_id, "flow_stopped", payload, now_utc)
 
     def require_active_flow(self, episode_id: str) -> None:
@@ -682,7 +782,7 @@ class PostgresEpisodeStore:
         because `DO UPDATE` is refused by the append-only trigger, and because
         there is nothing to update.
         """
-        with self._write() as cur:
+        with self._write(command.episode_id) as cur:
             cur.execute(
                 "SELECT id, episode_id, route_id, purpose_id, idempotency_key, "
                 "consent_version FROM attempts WHERE idempotency_key = %s FOR UPDATE",
@@ -883,7 +983,7 @@ class PostgresEpisodeStore:
                 sorted(member.value for member in TERMINAL_TRANSITIONS),
             )
         try:
-            with self._write() as cur:
+            with self._write(attempt_id=attempt_id) as cur:
                 attempt = self._lock_or_absent(
                     cur,
                     "SELECT id, episode_id, route_id, consent_version, idempotency_key FROM attempts "
@@ -1151,7 +1251,7 @@ class PostgresEpisodeStore:
         independent on purpose: a test that proves the constraint issues raw SQL,
         so removing this guard cannot make the constraint test pass.
         """
-        with self._write() as cur:
+        with self._write(episode_id) as cur:
             self._require_granted_consent(cur, episode_id)
             self._insert_evidence(cur, episode_id, record, now_utc=now_utc)
             self._append_event(
@@ -1232,7 +1332,7 @@ class PostgresEpisodeStore:
         `care_evidenced` true.
         """
         acceptance_id = uuid.uuid4().hex
-        with self._write() as cur:
+        with self._write(episode_id) as cur:
             self._require_granted_consent(cur, episode_id)
             cur.execute(
                 "INSERT INTO human_acceptances "
@@ -1244,7 +1344,7 @@ class PostgresEpisodeStore:
                 cur,
                 episode_id,
                 "human_acceptance_recorded",
-                f"accepted_by={accepted_by} scope={scope}",
+                json.dumps({"schema": "record-v1", "record_id": acceptance_id, "accepted_by": accepted_by, "scope": scope}),
                 now_utc,
             )
         return acceptance_id
@@ -1266,7 +1366,7 @@ class PostgresEpisodeStore:
         show *why* an episode stopped.
         """
         barrier_id = uuid.uuid4().hex
-        with self._write() as cur:
+        with self._write(episode_id) as cur:
             cur.execute(
                 "INSERT INTO barriers "
                 "(id, episode_id, disposition_version, barrier_text, "
@@ -1321,7 +1421,7 @@ class PostgresEpisodeStore:
         now_utc: datetime,
     ) -> str:
         escalation_id = uuid.uuid4().hex
-        with self._write() as cur:
+        with self._write(episode_id) as cur:
             cur.execute(
                 "INSERT INTO escalations "
                 "(id, episode_id, human_path, outcome, recorded_at) "
@@ -1332,7 +1432,7 @@ class PostgresEpisodeStore:
                 cur,
                 episode_id,
                 "escalation_recorded",
-                f"human_path={human_path} outcome={outcome}",
+                json.dumps({"schema": "record-v1", "record_id": escalation_id, "human_path": human_path, "outcome": outcome}),
                 now_utc,
             )
         return escalation_id
@@ -1387,7 +1487,7 @@ class PostgresEpisodeStore:
         is two extra round trips on any call that reaches the INSERT.
         """
         now_utc = _utc(now_utc)
-        with self._write() as cur:
+        with self._write(episode_id) as cur:
             cur.execute(
                 "SELECT id FROM expiry_events WHERE episode_id = %s "
                 "AND disposition_version = %s",
@@ -1488,7 +1588,7 @@ class PostgresEpisodeStore:
                 "(two repairs maximum, a third is never offered: C6)"
             )
 
-        with self._write() as cur:
+        with self._write(episode_id) as cur:
             cur.execute("SELECT id FROM episodes WHERE id = %s", (episode_id,))
             if cur.fetchone() is None:
                 raise EpisodeNotFound(episode_id)
@@ -1503,6 +1603,11 @@ class PostgresEpisodeStore:
                     f"{disposition_version} to compare against"
                 )
 
+            cur.execute("SELECT id, disposition_version FROM restatements WHERE episode_id = %s ORDER BY created_at, id", (episode_id,))
+            parents = cur.fetchall()
+            parents = self._ordered_rows(cur, episode_id, parents, "restatement_recorded") if parents else ()
+            parents = tuple(row for row in parents if row["disposition_version"] == disposition_version)
+            parent_id = parents[-1]["id"] if repair_round > 0 and parents else None
             restatement_id = uuid.uuid4().hex
             cur.execute(
                 "INSERT INTO restatements "
@@ -1544,8 +1649,7 @@ class PostgresEpisodeStore:
                 cur,
                 episode_id,
                 "restatement_recorded",
-                f"hint={hint_level.value} round={repair_round} "
-                f"outcome={outcome.value}",
+                json.dumps({"schema": "record-v1", "record_id": restatement_id, "parent_restatement_id": parent_id, "disposition_version": disposition_version, "hint": hint_level.value, "round": repair_round, "outcome": outcome.value}),
                 now_utc,
             )
             if rules.restatement_stops(hint_level, outcome, repair_round):
@@ -1561,7 +1665,8 @@ class PostgresEpisodeStore:
                 "ORDER BY created_at, id",
                 (episode_id,),
             )
-            return tuple(_restatement_from_row(row) for row in cur.fetchall())
+            rows = self._ordered_rows(cur, episode_id, cur.fetchall(), "restatement_recorded")
+            return tuple(_restatement_from_row(row) for row in rows)
 
     def get_restatement(self, restatement_id: str) -> RestatementRecord:
         with self._read() as cur:
@@ -1589,7 +1694,7 @@ class PostgresEpisodeStore:
         patient direction (`PLAN.md` 5.2.1, C8).
         """
         now_utc = _utc(now_utc)
-        with self._write() as cur:
+        with self._write(episode_id) as cur:
             self._append_event(
                 cur,
                 episode_id,
@@ -1636,7 +1741,7 @@ class PostgresEpisodeStore:
         """
         now_utc = _utc(now_utc)
         confirmation_id = transcript_confirmation_id(text)
-        with self._write() as cur:
+        with self._write(episode_id) as cur:
             self._append_event(
                 cur,
                 episode_id,
@@ -1696,6 +1801,12 @@ class PostgresEpisodeStore:
         with self._read() as cur:
             return self._load_snapshot(cur, episode_id)
 
+    @staticmethod
+    def _ordered_rows(cur, episode_id, rows, kind):
+        cur.execute("SELECT kind, payload, recorded_at FROM events WHERE episode_id = %s ORDER BY id", (episode_id,))
+        events = tuple((r["kind"], r["payload"], r["recorded_at"]) for r in cur.fetchall())
+        return _order_by_events(rows, events, kind)
+
     def _load_snapshot(self, cur: psycopg.Cursor, episode_id: str) -> EpisodeSnapshot:
         cur.execute("SELECT id FROM episodes WHERE id = %s", (episode_id,))
         if cur.fetchone() is None:
@@ -1716,10 +1827,11 @@ class PostgresEpisodeStore:
         cur.execute(
             "SELECT id, episode_id, route_id, purpose_id, idempotency_key, "
             "consent_version FROM attempts WHERE episode_id = %s "
-            "ORDER BY opened_at DESC, id DESC LIMIT 1",
+            "ORDER BY opened_at, id",
             (episode_id,),
         )
-        attempt_row = cur.fetchone()
+        attempt_rows = self._ordered_rows(cur, episode_id, cur.fetchall(), "attempt_opened")
+        attempt_row = attempt_rows[-1] if attempt_rows else None
         attempt = (
             self._attempt_snapshot(cur, attempt_row)
             if attempt_row is not None
@@ -1729,16 +1841,18 @@ class PostgresEpisodeStore:
         consent = self._fetch_consent(cur, episode_id, CLINICAL_SCOPE)
         cur.execute(
             "SELECT id, accepted_by, scope FROM human_acceptances WHERE episode_id = %s "
-            "ORDER BY recorded_at DESC, id DESC LIMIT 1",
+            "ORDER BY recorded_at, id",
             (episode_id,),
         )
-        acceptance = cur.fetchone()
+        acceptances = self._ordered_rows(cur, episode_id, cur.fetchall(), "human_acceptance_recorded")
+        acceptance = acceptances[-1] if acceptances else None
         cur.execute(
             "SELECT id, human_path, outcome FROM escalations WHERE episode_id = %s "
-            "ORDER BY recorded_at DESC, id DESC LIMIT 1",
+            "ORDER BY recorded_at, id",
             (episode_id,),
         )
-        escalation = cur.fetchone()
+        escalations = self._ordered_rows(cur, episode_id, cur.fetchall(), "escalation_recorded")
+        escalation = escalations[-1] if escalations else None
         expiry = None
         if disposition is not None:
             cur.execute(
@@ -1770,26 +1884,8 @@ class PostgresEpisodeStore:
 
     def load_journey_bundle(self, episode_id: str) -> JourneyBundle:
         """No-plan snapshot parity; actual Postgres proof remains Slice 19."""
-        try:
-            with self._read() as cur:
-                cur.execute("SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY")
-                cur.execute("SELECT id FROM episodes WHERE id = %s", (episode_id,))
-                row = cur.fetchone()
-                if row is None:
-                    raise EpisodeNotFound(episode_id)
-                snapshot = self._load_snapshot(cur, episode_id)
-                cur.execute("SELECT COALESCE(MAX(id), 0) AS revision FROM events WHERE episode_id = %s", (episode_id,))
-                revision = cur.fetchone()["revision"]
-                cur.execute("SELECT kind, payload, recorded_at FROM events WHERE episode_id = %s ORDER BY id", (episode_id,))
-                events = tuple((e["kind"], e["payload"], e["recorded_at"]) for e in cur.fetchall())
-                consent = self._fetch_consent(cur, episode_id, CLINICAL_SCOPE)
-                return JourneyBundle(
-                    episode_id=row["id"], snapshot=snapshot, revision=revision,
-                    policy=None, policy_text=None, events=events,
-                    restatements=(), commands=(), consent_granted=consent is not None and consent[1] == "granted",
-                )
-        except psycopg.Error as exc:
-            raise StateError("journey read unavailable") from exc
+        with self.journey_transaction(episode_id, write=False) as tx:
+            return tx.load_bundle(episode_id)
 
     def derive_closure(self, episode_id: str, now_utc: datetime) -> ClosureProjection:
         """Convenience read: load the snapshot, then derive. Policy stays in `domain`."""

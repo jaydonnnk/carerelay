@@ -35,8 +35,9 @@ they get lost:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timedelta, timezone
+from types import MappingProxyType
 
 from carerelay.domain.models import (
     Disposition,
@@ -274,3 +275,18 @@ JOURNEY_COPY = {
                  "description": "Keep the instructions you already have.",
                  "retry": "Try again", "loading": "Loading. Nothing is confirmed yet."},
 }
+
+# Immutable recorded-version lookup. Constructor/configuration changes cannot
+# mutate this already registered fixture bundle or its approved wording.
+_JOURNEY_POLICY = replace(policy(), action_aliases=MappingProxyType(dict(ACTION_ALIASES)),
+    owner_aliases=MappingProxyType(dict(OWNER_ALIASES)), deadline_forms=MappingProxyType(dict(DEADLINE_FORMS)),
+    authorised_reassessments=MappingProxyType({}))
+_JOURNEY_TEXT_BASE = policy_text()
+_JOURNEY_TEXT = replace(_JOURNEY_TEXT_BASE,
+    deadline_display_by_version=MappingProxyType(dict(_JOURNEY_TEXT_BASE.deadline_display_by_version)),
+    owner_display_by_id=MappingProxyType(dict(_JOURNEY_TEXT_BASE.owner_display_by_id)),
+    route_display_by_id=MappingProxyType(dict(_JOURNEY_TEXT_BASE.route_display_by_id)))
+_JOURNEY_BUNDLES = MappingProxyType({POLICY_VERSION: (_JOURNEY_POLICY, _JOURNEY_TEXT)})
+
+def recorded_policy_bundle(version: str):
+    return _JOURNEY_BUNDLES.get(version)
