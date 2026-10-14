@@ -15,6 +15,8 @@ from _legacy_service_probes import (
     service_consent,
     service_action,
     service_barrier,
+    historical_attempt,
+    service,
 )
 from carerelay.api import app, get_service
 from carerelay.coordinator import LocalSimulationCoordinator
@@ -30,10 +32,11 @@ BASE = f"/api/episodes/{EPISODE}"
 
 def make_service(path):
     store = open_store(path, check_same_thread=False)
-    tools = McpTools(store, policy=fixture.policy(), provider=ScriptedProvider())
+    clock = ScenarioClock(fixture.SCENARIO_NOW_UTC)
+    tools = McpTools(store, policy=fixture.policy(), provider=ScriptedProvider(), now=clock.now_utc)
     return EpisodeService(
         store, coordinator=LocalSimulationCoordinator(tools),
-        clock=ScenarioClock(fixture.SCENARIO_NOW_UTC), policy=fixture.policy(),
+        clock=clock, policy=fixture.policy(),
         policy_text=fixture.policy_text(), display_tz=fixture.DISPLAY_TZ,
         disposition_factory=fixture.disposition, bound_complaint=fixture.BOUND_COMPLAINT,
         operation_signing_key=lambda: KEY,
@@ -132,9 +135,9 @@ def consent(client, granted=True):
 
 
 def action(client):
-    response = service_action(client, EPISODE, json={"route_id": "fictional_provider", "purpose_id": "handoff-test"})
-    assert response.status_code == 200
-    return response.json()
+    """Trusted old in-flight row for callback and stop guards, without dispatch."""
+    attempt = historical_attempt(service(), EPISODE, purpose="handoff-test")
+    return {"attempt_id": attempt.attempt_id, "idempotency_key": attempt.idempotency_key}
 
 
 class TestEvidenceTrust:
@@ -159,7 +162,7 @@ class TestEvidenceTrust:
         from carerelay.domain.rules import PolicyViolation
         client, service, _, _ = api
         consent(client)
-        tools = McpTools(service._store, policy=fixture.policy(), provider=ScriptedProvider())
+        tools = McpTools(service._store, policy=fixture.policy(), provider=ScriptedProvider(), now=lambda: service._clock.now_utc())
         with pytest.raises(PolicyViolation):
             tools.record_evidence(EPISODE, EvidenceRecord(
                 level=EvidenceLevel.DOCUMENTED, simulated=False,
@@ -332,14 +335,27 @@ class TestDurableStops:
         assert surfaces(client)[1]["restatements"][-1]["outcome"] == "not_recalled"
 
     def test_direct_mcp_dispatch_cannot_bypass_reassessment_stop(self, api):
-        from carerelay.state import StateError
+        from _legacy_service_probes import seed_booking_history, prepared_binding
         client, service, _, _ = api
         consent(client)
-        opened = action(client)
-        client.post(BASE + "/reassessments", json={})
-        tools = McpTools(service._store, policy=fixture.policy(), provider=ScriptedProvider())
-        with pytest.raises(StateError):
-            tools.submit_simulated_request(EPISODE, "fictional_provider", opened["idempotency_key"], now_utc=fixture.SCENARIO_NOW_UTC)
+        seed_booking_history(service, EPISODE)
+        binding = prepared_binding(service, EPISODE, "request")
+        coordinator = service._coordinator
+        execute = coordinator.execute_tool
+        provider = coordinator._tools._provider
+        submit = provider.submit_request
+        calls = []
+        def counted(*args):
+            calls.append(args)
+            return submit(*args)
+        provider.submit_request = counted
+        def stopped_before_original_permit(request, *, now_utc):
+            assert request.permit is not None
+            assert client.post(BASE + "/reassessments", json={}).status_code == 200
+            return execute(request, now_utc=now_utc)
+        coordinator.execute_tool = stopped_before_original_permit
+        result = service.request_appointment(binding)
+        assert result.receipt.state == "refused" and calls == []
         assert_unresolved(*surfaces(client))
 
 
@@ -432,7 +448,7 @@ with connected(sys.argv[1], os.environ["CARERELAY_API_TOKEN"]) as (client, servi
         client, service, _, _ = api
         consent(client)
         client.post(BASE + "/reassessments", json={})
-        tools = McpTools(service._store, policy=fixture.policy(), provider=ScriptedProvider())
+        tools = McpTools(service._store, policy=fixture.policy(), provider=ScriptedProvider(), now=lambda: service._clock.now_utc())
         with pytest.raises(FlowStopped):
             tools.record_evidence(EPISODE, EvidenceRecord(EvidenceLevel.SELF_REPORTED, True, "scripted", None), now_utc=fixture.SCENARIO_NOW_UTC)
         assert surfaces(client)[1]["axes"]["evidence"] == "none"
@@ -494,11 +510,17 @@ with connected(sys.argv[1], os.environ["CARERELAY_API_TOKEN"]) as (client, servi
             assert patient["lines"][2] == "Please do it before 6pm tomorrow."
             assert len([e for e in ledger["events"] if e["kind"] == "flow_stopped"]) == 1
             assert readback(restarted, GOOD, parent=old_round).status_code == 409
-            assert service_action(restarted, EPISODE, json={"route_id": "fictional_provider", "purpose_id": "handoff-test"}).status_code == 409
-            tools = McpTools(reloaded._store, policy=policy, provider=ScriptedProvider())
-            with pytest.raises(UnknownAttemptKey):
+            from carerelay.journey_commands import CommandInvalid
+            attempts = reloaded._store.list_attempts(EPISODE)
+            with pytest.raises(CommandInvalid, match="legacy action requires a journey command"):
+                reloaded.open_action(EPISODE, "fictional_provider", "handoff-test")
+            tools = McpTools(reloaded._store, policy=policy, provider=ScriptedProvider(), now=lambda: reloaded._clock.now_utc())
+            # Prove the version refusal before the additional permit refusal.
+            with pytest.raises(UnknownAttemptKey, match="attempt is not bound to the current episode/version"):
                 tools.submit_simulated_request(EPISODE, "fictional_provider", opened["idempotency_key"], now_utc=fixture.SCENARIO_NOW_UTC)
-            assert service_action(restarted, EPISODE, json={"route_id": "fictional_provider", "purpose_id": "new-version-purpose"}).status_code == 200
+            with pytest.raises(CommandInvalid, match="legacy action requires a journey command"):
+                reloaded.open_action(EPISODE, "fictional_provider", "new-version-purpose")
+            assert reloaded._store.list_attempts(EPISODE) == attempts
             assert reloaded._store.list_dispositions(EPISODE)[0] == original
 
 

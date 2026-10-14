@@ -231,7 +231,7 @@ def _install(
         store,
         policy=tools_policy if tools_policy is not None else fixture.policy(),
         provider=ScriptedProvider(),
-    )
+     now=clock.now_utc)
     service = EpisodeService(
         store,
         coordinator=LocalSimulationCoordinator(tools),
@@ -484,8 +484,15 @@ class TestStaleAvailabilitySequence:
     ) -> None:
         _assess(stale_world)
         _grant(stale_world)
-        with pytest.raises(RouteNotPermitted):
-            stale_world.service.open_action(EPISODE, ROUTE, PURPOSE)
+        opened = _dispatch(stale_world).json()
+        assert opened["provider_ref"] == "simulated:refused"
+        assert opened["outcome"] == "attempted"
+        with stale_world.store.journey_transaction(EPISODE, write=False) as tx:
+            terminals = [row for row in tx.load_bundle(EPISODE).commands
+                         if row["kind"] == "request" and row["phase"] == "completed"]
+        assert len(terminals) == 1 and terminals[0]["terminal_state"] == "refused"
+        assert not any(kind == "dispatch_started" for kind, _, _
+                       in stale_world.store.list_events(EPISODE))
 
         # The attempt was opened before the tool refused: an episode mid-flight.
         attempts = stale_world.store.list_attempts(EPISODE)
@@ -503,7 +510,7 @@ class TestStaleAvailabilitySequence:
             if kind == "refused"
         ]
         assert refused, "the refused dispatch left no evidence in the ledger"
-        assert ROUTE in refused[0]
+        assert "route" in refused[0]
         assert "submit_simulated_request" in refused[0]
 
         # The provider was never reached, and a callback was never received.
@@ -511,23 +518,27 @@ class TestStaleAvailabilitySequence:
         # I1, I2, I4: the patient surface has gained nothing from the refusal.
         _assert_healthy_surface(stale_world, UNRESOLVED_LINES, "open")
 
-    def test_the_same_world_still_dispatches_a_permitted_route(
+    def test_a_current_tools_policy_still_dispatches_the_fixed_route(
         self, stale_world: FaultWorld
     ) -> None:
-        """The control: the refusal is about the route, not a broken world."""
+        """The control restores route permission before the first fixed request."""
         _assess(stale_world)
         _grant(stale_world)
-        with pytest.raises(RouteNotPermitted):
-            stale_world.service.open_action(EPISODE, ROUTE, PURPOSE)
-        # A different purpose id is an explicit authorised retry (D5), so the
-        # duplicate suppression does not stand in this dispatch's way.
-        control = stale_world.service.open_action(
-            EPISODE, fixture.FALLBACK_ROUTE_ID, "call_fallback"
-        )
-        assert control.duplicate is False
-        assert control.tool is not None
-        assert control.tool.provider_ref
-        assert control.origin.value == "local-sim"
+        stale_world.service._coordinator._tools._policy = fixture.policy()
+        control = _dispatch(stale_world).json()
+        assert control["duplicate"] is False
+        assert control["outcome"] == "failed"
+        assert control["provider_ref"]
+        assert control["origin"] == "local-sim"
+        assert control["purpose_id"] == "disposition:1:request_appointment"
+
+    def test_caller_fallback_purposes_cannot_dispatch(self, stale_world):
+        from carerelay.journey_commands import CommandInvalid
+        _assess(stale_world)
+        _grant(stale_world)
+        with pytest.raises(CommandInvalid, match="legacy action requires a journey command"):
+            stale_world.service.open_action(EPISODE, fixture.FALLBACK_ROUTE_ID, "call_fallback")
+        assert stale_world.store.list_attempts(EPISODE) == ()
 
 
 # ---------------------------------------------------------------------------

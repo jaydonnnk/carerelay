@@ -91,6 +91,7 @@ from carerelay.state import (
     DEFAULT_KEY_NAMESPACE,
     EpisodeNotFound,
     EpisodeStore,
+    StateError,
     FlowStopped,
     RestatementNotFound,
     derive_attempt_key,
@@ -862,7 +863,7 @@ class EpisodeService:
                     revision=journey.revision, body_sha256=digest, signing_key=key), episode_id, None, journey.revision,
                     "select_example", "episode:select_example", digest, None, None)
                 offer = replace(offer, operation_token=issue_operation(binding, signing_key=key))
-            elif offer.kind != "confirm_words":
+            elif offer.kind not in {"confirm_words", "select_barrier"}:
                 parent = journey.flow.latest_restatement_id if offer.kind in {"score_words", "repair_words", "supersede_extraction"} else None
                 confirmed = rules.readback_confirmation(bundle, attempt_id=journey.flow.readback_attempt_id, parent_id=parent)
                 confirmation_id = confirmed["confirmation_id"] if offer.kind in {"score_words", "repair_words", "supersede_extraction"} and confirmed else None
@@ -932,10 +933,14 @@ class EpisodeService:
     def prepare_command(self, episode_id: str, *, kind: str, body_sha256: str,
                         parent_id: str | None) -> str:
         from carerelay.journey_commands import CommandInvalid, PURPOSES, issue_operation, operation_identity, request_digest
-        if kind not in {"select_example", "confirm_words"} or (kind == "select_example" and parent_id is not None):
+        if kind not in {"select_example", "confirm_words", "select_barrier"} or (kind in {"select_example", "select_barrier"} and parent_id is not None):
             raise CommandInvalid("command unavailable")
         if kind == "select_example" and body_sha256 != request_digest(kind, {"example_id": "scripted-appointment"}):
             raise CommandInvalid("unpermitted body")
+        if kind == "select_barrier" and body_sha256 not in {
+            request_digest(kind, {"choice_id": choice}) for choice in ("booking", "transport", "other")
+        }:
+            raise CommandInvalid("unpermitted barrier body")
         with self._store.journey_transaction(episode_id, write=False) as tx:
             bundle = tx.load_bundle(episode_id)
             journey = rules.derive_journey(bundle, now_utc=self._clock.now_utc())
@@ -961,7 +966,102 @@ class EpisodeService:
 
     @staticmethod
     def _readback_purpose(journey, kind):
+        if kind == "request":
+            return f"disposition:{journey.disposition_version}:request_appointment"
+        if kind in {"select_barrier", "grant_share", "decline_share", "revoke_share"}:
+            return f"disposition:{journey.disposition_version}:{kind}"
         return f"disposition:{journey.disposition_version}:readback:{journey.flow.readback_attempt_id or 'none'}:{kind}"
+
+    def _require_permission_offer(self, binding, bundle, now_utc):
+        from carerelay.journey_commands import CommandConflict
+        journey = rules.derive_journey(bundle, now_utc=now_utc)
+        if binding.purpose != self._readback_purpose(journey, binding.kind):
+            raise CommandConflict("permission purpose changed")
+        if binding.parent_restatement_id is not None or binding.confirmation_id is not None:
+            raise CommandConflict("permission has no scoring reference")
+        if not any(o.kind == binding.kind for o in journey.commands):
+            raise CommandConflict("permission command is not offered")
+        return journey
+
+    def record_barrier_choice(self, binding: OperationBinding, *, choice_id: str) -> CommandResponse:
+        from carerelay.journey_commands import CommandInvalid, CommandConflict, request_digest, validate_binding
+        validate_binding(binding)
+        if binding.kind != "select_barrier" or choice_id not in {"booking", "transport", "other"}:
+            raise CommandInvalid("unpermitted barrier")
+        if binding.body_sha256 != request_digest(binding.kind, {"choice_id": choice_id}):
+            raise CommandConflict("barrier body changed")
+        with self._store.journey_transaction(binding.episode_id, write=True) as tx:
+            receipt = tx.find(binding)
+            if receipt is None:
+                now = self._clock.now_utc()
+                self._require_permission_offer(binding, tx.load_bundle(binding.episode_id), now)
+                tx.claim_once(binding, now_utc=now)
+                route = "fictional_provider" if choice_id == "booking" else None
+                ref = self._store.record_barrier(binding.episode_id,
+                    disposition_version=binding.disposition_version, barrier_text=choice_id,
+                    proposed_route_id=route, permitted_route_id=route,
+                    stopped_at_human_path=route is None, now_utc=now)
+                receipt = tx.complete_once(binding.operation_id, state="applied", result_ref=ref,
+                    result_kind="barrier", scored=False, now_utc=now)
+        return CommandResponse(receipt, self.project_journey(binding.episode_id))
+
+    def change_share_consent(self, binding: OperationBinding, *, granted: bool) -> CommandResponse:
+        from carerelay.journey_commands import CommandInvalid, CommandConflict, request_digest, validate_binding
+        validate_binding(binding)
+        if binding.kind not in {"grant_share", "decline_share", "revoke_share"} or granted is not (binding.kind == "grant_share"):
+            raise CommandInvalid("unpermitted consent")
+        if binding.body_sha256 != request_digest(binding.kind, {}):
+            raise CommandConflict("consent body changed")
+        with self._store.journey_transaction(binding.episode_id, write=True) as tx:
+            receipt = tx.find(binding)
+            if receipt is None:
+                now = self._clock.now_utc()
+                self._require_permission_offer(binding, tx.load_bundle(binding.episode_id), now)
+                tx.claim_once(binding, now_utc=now)
+                version = self._store.change_consent(binding.episode_id, CLINICAL_SCOPE,
+                    granted=granted, now_utc=now)
+                receipt = tx.complete_once(binding.operation_id, state="applied", result_ref=str(version),
+                    result_kind="consent", scored=False, now_utc=now)
+        return CommandResponse(receipt, self.project_journey(binding.episode_id))
+
+    def request_appointment(self, binding: OperationBinding) -> CommandResponse:
+        from carerelay.journey_commands import CommandInvalid, CommandConflict, request_digest, validate_binding, _register_dispatch, _discard_dispatch
+        validate_binding(binding)
+        if binding.kind != "request" or binding.parent_restatement_id is not None or binding.confirmation_id is not None:
+            raise CommandInvalid("unpermitted request")
+        if binding.purpose != f"disposition:{binding.disposition_version}:request_appointment":
+            raise CommandInvalid("unpermitted request purpose")
+        if binding.body_sha256 != request_digest("request", {}):
+            raise CommandConflict("request body changed")
+        permit = None
+        with self._store.journey_transaction(binding.episode_id, write=True, outermost=True) as tx:
+            receipt = tx.find(binding)
+            if receipt is None:
+                now = self._clock.now_utc()
+                bundle = tx.load_bundle(binding.episode_id)
+                self._require_permission_offer(binding, bundle, now)
+                route = "fictional_provider"
+                key = derive_attempt_key(binding.episode_id, route, binding.purpose, namespace=self._key_namespace)
+                if self._store.get_attempt_by_key(key) is not None:
+                    raise CommandConflict("request purpose already has an attempt")
+                claim = tx.claim_once(binding, now_utc=now)
+                attempt = self._store.open_attempt_once(AttemptCommand(binding.episode_id, route,
+                    binding.purpose, bundle.snapshot.consent_version), key, now_utc=now)
+                # Registration happens only after the durable claim/attempt commits.
+                receipt = claim.receipt
+        if receipt.state == "pending" and not receipt.replayed:
+            permit = _register_dispatch(binding, claim, key)
+            try:
+                self._coordinator.execute_tool(ToolRequest(binding.episode_id, route, key,
+                    binding.disposition_version, permit), now_utc=self._clock.now_utc())
+            finally:
+                _discard_dispatch(permit)
+            with self._store.journey_transaction(binding.episode_id, write=False) as tx:
+                receipt = tx.find(binding)
+                if receipt is None:
+                    raise StateError("owned dispatch lost its durable claim")
+                receipt = replace(receipt, replayed=False)
+        return CommandResponse(receipt, self.project_journey(binding.episode_id))
 
     def _require_readback_offer(self, binding, bundle, now_utc):
         from carerelay.journey_commands import CommandConflict
@@ -1594,25 +1694,10 @@ class EpisodeService:
     def open_action(
         self, episode_id: str, route_id: str, purpose_id: str
     ) -> ActionOutcome:
-        """Open one attempt and execute the tool. `02-architecture.md` section 3.3.
+        """Refuse retired caller-selected actions after the historical typed guards.
 
-        The order is the normative one and it is not optional:
-
-        1. **authorisation**: `domain.validate_route` is the only thing that may
-           say a route is permitted (D2).
-        2. **consent**: there must be a current version to stamp.
-        3. **the key**: server-generated from `(episode, route, purpose)` under
-           the server-held namespace (D5). A client that supplied its own key
-           would make a double tap produce two keys, and I3 would never fire.
-        4. **open once**: a second request on the same triple returns the
-           original attempt and dispatches nothing.
-        5. **execute**: the coordinator executes through the MCP tool surface,
-           which rechecks all three server-side. The outcome comes back with an
-           `origin` saying where it came from.
-
-        This writes **no transition**. Appending the outcome is the callback's
-        job, because first-terminal-wins and the duplicate record only mean
-        something when the outcome arrives on the path a real platform would use.
+        Dispatch uses request_appointment and its fixed-purpose command capability.
+        This entry cannot create an attempt or issue a dispatch permit.
         """
         snapshot = self._store.load_snapshot(episode_id)
         if snapshot.disposition is None:
@@ -1628,66 +1713,8 @@ class EpisodeService:
                 "so no attempt may be opened"
             )
 
-        now_utc = self._clock.now_utc()
-        key = derive_attempt_key(
-            episode_id, route, purpose_id, namespace=self._key_namespace
-        )
-
-        existing = self._store.get_attempt_by_key(key)
-        if existing is not None:
-            if existing.disposition_version != snapshot.disposition.version:
-                raise FlowStopped("attempt belongs to a superseded disposition; use a new purpose")
-            return ActionOutcome(
-                episode_id=episode_id,
-                attempt_id=existing.attempt_id,
-                idempotency_key=key,
-                route_id=route,
-                purpose_id=purpose_id,
-                disposition_version=snapshot.disposition.version,
-                consent_version=snapshot.consent_version,
-                execution=existing.execution,
-                duplicate=True,
-                tool=None,
-                origin=self._origin,
-                simulated=True,
-            )
-
-        attempt = self._store.open_attempt_once(
-            AttemptCommand(
-                episode_id=episode_id,
-                route_id=route,
-                purpose_id=purpose_id,
-                consent_version=snapshot.consent_version,
-            ),
-            key,
-            now_utc=now_utc,
-        )
-        tool = self._coordinator.execute_tool(
-            ToolRequest(
-                episode_id=episode_id,
-                route_id=route,
-                attempt_key=key,
-                disposition_version=snapshot.disposition.version,
-            ),
-            now_utc=now_utc,
-        )
-        return ActionOutcome(
-            episode_id=episode_id,
-            attempt_id=attempt.attempt_id,
-            idempotency_key=key,
-            route_id=route,
-            purpose_id=purpose_id,
-            disposition_version=snapshot.disposition.version,
-            consent_version=attempt.consent_version,
-            execution=attempt.execution,
-            duplicate=False,
-            tool=tool,
-            # The origin the tool reports, not the origin the service assumes. If
-            # they ever disagree the record follows the tool, because the tool is
-            # the thing that actually ran.
-            origin=tool.origin,
-            simulated=True,
-        )
+        from carerelay.journey_commands import CommandInvalid
+        raise CommandInvalid("legacy action requires a journey command")
 
     def receive_callback(
         self,

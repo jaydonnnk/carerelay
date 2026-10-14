@@ -322,7 +322,7 @@ def _write_a_real_record(path: Path) -> None:
         service = EpisodeService(
             store,
             coordinator=LocalSimulationCoordinator(
-                McpTools(store, policy=fixture.policy(), provider=ScriptedProvider())
+                McpTools(store, policy=fixture.policy(), provider=ScriptedProvider(), now=lambda: fixture.SCENARIO_NOW_UTC)
             ),
             clock=ScenarioClock(fixture.SCENARIO_NOW_UTC),
             policy=fixture.policy(),

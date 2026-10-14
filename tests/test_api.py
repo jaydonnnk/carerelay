@@ -60,7 +60,7 @@ def _tools(store) -> McpTools:
     Built per store, because the tool surface rechecks the attempt key against
     the same database the attempt was opened in.
     """
-    return McpTools(store, policy=fixture.policy(), provider=ScriptedProvider())
+    return McpTools(store, policy=fixture.policy(), provider=ScriptedProvider(), now=lambda: fixture.SCENARIO_NOW_UTC)
 
 
 @pytest.fixture()
@@ -551,6 +551,7 @@ class TestActionRoutes:
         assert response.status_code == 200
         body = response.json()
         assert body["duplicate"] is False
+        assert body["purpose_id"] == "disposition:1:request_appointment"
         assert body["origin"] == "local-sim"
         assert body["consent_version"] == 1
         assert body["outcome"] is not None
@@ -569,6 +570,22 @@ class TestActionRoutes:
         assert second["duplicate"] is True
         assert second["outcome"] is None
         assert second["provider_ref"] is None
+
+    def test_raw_action_fields_cannot_create_a_request(
+        self, planback_client: TestClient, assessed: str
+    ) -> None:
+        from carerelay.journey_commands import CommandInvalid
+        self._consent(planback_client)
+        service = app.dependency_overrides[get_service]()
+        for purpose in ("purpose-a", "purpose-b", "disposition:1:request_appointment"):
+            response = planback_client.post(f"/api/episodes/{EPISODE}/actions",
+                json={"route_id": ROUTE, "purpose_id": purpose})
+            assert response.status_code == 422
+            with pytest.raises(CommandInvalid, match="legacy action requires a journey command"):
+                service.open_action(EPISODE, ROUTE, purpose)
+        assert service._store.list_attempts(EPISODE) == ()
+        assert not any(kind == "dispatch_started" for kind, _, _
+                       in service._store.list_events(EPISODE))
 
     def test_a_route_the_policy_does_not_permit_is_422_at_the_human_path(
         self, planback_client: TestClient, assessed: str

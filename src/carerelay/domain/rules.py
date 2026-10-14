@@ -1059,6 +1059,49 @@ def require_input_mode(value: str) -> InputMode:
     """
     return InputMode(_require_member(value, tuple(InputMode), PolicyViolation))
 
+def dispatch_refusal(bundle, binding, attempt, route_id, *, attempt_purpose, permitted_routes, now_utc):
+    """Pure final guards. Observation cannot confer acceptance or care."""
+    disposition = bundle.snapshot.disposition
+    if disposition is None or binding.disposition_version != disposition.version:
+        return "dispatch disposition changed"
+    if attempt is None or attempt.disposition_version != disposition.version:
+        return "dispatch attempt version changed"
+    if bundle.snapshot.attempt is None or bundle.snapshot.attempt.attempt_id != attempt.attempt_id:
+        return "dispatch attempt membership changed"
+    if attempt.execution is not ExecutionStatus.ATTEMPTED:
+        return "dispatch attempt already terminal"
+    if route_id != "fictional_provider" or attempt.route_id != route_id or route_id not in permitted_routes:
+        return "dispatch route changed"
+    if binding.purpose != f"disposition:{disposition.version}:request_appointment" or attempt_purpose != binding.purpose:
+        return "dispatch purpose changed"
+    if bundle.snapshot.flow_stop_reason is not None:
+        return "dispatch flow stopped"
+    if not bundle.consent_granted or attempt.consent_version != bundle.snapshot.consent_version:
+        return "dispatch consent changed"
+    if bundle.snapshot.expiry_event_id is not None or now_utc >= disposition.clinical_deadline_utc:
+        return "dispatch deadline expired"
+    rounds = [r for r in bundle.restatements if r.disposition_version == disposition.version]
+    if not rounds or not rounds[-1].comparison.is_clean() or rounds[-1].hint_level is HintLevel.H3:
+        return "dispatch understanding unavailable"
+    if bundle.policy is None or route_id not in bundle.policy.permitted_route_ids:
+        return "dispatch recorded policy unavailable"
+    barrier = None
+    for kind, payload, _ in bundle.events:
+        if kind == "barrier_recorded":
+            try:
+                event = json.loads(payload)
+            except ValueError:
+                matched = re.fullmatch(r"version=(\d+) permitted_route=([A-Za-z0-9_-]+) stopped_at_human_path=([01])", payload)
+                event = {"disposition_version": int(matched[1]), "permitted_route_id": matched[2]} if matched else {}
+            if event.get("disposition_version") == disposition.version:
+                barrier = event.get("permitted_route_id")
+    if barrier != "fictional_provider":
+        return "dispatch supported barrier unavailable"
+    if derive_closure(bundle.snapshot, now_utc).closure is not ClosureState.OPEN:
+        return "dispatch closure unavailable"
+    return None
+
+
 class JourneyUnavailable(DomainError):
     """The current reader cannot safely project this stored journey."""
 
@@ -1218,6 +1261,9 @@ def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjec
         for r in bundle.commands)
     if extraction_pending and closure.closure is ClosureState.OPEN:
         allowed = ("show_plan", "hide_plan") if stopped else ("show_plan", "hide_plan", "h3", "supersede_extraction")
+    elif pending and closure.closure in {ClosureState.OPEN, ClosureState.EXPIRED_UNRESOLVED} and any(r["phase"] == "claimed" and r["kind"] == "request" and not any(
+            t["phase"] == "completed" and t["operation_id"] == r["operation_id"] for t in bundle.commands) for r in bundle.commands):
+        allowed = ("revoke_share",) if closure.closure is ClosureState.EXPIRED_UNRESOLVED else ("show_plan", "hide_plan", "revoke_share")
     elif not pending and step in {"readback", "repair"}:
         allowed = tuple(k for k in allowed if k not in {"score_words", "repair_words"} or confirmed is not None)
     flow = FlowView(stopped, snapshot.flow_stop_reason, disposition.version if stopped else None,
@@ -1234,7 +1280,7 @@ def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjec
         screen_text.update(revealed_heading="Your example plan", reveal_action_label="What to do",
                            reveal_deadline_label="Before", reveal_owner_label="Who acts")
     if not stopped and closure.closure is ClosureState.OPEN:
-        if interpretation == "pending":
+        if interpretation == "pending" and not (step == "permission" and closure.execution is ExecutionStatus.ATTEMPTED):
             screen_text["feedback"] = "Loading. Nothing is confirmed yet."
         elif interpretation == "unavailable":
             screen_text["feedback"] = "We could not check that answer just now. Your plan has not changed."
@@ -1262,6 +1308,19 @@ def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjec
         screen_text.update(show_label="Show my plan", hide_label="Back to my answer")
     if "readback_started" in allowed:
         screen_text["readback_label"] = "Say it in your words"
+    if step == "barrier":
+        screen_text.update(choice_error="Choose one to continue.", continue_label="Continue")
+    if step == "permission" and question is not None:
+        screen_text.update(consent_label="I agree to share this plan.",
+            consent_error="Agree above, or choose “Not now”.",
+            request_label="Try the simulated request", decline_label="Not now")
+    if step == "stopped" and snapshot.flow_stop_reason == "barrier_stop":
+        screen_text["feedback"] = "This example cannot help with that."
+    if "revoke_share" in allowed:
+        screen_text["decline_label"] = "Not now"
+    if "grant_share" in allowed:
+        screen_text.update(consent_label="I agree to share this plan.",
+            consent_error="Agree above, or choose “Not now”.")
     return replace(base, disposition_version=disposition.version, policy_version=disposition.policy_version,
         plan_redacted=redacted, plan=None if redacted else plan, outcome=outcome, flow=flow,
         step=step, question=question, commands=_journey_offers(allowed, pending=pending),
@@ -1288,7 +1347,8 @@ JOURNEY_SCREEN_TEXT = {
     "documented": {"heading": "Help is arranged."},
 }
 IMPLEMENTED_JOURNEY_COMMANDS = frozenset({"select_example", "readback_started", "confirm_words", "score_words",
-    "repair_words", "show_plan", "hide_plan", "h3", "supersede_extraction"})
+    "repair_words", "show_plan", "hide_plan", "h3", "supersede_extraction",
+    "select_barrier", "grant_share", "decline_share", "revoke_share", "request"})
 
 
 def _journey_pending(rows: tuple[object, ...]) -> bool:
@@ -1297,7 +1357,8 @@ def _journey_pending(rows: tuple[object, ...]) -> bool:
 
 
 def _journey_offers(kinds: tuple[str, ...], *, pending: bool) -> tuple[CommandOffer, ...]:
-    if pending and not set(kinds) <= {"show_plan", "hide_plan", "h3", "supersede_extraction"}:
+    if pending and not set(kinds) <= {"show_plan", "hide_plan", "h3", "supersede_extraction", "revoke_share"}:
         return ()
-    return tuple(CommandOffer(kind, kind, ("scripted-appointment",) if kind == "select_example" else ())
+    return tuple(CommandOffer(kind, kind, ("scripted-appointment",) if kind == "select_example" else
+                 ("booking", "transport", "other") if kind == "select_barrier" else ())
                  for kind in kinds if kind in IMPLEMENTED_JOURNEY_COMMANDS)

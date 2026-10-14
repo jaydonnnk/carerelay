@@ -65,6 +65,50 @@ def test_postgres_confirmed_repair_and_replay(pg_readback):
         other._store.close()
 
 
+def test_postgres_permission_request_has_one_atomic_receipt(pg_readback):
+    import uuid
+    from test_journey import s17_ready
+    service, dsn = pg_readback
+    ep, binding = s17_ready(service, "fictional-pg17-" + uuid.uuid4().hex)
+    result = service.request_appointment(binding)
+    assert result.receipt.state == "applied" and not result.receipt.replayed
+    assert result.journey.text["status"] == "No reply yet."
+    other = make_service(dsn)
+    try:
+        replay = other.request_appointment(binding)
+        assert replay.receipt.replayed and replay.receipt.state == "applied"
+        assert len(other._store.list_attempts(ep)) == 1
+        events = [kind for kind, _, _ in other._store.list_events(ep)]
+        assert events.count("dispatch_started") == events.count("dispatch_observed") == 1
+    finally:
+        other._store.close()
+
+
+@pytest.mark.parametrize("stage", ["claim", "dispatch"])
+def test_postgres_nested_action_requires_its_own_commit(pg_readback, stage):
+    import uuid
+    from carerelay.state import StateError
+    from test_journey import s17_ready
+    service, _ = pg_readback
+    ep, binding = s17_ready(service, "fictional-pg17-" + uuid.uuid4().hex)
+    if stage == "claim":
+        with service._store.journey_transaction(ep, write=True):
+            with pytest.raises(StateError):
+                service.request_appointment(binding)
+        assert not service._store.list_attempts(ep)
+    else:
+        coordinator = service._coordinator
+        execute = coordinator.execute_tool
+        def nested(request, *, now_utc):
+            with service._store.journey_transaction(ep, write=True):
+                return execute(request, now_utc=now_utc)
+        coordinator.execute_tool = nested
+        with pytest.raises(StateError):
+            service.request_appointment(binding)
+        assert service.request_appointment(binding).receipt.state == "pending"
+        assert not any(k == "dispatch_started" for k, _, _ in service._store.list_events(ep))
+
+
 @pytest.mark.parametrize("change", ["cue", "stop", "expiry", "revision"])
 def test_postgres_two_connections_fence_late_readback(pg_readback, change):
     import uuid

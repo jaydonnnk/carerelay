@@ -42,7 +42,7 @@ from _legacy_service_probes import (
     service_intake,
     service_hint,
     service_consent,
-    service_action,
+    historical_attempt,
 )
 from carerelay.api import app, get_service  # noqa: E402
 from carerelay.coordinator import LocalSimulationCoordinator  # noqa: E402
@@ -63,7 +63,7 @@ PURPOSE = "book_transport"
 
 
 def _tools(store) -> McpTools:
-    return McpTools(store, policy=fixture.policy(), provider=ScriptedProvider())
+    return McpTools(store, policy=fixture.policy(), provider=ScriptedProvider(), now=lambda: fixture.SCENARIO_NOW_UTC)
 
 
 def _service(clock_instant: datetime) -> EpisodeService:
@@ -111,9 +111,8 @@ def assessed(client: TestClient) -> str:
 
 def _open_attempt(client: TestClient) -> str:
     service_consent(client, EPISODE, json={"granted": True})
-    response = service_action(client, EPISODE, json={"route_id": ROUTE, "purpose_id": PURPOSE})
-    assert response.status_code == 200
-    return response.json()["attempt_id"]
+    service = app.dependency_overrides[get_service]()
+    return historical_attempt(service, EPISODE, route_id=ROUTE, purpose=PURPOSE).attempt_id
 
 
 # ---------------------------------------------------------------------------

@@ -28,6 +28,8 @@ local demo and the test suite run disarmed instead of the guard being optional.
 
 from __future__ import annotations
 
+from typing import Literal
+
 import hmac
 import os
 import threading
@@ -93,7 +95,7 @@ from carerelay.state import (
     is_postgres_target,
     open_store,
 )
-from carerelay.tools import McpTools
+from carerelay.tools import McpTools, ToolError
 
 # ---------------------------------------------------------------------------
 # Slice 7: who may reach the transport
@@ -188,12 +190,8 @@ def guarded_path(path: str) -> bool:
 
 async def require_implemented_patient_write(request: Request) -> None:
     path = request.url.path
-    if request.method == "POST" and path.startswith("/api/episodes/") and (
-        path.endswith(("/barriers", "/actions", "/consents"))
-    ):
-        raise HTTPException(status_code=422, detail="journey command unavailable")
     if request.method == "POST" and path.startswith("/api/episodes/") and path.endswith(
-        ("/transcript-confirmations", "/hint-events", "/restatements", "/repairs")
+        ("/transcript-confirmations", "/hint-events", "/restatements", "/repairs", "/barriers", "/consents", "/actions")
     ):
         try:
             payload = await request.json()
@@ -403,12 +401,13 @@ _STORE = _open_store()
 #: surface reaches the provider, which is a labelled local simulation. The
 #: `origin` every action outcome carries comes from here, so it cannot be set
 #: per request: see `OriginNotWired` in `service.py`.
-_TOOLS = McpTools(_STORE, policy=fixture.policy(), provider=ScriptedProvider())
+_CLOCK = _clock()
+_TOOLS = McpTools(_STORE, policy=fixture.policy(), provider=ScriptedProvider(), now=_CLOCK.now_utc)
 
 _SERVICE = EpisodeService(
     _STORE,
     coordinator=LocalSimulationCoordinator(_TOOLS),
-    clock=_clock(),
+    clock=_CLOCK,
     operation_signing_key=lambda: configured_token().encode("utf-8"),
     policy=fixture.policy(),
     policy_text=fixture.policy_text(),
@@ -474,7 +473,7 @@ def _readback_command(service, episode_id, token, kinds, invoke, *, parent_id=No
         raise HTTPException(status_code=422, detail="operation refused") from None
     except CommandConflict:
         return _command_conflict(service, episode_id)
-    except (DomainError, StateError):
+    except (DomainError, StateError, CoordinatorUnavailable, ToolError):
         raise HTTPException(status_code=503, detail="journey unavailable") from None
     status = 202 if result.receipt.state == "pending" else 503 if result.receipt.state == "unavailable" else 200
     return JSONResponse(status_code=status, content=command_surface(result))
@@ -855,50 +854,15 @@ class ReassessmentResponse(BaseModel):
     fixture_label: str
 
 
-@app.post(
-    "/api/episodes/{episode_id}/barriers",
-    response_model=BarrierResponse,
-    tags=["planback"],
-)
-def record_barrier(
-    episode_id: str,
-    body: BarrierRequest,
-    service: EpisodeService = Depends(get_service),
-) -> BarrierResponse:
-    """Report a practical barrier. `domain` judges any proposed route.
+class BarrierCommandRequest(CreateCommandRequest):
+    choice_id: Literal["booking", "transport", "other"]
 
-    A proposal outside the policy is recorded as a stop **and then** refused with
-    422, so the ledger keeps the evidence and the caller still gets the refusal.
-    """
-    try:
-        with _DB_LOCK:
-            outcome: BarrierOutcome = service.record_barrier(
-                episode_id, body.barrier_text, body.proposed_route_id
-            )
-    except EpisodeNotFound:
-        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
-    except (NoDispositionYet, StateError) as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    except PolicyViolation as exc:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "detail": str(exc),
-                "stopped_at": "human_path",
-                "barrier_recorded": True,
-            },
-        )
-    return BarrierResponse(
-        episode_id=episode_id,
-        barrier_id=outcome.barrier_id,
-        disposition_version=outcome.disposition_version,
-        proposed_route_id=outcome.proposed_route_id,
-        permitted_route_id=outcome.permitted_route_id,
-        stopped_at_human_path=outcome.stopped_at_human_path,
-        human_path_route_id=outcome.human_path_route_id,
-        simulated=outcome.simulated,
-        fixture_label=fixture.FIXTURE_LABEL,
-    )
+
+@app.post("/api/episodes/{episode_id}/barriers", tags=["planback"])
+def record_barrier(episode_id: str, body: BarrierCommandRequest,
+                   service: EpisodeService = Depends(get_service)):
+    return _readback_command(service, episode_id, body.operation_token, {"select_barrier"},
+        lambda binding: service.record_barrier_choice(binding, choice_id=body.choice_id))
 
 
 @app.post(
@@ -1102,91 +1066,19 @@ class CallbackResponse(BaseModel):
     fixture_label: str
 
 
-@app.post(
-    "/api/episodes/{episode_id}/consents",
-    response_model=ConsentResponse,
-    tags=["actions"],
-)
-def change_consent(
-    episode_id: str,
-    body: ConsentRequest,
-    service: EpisodeService = Depends(get_service),
-) -> ConsentResponse:
-    """Grant or revoke clinical scope. Returns the new version number.
-
-    Revocation appends a row rather than editing one, so an attempt stamped with
-    an earlier version stays legible and its in-flight callback can be refused.
-    """
-    try:
-        with _DB_LOCK:
-            version = service.change_consent(episode_id, body.granted)
-    except EpisodeNotFound:
-        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
-    return ConsentResponse(
-        episode_id=episode_id,
-        scope=CLINICAL_SCOPE,
-        version=version,
-        granted=body.granted,
-        simulated=True,
-        fixture_label=fixture.FIXTURE_LABEL,
-    )
+@app.post("/api/episodes/{episode_id}/consents", tags=["actions"])
+def change_consent(episode_id: str, body: CreateCommandRequest,
+                   service: EpisodeService = Depends(get_service)):
+    return _readback_command(service, episode_id, body.operation_token,
+        {"grant_share", "decline_share", "revoke_share"},
+        lambda binding: service.change_share_consent(binding, granted=binding.kind == "grant_share"))
 
 
-@app.post(
-    "/api/episodes/{episode_id}/actions",
-    response_model=ActionResponse,
-    tags=["actions"],
-)
-def open_action(
-    episode_id: str,
-    body: ActionRequest,
-    service: EpisodeService = Depends(get_service),
-) -> ActionResponse:
-    """Open one attempt and execute the tool. Section 3.3 steps 1 to 4.
-
-    **This writes no transition.** The outcome arrives on `/callbacks/{route_id}`,
-    which is the path a real platform would use and the path that makes the
-    duplicate and reordered cases representable.
-
-    A repeat of the same `(episode, route, purpose)` returns the original attempt
-    with `duplicate: true` and dispatches nothing (I3).
-    """
-    try:
-        with _DB_LOCK:
-            outcome: ActionOutcome = service.open_action(
-                episode_id, body.route_id, body.purpose_id
-            )
-    except EpisodeNotFound:
-        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
-    except (NoDispositionYet, ConsentRequired) as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    except PolicyViolation as exc:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "detail": str(exc),
-                "stopped_at": "human_path",
-            },
-        )
-    except StateError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    return ActionResponse(
-        episode_id=episode_id,
-        attempt_id=outcome.attempt_id,
-        idempotency_key=outcome.idempotency_key,
-        route_id=outcome.route_id,
-        purpose_id=outcome.purpose_id,
-        disposition_version=outcome.disposition_version,
-        consent_version=outcome.consent_version,
-        execution=outcome.execution.value,
-        duplicate=outcome.duplicate,
-        origin=outcome.origin.value,
-        outcome=outcome.tool.outcome.value if outcome.tool is not None else None,
-        provider_ref=outcome.tool.provider_ref if outcome.tool is not None else None,
-        payload=outcome.tool.payload if outcome.tool is not None else None,
-        simulated=outcome.simulated,
-        fixture_label=fixture.FIXTURE_LABEL,
-    )
+@app.post("/api/episodes/{episode_id}/actions", tags=["actions"])
+def open_action(episode_id: str, body: CreateCommandRequest,
+                service: EpisodeService = Depends(get_service)):
+    return _readback_command(service, episode_id, body.operation_token, {"request"},
+        service.request_appointment)
 
 
 @app.post(

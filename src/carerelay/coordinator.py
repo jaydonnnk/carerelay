@@ -92,19 +92,17 @@ class AllowedPlanValues:
 
 @dataclass(frozen=True)
 class ToolRequest:
-    """The scoped snapshot the coordinator is handed to execute one attempt.
+    """Internal action identity and the original process's dispatch permit.
 
-    It carries the route and the attempt key, and nothing else. It deliberately
-    carries no patient text, no transcript and no disposition values a
-    coordinator could echo back, because execution needs the route and the key
-    and nothing more. The attempt key is server-generated, so the coordinator
-    cannot widen its own authority by inventing one.
+    Patient words and plan values stay outside execution. The permit is never
+    serialized into tool JSON or returned to a browser.
     """
 
     episode_id: str
     route_id: str
     attempt_key: str
     disposition_version: int | None = None
+    permit: object | None = None
 
 
 class CoordinatorPort(Protocol):
@@ -222,6 +220,7 @@ class LocalSimulationCoordinator(CoordinatorPort):
             request.route_id,
             request.attempt_key,
             now_utc=now_utc,
+            permit=request.permit,
         )
 
 

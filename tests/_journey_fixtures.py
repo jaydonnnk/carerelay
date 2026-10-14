@@ -6,6 +6,7 @@ from carerelay.demo import fixture
 from carerelay.domain.models import CallbackResult, EvidenceLevel, EvidenceRecord, ExecutionStatus, HintLevel, OperationBinding, Origin
 from carerelay.journey_commands import request_digest
 from carerelay.service import ScenarioClock
+from _legacy_service_probes import historical_attempt
 
 NOW = fixture.SCENARIO_NOW_UTC
 
@@ -30,7 +31,7 @@ def seed_journey(service, episode, case):
         if case == "declined": service.change_consent(episode, granted=False)
     if case in {"waiting", "acknowledged", "failed"}:
         service.change_consent(episode, granted=True)
-        action = service.open_action(episode, "fictional_provider", "matrix")
+        action = historical_attempt(service, episode, purpose="matrix")
         if case != "waiting":
             status = ExecutionStatus.FAILED if case == "failed" else ExecutionStatus.ACKNOWLEDGED
             store.record_callback_once(action.attempt_id, "matrix-callback", CallbackResult(transition=status), Origin.LOCAL_SIM, now_utc=NOW)

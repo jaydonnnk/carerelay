@@ -305,7 +305,8 @@ def test_confirmed_round_zero_and_grounded_timing_repair(tmp_path):
         assert row.outcome is models.RecallOutcome.RECALL_CUED
         assert row.provenance["retained"][0]["source_confirmation_id"] == saved.receipt.result_ref
         assert repaired.journey.plan.deadline_utc.isoformat() == "2026-09-30T10:00:00+00:00"
-        assert not any(o.kind in {"request", "select_barrier"} for o in repaired.journey.commands)
+        # Slice 17 offers the booking barrier only; permission/request follow separately.
+        assert [o.kind for o in repaired.journey.commands] == ["select_barrier", "show_plan", "hide_plan"]
     finally:
         service._store.close()
 

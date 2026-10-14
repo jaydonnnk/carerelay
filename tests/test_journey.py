@@ -20,6 +20,566 @@ from test_truthfulness import make_service
 
 ROOT = Path(__file__).resolve().parents[1]
 
+
+def s17_understood(service, episode="00000000-0000-4000-8000-000000000017"):
+    from test_field_repair import start_readback, confirm
+    from carerelay.journey_commands import verify_operation
+    start_readback(service, episode)
+    confirm(service, episode, "go to the clinic today before six myself")
+    offer = next(o for o in service.project_journey(episode).commands if o.kind == "score_words")
+    result = service.score_confirmed(verify_operation(offer.operation_token,
+        signing_key=service._operation_signing_key()))
+    assert result.journey.step == "barrier"
+    return episode
+
+
+def s17_binding(service, episode, kind, choice=None):
+    from carerelay.journey_commands import request_digest, verify_operation
+    if kind == "select_barrier":
+        token = service.prepare_command(episode, kind=kind,
+            body_sha256=request_digest(kind, {"choice_id": choice}), parent_id=None)
+    else:
+        offer = next(o for o in service.project_journey(episode).commands if o.kind == kind)
+        token = offer.operation_token
+    return verify_operation(token, signing_key=service._operation_signing_key())
+
+
+def test_s17_permission_dispatch_and_callback_are_separate(tmp_path):
+    from carerelay.domain.models import CallbackResult, ExecutionStatus, Origin
+    service = make_service(tmp_path / "permission.sqlite")
+    try:
+        ep = s17_understood(service)
+        journey = service.project_journey(ep)
+        assert any(o.kind == "select_barrier" for o in journey.commands)
+        barrier = s17_binding(service, ep, "select_barrier", "booking")
+        chosen = service.record_barrier_choice(barrier, choice_id="booking")
+        assert chosen.journey.step == "permission"
+        assert service._store._conn.execute("SELECT result_kind FROM journey_commands WHERE operation_id = ? AND phase = 'completed'", (barrier.operation_id,)).fetchone()[0] == "barrier"
+        assert not any(o.kind == "request" for o in chosen.journey.commands)
+        declined = service.change_share_consent(s17_binding(service, ep, "decline_share"), granted=False)
+        assert declined.journey.step == "permission" and not service._store.list_attempts(ep)
+        granted = service.change_share_consent(s17_binding(service, ep, "grant_share"), granted=True)
+        assert any(o.kind == "request" for o in granted.journey.commands)
+        assert service._store._conn.execute("SELECT result_kind FROM journey_commands WHERE operation_id = ? AND phase = 'completed'", (granted.receipt.operation_id,)).fetchone()[0] == "consent"
+        binding = s17_binding(service, ep, "request")
+        requested = service.request_appointment(binding)
+        assert requested.receipt.state == "applied" and not requested.receipt.scored
+        assert requested.journey.step == "permission"
+        assert requested.journey.text["status"] == "No reply yet."
+        assert requested.journey.outcome.execution is ExecutionStatus.ATTEMPTED
+        assert not any(o.kind == "request" for o in requested.journey.commands)
+        assert service.request_appointment(binding).receipt.replayed
+        attempts = service._store.list_attempts(ep)
+        assert len(attempts) == 1
+        assert service._store._conn.execute("SELECT purpose_id FROM attempts").fetchone()[0] == "disposition:1:request_appointment"
+        assert len([k for k, _, _ in service._store.list_events(ep) if k == "dispatch_started"]) == 1
+        assert len([k for k, _, _ in service._store.list_events(ep) if k == "dispatch_observed"]) == 1
+        service.receive_callback(ep, "fictional_provider", "fictional-s17-failure",
+            CallbackResult(transition=ExecutionStatus.FAILED), Origin.LOCAL_SIM)
+        failed = service.project_journey(ep)
+        assert failed.step == "unresolved" and failed.text["heading"] == "The request did not work"
+        assert failed.lines == ("No one has agreed to help yet.", "Please act now.",
+            "Please do it before 6pm today.", "If that does not work, call the fictional nurse line.")
+        assert failed.plan.current_owner_id == "patient"
+        assert failed.plan.deadline_utc.isoformat() == "2026-09-30T10:00:00+00:00"
+    finally:
+        service._store.close()
+
+
+@pytest.mark.parametrize("choice", ["transport", "other"])
+def test_s17_unsupported_barrier_stops_without_request(tmp_path, choice):
+    service = make_service(tmp_path / "unsupported.sqlite")
+    try:
+        ep = s17_understood(service)
+        binding = s17_binding(service, ep, "select_barrier", choice)
+        result = service.record_barrier_choice(binding, choice_id=choice)
+        assert result.journey.step == "stopped" and result.journey.flow.stopped
+        assert result.journey.text["feedback"] == "This example cannot help with that."
+        assert not service._store.list_attempts(ep)
+        assert service.record_barrier_choice(binding, choice_id=choice).receipt.replayed
+    finally:
+        service._store.close()
+
+
+def s17_ready(service, episode="00000000-0000-4000-8000-000000000017"):
+    ep = s17_understood(service, episode)
+    service.record_barrier_choice(s17_binding(service, ep, "select_barrier", "booking"), choice_id="booking")
+    service.change_share_consent(s17_binding(service, ep, "grant_share"), granted=True)
+    return ep, s17_binding(service, ep, "request")
+
+
+@pytest.mark.parametrize("change", ["stop", "revoke", "deadline", "sticky_expiry"])
+def test_s17_final_recheck_refuses_before_invocation(tmp_path, change):
+    from datetime import timedelta
+    from carerelay.state import CLINICAL_SCOPE
+    service = make_service(tmp_path / "recheck.sqlite")
+    calls = []
+    try:
+        ep, binding = s17_ready(service)
+        original = service._coordinator.execute_tool
+        provider = service._coordinator._tools._provider
+        submit = provider.submit_request
+        provider.submit_request = lambda *a: (calls.append(a), submit(*a))[1]
+        def change_then_execute(request, *, now_utc):
+            now = fixture.SCENARIO_NOW_UTC
+            if change == "stop":
+                service._store.record_flow_stop(ep, 1, "reassessment_stop", "nurse_line", now_utc=now)
+            elif change == "revoke":
+                service._store.change_consent(ep, CLINICAL_SCOPE, granted=False, now_utc=now)
+            elif change == "deadline":
+                service._clock._instant = now + timedelta(hours=10)
+            else:
+                service._store.record_expiry_once(ep, 1, now + timedelta(hours=10))
+            return original(request, now_utc=now_utc)
+        service._coordinator.execute_tool = change_then_execute
+        result = service.request_appointment(binding)
+        assert result.receipt.state == "refused" and not result.receipt.scored
+        assert calls == []
+        assert not any(k == "dispatch_started" for k, _, _ in service._store.list_events(ep))
+        assert len(service._store.list_attempts(ep)) == 1
+    finally:
+        service._store.close()
+
+
+def test_s17_forged_reconstructed_and_spent_permits_refuse(tmp_path):
+    from dataclasses import replace
+    from carerelay.tools import UnknownAttemptKey
+    service = make_service(tmp_path / "permits.sqlite")
+    calls = []
+    try:
+        ep, binding = s17_ready(service)
+        coordinator = service._coordinator
+        original = coordinator.execute_tool
+        provider = coordinator._tools._provider
+        submit = provider.submit_request
+        provider.submit_request = lambda *a: (calls.append(a), submit(*a))[1]
+        def probe(request, *, now_utc):
+            for fake in (None, replace(request.permit)):
+                with pytest.raises(UnknownAttemptKey):
+                    coordinator._tools.submit_simulated_request(ep, request.route_id, request.attempt_key,
+                        permit=fake, now_utc=now_utc)
+            result = original(request, now_utc=now_utc)
+            with pytest.raises(UnknownAttemptKey):
+                original(request, now_utc=now_utc)
+            return result
+        coordinator.execute_tool = probe
+        result = service.request_appointment(binding)
+        assert result.receipt.state == "applied" and len(calls) == 1
+        assert service.request_appointment(binding).receipt.replayed and len(calls) == 1
+    finally:
+        service._store.close()
+
+
+@pytest.mark.parametrize("cut", ["claim", "effect", "receipt"])
+def test_s17_action_crash_never_redispatches(tmp_path, cut):
+    from dataclasses import asdict, replace
+    from carerelay.domain.models import OperationBinding
+    from carerelay.journey_commands import CommandConflict, CommandInvalid
+    from carerelay.tools import UnknownAttemptKey
+    path, marker = tmp_path / "crash.sqlite", tmp_path / "effect.txt"
+    service = make_service(path)
+    ep, binding = s17_ready(service)
+    service._store.close()
+    child_source = '''
+import os,signal,sys,json
+from pathlib import Path
+sys.path.insert(0,'tests')
+from test_truthfulness import make_service
+from carerelay.domain.models import OperationBinding
+from carerelay.state import JourneyTransaction
+s=make_service(PATH)
+def die(*a,**k):
+    if CUT=='effect': Path(MARKER).write_text('one local simulated effect')
+    os.kill(os.getpid(),signal.SIGKILL)
+if CUT=='claim': s._coordinator.execute_tool=die
+elif CUT=='effect': s._coordinator._tools._provider.submit_request=die
+else:
+    provider=s._coordinator._tools._provider
+    submit=provider.submit_request
+    def effect(*a):
+        Path(MARKER).write_text('one local simulated effect')
+        return submit(*a)
+    provider.submit_request=effect
+    JourneyTransaction.complete_once=die
+s.request_appointment(OperationBinding(**BINDING))
+'''.replace("PATH", repr(str(path))).replace("CUT", repr(cut)).replace("MARKER", repr(str(marker))).replace("BINDING", repr(asdict(binding)))
+    env = dict(os.environ, PYTHONPATH=str(ROOT / "src"), APP_DATABASE_URL=":memory:", APP_ENV="local",
+        APP_CLOCK="scenario", CARERELAY_API_TOKEN="", PYTHONDONTWRITEBYTECODE="1",
+        CARERELAY_TEST_DSN="postgresql://127.0.0.1:1/carerelay_disabled")
+    child = subprocess.run([sys.executable, "-c", child_source], cwd=ROOT, env=env,
+        capture_output=True, text=True)
+    assert child.returncode == -9, child.stderr
+    service = make_service(path)
+    try:
+        result = service.request_appointment(binding)
+        assert result.receipt.state == "pending" and result.receipt.replayed
+        assert result.journey.step == "permission" and result.journey.text["status"] == "No reply yet."
+        assert "feedback" not in result.journey.text
+        attempts = service._store.list_attempts(ep)
+        assert len(attempts) == 1
+        assert not any(k in {"dispatch_started", "dispatch_observed"} for k, _, _ in service._store.list_events(ep))
+        with pytest.raises(CommandConflict):
+            service.request_appointment(replace(binding, operation_id="new-after-crash", expected_revision=result.journey.revision))
+        with pytest.raises(CommandInvalid):
+            service.open_action(ep, "fictional_provider", "caller-retry")
+        with pytest.raises(UnknownAttemptKey):
+            service._coordinator._tools.submit_simulated_request(ep, "fictional_provider",
+                attempts[0].idempotency_key, now_utc=fixture.SCENARIO_NOW_UTC)
+        assert marker.exists() is (cut != "claim")
+    finally:
+        service._store.close()
+
+
+def test_s17_nested_claim_cannot_dispatch_before_commit(tmp_path):
+    from carerelay.state import StateError
+    service = make_service(tmp_path / "nested.sqlite")
+    calls = []
+    try:
+        ep, binding = s17_ready(service)
+        provider = service._coordinator._tools._provider
+        submit = provider.submit_request
+        provider.submit_request = lambda *a: (calls.append(a), submit(*a))[1]
+        with service._store.journey_transaction(ep, write=True):
+            with pytest.raises(StateError):
+                service.request_appointment(binding)
+            assert calls == [] and service._store.list_attempts(ep) == ()
+        assert service.request_appointment(binding).receipt.state == "applied"
+        assert len(calls) == 1
+    finally:
+        service._store.close()
+
+
+def test_s17_invalid_observation_is_unavailable_with_pending_fence(tmp_path, monkeypatch):
+    from carerelay.tools import ToolError
+    from carerelay.journey_commands import issue_operation
+    service = make_service(tmp_path / "unavailable.sqlite")
+    try:
+        ep, binding = s17_ready(service)
+        monkeypatch.setenv("APP_ENV", "local")
+        monkeypatch.setenv("CARERELAY_API_TOKEN", "synthetic-s17-auth")
+        def unavailable(*a):
+            raise ToolError("synthetic provider detail must not be returned")
+        service._coordinator._tools._provider.submit_request = unavailable
+        app.dependency_overrides[get_service] = lambda: service
+        with TestClient(app, headers={"Authorization": "Bearer synthetic-s17-auth"}, raise_server_exceptions=False) as client:
+            token = issue_operation(binding, signing_key=service._operation_signing_key())
+            result = client.post(f"/api/episodes/{ep}/actions", json={"operation_token": token})
+            assert result.status_code == 503
+            assert result.json() == {"detail": "journey unavailable"}
+            replay = client.post(f"/api/episodes/{ep}/actions", json={"operation_token": token})
+            assert replay.status_code == 202 and replay.json()["receipt"]["state"] == "pending"
+            assert len(service._store.list_attempts(ep)) == 1
+    finally:
+        app.dependency_overrides.clear()
+        service._store.close()
+
+
+def test_s17_terminal_callback_before_invocation_refuses_dispatch(tmp_path):
+    from carerelay.domain.models import CallbackResult, ExecutionStatus, Origin
+    service = make_service(tmp_path / "early-callback.sqlite")
+    calls = []
+    try:
+        ep, binding = s17_ready(service)
+        coordinator = service._coordinator
+        original = coordinator.execute_tool
+        provider = coordinator._tools._provider
+        submit = provider.submit_request
+        provider.submit_request = lambda *a: (calls.append(a), submit(*a))[1]
+        def complete_first(request, *, now_utc):
+            service.receive_callback(ep, "fictional_provider", "fictional-first-terminal",
+                CallbackResult(transition=ExecutionStatus.FAILED), Origin.LOCAL_SIM)
+            return original(request, now_utc=now_utc)
+        coordinator.execute_tool = complete_first
+        result = service.request_appointment(binding)
+        assert result.receipt.state == "refused" and calls == []
+        assert result.journey.step == "unresolved"
+    finally:
+        service._store.close()
+
+
+@pytest.mark.parametrize("writer_kind", ["stop", "revoke"])
+def test_s17_dispatch_holds_serialization_until_atomic_commit(tmp_path, writer_kind):
+    import time
+    from dataclasses import asdict
+    from carerelay.domain.models import CallbackResult, ExecutionStatus, Origin
+    path = tmp_path / "ordering.sqlite"
+    entered, release = tmp_path / "entered", tmp_path / "release"
+    writer_ready, writer_done = tmp_path / "writer-ready", tmp_path / "writer-done"
+    service = make_service(path)
+    ep, binding = s17_ready(service)
+    service._store.close()
+    setup = f'''import sys,time,json\nfrom pathlib import Path\nsys.path.insert(0,'tests')\nfrom test_truthfulness import make_service\nfrom carerelay.domain.models import OperationBinding\nfrom carerelay.demo import fixture\ns=make_service({str(path)!r})\n'''
+    invocation = setup + f'''
+provider=s._coordinator._tools._provider
+original=provider.submit_request
+def paused(*args):
+    Path({str(entered)!r}).write_text('one simulated effect')
+    until=time.monotonic()+8
+    while not Path({str(release)!r}).exists():
+        assert time.monotonic()<until, 'provider release missing'
+        time.sleep(.01)
+    return original(*args)
+provider.submit_request=paused
+result=s.request_appointment(OperationBinding(**{asdict(binding)!r}))
+assert result.receipt.state=='applied'
+s._store.close()
+'''
+    writer = setup + f'''
+Path({str(writer_ready)!r}).write_text('ready for same-episode write')
+if {writer_kind!r}=='stop':
+    s._store.record_flow_stop({ep!r},1,'reassessment_stop','nurse_line',now_utc=fixture.SCENARIO_NOW_UTC)
+else:
+    s.change_consent({ep!r},False)
+Path({str(writer_done)!r}).write_text('committed')
+s._store.close()
+'''
+    env = dict(os.environ, PYTHONPATH=str(ROOT / "src"), APP_DATABASE_URL=":memory:", APP_ENV="local",
+        APP_CLOCK="scenario", CARERELAY_API_TOKEN="", PYTHONDONTWRITEBYTECODE="1",
+        CARERELAY_TEST_DSN="postgresql://127.0.0.1:1/carerelay_disabled")
+    children = []
+    def wait_file(p):
+        until = time.monotonic() + 5
+        while not p.exists():
+            assert time.monotonic() < until, str(p)
+            time.sleep(.01)
+    try:
+        invoker = subprocess.Popen([sys.executable, "-c", invocation], cwd=ROOT, env=env,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        children.append(invoker)
+        wait_file(entered)
+        waiting = subprocess.Popen([sys.executable, "-c", writer], cwd=ROOT, env=env,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        children.append(waiting)
+        wait_file(writer_ready)
+        time.sleep(.2)
+        assert waiting.poll() is None and not writer_done.exists(), "writer passed invocation serialization"
+        release.write_text("finish bounded local call")
+        for child in children:
+            _, error = child.communicate(timeout=8)
+            assert child.returncode == 0, error
+        assert writer_done.read_text() == "committed"
+        service = make_service(path)
+        try:
+            replay = service.request_appointment(binding)
+            assert replay.receipt.state == "applied" and replay.receipt.replayed
+            events = [k for k, _, _ in service._store.list_events(ep)]
+            assert events.count("dispatch_started") == events.count("dispatch_observed") == 1
+            assert len(service._store.list_attempts(ep)) == 1
+            callback = service.receive_callback(ep, "fictional_provider", "late-after-" + writer_kind,
+                CallbackResult(transition=ExecutionStatus.ACKNOWLEDGED), Origin.LOCAL_SIM)
+            assert not callback.applied
+            assert service._store.load_snapshot(ep).disposition.clinical_deadline_utc.isoformat() == "2026-09-30T10:00:00+00:00"
+        finally:
+            service._store.close()
+    finally:
+        release.write_text("cleanup")
+        for child in children:
+            if child.poll() is None:
+                child.communicate(timeout=10)
+
+
+def test_s17_forked_process_cannot_spend_original_permit(tmp_path):
+    from carerelay.tools import UnknownAttemptKey
+    path = tmp_path / "fork.sqlite"
+    service = make_service(path)
+    try:
+        ep, binding = s17_ready(service)
+        coordinator = service._coordinator
+        execute = coordinator.execute_tool
+        def fork_probe(request, *, now_utc):
+            pid = os.fork()
+            if pid == 0:
+                other = make_service(path)
+                try:
+                    other._coordinator._tools.submit_simulated_request(ep, request.route_id,
+                        request.attempt_key, now_utc=now_utc, permit=request.permit)
+                except UnknownAttemptKey:
+                    os._exit(0)
+                except BaseException:
+                    os._exit(2)
+                os._exit(1)
+            _, status = os.waitpid(pid, 0)
+            assert os.waitstatus_to_exitcode(status) == 0
+            return execute(request, now_utc=now_utc)
+        coordinator.execute_tool = fork_probe
+        assert service.request_appointment(binding).receipt.state == "applied"
+        assert len([k for k, _, _ in service._store.list_events(ep) if k == "dispatch_started"]) == 1
+    finally:
+        service._store.close()
+
+
+@pytest.mark.parametrize("defect,want", [
+    ("binding_version", "dispatch disposition changed"),
+    ("attempt_absent", "dispatch attempt version changed"),
+    ("attempt_version", "dispatch attempt version changed"),
+    ("membership", "dispatch attempt membership changed"),
+    ("terminal", "dispatch attempt already terminal"),
+    ("route", "dispatch route changed"),
+    ("attempt_route", "dispatch route changed"),
+    ("withdrawn", "dispatch route changed"),
+    ("purpose", "dispatch purpose changed"),
+    ("attempt_purpose", "dispatch purpose changed"),
+    ("stop", "dispatch flow stopped"),
+    ("consent", "dispatch consent changed"),
+    ("consent_version", "dispatch consent changed"),
+    ("expiry", "dispatch deadline expired"),
+    ("deadline", "dispatch deadline expired"),
+    ("rounds", "dispatch understanding unavailable"),
+    ("comparison", "dispatch understanding unavailable"),
+    ("h3", "dispatch understanding unavailable"),
+    ("policy", "dispatch recorded policy unavailable"),
+    ("policy_route", "dispatch recorded policy unavailable"),
+    ("barrier", "dispatch supported barrier unavailable"),
+    ("closure", "dispatch closure unavailable"),
+])
+def test_s17_each_final_guard_has_an_isolated_counterexample(tmp_path, defect, want):
+    from dataclasses import replace
+    from carerelay.domain.models import ExecutionStatus, HintLevel, PlanComparison
+    service = make_service(tmp_path / "isolated.sqlite")
+    captured = {}
+    try:
+        ep, binding = s17_ready(service)
+        coordinator = service._coordinator
+        execute = coordinator.execute_tool
+        def capture(request, *, now_utc):
+            captured.update(bundle=service._store.load_journey_bundle(ep),
+                attempt=service._store.get_attempt_by_key(request.attempt_key))
+            return execute(request, now_utc=now_utc)
+        coordinator.execute_tool = capture
+        assert service.request_appointment(binding).receipt.state == "applied"
+        bundle, attempt = captured["bundle"], captured["attempt"]
+        now, route, purpose, permitted = fixture.SCENARIO_NOW_UTC, "fictional_provider", binding.purpose, fixture.policy().permitted_route_ids
+        assert rules.dispatch_refusal(bundle, binding, attempt, route,
+            attempt_purpose=purpose, permitted_routes=permitted, now_utc=now) is None
+        if defect == "binding_version": binding = replace(binding, disposition_version=2)
+        elif defect == "attempt_absent": attempt = None
+        elif defect == "attempt_version": attempt = replace(attempt, disposition_version=2)
+        elif defect == "membership": bundle = replace(bundle, snapshot=replace(bundle.snapshot, attempt=replace(attempt, attempt_id="different")))
+        elif defect == "terminal": attempt = replace(attempt, execution=ExecutionStatus.FAILED)
+        elif defect == "route": route = "nurse_line"; attempt = replace(attempt, route_id=route)
+        elif defect == "attempt_route": attempt = replace(attempt, route_id="nurse_line")
+        elif defect == "withdrawn": permitted = frozenset()
+        elif defect == "purpose": binding = replace(binding, purpose="caller-purpose"); purpose = binding.purpose
+        elif defect == "attempt_purpose": purpose = "caller-purpose"
+        elif defect == "stop": bundle = replace(bundle, snapshot=replace(bundle.snapshot, flow_stop_reason="reassessment_stop"))
+        elif defect == "consent": bundle = replace(bundle, consent_granted=False)
+        elif defect == "consent_version": attempt = replace(attempt, consent_version=attempt.consent_version + 1)
+        elif defect == "expiry": bundle = replace(bundle, snapshot=replace(bundle.snapshot, expiry_event_id=1))
+        elif defect == "deadline": now = bundle.snapshot.disposition.clinical_deadline_utc
+        elif defect == "rounds": bundle = replace(bundle, restatements=())
+        elif defect == "comparison": bundle = replace(bundle, restatements=(replace(bundle.restatements[-1], comparison=PlanComparison(frozenset(), frozenset(), frozenset({"action_id", "deadline_utc", "next_owner_id"}))),))
+        elif defect == "h3": bundle = replace(bundle, restatements=(replace(bundle.restatements[-1], hint_level=HintLevel.H3),))
+        elif defect == "policy": bundle = replace(bundle, policy=None)
+        elif defect == "policy_route": bundle = replace(bundle, policy=replace(bundle.policy, permitted_route_ids=frozenset()))
+        elif defect == "barrier": bundle = replace(bundle, events=tuple(e for e in bundle.events if e[0] != "barrier_recorded"))
+        elif defect == "closure": bundle = replace(bundle, snapshot=replace(bundle.snapshot, human_acceptance_id="fictional-accepted", accepted_by="caregiver", accepted_scope="handoff"))
+        assert rules.dispatch_refusal(bundle, binding, attempt, route,
+            attempt_purpose=purpose, permitted_routes=permitted, now_utc=now) == want
+    finally:
+        service._store.close()
+
+
+def test_s17_authenticated_command_routes_and_schema_refusals(tmp_path, monkeypatch):
+    from carerelay.journey_commands import issue_operation, request_digest
+    service = make_service(tmp_path / "actual-http.sqlite")
+    monkeypatch.setenv("APP_ENV", "local")
+    monkeypatch.setenv("CARERELAY_API_TOKEN", "synthetic-s17-route-auth")
+    try:
+        ep = s17_understood(service)
+        app.dependency_overrides[get_service] = lambda: service
+        with TestClient(app, headers={"Authorization": "Bearer synthetic-s17-route-auth"}, raise_server_exceptions=False) as client:
+            url = f"/api/episodes/{ep}"
+            prepared = client.get(url, params={"prepare_kind": "select_barrier",
+                "body_sha256": request_digest("select_barrier", {"choice_id": "booking"})})
+            assert prepared.status_code == 200
+            token = prepared.json()["operation_token"]
+            chosen = client.post(url + "/barriers", json={"operation_token": token, "choice_id": "booking"})
+            assert chosen.status_code == 200, chosen.text
+            assert chosen.json()["journey"]["step"] == "permission"
+            assert client.post(url + "/barriers", json={"operation_token": token, "choice_id": "booking", "route_id": "nurse_line"}).status_code == 422
+            assert client.post(url + "/barriers", json={"operation_token": token, "choice_id": "other"}).status_code == 409
+            grant = s17_binding(service, ep, "grant_share")
+            consent = client.post(url + "/consents", json={"operation_token": issue_operation(grant, signing_key=service._operation_signing_key())})
+            assert consent.status_code == 200
+            request = s17_binding(service, ep, "request")
+            body = {"operation_token": issue_operation(request, signing_key=service._operation_signing_key())}
+            assert client.post(url + "/actions", json={**body, "purpose_id": "caller-retry"}).status_code == 422
+            applied = client.post(url + "/actions", json=body)
+            assert applied.status_code == 200 and applied.json()["receipt"]["replayed"] is False
+            replayed = client.post(url + "/actions", json=body)
+            assert replayed.status_code == 200 and replayed.json()["receipt"]["replayed"] is True
+            assert len(service._store.list_attempts(ep)) == 1
+            assert client.post(url + "/actions", json=body, headers={"Authorization": "Bearer wrong"}).status_code == 401
+    finally:
+        app.dependency_overrides.clear()
+        service._store.close()
+
+
+@pytest.mark.parametrize("transfer", ["accepted", "handoff"])
+def test_s17_pending_action_keeps_valid_human_transfer_renderable(tmp_path, transfer):
+    from carerelay.coordinator import CoordinatorUnavailable
+    service = make_service(tmp_path / "pending-transfer.sqlite")
+    try:
+        ep, binding = s17_ready(service)
+        def unavailable(*a, **k):
+            raise CoordinatorUnavailable("original execution lost")
+        service._coordinator.execute_tool = unavailable
+        with pytest.raises(CoordinatorUnavailable):
+            service.request_appointment(binding)
+        if transfer == "accepted": service.record_human_acceptance(ep, "caregiver", "handoff")
+        else: service.escalate(ep, "nurse_line", "handed_off")
+        projection = service.project_journey(ep)
+        assert projection.step == transfer
+        assert projection.commands == () and projection.question is None
+        assert projection.flow.interpretation == "pending"
+        body = journey_surface(projection)
+        script = '''import {readFileSync} from 'node:fs';
+import {decodeJourney} from './frontend/lib/journey.ts';
+const v=JSON.parse(readFileSync(0,'utf8'));
+console.log(JSON.stringify(Boolean(decodeJourney(v,v.episode_id))));'''
+        node = subprocess.run(["node", "--input-type=module", "-e", script], cwd=ROOT,
+            input=json.dumps(body), text=True, capture_output=True)
+        assert node.returncode == 0, node.stderr
+        assert json.loads(node.stdout) is True
+        assert service.request_appointment(binding).receipt.state == "pending"
+    finally:
+        service._store.close()
+
+
+@pytest.mark.parametrize("outcome", ["expired", "accepted", "handoff"])
+def test_s17_unsupported_barrier_feedback_cannot_corrupt_terminal_screen(tmp_path, outcome):
+    from datetime import timedelta
+    service = make_service(tmp_path / "barrier-outcome.sqlite")
+    try:
+        ep = s17_understood(service)
+        service.record_barrier_choice(s17_binding(service, ep, "select_barrier", "transport"), choice_id="transport")
+        if outcome == "expired": service._clock._instant += timedelta(hours=10)
+        elif outcome == "accepted":
+            service.change_consent(ep, True)
+            service.record_human_acceptance(ep, "caregiver", "handoff")
+        else: service.escalate(ep, "nurse_line", "handed_off")
+        projection = service.project_journey(ep)
+        assert projection.step == outcome and projection.flow.stopped
+        assert "feedback" not in projection.text
+        body = journey_surface(projection)
+        script = '''import {readFileSync} from 'node:fs';
+import {decodeJourney} from './frontend/lib/journey.ts';
+const v=JSON.parse(readFileSync(0,'utf8'));
+console.log(JSON.stringify(Boolean(decodeJourney(v,v.episode_id))));'''
+        node = subprocess.run(["node", "--input-type=module", "-e", script], cwd=ROOT,
+            input=json.dumps(body), text=True, capture_output=True)
+        assert node.returncode == 0, node.stderr
+        assert json.loads(node.stdout) is True
+    finally:
+        service._store.close()
+
+
+def test_s17_command_offers_refuse_unimplemented_kind():
+    offers = rules._journey_offers(("select_barrier", "grant_share", "request", "create"), pending=False)
+    assert [o.kind for o in offers] == ["select_barrier", "grant_share", "request"]
+    assert offers[0].permitted_choice_ids == ("booking", "transport", "other")
+    assert rules._journey_offers(("create",), pending=False) == ()
+
 @pytest.fixture
 def world(tmp_path, monkeypatch):
     token = "synthetic-slice14-test-only"
@@ -71,7 +631,7 @@ def test_no_plan_surfaces(world, surface):
         return
     elif surface == "mcp":
         service.change_consent("fictional-no-plan", granted=True)
-        tools = McpTools(service._store, policy=fixture.policy(), provider=ScriptedProvider())
+        tools = McpTools(service._store, policy=fixture.policy(), provider=ScriptedProvider(), now=lambda: service._clock.now_utc())
         body = asdict(tools.get_episode("fictional-no-plan", now_utc=fixture.SCENARIO_NOW_UTC))
         assert body["policy_version"] is body["disposition_version"] is body["fallback_route_id"] is None
         assert body["permitted_route_ids"] == ()
@@ -315,18 +875,25 @@ def test_twelve_screens_and_contradictions(world, case):
     assert (body["step"], body["question"]["question_id"] if body["question"] else None,
             body["closure"], body["action_owner_id"], body["flow"]["stopped"]) == MATRIX[case]
     assert body["care_evidenced"] == (step == "documented")
-    # Slice 16 adds guarded recall/cue commands. Assert each screen's exact
+    # Slice 17 adds permission commands. Assert each screen's exact
     # capabilities so a wrong progression offer cannot hide behind a blanket [].
     expected_commands = {
-        "plan": ["readback_started", "show_plan", "hide_plan"],
+        "plan": ["readback_started", "show_plan", "hide_plan", "grant_share", "revoke_share"],
         "readback": ["confirm_words", "show_plan", "hide_plan", "h3"],
         "repair": ["confirm_words", "show_plan", "hide_plan", "h3"],
         "uncertain": ["confirm_words", "show_plan", "hide_plan", "h3"],
         "unavailable": ["confirm_words", "show_plan", "hide_plan", "h3"],
+        "barrier": ["select_barrier", "show_plan", "hide_plan"],
+        "permission": ["grant_share", "decline_share", "revoke_share", "show_plan", "hide_plan"],
+        "declined": ["grant_share", "decline_share", "revoke_share", "show_plan", "hide_plan"],
     }
-    cues_only = {"barrier", "permission", "declined", "waiting", "acknowledged", "failed",
-                 "handoff_failed", "handoff_attempted", "handoff_unknown", "stopped", "h3"}
-    expected = expected_commands.get(case, ["show_plan", "hide_plan"] if case in cues_only else [])
+    for neutral in ("waiting", "acknowledged", "handoff_attempted", "handoff_unknown"):
+        expected_commands[neutral] = ["show_plan", "hide_plan", "revoke_share"]
+    for unresolved in ("failed", "handoff_failed", "stopped", "h3"):
+        expected_commands[unresolved] = ["show_plan", "hide_plan", "grant_share", "revoke_share"]
+    for expired in ("expired", "expired_accepted", "expired_handoff", "expired_stopped"):
+        expected_commands[expired] = ["revoke_share"]
+    expected = expected_commands.get(case, [])
     assert [o["kind"] for o in body["commands"]] == expected
     assert body["disposition_version"] == 1
     assert body["policy_version"] == "fixture-provisional-0"

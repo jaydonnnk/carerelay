@@ -57,6 +57,8 @@ from carerelay.tools import (  # noqa: E402
     RouteNotPermitted,
     UnknownAttemptKey,
 )
+from carerelay.service import EpisodeService, ScenarioClock
+from _legacy_service_probes import KEY, command_action
 
 EPISODE_ID = "episode-actions"
 NOW_UTC = datetime(2026, 10, 1, 4, 0, tzinfo=timezone.utc)
@@ -104,7 +106,7 @@ def _seed(store) -> None:
 def _tools(store, provider=None) -> McpTools:
     return McpTools(
         store, policy=fixture.policy(), provider=provider or ScriptedProvider()
-    )
+    , now=lambda: NOW_UTC)
 
 
 def _key(route: str, purpose: str) -> str:
@@ -117,6 +119,19 @@ def _open(store, route: str = PERMITTED_ROUTE, purpose: str = PURPOSE_ID):
         AttemptCommand(EPISODE_ID, route, purpose, 1), key, now_utc=NOW_UTC
     )
     return attempt, key
+
+
+def _command_service(store):
+    service = EpisodeService(store,
+        coordinator=LocalSimulationCoordinator(_tools(store)),
+        clock=ScenarioClock(NOW_UTC), policy=fixture.policy(), policy_text=fixture.policy_text(),
+        display_tz=fixture.DISPLAY_TZ, disposition_factory=fixture.disposition,
+        bound_complaint=fixture.BOUND_COMPLAINT, policy_provenance="trusted command test fixture",
+        operation_signing_key=lambda: KEY)
+    service.ensure_episode(EPISODE_ID, "fictional older adult")
+    service.intake(EPISODE_ID, fixture.BOUND_COMPLAINT)
+    service.change_consent(EPISODE_ID, granted=True)
+    return service
 
 
 def _events(store, kind: str) -> tuple[str, ...]:
@@ -224,15 +239,21 @@ class TestToolRechecksAuthorisationConsentAndKey:
 
     def test_a_permitted_route_with_a_current_key_dispatches(self, store) -> None:
         """The control. Without it every refusal above could pass by refusing all."""
-        _seed(store)
-        _attempt, key = _open(store)
-        result = _tools(store).submit_simulated_request(
-            EPISODE_ID, PERMITTED_ROUTE, key, now_utc=NOW_UTC
-        )
+        service = _command_service(store)
+        opened = command_action(service, EPISODE_ID)
+        result = opened.tool
         assert result.outcome is ExecutionStatus.FAILED
         assert result.origin is Origin.LOCAL_SIM
         assert result.simulated is True
-        assert result.attempt_key == key
+        assert result.attempt_key == opened.idempotency_key
+
+    def test_an_old_valid_key_does_not_grant_dispatch_authority(self, store) -> None:
+        _seed(store)
+        _attempt, key = _open(store)
+        with pytest.raises(UnknownAttemptKey, match="original dispatch permit required"):
+            _tools(store).submit_simulated_request(
+                EPISODE_ID, PERMITTED_ROUTE, key, now_utc=NOW_UTC)
+        assert _events(store, "dispatch_started") == ()
 
     def test_get_episode_omits_the_patient_surface(self, store) -> None:
         """An executor gets the route and the key, not the patient's words."""
@@ -313,17 +334,8 @@ class TestTheCoordinatorExecutesThroughTheToolSurface:
 
     def test_execution_returns_the_provider_outcome_and_its_origin(self, store) -> None:
         """The control, and the path the demo walks."""
-        _seed(store)
-        _attempt, key = _open(store)
-        result = LocalSimulationCoordinator(_tools(store)).execute_tool(
-            ToolRequest(
-                episode_id=EPISODE_ID,
-                route_id=PERMITTED_ROUTE,
-                attempt_key=key,
-                disposition_version=1,
-            ),
-            now_utc=NOW_UTC,
-        )
+        service = _command_service(store)
+        result = command_action(service, EPISODE_ID).tool
         assert result.outcome is ExecutionStatus.FAILED
         assert result.origin is Origin.LOCAL_SIM
         assert result.simulated is True
@@ -405,15 +417,10 @@ class TestTheExtractionBoundarySaysWhatItHides:
 
 def test_the_deadline_is_untouched_by_a_failed_dispatch(store) -> None:
     """I1. A failed booking is not new clinical information."""
-    _seed(store)
+    service = _command_service(store)
     before = store.load_snapshot(EPISODE_ID).disposition
-    _attempt, key = _open(store)
-    LocalSimulationCoordinator(_tools(store)).execute_tool(
-        ToolRequest(
-            episode_id=EPISODE_ID, route_id=PERMITTED_ROUTE, attempt_key=key
-        ),
-        now_utc=NOW_UTC,
-    )
+    opened = command_action(service, EPISODE_ID)
+    assert opened.tool.outcome is ExecutionStatus.FAILED
     after = store.load_snapshot(EPISODE_ID).disposition
     assert before == after
     assert after.clinical_deadline_utc == DEADLINE_UTC

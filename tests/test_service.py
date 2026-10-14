@@ -63,6 +63,8 @@ from carerelay.state import (  # noqa: E402
     UnconfirmedTranscript as StoreUnconfirmedTranscript,
     open_store,
 )
+from _legacy_service_probes import KEY, command_action
+from carerelay.journey_commands import CommandInvalid
 
 EPISODE = "ep-001"
 
@@ -91,7 +93,7 @@ def _build(store, coordinator=None):
         # Slice 6: the coordinator reaches the world through the MCP tool
         # surface, so it needs one even in a test that only exercises PlanBack.
         coordinator = LocalSimulationCoordinator(
-            McpTools(store, policy=fixture.policy(), provider=ScriptedProvider())
+            McpTools(store, policy=fixture.policy(), provider=ScriptedProvider(), now=lambda: fixture.SCENARIO_NOW_UTC)
         )
     return EpisodeService(
         store,
@@ -103,6 +105,7 @@ def _build(store, coordinator=None):
         disposition_factory=fixture.disposition,
         bound_complaint=fixture.BOUND_COMPLAINT,
         policy_provenance="test: provisional",
+        operation_signing_key=lambda: KEY,
     )
 
 
@@ -765,12 +768,15 @@ class CountingCoordinator:
         self.executions.append(request)
         return self._inner.execute_tool(request, now_utc=now_utc)
 
+    def extract_plan(self, confirmed_text, allowed_values):
+        return self._inner.extract_plan(confirmed_text, allowed_values)
+
 
 def _action_service(store):
     """An assessed episode with consent granted, and a counting coordinator."""
     coordinator = CountingCoordinator(
         LocalSimulationCoordinator(
-            McpTools(store, policy=fixture.policy(), provider=ScriptedProvider())
+            McpTools(store, policy=fixture.policy(), provider=ScriptedProvider(), now=lambda: fixture.SCENARIO_NOW_UTC)
         )
     )
     service = _build(store, coordinator=coordinator)
@@ -780,8 +786,7 @@ def _action_service(store):
     return service, coordinator
 
 
-#: A permitted route, and a purpose id. The purpose is free text by design: it
-#: is part of the idempotency triple, not part of the clinical vocabulary.
+#: The legacy caller purpose remains only in independent raw-caller guards.
 ROUTE = "fictional_provider"
 PURPOSE = "book_transport"
 
@@ -801,7 +806,7 @@ class TestActionPath:
 
     def test_an_action_with_consent_is_opened(self, store):
         service, _ = _action_service(store)
-        outcome = service.open_action(EPISODE, ROUTE, PURPOSE)
+        outcome = command_action(service, EPISODE)
         assert outcome.duplicate is False
         assert outcome.tool is not None
         assert outcome.consent_version == 1
@@ -818,32 +823,36 @@ class TestActionPath:
     def test_a_double_tap_reuses_the_key_and_dispatches_once(self, store):
         """I3. The second request returns the first attempt and runs nothing."""
         service, coordinator = _action_service(store)
-        first = service.open_action(EPISODE, ROUTE, PURPOSE)
-        second = service.open_action(EPISODE, ROUTE, PURPOSE)
+        first = command_action(service, EPISODE)
+        second = command_action(service, EPISODE)
         assert second.attempt_id == first.attempt_id
         assert second.idempotency_key == first.idempotency_key
         assert second.duplicate is True
         assert second.tool is None
         assert len(coordinator.executions) == 1
 
-    def test_a_second_purpose_is_a_second_attempt_and_dispatches(self, store):
-        """The control for the test above: not every repeat is a duplicate."""
+    def test_caller_purposes_cannot_open_or_dispatch_an_attempt(self, store):
+        """Raw callers cannot manufacture extra request purposes."""
         service, coordinator = _action_service(store)
-        first = service.open_action(EPISODE, ROUTE, "purpose-a")
-        second = service.open_action(EPISODE, ROUTE, "purpose-b")
-        assert second.attempt_id != first.attempt_id
-        assert second.duplicate is False
-        assert len(coordinator.executions) == 2
+        for purpose in ("purpose-a", "purpose-b", "disposition:1:request_appointment"):
+            with pytest.raises(CommandInvalid, match="legacy action requires a journey command"):
+                service.open_action(EPISODE, ROUTE, purpose)
+        assert service._store.list_attempts(EPISODE) == ()
+        assert coordinator.executions == []
+        outcome = command_action(service, EPISODE)
+        assert outcome.purpose_id == "disposition:1:request_appointment"
+        assert len(service._store.list_attempts(EPISODE)) == 1
+        assert len(coordinator.executions) == 1
 
     def test_opening_an_action_writes_no_transition(self, store):
         """The outcome arrives on the callback path, or it does not arrive."""
         service, _ = _action_service(store)
-        outcome = service.open_action(EPISODE, ROUTE, PURPOSE)
+        outcome = command_action(service, EPISODE)
         assert service._store.list_transitions(outcome.attempt_id) == ()
 
     def test_the_outcome_origin_is_the_one_the_tool_reports(self, store):
         service, _ = _action_service(store)
-        outcome = service.open_action(EPISODE, ROUTE, PURPOSE)
+        outcome = command_action(service, EPISODE)
         assert outcome.origin is Origin.LOCAL_SIM
         assert outcome.tool.origin is Origin.LOCAL_SIM
 
@@ -853,7 +862,7 @@ class TestCallbackReceipts:
 
     def _opened(self, store):
         service, _coordinator = _action_service(store)
-        outcome = service.open_action(EPISODE, ROUTE, PURPOSE)
+        outcome = command_action(service, EPISODE)
         return service, outcome
 
     @staticmethod
