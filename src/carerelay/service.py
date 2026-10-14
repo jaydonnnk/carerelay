@@ -51,6 +51,8 @@ from carerelay.coordinator import (
 )
 from carerelay.domain import rules
 from carerelay.domain.models import (
+    OperationBinding,
+    CommandResponse,
     JourneyProjection,
     MAX_REPAIR_ROUNDS,
     RECALL_OUTCOME_BY_LEVEL,
@@ -406,6 +408,7 @@ class EpisodeService:
         bound_complaint: str,
         policy_provenance: str,
         key_namespace: str = DEFAULT_KEY_NAMESPACE,
+        operation_signing_key: Callable[[], bytes] | None = None,
     ) -> None:
         self._store = store
         self._coordinator = coordinator
@@ -423,6 +426,7 @@ class EpisodeService:
         # recorded. The key derivation stays in `state`; only the namespace
         # travels, so the signature that makes a double tap provable is unchanged.
         self._key_namespace = key_namespace
+        self._operation_signing_key = operation_signing_key or (lambda: b"")
         # Read with `getattr`, as `simulated` is below: a test stub implements
         # the port structurally and may omit it, and the safe default is the
         # honest one. A stub that cannot name an origin may not claim `platform`.
@@ -817,15 +821,111 @@ class EpisodeService:
         )
 
     def project_journey(self, episode_id: str) -> JourneyProjection:
-        """Read a coherent no-plan journey. Temporary refusal is not a stop."""
+        """One coherent projection, including sticky expiry; reads never progress."""
         from carerelay.demo.fixture import JOURNEY_COPY, JOURNEY_LABEL
+        from carerelay.journey_commands import issue_operation, operation_identity, request_digest
+        now_utc = self._clock.now_utc()
+        from carerelay.state import InvalidJourneyRecord
+        with self._store.journey_transaction(episode_id, write=True) as tx:
+            snapshot = tx.load_snapshot(episode_id)
+            if snapshot.disposition is not None:
+                closure = rules.derive_closure(snapshot, now_utc)
+                if snapshot.expiry_event_id is None and closure.closure is ClosureState.EXPIRED_UNRESOLVED:
+                    self._store.record_expiry_once(episode_id, snapshot.disposition.version, now_utc)
+            try:
+                bundle = tx.load_bundle(episode_id)
+                journey = rules.derive_journey(bundle, now_utc=now_utc)
+            except (rules.DomainError, InvalidJourneyRecord) as error:
+                # Invalid display/round metadata must not roll back valid expiry.
+                projection_error = error
+            else:
+                projection_error = None
+        if projection_error is not None:
+            raise projection_error
+        offers = []
+        for offer in journey.commands:
+            if offer.kind == "select_example":
+                digest = request_digest("select_example", {"example_id": "scripted-appointment"})
+                key = self._operation_signing_key()
+                binding = OperationBinding(operation_identity(episode_id=episode_id, kind="select_example",
+                    revision=journey.revision, body_sha256=digest, signing_key=key), episode_id, None, journey.revision,
+                    "select_example", "episode:select_example", digest, None, None)
+                offer = replace(offer, operation_token=issue_operation(binding, signing_key=key))
+            offers.append(offer)
+        return replace(journey, commands=tuple(offers),
+            text=dict(JOURNEY_COPY["start"]) if journey.step == "start" else journey.text,
+            fixture_label=JOURNEY_LABEL,
+            clock_mode="system" if isinstance(self._clock, SystemClock) else "scenario")
 
-        bundle = self._store.load_journey_bundle(episode_id)
-        journey = rules.derive_journey(bundle, now_utc=self._clock.now_utc())
-        return replace(
-            journey, text=dict(JOURNEY_COPY["start"]), fixture_label=JOURNEY_LABEL,
-            clock_mode="system" if isinstance(self._clock, SystemClock) else "scenario",
-        )
+    def start_example(self, binding: OperationBinding) -> CommandResponse:
+        from carerelay.journey_commands import CommandConflict, CommandInvalid, PURPOSES, request_digest, validate_binding
+        validate_binding(binding)
+        if binding.kind != "create" or binding.purpose != PURPOSES["create"]:
+            raise CommandInvalid("unpermitted start")
+        if binding.body_sha256 != request_digest("create", {}):
+            raise CommandConflict("exact create body changed")
+        receipt = self._store.create_with_claim_once(binding, persona="fictional older adult",
+                                                     now_utc=self._clock.now_utc())
+        return CommandResponse(receipt, self.project_journey(binding.episode_id))
+
+    def select_example(self, binding: OperationBinding, *, example_id: str) -> CommandResponse:
+        from carerelay.demo import fixture
+        from carerelay.journey_commands import CommandConflict, CommandInvalid, PURPOSES, request_digest, validate_binding
+        validate_binding(binding)
+        if binding.kind != "select_example" or binding.purpose != PURPOSES["select_example"]:
+            raise CommandInvalid("unpermitted intake")
+        if binding.body_sha256 != request_digest("select_example", {"example_id": example_id}):
+            raise CommandConflict("exact intake body changed")
+        if example_id != "scripted-appointment":
+            raise CommandInvalid("unpermitted example")
+        now_utc = self._clock.now_utc()
+        with self._store.journey_transaction(binding.episode_id, write=True) as tx:
+            receipt = tx.find(binding)
+            if receipt is None:
+                bundle = tx.load_bundle(binding.episode_id)
+                offers = rules.derive_journey(bundle, now_utc=now_utc).commands
+                if not any(o.kind == "select_example" for o in offers):
+                    raise CommandConflict("intake is not currently offered")
+                if now_utc.astimezone(fixture.DISPLAY_TZ).date() != fixture.SCENARIO_NOW_UTC.astimezone(fixture.DISPLAY_TZ).date():
+                    raise CommandInvalid("scenario date unavailable")
+                claimed = tx.claim_once(binding, now_utc=now_utc)
+                if claimed.newly_claimed:
+                    self._store.register_policy_version(fixture.POLICY_VERSION,
+                        content=f"provisional fixture policy {fixture.POLICY_VERSION}",
+                        provenance=self._policy_provenance, approved_by=None, now_utc=now_utc)
+                    disposition = fixture.disposition(binding.episode_id, now_utc)
+                    self._store.insert_disposition(disposition, now_utc=now_utc)
+                    receipt = tx.complete_once(binding.operation_id, state="applied", result_ref=str(disposition.version),
+                                              scored=False, result_kind="disposition", now_utc=now_utc)
+                else:
+                    receipt = claimed.receipt
+        return CommandResponse(receipt, self.project_journey(binding.episode_id))
+
+    def prepare_command(self, episode_id: str, *, kind: str, body_sha256: str,
+                        parent_id: str | None) -> str:
+        from carerelay.journey_commands import CommandInvalid, PURPOSES, issue_operation, operation_identity, request_digest
+        if kind != "select_example" or parent_id is not None:
+            raise CommandInvalid("command unavailable")
+        if body_sha256 != request_digest(kind, {"example_id": "scripted-appointment"}):
+            raise CommandInvalid("unpermitted body")
+        with self._store.journey_transaction(episode_id, write=False) as tx:
+            bundle = tx.load_bundle(episode_id)
+            journey = rules.derive_journey(bundle, now_utc=self._clock.now_utc())
+            if not any(o.kind == kind for o in journey.commands):
+                raise CommandInvalid("command is not offered")
+            key = self._operation_signing_key()
+            binding = OperationBinding(operation_identity(episode_id=episode_id, kind=kind,
+                                       revision=journey.revision, body_sha256=body_sha256, signing_key=key),
+                                       episode_id, None, journey.revision, kind, PURPOSES[kind], body_sha256, None, None)
+            return issue_operation(binding, signing_key=key)
+
+    def replay(self, binding: OperationBinding) -> CommandResponse:
+        from carerelay.journey_commands import CommandConflict
+        with self._store.journey_transaction(binding.episode_id, write=False) as tx:
+            receipt = tx.find(binding)
+            if receipt is None:
+                raise CommandConflict("operation has not been claimed")
+        return CommandResponse(receipt, self.project_journey(binding.episode_id))
 
     def project_patient(self, episode_id: str) -> PatientSurface:
         """The patient's four lines, derived, with the expiry read-path first.
@@ -867,6 +967,11 @@ class EpisodeService:
     # -- Slice 12: the judge ledger and the permitted routes ----------------
 
     def permitted_options(self, episode_id: str) -> OptionsSurface:
+        with self._store.journey_transaction(episode_id, write=False) as tx:
+            bundle = tx.load_bundle(episode_id)
+            return self._permitted_options_coherent(episode_id, bundle)
+
+    def _permitted_options_coherent(self, episode_id: str, bundle) -> OptionsSurface:
         """The routes this episode's disposition permits, in the policy's words.
 
         `02-architecture.md` 3.1 gives the UI this read because revision 1 held
@@ -877,10 +982,14 @@ class EpisodeService:
         is a policy defect and raises rather than rendering the raw id, which is
         the rule `domain.patient_lines` already applies to a route it renders.
         """
-        snapshot = self._store.load_snapshot(episode_id)
+        snapshot = bundle.snapshot
+        if snapshot.disposition is not None and (bundle.policy is None or bundle.policy_text is None):
+            raise rules.JourneyUnavailable("recorded policy unavailable")
+        policy = bundle.policy or self._policy
+        policy_text = bundle.policy_text or self._policy_text
         routes: list[RouteOption] = []
-        for route_id in sorted(self._policy.permitted_route_ids if snapshot.disposition is not None else ()):
-            display = self._policy_text.route_display_by_id.get(route_id)
+        for route_id in sorted(policy.permitted_route_ids if snapshot.disposition is not None else ()):
+            display = policy_text.route_display_by_id.get(route_id)
             if display is None:
                 raise rules.MissingDisplayText(
                     f"route {route_id!r} is permitted by the policy but carries "
@@ -896,11 +1005,16 @@ class EpisodeService:
             ),
             routes=tuple(routes),
             available_origin=self._origin.value,
-            simulated=self._policy_text.simulated,
-            fixture_label=self._policy_text.fixture_label,
+            simulated=policy_text.simulated,
+            fixture_label=policy_text.fixture_label,
         )
 
     def project_ledger(self, episode_id: str) -> LedgerSurface:
+        with self._store.journey_transaction(episode_id, write=False) as tx:
+            bundle = tx.load_bundle(episode_id)
+            return self._project_ledger_coherent(episode_id, bundle)
+
+    def _project_ledger_coherent(self, episode_id: str, bundle) -> LedgerSurface:
         """The judge-facing read projection for one episode.
 
         **It runs no expiry read-path, and that is deliberate.** The patient
@@ -922,7 +1036,10 @@ class EpisodeService:
         episode. Each carries the values it was taken from.
         """
         now_utc = self._clock.now_utc()
-        snapshot = self._store.load_snapshot(episode_id)
+        snapshot = bundle.snapshot
+        if snapshot.disposition is not None and bundle.policy_text is None:
+            raise rules.JourneyUnavailable("recorded policy unavailable")
+        policy_text = bundle.policy_text or self._policy_text
         closure = rules.derive_closure(snapshot, now_utc)
 
         origin_set: set[str] = set()
@@ -1095,7 +1212,7 @@ class EpisodeService:
             dwell_seconds_total=dwell_total,
             fault_assertions=fault_assertions,
             simulated=closure.simulated,
-            fixture_label=self._policy_text.fixture_label,
+            fixture_label=policy_text.fixture_label,
         )
 
     def _fault_assertions(

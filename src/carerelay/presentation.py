@@ -222,11 +222,25 @@ class LedgerSurface:
         }
 
 def journey_surface(journey: JourneyProjection) -> dict[str, object]:
-    """Serialize the domain no-plan value without deriving a second state."""
-    body = asdict(journey)
-    body["as_of_utc"] = journey.as_of_utc.isoformat()
-    body["lines"] = list(journey.lines)
-    body["commands"] = list(journey.commands)
-    body.update(closure=None, execution=None, evidence=None,
-                action_owner_id=None, care_evidenced=False)
+    """Copy the selected domain values, preserving nullable/redacted aliases."""
+    from datetime import datetime
+    def wire(value):
+        if isinstance(value, datetime):
+            return value.isoformat()
+        if isinstance(value, dict):
+            return {k: wire(v) for k, v in value.items()}
+        if isinstance(value, (tuple, list)):
+            return [wire(v) for v in value]
+        return value
+    body = wire(asdict(journey))
+    outcome = journey.outcome
+    body.update(closure=outcome.closure.value if outcome else None,
+                execution=outcome.execution.value if outcome else None,
+                evidence=outcome.evidence.value if outcome else None,
+                action_owner_id=journey.plan.current_owner_id if journey.plan else None,
+                care_evidenced=outcome.care_evidenced if outcome else False)
     return body
+
+
+def command_surface(result) -> dict[str, object]:
+    return {"receipt": asdict(result.receipt), "journey": journey_surface(result.journey)}

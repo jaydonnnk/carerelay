@@ -38,17 +38,18 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict, Field
 
 from carerelay import __version__
-from carerelay.presentation import journey_surface
+from carerelay.presentation import journey_surface, command_surface
+from carerelay.journey_commands import CommandConflict, CommandInvalid, verify_operation
 from carerelay.coordinator import (
     CoordinatorUnavailable,
     LocalSimulationCoordinator,
 )
 from carerelay.demo import fixture
 from carerelay.domain.rules import (
-    JourneyUnavailable,
+    DomainError,
     PolicyViolation,
 )
 from carerelay.domain.models import (
@@ -183,6 +184,15 @@ def guarded_path(path: str) -> bool:
     )
 
 
+async def require_implemented_patient_write(request: Request) -> None:
+    path = request.url.path
+    if request.method == "POST" and path.startswith("/api/episodes/") and (
+        path.endswith(("/transcript-confirmations", "/hint-events", "/restatements",
+                       "/repairs", "/barriers", "/actions", "/consents"))
+    ):
+        raise HTTPException(status_code=422, detail="journey command unavailable")
+
+
 async def require_api_token(request: Request) -> None:
     """The dependency every protected route takes. Slice 7.
 
@@ -290,7 +300,7 @@ app = FastAPI(
     ),
     # Declared once for the whole app, so a route added later cannot be the one
     # that forgot. `require_api_token` decides by path which requests it guards.
-    dependencies=[Depends(require_api_token)],
+    dependencies=[Depends(require_api_token), Depends(require_implemented_patient_write)],
 )
 
 _install_cors()
@@ -382,6 +392,7 @@ _SERVICE = EpisodeService(
     _STORE,
     coordinator=LocalSimulationCoordinator(_TOOLS),
     clock=_clock(),
+    operation_signing_key=lambda: configured_token().encode("utf-8"),
     policy=fixture.policy(),
     policy_text=fixture.policy_text(),
     display_tz=fixture.DISPLAY_TZ,
@@ -415,64 +426,72 @@ COORDINATOR_FALLBACK_TEXT = (
 )
 
 
-class EpisodeCreated(BaseModel):
-    episode_id: str
-    persona: str
-    policy_version: str
-    simulated: bool
-    fixture_label: str
-    note: str
-
-
 @app.get("/health", tags=["ops"])
 def health() -> dict[str, str]:
     return {"status": "ok", "version": __version__}
 
 
-@app.post("/api/episodes", response_model=EpisodeCreated, tags=["episodes"])
-def create_episode(
-    service: EpisodeService = Depends(get_service),
-) -> EpisodeCreated:
-    """Create the demo episode.
+class CreateCommandRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    operation_token: str = Field(min_length=1, max_length=4096)
 
-    Does **not** write a disposition — that follows assessment (`02-architecture.md`
-    3.1, 5.1), which Slice 4 adds at `/intake`. Slice 1 has no assessment, so it
-    has no disposition.
 
-    Slice 4 does add the **store** row, because the PlanBack routes need the
-    episode to exist as real state. That is idempotent, and it still writes no
-    disposition.
-    """
+class ExampleCommandRequest(CreateCommandRequest):
+    example_id: str = Field(min_length=1, max_length=128)
+
+
+def _command_conflict(service: EpisodeService, episode_id: str) -> JSONResponse:
+    try:
+        journey = journey_surface(service.project_journey(episode_id))
+    except EpisodeNotFound:
+        raise HTTPException(status_code=404, detail="episode not found") from None
+    except (DomainError, StateError):
+        raise HTTPException(status_code=503, detail="journey unavailable") from None
+    return JSONResponse(status_code=409, content={"detail": "command conflict", "journey": journey})
+
+
+@app.post("/api/episodes", tags=["episodes"])
+def create_episode(body: CreateCommandRequest, service: EpisodeService = Depends(get_service)):
+    """Create only the signed candidate, with its atomic durable receipt."""
+    binding = None
     with _DB_LOCK:
-        service.ensure_episode(fixture.DEMO_EPISODE_ID, "fictional older adult")
-    return EpisodeCreated(
-        episode_id=fixture.DEMO_EPISODE_ID,
-        persona=fixture.DEMO_EPISODE_ID and "fictional older adult",
-        policy_version=fixture.POLICY_VERSION,
-        simulated=True,
-        fixture_label=fixture.FIXTURE_LABEL,
-        note=(
-            "Slice 1 tracer bullet: hardcoded. No disposition is written, no "
-            "database exists on this path, and the fixture wording is a "
-            "provisional non-clinical placeholder, authored rather than sourced. "
-            "Option C was dropped on 1 October 2026; the wording asserts no "
-            "clinical claim."
-        ),
-    )
+        try:
+            binding = verify_operation(body.operation_token, signing_key=service._operation_signing_key())
+            result = service.start_example(binding)
+        except CommandInvalid:
+            raise HTTPException(status_code=422, detail="operation refused") from None
+        except CommandConflict:
+            return _command_conflict(service, binding.episode_id)
+        except (DomainError, StateError):
+            raise HTTPException(status_code=503, detail="journey unavailable") from None
+        return JSONResponse(status_code=202 if result.receipt.state == "pending" else 200,
+                            content=command_surface(result))
 
 
 @app.get("/api/episodes/{episode_id}", tags=["episodes"])
 def get_episode(
     episode_id: str,
+    request: Request,
+    prepare_kind: str | None = None,
+    body_sha256: str | None = None,
+    parent_id: str | None = None,
     service: EpisodeService = Depends(get_service),
 ) -> dict[str, object]:
-    """Slice 14: nullable no-plan; assessed journeys refuse until Slice 15."""
+    """Coherent stored projection; preparation issues a token without writes."""
     with _DB_LOCK:
         try:
+            if prepare_kind is not None or body_sha256 is not None or parent_id is not None:
+                request.scope["query_string"] = b""  # preparation parameters never enter access logs
+                if prepare_kind is None or body_sha256 is None:
+                    raise CommandInvalid("incomplete preparation")
+                return {"operation_token": service.prepare_command(episode_id,
+                    kind=prepare_kind, body_sha256=body_sha256, parent_id=parent_id)}
             return journey_surface(service.project_journey(episode_id))
         except EpisodeNotFound:
             raise
-        except (JourneyUnavailable, StateError):
+        except CommandInvalid:
+            raise HTTPException(status_code=422, detail="operation refused") from None
+        except (DomainError, StateError):
             raise HTTPException(status_code=503, detail="journey unavailable") from None
 
 
@@ -559,21 +578,6 @@ def patient_page() -> RedirectResponse:
 # ---------------------------------------------------------------------------
 
 
-class IntakeRequest(BaseModel):
-    confirmed_text: str
-
-
-class IntakeResponse(BaseModel):
-    episode_id: str
-    disposition_version: int
-    action_id: str
-    deadline_utc: str
-    next_owner_id: str
-    fallback_route_id: str
-    simulated: bool
-    fixture_label: str
-
-
 class TranscriptConfirmationRequest(BaseModel):
     corrected_text: str
 
@@ -657,47 +661,26 @@ def _coordinator_down() -> HTTPException:
     )
 
 
-@app.post(
-    "/api/episodes/{episode_id}/intake",
-    response_model=IntakeResponse,
-    tags=["planback"],
-)
-def intake(
-    episode_id: str,
-    body: IntakeRequest,
-    service: EpisodeService = Depends(get_service),
-) -> IntakeResponse:
-    """The fixture-bound assessment. Issues the preauthored plan, or stops.
-
-    A complaint this fixture is not bound to stops at the human path with 422.
-    No disposition is derived from free text, and none is written for an
-    unrecognised complaint (D7).
-    """
-    try:
-        with _DB_LOCK:
-            disposition = service.intake(episode_id, body.confirmed_text)
-    except EpisodeNotFound:
-        raise HTTPException(status_code=404, detail=f"episode {episode_id!r} not found")
-    except EpisodeAlreadyAssessed as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    except IntakeNotRecognised as exc:
-        raise HTTPException(
-            status_code=422,
-            detail={
-                "detail": str(exc),
-                "stopped_at": "human_path",
-            },
-        )
-    return IntakeResponse(
-        episode_id=episode_id,
-        disposition_version=disposition.version,
-        action_id=disposition.action_id,
-        deadline_utc=disposition.clinical_deadline_utc.isoformat(),
-        next_owner_id=disposition.next_owner_id,
-        fallback_route_id=disposition.fallback_route_id,
-        simulated=True,
-        fixture_label=fixture.FIXTURE_LABEL,
-    )
+@app.post("/api/episodes/{episode_id}/intake", tags=["planback"])
+def intake(episode_id: str, body: ExampleCommandRequest,
+           service: EpisodeService = Depends(get_service)):
+    """Select the fixed fictional example through a separate durable receipt."""
+    with _DB_LOCK:
+        try:
+            binding = verify_operation(body.operation_token, signing_key=service._operation_signing_key())
+            if binding.episode_id != episode_id:
+                raise CommandConflict("episode binding conflict")
+            result = service.select_example(binding, example_id=body.example_id)
+        except EpisodeNotFound:
+            raise
+        except CommandInvalid:
+            raise HTTPException(status_code=422, detail="operation refused") from None
+        except CommandConflict:
+            return _command_conflict(service, episode_id)
+        except (DomainError, StateError):
+            raise HTTPException(status_code=503, detail="journey unavailable") from None
+        return JSONResponse(status_code=202 if result.receipt.state == "pending" else 200,
+                            content=command_surface(result))
 
 
 @app.post(
