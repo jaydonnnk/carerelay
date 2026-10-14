@@ -1,5 +1,5 @@
 import "server-only";
-import { readJourney, type NoPlanJourney } from "./journey";
+import { readJourney, readCommand, type Journey, type CommandResult } from "./journey";
 /**
  * The one place the frontend talks to the CareRelay API.
  *
@@ -28,13 +28,7 @@ const API_TOKEN = process.env.CARERELAY_API_TOKEN ?? "";
  * reading the code. The id is whatever the service says it is, and nothing else.
  */
 
-export type PatientProjection = NoPlanJourney;
-
-export type HintState = {
-  episode_id: string;
-  hint_level: string;
-  card_visible: boolean;
-};
+export type PatientProjection = Journey;
 
 /**
  * The three ways a call can end. `unavailable` is a first-class result, not an
@@ -83,35 +77,28 @@ export async function getEpisode(episodeId: string): Promise<Result<PatientProje
       headers: API_TOKEN ? { Authorization: `Bearer ${API_TOKEN}` } : {},
       cache: "no-store", redirect: "error", signal: AbortSignal.timeout(5000),
     });
+    if (response.status === 404) return { ok: false, reason: "not_found", detail: "journey unavailable" };
     const value = await readJourney(response, episodeId);
     return value ? { ok: true, value } : { ok: false, reason: "unavailable", detail: "journey unavailable" };
   } catch { return { ok: false, reason: "unavailable", detail: "journey unavailable" }; }
 }
 
-/**
- * Legacy judge-ledger helper. Patient entry never calls this. Command-backed
- * explicit patient creation belongs to Slice 15.
- */
-export async function createEpisode(): Promise<Result<{ episode_id: string }>> {
-  return call<{ episode_id: string }>("/api/episodes", { method: "POST", body: "{}" });
+/** Exact user-selected mutations; response loss is recovered by a separate GET. */
+export async function createCommand(episodeId: string, operationToken: string): Promise<Result<CommandResult>> {
+  return command(`/api/episodes`, episodeId, { operation_token: operationToken });
 }
-
-/**
- * Record one hint event. The card is shown and hidden only by a patient action:
- * there is no timer anywhere in this app, and none on the server (constraint C8).
- */
-export async function recordHintEvent(
-  episodeId: string,
-  hintLevel: string,
-  event: "shown" | "patient_hid",
-): Promise<Result<HintState>> {
-  return call<HintState>(
-    `/api/episodes/${encodeURIComponent(episodeId)}/hint-events`,
-    {
-      method: "POST",
-      body: JSON.stringify({ hint_level: hintLevel, event }),
-    },
-  );
+export async function selectExampleCommand(episodeId: string, operationToken: string): Promise<Result<CommandResult>> {
+  return command(`/api/episodes/${encodeURIComponent(episodeId)}/intake`, episodeId,
+    { operation_token: operationToken, example_id: "scripted-appointment" });
+}
+async function command(path: string, episodeId: string, body: Record<string, string>): Promise<Result<CommandResult>> {
+  try {
+    const response = await fetch(`${API_URL}${path}`, { method: "POST", redirect: "error", cache: "no-store",
+      signal: AbortSignal.timeout(5000), headers: { "Content-Type": "application/json", ...(API_TOKEN ? { Authorization: `Bearer ${API_TOKEN}` } : {}) },
+      body: JSON.stringify(body) });
+    const value = await readCommand(response, episodeId);
+    return value ? { ok: true, value } : { ok: false, reason: "unavailable", detail: "journey unavailable" };
+  } catch { return { ok: false, reason: "unavailable", detail: "journey unavailable" }; }
 }
 
 /**

@@ -1,5 +1,5 @@
 /** Server-only crypto; the codec receives its key and never stores credentials. */
-import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 export const LOCATOR_COOKIE = "carerelay_demo_locator";
 export type EpisodeLocator = { schema: "carerelay-locator-v1"; nonce: string;
   episode_id: string; operation_id: string };
@@ -40,4 +40,63 @@ export function locatorCookieOptions(url: URL, loopbackTest: boolean) {
   const local = loopbackTest && ["127.0.0.1", "localhost", "[::1]"].includes(url.hostname);
   if (url.protocol !== "https:" && !(url.protocol === "http:" && local)) throw new Error("HTTPS required");
   return { httpOnly: true, secure: url.protocol === "https:", sameSite: "lax" as const, path: "/" };
+}
+
+export type OperationBinding = { operation_id: string; episode_id: string; disposition_version: number | null;
+  expected_revision: number; kind: string; purpose: string; body_sha256: string;
+  parent_restatement_id: string | null; confirmation_id: string | null; token_schema: "carerelay-command-v1" };
+function commandMac(payload: string, key: string): Buffer {
+  if (!key.trim()) throw new Error("operation unavailable");
+  const separated = createHmac("sha256", key).update("carerelay:command:v1").digest();
+  return createHmac("sha256", separated).update(payload).digest();
+}
+function ordered(value: Record<string, unknown>): string {
+  return JSON.stringify(Object.fromEntries(Object.keys(value).sort().map(k => [k, value[k]])));
+}
+export function creationOperation(locator: EpisodeLocator, key: string): string {
+  const digest = createHash("sha256").update(ordered({ kind: "create", payload: {}, schema: "carerelay-command-v1" })).digest("hex");
+  const binding: OperationBinding = { operation_id: locator.operation_id, episode_id: locator.episode_id,
+    disposition_version: null, expected_revision: 0, kind: "create", purpose: "episode:create",
+    body_sha256: digest, parent_restatement_id: null, confirmation_id: null, token_schema: "carerelay-command-v1" };
+  const payload = Buffer.from(ordered(binding)).toString("base64url");
+  return `${payload}.${commandMac(payload, key).toString("base64url")}`;
+}
+export function decodeOperation(token: string, key: string): OperationBinding | null {
+  try {
+    if (token.length > 4096 || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(token)) return null;
+    const [payload, signature] = token.split(".");
+    const actual = Buffer.from(signature, "base64url"), expected = commandMac(payload, key);
+    if (actual.length !== expected.length || actual.toString("base64url") !== signature || !timingSafeEqual(actual, expected)) return null;
+    const raw = Buffer.from(payload, "base64url");
+    if (raw.toString("base64url") !== payload) return null;
+    const value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(raw));
+    if (!value || typeof value !== "object" || Array.isArray(value) ||
+        Object.keys(value).sort().join(",") !== "body_sha256,confirmation_id,disposition_version,episode_id,expected_revision,kind,operation_id,parent_restatement_id,purpose,token_schema") return null;
+    if (ordered(value) !== raw.toString("utf8") || value.token_schema !== "carerelay-command-v1" ||
+        !Number.isSafeInteger(value.expected_revision) || value.expected_revision < 0 ||
+        typeof value.episode_id !== "string" || !UUID.test(value.episode_id) ||
+        typeof value.operation_id !== "string" || !/^[A-Za-z0-9_-]{1,128}$/.test(value.operation_id) ||
+        typeof value.body_sha256 !== "string" || !/^[0-9a-f]{64}$/.test(value.body_sha256) ||
+        value.disposition_version !== null || value.parent_restatement_id !== null || value.confirmation_id !== null ||
+        !["create", "select_example"].includes(value.kind) || value.purpose !== `episode:${value.kind}`) return null;
+    return value as OperationBinding;
+  } catch { return null; }
+}
+
+/** Host/Origin and cookie checks happen before any backend call. */
+export function allowAction(origin: string | null, host: string | null, cookie: string | undefined,
+                            token: string, key: string, kind: "create" | "select_example",
+                            loopbackTest: boolean): EpisodeLocator | null {
+  try {
+    if (!origin || !host) return null;
+    const url = new URL(origin);
+    if (url.username || url.password || url.search || url.hash || url.pathname !== "/" ||
+        url.host.toLowerCase() !== host.toLowerCase()) return null;
+    locatorCookieOptions(url, loopbackTest);
+    const locator = cookie ? decodeLocator(cookie, key) : null;
+    const binding = decodeOperation(token, key);
+    if (!locator || !binding || binding.kind !== kind || binding.episode_id !== locator.episode_id) return null;
+    if (kind === "create" && (binding.operation_id !== locator.operation_id || binding.expected_revision !== 0)) return null;
+    return locator;
+  } catch { return null; }
 }

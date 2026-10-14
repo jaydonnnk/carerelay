@@ -167,3 +167,14 @@ p.ledger-note {
 .journey :focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
 .skip-link { position: absolute; left: -10000px; }
 .skip-link:focus { left: 1rem; top: 1rem; padding: .5rem; background: #fff; color: #542c48; }
+
+.journey-plan { margin: 1.5rem 0; }
+.journey-plan > div { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: .75rem; padding: .6rem 0; }
+.journey-plan dt { font-weight: 600; }
+.journey-plan dd { margin: 0; overflow-wrap: anywhere; }
+.journey-line { margin: .75rem 0; }
+.journey-question { font-weight: 600; }
+.journey-new-example { display: inline-block; margin-top: 1.5rem; }
+.journey button:disabled { cursor: wait; opacity: .65; }
+.journey form { margin-top: 1rem; }
+@media (max-width: 380px) { .journey-plan > div { grid-template-columns: 1fr; gap: .2rem; } }

@@ -1,4 +1,7 @@
-import { createEpisode, getLedger } from "@/lib/api";
+import { getLedger } from "@/lib/api";
+import { cookies } from "next/headers";
+import { decodeLocator, LOCATOR_COOKIE } from "@/lib/episode-locator";
+export const dynamic = "force-dynamic";
 
 /**
  * The judge ledger. Slice 12.
@@ -17,8 +20,8 @@ import { createEpisode, getLedger } from "@/lib/api";
  * An empty table reads as "nothing happened", which is a claim no service made.
  */
 export default async function LedgerPage() {
-  const created = await createEpisode();
-  if (!created.ok) {
+  const locator = decodeLocator((await cookies()).get(LOCATOR_COOKIE)?.value ?? "", process.env.CARERELAY_API_TOKEN ?? "");
+  if (!locator) {
     return (
       <main className="screen">
         <h1 className="screen-title">Judge ledger</h1>
@@ -26,13 +29,13 @@ export default async function LedgerPage() {
           The service could not be reached, so there is no ledger to show.
         </p>
         <p className="unavailable">
-          Reason: {created.detail}. Nothing on this page is a record.
+          Nothing on this page is a record.
         </p>
       </main>
     );
   }
 
-  const result = await getLedger(created.value.episode_id);
+  const result = await getLedger(locator.episode_id);
   if (!result.ok) {
     return (
       <main className="screen">
