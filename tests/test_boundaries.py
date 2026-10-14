@@ -592,7 +592,14 @@ def scan_for_secrets(payload: str) -> list[str]:
             continue
         for shape in _ASSIGNMENT_SHAPES:
             if shape in line:
-                value = _assigned_value(line).strip().strip("\"'")
+                assigned = _assigned_value(line).strip()
+                # An expression is not a credential literal. Still inspect its
+                # string arguments so wrapping a pasted key does not hide it.
+                if re.match(r"[a-z_$][\w.$]*\(", assigned):
+                    literals = re.findall(r"['\"]([^'\"]*)['\"]", assigned)
+                    value = max(literals, key=len, default="")
+                else:
+                    value = assigned.rstrip(";").strip().strip("\"'")
                 # A pasted credential is one token: no spaces. This is what keeps
                 # prose from being a finding, and prose is most of what a
                 # commented configuration file is made of. A placeholder, an
@@ -639,6 +646,18 @@ class TestSecretsNeverReachASerializedSurface:
 
     def test_a_long_assigned_secret_is_detected(self) -> None:
         assert scan_for_secrets("api_token = " + "z" * 40)
+
+    def test_a_form_getter_is_not_a_literal_credential(self):
+        assert scan_for_secrets('const token = form.get("operation_token");') == []
+
+    @pytest.mark.parametrize("value", [
+        '"' + "z" * 40 + '";',
+        "'" + "z" * 40 + "';",
+        'form.get("' + "z" * 40 + '");',
+        "z" * 40,
+    ])
+    def test_credential_literal_survives_assignment_syntax(self, value):
+        assert scan_for_secrets("const token = " + value)
 
     def test_an_environment_reference_is_not_a_finding(self) -> None:
         """The control: `${CARERELAY_API_TOKEN}` is the correct way to write it."""
@@ -1084,8 +1103,14 @@ def test_scanner_detects_injected_needle() -> None:
     assert scan_for_secrets(projection + forward), "the scanner missed the forward form"
     assert scan_for_secrets(escaped), "the scanner missed the JSON-escaped form"
 
-# Slice 14 no-plan detectors. API serialization is exercised here; actual Next.js
-# SSR/RSC/visible/accessibility capture remains blocked without frontend tooling.
+# Slice 14 no-plan detectors. API serialization is exercised here. SSR, RSC,
+# visible-text and accessibility capture were run against the production build on
+# 14 October 2026 with injection controls on all five surfaces; see
+# `docs/reviews/slice15-guard-evidence-classification.md`. Five of these phrases are
+# also the Gate 1 approved closure copy (`01-product.md` lines 177 to 188), so the
+# absence assertion is scoped to surfaces where no disposition and outcome are
+# recorded: on the documented, accepted and handoff screens those exact lines are
+# the approved truth, not a fabricated completion.
 NO_PLAN_DETECTORS = {
     "arranged": r"help is arranged\.",
     "nothing_needed": r"nothing more is needed from you\.",
