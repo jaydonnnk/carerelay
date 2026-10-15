@@ -159,6 +159,8 @@ p.ledger-note {
 .journey h1 { font-size: 1.7em; line-height: 1.2; color: var(--accent); }
 .journey .demo-label { font-size: .8em; }
 .journey-status { font-size: 1.25em; font-weight: 650; }
+/* One persistent polite region: present before its text changes, collapsed while empty. */
+.journey-live:empty { margin: 0; }
 .text-control, .journey .control { font: inherit; padding: .65em .8em; min-height: 48px;
   border: 2px solid var(--accent); border-radius: .3rem; cursor: pointer; }
 .text-control { color: var(--accent); background: transparent; }
@@ -175,7 +177,7 @@ p.ledger-note {
 .journey-line { margin: .75rem 0; }
 .journey-question { font-weight: 600; }
 .journey-new-example { display: inline-block; margin-top: 1.5rem; }
-.journey button:disabled { cursor: wait; opacity: .65; }
+.journey button:disabled, .journey [aria-disabled="true"] { cursor: wait; opacity: .65; }
 .journey form { margin-top: 1rem; }
 @media (max-width: 380px) { .journey-plan > div { grid-template-columns: 1fr; gap: .2rem; } }
 

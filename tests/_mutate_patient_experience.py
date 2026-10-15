@@ -1,4 +1,4 @@
-"""Patient-experience guards through Slice 19: offline or opt-in real Postgres.
+"""Patient-experience guards through Slice 20: offline or opt-in real Postgres.
 
 Use --validate-only to resolve anchors, collect selectors and run their controls.
 Run mutations only after all source writers stop. --filter and --resume retain
@@ -209,6 +209,7 @@ def build_mutations():
     add_slice16_source_word_mutations(add)
     add_slice16_full_width_question_mutation(add)
     add_slice18_mutations(add)
+    add_slice20_mutations(add)
     boundary = (ROOT / 'tests/test_boundaries.py').read_text()
     start = boundary.index('NO_PLAN_DETECTORS = {'); end = boundary.index('\n}', start)
     for name, pattern in re.findall(r'    "([a-z_]+)": r"([^"]+)",', boundary[start:end]):
@@ -1003,8 +1004,8 @@ def build_mutations():
   'selector': 'tests/test_journey_commands.py::test_s17_real_react_render_starts_permission_unchecked_and_barrier_unselected',
   'target': 'frontend/components/PatientJourney.tsx'},
  {'label': 'G22 S17 unchecked choice disables request',
-  'new': 'disabled={pending || !request}',
-  'old': 'disabled={pending || !request || !agreed}',
+  'new': 'disabled={!request}',
+  'old': 'disabled={!request || !agreed}',
   'selector': 'tests/test_journey_commands.py::test_s17_real_react_render_starts_permission_unchecked_and_barrier_unselected',
   'target': 'frontend/components/PatientJourney.tsx'},
  {'label': 'G22 S17 barrier question appears once',
@@ -1310,8 +1311,8 @@ def add_inventory_mutations(add):
         'journey?.question && journey.question.text !== copy.heading', 'journey?.question',
         I + "test_renderer_announces_each_server_prompt_once[permission]")
     add("G06 one pending status", "frontend/components/PatientJourney.tsx",
-        '{copy.feedback && <p role="status">{copy.feedback}</p>}',
-        '{copy.feedback && <><p role="status">{copy.feedback}</p><p role="status">{copy.feedback}</p></>}',
+        '<p role="status" className="journey-live">{liveStatus}</p>',
+        '<p role="status" className="journey-live">{liveStatus}</p><p role="status">{copy.feedback}</p>',
         I + "test_renderer_announces_each_server_prompt_once[pending]")
     source = (ROOT / STATE).read_text()
     start = source.index("CREATE TABLE IF NOT EXISTS journey_commands (")
@@ -2488,6 +2489,70 @@ def add_slice18_mutations(add):
       'tests/test_adp_extraction.py::test_unvalidated_port_metadata_never_reaches_storage_or_ledger')]
     for row in rows:
         add(*row)
+
+
+def add_slice20_mutations(add):
+    """Slice 20: each pending command control stays focusable and says it is busy.
+
+    One case per control: restoring native `disabled` on any single one drops browser
+    focus to BODY while it holds focus. The helper case removes the busy state itself.
+    The dialog cases pin the approved card label and fallback from server to render.
+    """
+    journey = "frontend/components/PatientJourney.tsx"
+    selector = D + "test_s20_pending_controls_stay_focusable_and_say_busy"
+    for name, old, new in [
+        ("start example", '<button className="control primary" aria-disabled={busy(pending)} type="submit">{ENTRY_COPY.start}',
+            '<button className="control primary" disabled={pending} type="submit">{ENTRY_COPY.start}'),
+        ("barrier group", '<fieldset className="journey-choices" aria-describedby=',
+            '<fieldset className="journey-choices" disabled={pending} aria-describedby='),
+        ("barrier radio", 'aria-disabled={busy(pending)} checked={choice === option.choice_id}',
+            'disabled={pending} checked={choice === option.choice_id}'),
+        ("barrier continue", 'type="submit" aria-disabled={busy(pending)}>{journey.text.continue_label}',
+            'type="submit" disabled={pending}>{journey.text.continue_label}'),
+        ("consent checkbox", 'checked={agreed} aria-disabled={busy(pending)}', 'checked={agreed} disabled={pending}'),
+        ("request", 'disabled={!request || !agreed} aria-disabled={busy(pending)}', 'disabled={pending || !request || !agreed}'),
+        ("decline", 'type="button" aria-disabled={busy(pending)}\n      onClick={() => { if (pending) return; setAgreed(false);',
+            'type="button" disabled={pending}\n      onClick={() => { if (pending) return; setAgreed(false);'),
+        ("review", 'type="submit" aria-disabled={busy(pending)}>{copy.review_label}', 'type="submit" disabled={pending}>{copy.review_label}'),
+        ("confirm", 'aria-disabled={busy(pending)} onClick={checkDraft}', 'disabled={pending} onClick={checkDraft}'),
+        ("retry", 'aria-disabled={busy(pending)} onClick={retry}', 'disabled={pending} onClick={retry}'),
+        ("read-back start", 'aria-disabled={busy(commandPending)} onClick={() => run(readback)}', 'disabled={commandPending} onClick={() => run(readback)}'),
+        ("show opener", 'ref={showOpener} aria-disabled={busy(commandPending)}', 'ref={showOpener} disabled={commandPending}'),
+        ("busy state", 'return pending || undefined;', 'return undefined;'),
+    ]:
+        add("Slice20 G23 pending focus " + name, journey, old, new, selector)
+    card = D + "test_s20_revealed_card_carries_approved_label_and_fallback"
+    for name, target, old, new in [
+        ("server label", RULES, 'reveal_notice="Fictional plan. No real care.",\n', ''),
+        ("server fallback template", RULES, 'reveal_fallback=f"If that does not work, call {plan.fallback_display}.")',
+            'reveal_fallback=plan.fallback_display)'),
+        ("visible only", RULES, 'if visible:\n        screen_text.update(revealed_heading="Your example plan", reveal_notice=',
+            'if True:\n        screen_text.update(revealed_heading="Your example plan", reveal_notice='),
+        ("decoder label key", DECODER, '"revealed_heading", "reveal_notice", "reveal_action_label"', '"revealed_heading", "reveal_action_label"'),
+        ("rendered label", journey, '<p className="demo-label">{copy.reveal_notice}</p>', '{null}'),
+        ("rendered fallback", journey, '<p>{copy.reveal_fallback}</p>', '{null}'),
+    ]:
+        add("Slice20 G06 dialog copy " + name, target, old, new, card)
+    live = '<p role="status" className="journey-live">{liveStatus}</p>'
+    choice = 'const liveStatus = formPending ? (copy.feedback !== undefined && copy.feedback !== staleFeedback.current ? copy.feedback : RECOVERY_COPY.loading)'
+    for name, old, new, selector in [
+        ("persistent region", live, '{liveStatus && <p role="status">{liveStatus}</p>}', I + "test_renderer_announces_each_server_prompt_once[permission]"),
+        ("server feedback first", choice, 'const liveStatus = formPending ? (RECOVERY_COPY.loading)', D + "test_s20_pending_command_speaks_in_the_one_status_region"),
+        ("pending reported", choice, choice.replace("formPending ?", "false ?"), D + "test_s20_pending_command_speaks_in_the_one_status_region"),
+    ]:
+        add("Slice20 G06 live status " + name, journey, old, new, selector)
+    named = D + "test_s20_main_is_named_by_step_heading_and_status"
+    for name, old, new in [
+        ("main label", ' ref={main} aria-labelledby="journey-heading journey-state">', ' ref={main}>'),
+        ("heading id", '<h1 id="journey-heading" tabIndex={-1} ref={heading}>', '<h1 tabIndex={-1} ref={heading}>'),
+        ("status id", '<p id="journey-state" className="journey-status">', '<p className="journey-status">'),
+    ]:
+        add("Slice20 G23 named main " + name, journey, old, new, named)
+    stale = D + "test_s20_superseded_unavailable_check_leaves_no_stale_feedback"
+    for case in ["barrier", "waiting"]:
+        add("Slice20 G03 superseded unavailable " + case, RULES,
+            'recorded.get("disposition_version", disposition.version) == disposition.version:\n                interpretation = "idle"',
+            'recorded.get("disposition_version", disposition.version) == disposition.version:\n                pass', stale + f"[{case}]")
 
 
 ENGINE_DSN = None

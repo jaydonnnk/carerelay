@@ -1285,9 +1285,12 @@ def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjec
         screen_text = {"heading": "May we share your plan?", "status": "No reply yet.", "notice": "Simulated request."}
     if step == "handoff" and snapshot.escalated_human_path != "nurse_line":
         screen_text = {"heading": lines[0], "notice": "Simulated handoff. Care is not confirmed."}
+    # Approved dialog copy (`patient-experience-copy.md`): the modal hides the page's
+    # simulation label, so the card carries its own, and the plan's fallback sentence.
     if visible:
-        screen_text.update(revealed_heading="Your example plan", reveal_action_label="What to do",
-                           reveal_deadline_label="Before", reveal_owner_label="Who acts")
+        screen_text.update(revealed_heading="Your example plan", reveal_notice="Fictional plan. No real care.",
+                           reveal_action_label="What to do", reveal_deadline_label="Before", reveal_owner_label="Who acts",
+                           reveal_fallback=f"If that does not work, call {plan.fallback_display}.")
     if not stopped and closure.closure is ClosureState.OPEN:
         if interpretation == "pending" and not (step == "permission" and closure.execution is ExecutionStatus.ATTEMPTED):
             screen_text["feedback"] = "Loading. Nothing is confirmed yet."

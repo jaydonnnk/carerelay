@@ -223,7 +223,8 @@ export function decodeJourney(value: unknown, expectedId: string): Journey | nul
     accepted: ["heading", "notice"], handoff: ["heading", "notice"], documented: ["heading"],
   };
   const selectedTextKeys = [...textKeys[value.step as string]];
-  if (flow.card_visible) selectedTextKeys.push("revealed_heading", "reveal_action_label", "reveal_deadline_label", "reveal_owner_label");
+  if (flow.card_visible) selectedTextKeys.push("revealed_heading", "reveal_notice", "reveal_action_label", "reveal_deadline_label",
+    "reveal_owner_label", "reveal_fallback");
   if (!flow.stopped && outcome.closure === "open" &&
       !(value.step === "permission" && outcome.execution === "attempted") &&
       ["pending", "unavailable", "uncertain"].includes(flow.interpretation as string) ||

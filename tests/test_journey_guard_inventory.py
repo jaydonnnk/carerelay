@@ -442,8 +442,11 @@ new Function("require","module","exports",code)(name=>{
 },mod,mod.exports);
 const html=require("react-dom/server").renderToStaticMarkup(React.createElement(mod.exports.PatientJourney,{state:"loaded",journey:body}));
 const needle=body.question?.text??body.text.feedback;
-console.log(JSON.stringify({count:html.split(needle).length-1,status:(html.match(/role="status"/g)||[]).length}));''', body)
-    assert observed == {"count": 1, "status": 1 if case == "pending" else 0}
+const regions=[...html.matchAll(/<p role="status"[^>]*>([^<]*)<\\/p>/g)].map(m=>m[1]);
+console.log(JSON.stringify({count:html.split(needle).length-1,status:(html.match(/role="status"/g)||[]).length,spoken:regions.filter(Boolean)}));''', body)
+    # Slice 20: one polite region always exists, so Safari with VoiceOver announces a later
+    # change; it is empty unless a server prompt or pending command has something to say.
+    assert observed == {"count": 1, "status": 1, "spoken": [body["text"]["feedback"]] if case == "pending" else []}
 
 
 def assessed_bundle(tmp_path, screen="plan"):

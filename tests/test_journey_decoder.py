@@ -157,6 +157,7 @@ const hooks={
  useRef(value){const n=index++;if(!(n in slots))slots[n]={current:value};return slots[n]},
  useEffect(effect,deps){const n=index++;const previous=slots[n];
   if(!previous||deps.some((v,i)=>v!==previous[i]))effects.push(effect);slots[n]=deps},
+ useLayoutEffect(effect,deps){hooks.useEffect(effect,deps)},
  useActionState(){throw Error("forms not mounted by this hook driver")}
 };
 const hintMod={exports:{}};const hintCode=ts.transpileModule(readFileSync("frontend/components/HintCard.tsx","utf8"),{
@@ -190,7 +191,7 @@ def test_readback_transition_replaces_the_answer_bearing_document(plan, tmp_path
 import * as journey from "./frontend/lib/journey.ts";
 const [plan,next]=JSON.parse(readFileSync(0,"utf8")),require=createRequire(process.cwd()+"/frontend/package.json"),ts=require("typescript");
 const React=require("react"),paths=[];
-const hooks={useState:v=>[typeof v==="function"?v():v,()=>{}],useRef:v=>({current:v}),useEffect(){},useActionState(){throw Error("not mounted")}};
+const hooks={useState:v=>[typeof v==="function"?v():v,()=>{}],useRef:v=>({current:v}),useEffect(){},useLayoutEffect(){},useActionState(){throw Error("not mounted")}};
 const mod={exports:{}},code=ts.transpileModule(readFileSync("frontend/components/PatientJourney.tsx","utf8"),{
  compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
 new Function("require","module","exports",code)(name=>{
@@ -226,7 +227,7 @@ def test_hide_response_keeps_focus_on_the_show_opener(plan, tmp_path):
 import * as journey from "./frontend/lib/journey.ts";
 const [initial,plan,next]=JSON.parse(readFileSync(0,"utf8")),require=createRequire(process.cwd()+"/frontend/package.json"),ts=require("typescript"),React=require("react");
 const focused=[];
-const hooks={useState:v=>[v?.state==="loaded"?{state:"loaded",journey:plan}:typeof v==="function"?v():v,()=>{}],useRef:v=>({current:v}),useEffect(){},useActionState(){throw Error("not mounted")}};
+const hooks={useState:v=>[v?.state==="loaded"?{state:"loaded",journey:plan}:typeof v==="function"?v():v,()=>{}],useRef:v=>({current:v}),useEffect(){},useLayoutEffect(){},useActionState(){throw Error("not mounted")}};
 const mod={exports:{}},code=ts.transpileModule(readFileSync("frontend/components/PatientJourney.tsx","utf8"),{
  compilerOptions:{module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}).outputText;
 function HintCard(){}

@@ -845,6 +845,97 @@ console.log(JSON.stringify({{html:d.map(journey=>renderToStaticMarkup(React.crea
     assert result["calls"] == 0
 
 
+def test_s20_pending_controls_stay_focusable_and_say_busy(s17_permission_projection):
+    """Slice 20: a natively disabled control drops focus to BODY while it holds focus.
+
+    The browser reproduction was the plan dialog: Escape and Back to my answer focused
+    Show my plan, then the pending command disabled it and focus fell to BODY for the
+    whole hide request. A real render with every pending flag forced on must keep each
+    command control enabled for focus and mark it aria-disabled instead. The rest render
+    is the control: nothing is busy, and the unagreed request stays natively disabled.
+    """
+    permission = copy.deepcopy(s17_permission_projection)
+    permission["commands"] += [{"kind": k, "offer_id": k, "permitted_choice_ids": [], "operation_token": k} for k in ("revoke_share", "show_plan")]
+    permission["text"]["show_label"] = "Show my plan"
+    barrier = copy.deepcopy(permission)
+    barrier["step"] = "barrier"
+    barrier["commands"] = [{"kind": "select_barrier", "offer_id": "select_barrier", "permitted_choice_ids": ["booking", "transport"], "operation_token": None}]
+    barrier["question"] = {"question_id": "barrier", "text": "What makes it difficult?", "choices": [
+        {"choice_id": "booking", "text": "Finding an appointment"}, {"choice_id": "transport", "text": "Getting there"}]}
+    barrier["text"] = dict(heading="What makes it difficult?", description="Choose one.", choice_error="Choose one to continue.", continue_label="Continue")
+    readback = copy.deepcopy(permission)
+    readback["step"] = "readback"
+    readback["question"] = None
+    readback["commands"] = [{"kind": k, "offer_id": k, "permitted_choice_ids": [], "operation_token": k} for k in ("confirm_words", "score_words", "show_plan")]
+    readback["text"] = dict(heading="What is your plan?", input_label="Your words", input_help="Demo: use made-up words only.",
+        input_error="Add your words, or show your plan.", review_label="Review my answer", answer_label="Your answer",
+        preview_label="Preview only. Not checked or saved.", confirmation_label="Save and check these words",
+        confirmation_help="This saves the words shown above and checks them against your example plan.",
+        retry_label="Check these words again", retry_help="This ends any previous check of these saved words and starts a new check.",
+        show_label="Show my plan", saved_words="go to the clinic")
+    draft = copy.deepcopy(readback)
+    del draft["text"]["saved_words"]
+    plan = copy.deepcopy(permission)
+    plan["step"] = "plan"
+    plan["question"] = None
+    plan["commands"] = [{"kind": k, "offer_id": k, "permitted_choice_ids": [], "operation_token": k} for k in ("readback_started", "show_plan")]
+    plan["text"] = dict(heading="Your next step", readback_label="Say it in your words", show_label="Show my plan")
+    entry = copy.deepcopy(plan)
+    entry["commands"] = [{"kind": "select_example", "offer_id": "select_example", "permitted_choice_ids": [], "operation_token": "example"}]
+    react = (ROOT / "frontend/node_modules/react/index.js").as_uri()
+    result = node(f'''import {{readFileSync}} from 'node:fs';
+import ts from {json.dumps((ROOT / "frontend/node_modules/typescript/lib/typescript.js").as_uri())};
+import React from {json.dumps(react)};
+import {{renderToStaticMarkup}} from {json.dumps((ROOT / "frontend/node_modules/react-dom/server.node.js").as_uri())};
+const d=JSON.parse(readFileSync(0,'utf8'));
+const url=s=>'data:text/javascript;base64,'+Buffer.from(s).toString('base64');
+const transpile=(s,reactUrl)=>ts.transpileModule(s,{{compilerOptions:{{module:ts.ModuleKind.ESNext,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}}}).outputText
+ .replaceAll('"react"',JSON.stringify(reactUrl))
+ .replaceAll('"react/jsx-runtime"',{json.dumps(json.dumps((ROOT / "frontend/node_modules/react/jsx-runtime.js").as_uri()))});
+// Every boolean flag starts true, so every command is rendered while it is pending.
+const pendingReact=url(`import React from {json.dumps(react)};export default React;
+export const useEffect=React.useEffect,useLayoutEffect=React.useLayoutEffect,useRef=React.useRef;
+export const useState=init=>React.useState(init===false?true:init);
+export const useActionState=(action,init)=>[init,action,true];`);
+const actions=url(['startExample','selectExample','prepareReadbackWords','submitReadback','prepareBarrierChoice','submitPermission'].map(n=>'export async function '+n+'(){{throw Error("render mutation")}}').join(';'));
+const nav=url('export function useRouter(){{return {{refresh(){{}}}}}}');
+const hint=url(transpile(readFileSync('frontend/components/HintCard.tsx','utf8'),{json.dumps(react)}));
+const source=readFileSync('frontend/components/PatientJourney.tsx','utf8').replace('"next/navigation"',JSON.stringify(nav))
+ .replace('"@/app/actions"',JSON.stringify(actions)).replace('"@/lib/journey"',{json.dumps(json.dumps(module("journey")))})
+ .replace('"./HintCard"',JSON.stringify(hint));
+const render=async reactUrl=>{{const {{PatientJourney}}=await import(url(transpile(source,reactUrl)));
+ return d.map(journey=>renderToStaticMarkup(React.createElement(PatientJourney,{{state:'loaded',journey}})));}};
+console.log(JSON.stringify({{pending:await render(pendingReact),rest:await render({json.dumps(react)})}}));''',
+        [entry, plan, draft, readback, barrier, permission])
+    from html.parser import HTMLParser
+    class Controls(HTMLParser):
+        def __init__(self):
+            super().__init__(); self.controls = []
+        def handle_starttag(self, tag, attrs):
+            attrs = dict(attrs)
+            if tag in {"button", "fieldset"} or (tag == "input" and attrs.get("type") in {"radio", "checkbox"}):
+                self.controls.append((tag, attrs))
+    def controls(html):
+        parsed = Controls(); parsed.feed(html)
+        return [(tag, attrs) for tag, attrs in parsed.controls if "text-control" not in attrs.get("class", "")]
+    commands = 0
+    for html in result["pending"]:
+        for tag, attrs in controls(html):
+            assert "disabled" not in attrs, (tag, attrs)
+            if tag != "fieldset":
+                assert attrs.get("aria-disabled") == "true", (tag, attrs)
+                commands += 1
+    # Start, read-back, show, review, confirm, retry, two radios, continue, checkbox, request, decline.
+    assert commands >= 13
+    labels = " ".join(result["pending"])
+    for label in ("See the example", "Say it in your words", "Show my plan", "Review my answer", "Save and check these words",
+                  "Check these words again", "Continue", "Try the simulated request", "Not now"):
+        assert label in labels, label
+    rest = [c for html in result["rest"] for c in controls(html)]
+    assert rest and all("aria-disabled" not in attrs for _, attrs in rest)
+    assert [attrs.get("disabled") for tag, attrs in controls(result["rest"][5]) if tag == "button" and "control primary" in attrs.get("class", "")] == [""]
+
+
 def test_s17_actual_server_projections_and_tokens_decode_through_failure_and_stop(tmp_path):
     from test_journey import s17_understood, s17_binding
     from carerelay.domain.models import CallbackResult, ExecutionStatus, Origin
@@ -1097,6 +1188,153 @@ import {{readFileSync}} from 'node:fs';
 const choice=JSON.parse(readFileSync(0,'utf8'));
 console.log(JSON.stringify(barrierChoiceDigest(choice)));''', choice)
     assert result == hashlib.sha256(canonical({"kind": "select_barrier", "payload": {"choice_id": choice}, "schema": "carerelay-command-v1"})).hexdigest()
+
+
+def test_s20_revealed_card_carries_approved_label_and_fallback(tmp_path):
+    """Slice 20: the modal hides the page's simulation label from assistive technology.
+
+    The approved card (`patient-experience-copy.md`, mockup 02-readback) therefore
+    carries "Fictional plan. No real care." and the plan's fallback sentence itself.
+    The actual server projection after a recorded Show is decoded and rendered by the
+    production component; the hidden projection after Hide carries neither string.
+    """
+    from _journey_fixtures import seed_journey
+    from carerelay.journey_commands import verify_operation
+    from _legacy_service_probes import KEY
+    service = make_service(tmp_path / "s20-card.sqlite")
+    ep = "00000000-0000-4000-8000-000000000020"
+    try:
+        seed_journey(service, ep, "readback")
+        def command(kind):
+            offer = next(o for o in service.project_journey(ep).commands if o.kind == kind)
+            return journey_surface(service.record_journey_event(verify_operation(offer.operation_token, signing_key=KEY)).journey)
+        shown, hidden = command("show_plan"), command("hide_plan")
+    finally:
+        service._store.close()
+    shown, hidden = json.loads(json.dumps(shown)), json.loads(json.dumps(hidden))
+    assert shown["text"].get("reveal_notice") == "Fictional plan. No real care."
+    assert shown["text"].get("reveal_fallback") == "If that does not work, call the fictional nurse line."
+    assert not {"reveal_notice", "reveal_fallback"} & set(hidden["text"])
+    assert "Fictional plan. No real care." not in json.dumps(hidden) and "nurse line" not in json.dumps(hidden)
+    react = (ROOT / "frontend/node_modules/react/index.js").as_uri()
+    result = node(f'''import {{readFileSync}} from 'node:fs';
+import ts from {json.dumps((ROOT / "frontend/node_modules/typescript/lib/typescript.js").as_uri())};
+import React from {json.dumps(react)};
+import {{renderToStaticMarkup}} from {json.dumps((ROOT / "frontend/node_modules/react-dom/server.node.js").as_uri())};
+import {{decodeJourney}} from {json.dumps(module("journey"))};
+const d=JSON.parse(readFileSync(0,'utf8'));
+const url=s=>'data:text/javascript;base64,'+Buffer.from(s).toString('base64');
+const transpile=s=>ts.transpileModule(s,{{compilerOptions:{{module:ts.ModuleKind.ESNext,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}}}).outputText
+ .replaceAll('"react"',JSON.stringify({json.dumps(react)}))
+ .replaceAll('"react/jsx-runtime"',{json.dumps(json.dumps((ROOT / "frontend/node_modules/react/jsx-runtime.js").as_uri()))});
+const actions=url(['startExample','selectExample','prepareReadbackWords','submitReadback','prepareBarrierChoice','submitPermission'].map(n=>'export async function '+n+'(){{throw Error("render mutation")}}').join(';'));
+const nav=url('export function useRouter(){{return {{refresh(){{}}}}}}');
+const hint=url(transpile(readFileSync('frontend/components/HintCard.tsx','utf8')));
+const source=readFileSync('frontend/components/PatientJourney.tsx','utf8').replace('"next/navigation"',JSON.stringify(nav))
+ .replace('"@/app/actions"',JSON.stringify(actions)).replace('"@/lib/journey"',{json.dumps(json.dumps(module("journey")))})
+ .replace('"./HintCard"',JSON.stringify(hint));
+const {{PatientJourney}}=await import(url(transpile(source)));
+const decoded=d.map(x=>decodeJourney(x,x.episode_id));
+console.log(JSON.stringify({{decoded:decoded.map(x=>x!==null),html:decoded.map(j=>j&&renderToStaticMarkup(React.createElement(PatientJourney,{{state:'loaded',journey:j}})))}}));''',
+        [shown, hidden])
+    assert result["decoded"] == [True, True]
+    card = result["html"][0][result["html"][0].index("<dialog"):result["html"][0].index("</dialog>")]
+    order = ["Your example plan", "Fictional plan. No real care.", "What to do", "Before", "Who acts",
+             "If that does not work, call the fictional nurse line.", "Back to my answer"]
+    positions = [card.find(text) for text in order]
+    assert -1 not in positions and positions == sorted(positions), positions
+    assert "<dialog" not in result["html"][1] and "Fictional plan. No real care." not in result["html"][1]
+
+
+def test_s20_pending_command_speaks_in_the_one_status_region(s17_permission_projection):
+    """Slice 20: Safari with VoiceOver did not announce a status paragraph inserted with its text.
+
+    The page keeps one polite region mounted. A pending command fills it with the loading
+    sentence unless the server already supplies feedback, which takes precedence; at rest
+    it is present and empty. Whether a mounted form reports pending is shown live.
+    """
+    readback = copy.deepcopy(s17_permission_projection)
+    readback["step"] = "readback"
+    readback["question"] = None
+    readback["commands"] = [{"kind": "confirm_words", "offer_id": "confirm_words", "permitted_choice_ids": [], "operation_token": "confirm_words"}]
+    readback["text"] = dict(heading="What is your plan?", input_label="Your words", input_help="Demo: use made-up words only.",
+        input_error="Add your words, or show your plan.", review_label="Review my answer", answer_label="Your answer",
+        preview_label="Preview only. Not checked or saved.", confirmation_label="Save and check these words",
+        confirmation_help="This saves the words shown above and checks them against your example plan.")
+    feedback = copy.deepcopy(readback)
+    feedback["text"]["feedback"] = "Checking your saved words. Your plan has not changed."
+    react = (ROOT / "frontend/node_modules/react/index.js").as_uri()
+    result = node(f'''import {{readFileSync}} from 'node:fs';
+import ts from {json.dumps((ROOT / "frontend/node_modules/typescript/lib/typescript.js").as_uri())};
+import React from {json.dumps(react)};
+import {{renderToStaticMarkup}} from {json.dumps((ROOT / "frontend/node_modules/react-dom/server.node.js").as_uri())};
+const d=JSON.parse(readFileSync(0,'utf8'));
+const url=s=>'data:text/javascript;base64,'+Buffer.from(s).toString('base64');
+const transpile=(s,reactUrl)=>ts.transpileModule(s,{{compilerOptions:{{module:ts.ModuleKind.ESNext,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}}}).outputText
+ .replaceAll('"react"',JSON.stringify(reactUrl))
+ .replaceAll('"react/jsx-runtime"',{json.dumps(json.dumps((ROOT / "frontend/node_modules/react/jsx-runtime.js").as_uri()))});
+const pendingReact=url(`import React from {json.dumps(react)};export default React;
+export const useEffect=React.useEffect,useLayoutEffect=React.useLayoutEffect,useRef=React.useRef;
+export const useState=init=>React.useState(init===false?true:init);
+export const useActionState=(action,init)=>[init,action,true];`);
+const actions=url(['startExample','selectExample','prepareReadbackWords','submitReadback','prepareBarrierChoice','submitPermission'].map(n=>'export async function '+n+'(){{throw Error("render mutation")}}').join(';'));
+const nav=url('export function useRouter(){{return {{refresh(){{}}}}}}');
+const hint=url(transpile(readFileSync('frontend/components/HintCard.tsx','utf8'),{json.dumps(react)}));
+const source=readFileSync('frontend/components/PatientJourney.tsx','utf8').replace('"next/navigation"',JSON.stringify(nav))
+ .replace('"@/app/actions"',JSON.stringify(actions)).replace('"@/lib/journey"',{json.dumps(json.dumps(module("journey")))})
+ .replace('"./HintCard"',JSON.stringify(hint));
+const regions=html=>[...html.matchAll(/<p role="status"[^>]*>([^<]*)<\\/p>/g)].map(m=>m[1]);
+const render=async reactUrl=>{{const {{PatientJourney}}=await import(url(transpile(source,reactUrl)));
+ return d.map(journey=>regions(renderToStaticMarkup(React.createElement(PatientJourney,{{state:'loaded',journey}}))));}};
+console.log(JSON.stringify({{pending:await render(pendingReact),rest:await render({json.dumps(react)})}}));''', [readback, feedback])
+    assert result["pending"] == [["Loading. Nothing is confirmed yet."], ["Checking your saved words. Your plan has not changed."]]
+    assert result["rest"] == [[""], ["Checking your saved words. Your plan has not changed."]]
+
+
+def test_s20_main_is_named_by_step_heading_and_status(s17_permission_projection):
+    """Slice 20: after a step change focus moves to main, and VoiceOver said only "main".
+
+    Main is labelled by the step heading and, where present, its status, so the focus
+    move itself says which screen and outcome the patient is now on.
+    """
+    waiting = copy.deepcopy(s17_permission_projection)
+    waiting["question"] = None
+    waiting["commands"] = []
+    waiting["text"] = {"heading": "May we share your plan?", "status": "No reply yet.", "notice": "Simulated request."}
+    result = node(f'''import {{readFileSync}} from 'node:fs';
+import ts from {json.dumps((ROOT / "frontend/node_modules/typescript/lib/typescript.js").as_uri())};
+import React from {json.dumps((ROOT / "frontend/node_modules/react/index.js").as_uri())};
+import {{renderToStaticMarkup}} from {json.dumps((ROOT / "frontend/node_modules/react-dom/server.node.js").as_uri())};
+const d=JSON.parse(readFileSync(0,'utf8'));
+const url=s=>'data:text/javascript;base64,'+Buffer.from(s).toString('base64');
+const transpile=s=>ts.transpileModule(s,{{compilerOptions:{{module:ts.ModuleKind.ESNext,jsx:ts.JsxEmit.ReactJSX,target:ts.ScriptTarget.ES2022}}}}).outputText
+ .replaceAll('"react"',{json.dumps(json.dumps((ROOT / "frontend/node_modules/react/index.js").as_uri()))})
+ .replaceAll('"react/jsx-runtime"',{json.dumps(json.dumps((ROOT / "frontend/node_modules/react/jsx-runtime.js").as_uri()))});
+const actions=url(['startExample','selectExample','prepareReadbackWords','submitReadback','prepareBarrierChoice','submitPermission'].map(n=>'export async function '+n+'(){{throw Error("render mutation")}}').join(';'));
+const nav=url('export function useRouter(){{return {{refresh(){{}}}}}}');
+const hint=url(transpile(readFileSync('frontend/components/HintCard.tsx','utf8')));
+const source=readFileSync('frontend/components/PatientJourney.tsx','utf8').replace('"next/navigation"',JSON.stringify(nav))
+ .replace('"@/app/actions"',JSON.stringify(actions)).replace('"@/lib/journey"',{json.dumps(json.dumps(module("journey")))})
+ .replace('"./HintCard"',JSON.stringify(hint));
+const {{PatientJourney}}=await import(url(transpile(source)));
+console.log(JSON.stringify(renderToStaticMarkup(React.createElement(PatientJourney,{{state:'loaded',journey:d}}))));''', waiting)
+    from html.parser import HTMLParser
+    class Named(HTMLParser):
+        def __init__(self):
+            super().__init__(); self.ids = {}; self.main = None; self.stack = []
+        def handle_starttag(self, tag, attrs):
+            attrs = dict(attrs)
+            if tag == "main": self.main = attrs
+            self.stack.append(attrs.get("id")); self.ids.setdefault(attrs.get("id"), "")
+        def handle_endtag(self, tag):
+            self.stack.pop()
+        def handle_data(self, data):
+            for ident in self.stack:
+                if ident: self.ids[ident] += data
+    named = Named(); named.feed(result)
+    labels = named.main.get("aria-labelledby", "").split()
+    assert " ".join(named.ids.get(i, "") for i in labels) == "May we share your plan? No reply yet."
+    assert named.main["tabindex"] == "-1"
 
 
 @pytest.mark.parametrize("later", ["barrier", "waiting"])
