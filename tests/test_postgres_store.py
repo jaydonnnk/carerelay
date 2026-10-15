@@ -131,7 +131,15 @@ def probes(store: PostgresEpisodeStore) -> AppendOnlyProbes:
     trigger. A separate connection would prove the guarantee lives in the
     database and nothing more.
     """
-    return AppendOnlyProbes(store._conn)
+    class ReceiptProbes(AppendOnlyProbes):
+        def _seed_row_for(self, table):
+            columns, values = super()._seed_row_for(table)
+            if table == "journey_commands":
+                # The generic picker cannot satisfy cross-column receipt shape.
+                values[columns.index("body_sha256")] = "0" * 64
+                values[columns.index("scored")] = 0
+            return columns, values
+    return ReceiptProbes(store._conn)
 
 
 def _seed_episode(store: PostgresEpisodeStore, episode_id: str = "ep-1") -> None:

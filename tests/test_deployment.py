@@ -245,8 +245,10 @@ deadline = datetime(2026, 10, 1, 10, 0, tzinfo=timezone.utc)
 
 store = open_store(dsn)
 store.create_episode(episode, "fictional older adult", now_utc=now)
+# A restart fixture must not redefine another test's immutable policy version.
+policy_version = "test-restart-" + episode
 store.register_policy_version(
-    "fixture-provisional-0",
+    policy_version,
     content="{}",
     provenance="provisional non-clinical placeholder, authored rather than sourced",
     approved_by=None,
@@ -256,7 +258,7 @@ store.insert_disposition(
     Disposition(
         episode_id=episode,
         version=1,
-        policy_version="fixture-provisional-0",
+        policy_version=policy_version,
         action_id="attend_same_day_review",
         clinical_deadline_utc=deadline,
         next_owner_id="patient",

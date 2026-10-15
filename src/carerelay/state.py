@@ -329,7 +329,7 @@ class JourneyTransaction:
         purpose = f"disposition:{context.disposition_version}:readback:{context.attempt_id}:{kind}"
         owned = self.execute("SELECT operation_id FROM journey_commands c WHERE c.episode_id = ? AND c.phase = 'claimed' "
             "AND c.kind = ? AND c.disposition_version = ? AND c.claim_revision = ? AND c.confirmation_id = ? "
-            "AND (c.parent_restatement_id = ? OR (c.parent_restatement_id IS NULL AND ? IS NULL)) "
+            "AND (c.parent_restatement_id = ? OR (c.parent_restatement_id IS NULL AND CAST(? AS TEXT) IS NULL)) "
             "AND c.purpose = ? AND c.body_sha256 = ? "
             "AND NOT EXISTS (SELECT 1 FROM journey_commands t WHERE t.operation_id = c.operation_id AND t.phase = 'completed')",
             (self.episode_id, kind, context.disposition_version, context.claim_revision, context.confirmation_id,
