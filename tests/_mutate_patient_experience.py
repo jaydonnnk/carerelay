@@ -1,9 +1,9 @@
-"""Patient-experience guards through Slice 18: SQLite/crypto/decoder/source parity.
+"""Patient-experience guards through Slice 19: offline or opt-in real Postgres.
 
 Use --validate-only to resolve anchors, collect selectors and run their controls.
 Run mutations only after all source writers stop. --filter and --resume retain
 per-case evidence; resumed REDs apply only to byte-identical targets and metadata.
-Actual browser and Postgres-engine observations remain separate obligations.
+--postgres requires separately authorised disposable access. Browser observations remain separate.
 """
 from dataclasses import asdict, dataclass
 import argparse
@@ -1791,7 +1791,7 @@ def add_slice16_store_mutations(add):
     add('Slice16 G18 owned score version', STATE, 'AND c.disposition_version = ?', 'AND (? IS NOT NULL)', 'tests/test_field_repair.py::test_scoring_store_requires_each_owned_claim_dimension[version]')
     add('Slice16 G18 owned score revision', STATE, 'AND c.claim_revision = ?', 'AND (? IS NOT NULL)', 'tests/test_field_repair.py::test_scoring_store_requires_each_owned_claim_dimension[revision]')
     add('Slice16 G18 owned score confirmation', STATE, 'AND c.confirmation_id = ?', 'AND (? IS NOT NULL)', 'tests/test_field_repair.py::test_scoring_store_requires_each_owned_claim_dimension[confirmation]')
-    add('Slice16 G18 owned score parent', STATE, 'AND (c.parent_restatement_id = ? OR (c.parent_restatement_id IS NULL AND ? IS NULL))', 'AND (? IS NOT NULL OR ? IS NULL)', 'tests/test_field_repair.py::test_scoring_store_requires_each_owned_claim_dimension[parent]')
+    add('Slice16 G18 owned score parent', STATE, 'AND (c.parent_restatement_id = ? OR (c.parent_restatement_id IS NULL AND CAST(? AS TEXT) IS NULL))', 'AND (CAST(? AS TEXT) IS NOT NULL OR CAST(? AS TEXT) IS NULL)', 'tests/test_field_repair.py::test_scoring_store_requires_each_owned_claim_dimension[parent]')
     add('Slice16 G18 owned score purpose', STATE, 'AND c.purpose = ?', 'AND (? IS NOT NULL)', 'tests/test_field_repair.py::test_scoring_store_requires_each_owned_claim_dimension[purpose]')
     add('Slice16 G18 owned score digest', STATE, 'AND c.body_sha256 = ?', 'AND (? IS NOT NULL)', 'tests/test_field_repair.py::test_scoring_store_requires_each_owned_claim_dimension[digest]')
     add('Slice16 G18 owned score terminal', STATE, "AND NOT EXISTS (SELECT 1 FROM journey_commands t WHERE t.operation_id = c.operation_id AND t.phase = 'completed')", 'AND 1', 'tests/test_field_repair.py::test_scoring_store_requires_each_owned_claim_dimension[terminal]')
@@ -2490,6 +2490,112 @@ def add_slice18_mutations(add):
         add(*row)
 
 
+ENGINE_DSN = None
+
+
+def build_postgres_mutations():
+    """Opt-in engine proof. The operator must separately authorise the supplied DSN."""
+    pg = "src/carerelay/postgres_store.py"
+    schema = "src/carerelay/postgres_schema.py"
+    test = "tests/test_journey_postgres.py::"
+    rows = []
+    def add(label, target, old, new, selector):
+        rows.append(Mutation("Slice19 " + label, target, old, new, selector))
+    mapped = {
+        "G11 intake receipt lookup": "test_s19_existing_control_over_real_engine[intake-replay]",
+        "G14 pending replay": "test_s19_same_worker_mutex_is_free_and_supersede_fences_late_output",
+        "Slice16 G14 claimed replay avoids extraction": "test_s19_same_worker_mutex_is_free_and_supersede_fences_late_output",
+        "Slice16 G15 late terminal fences score": "test_s19_same_worker_mutex_is_free_and_supersede_fences_late_output",
+        "G16 intake state-receipt transaction": "test_s19_sigkill_before_terminal_rolls_back_atomic_state[intake]",
+        "Slice16 G16 scored state atomic receipt": "test_s19_sigkill_before_terminal_rolls_back_atomic_state[score]",
+        "Slice17 G16 action state and receipt atomic": "test_s19_action_crash_never_redispatches[receipt]",
+        "Slice17 G16 claim owns commit": "test_postgres_nested_action_requires_its_own_commit[claim]",
+        "Slice18 G34 committed claim": "test_postgres_nested_fake_adp_scoring_refuses_before_transport",
+        "Slice18 G34 final own commit": "test_s19_existing_control_over_real_engine[final-score]",
+        "Slice17 G35 permit original process": "test_s19_existing_control_over_real_engine[forked-permit]",
+        "Slice17 G35 consume once": "test_s19_existing_control_over_real_engine[forged-permits]",
+        "Slice17 G35 reconstructed capability": "test_s19_existing_control_over_real_engine[forged-permits]",
+        "Slice17 G33 dispatch serialization": "test_s19_invocation_before_waiting_writer_and_late_callback[stop]",
+        "Slice17 G32 fresh tool-held clock": "test_s19_commit_before_invocation_gives_zero_calls[deadline]",
+    }
+    for m in build_mutations():
+        if "test_final_context_fences_are_independent[" in m.selector:
+            suffix = m.selector.split("test_final_context_fences_are_independent", 1)[1]
+            add(m.label, m.target, m.old, m.new, test + "test_s19_independent_final_context_guard_with_engine_bundle" + suffix)
+        elif "test_s17_each_final_guard_has_an_isolated_counterexample[" in m.selector:
+            suffix = m.selector.split("test_s17_each_final_guard_has_an_isolated_counterexample", 1)[1]
+            add(m.label, m.target, m.old, m.new, test + "test_s19_dispatch_guard_first_refusal_with_engine_bundle" + suffix)
+        elif m.label.startswith("G12 recorded replay "):
+            field = m.label.removeprefix("G12 recorded replay ")
+            add(m.label, m.target, m.old, m.new, test + "test_s19_replayed_binding_first_refusal[" + field + "]")
+        elif m.label in mapped:
+            add(m.label, m.target, m.old, m.new, test + mapped[m.label])
+        elif m.label.startswith("G36 schema "):
+            case = m.label.removeprefix("G36 schema ")
+            old, new = m.old, m.new
+            if case in {"digest_length", "digest_character"}:
+                old, new = "body_sha256 ~ '^[0-9a-f]{64}$'", "TRUE"
+            else:
+                new = re.sub(r"\b1\b", "TRUE", new)
+            add("G36 schema " + case, schema, old, new, test + "test_s19_phase_shape_at_engine_first_refusal[" + case + "]")
+    for field in ["operation_id", "episode_id", "disposition_version", "expected_revision", "claim_revision", "kind", "purpose", "body_sha256", "parent_restatement_id", "confirmation_id"]:
+        add("G36 completion binding " + field, schema,
+            " AND claim." + field + " IS NOT DISTINCT FROM NEW." + field, "",
+            test + "test_s19_completion_binding_is_engine_owned[" + field + "]")
+    for verb in ["UPDATE", "DELETE", "TRUNCATE", "UPSERT"]:
+        trigger = "update" if verb == "UPSERT" else verb.lower()
+        for phase in ["claimed", "completed"]:
+            add("G36 " + verb + " " + phase, schema, 'return "\\n".join(statements)',
+                'return "\\n".join(s for s in statements if not s.startswith("CREATE TRIGGER journey_commands_no_' + trigger + '"))',
+                test + "test_s19_matching_receipt_append_only[" + verb + "-" + phase + "]")
+    for phase in ["claimed", "completed"]:
+        add("G36 phase uniqueness " + phase, schema, "    UNIQUE (operation_id, phase),", "    CHECK (TRUE),",
+            test + "test_s19_receipt_phase_uniqueness[" + phase + "]")
+    add("G36 table trigger inclusion", schema, '    "events",\n    "journey_commands",', '    "events",',
+        test + "test_s19_catalog_has_exact_tables_and_all_required_triggers")
+    add("G31 repeatable snapshot", pg, "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
+        "SET TRANSACTION ISOLATION LEVEL READ COMMITTED READ ONLY", test + "test_s19_snapshot_race[stop]")
+    add("G31 read only snapshot", pg, "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY",
+        "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ WRITE", test + "test_s19_snapshot_race[consent]")
+    add("G31 waited episode lock", pg, 'cur.execute("SELECT id FROM episodes WHERE id = %s FOR UPDATE", (episode_id,))',
+        'cur.execute("SELECT id FROM episodes WHERE id = %s", (episode_id,))', test + "test_s19_waited_patient_writer_rereads_committed_stop")
+    add("G16 create atomic receipt", pg,
+        '                    return tx.complete_once(binding.operation_id, state="applied", result_ref=binding.episode_id,',
+        '                    self._conn.commit()\n                    return tx.complete_once(binding.operation_id, state="applied", result_ref=binding.episode_id,',
+        test + "test_s19_sigkill_before_terminal_rolls_back_atomic_state[create]")
+    add("G34 typed null parent", STATE, "CAST(? AS TEXT) IS NULL", "? IS NULL", test + "test_s19_null_parent_score_returns_valid_receipt")
+    add("G16 repository owns commit", pg, 'if outermost:\n                    raise StateError("action requires its own committing transaction")',
+        'if False:\n                    raise StateError("action requires its own committing transaction")', test + "test_postgres_nested_action_requires_its_own_commit[claim]")
+    for record in ["restatement", "acceptance", "escalation", "attempt"]:
+        for regression in [False, True]:
+            add("G31 stored event order " + record + " " + str(regression), pg,
+                "return _order_by_events(rows, events, kind)", "return tuple(rows)",
+                test + "test_s19_event_order_equal_timestamps_uses_real_engine[" + str(regression) + "-" + record + "]")
+    for first in ["failed", "acknowledged"]:
+        add("G33 first terminal " + first, RULES, "return ordered[0].kind", "return ordered[-1].kind",
+            test + "test_s19_waiting_callback_observes_first_terminal[" + first + "]")
+    extraction = "            result = self._readback_extractor.extract(request, budget_seconds=5.0)"
+    for scope in ["mutex", "transaction"]:
+        context = "self._store._mutex" if scope == "mutex" else "self._store.journey_transaction(binding.episode_id, write=True)"
+        add("G34 released " + scope + " during extraction", SERVICE, extraction,
+            "            with " + context + ":\n    " + extraction,
+            test + "test_s19_other_final_dimensions_change_while_extraction_waits[confirmation]")
+    add("G35 uncommitted action claim", SERVICE,
+        "                claim = tx.claim_once(binding, now_utc=now)\n                attempt = self._store.open_attempt_once",
+        "                claim = tx.claim_once(binding, now_utc=now)\n                self._store._conn.commit()\n                attempt = self._store.open_attempt_once",
+        test + "test_s19_action_crash_before_claim_commit_rolls_back")
+    # Keep each existing truthfulness counterexample, executed through the engine fixture.
+    from _mutate_truthfulness import MUTATIONS
+    for label, target, old, new, selector in MUTATIONS:
+        if target == STATE and label != "stop version filter":
+            target = pg
+        if label == "acceptance consent":
+            old = 'acceptance_id = uuid.uuid4().hex\n        with self._write(episode_id) as cur:\n            self._require_granted_consent(cur, episode_id)'
+            new = 'acceptance_id = uuid.uuid4().hex\n        with self._write(episode_id) as cur:\n            pass'
+        add("G38 " + label.replace("SQLite", "Postgres"), target, old, new, "tests/test_truthfulness_postgres.py::" + selector)
+    return rows
+
+
 def purge(path):
     for compiled in path.parent.glob(f"__pycache__/{path.stem}.*.pyc"):
         compiled.unlink()
@@ -2498,7 +2604,7 @@ def purge(path):
 def env():
     return dict(os.environ, PYTHONPATH=str(ROOT / "src"), PYTHONDONTWRITEBYTECODE="1",
         APP_DATABASE_URL=":memory:", APP_CLOCK="scenario", APP_ENV="local", CARERELAY_API_TOKEN="",
-        CARERELAY_TEST_DSN="postgresql://127.0.0.1:1/carerelay_disabled")
+        CARERELAY_TEST_DSN=ENGINE_DSN or "postgresql://127.0.0.1:1/carerelay_disabled", ADP_EXTRACTION_ENABLED="false")
 
 
 def run(selectors, directory, label, collect=False):
@@ -2532,6 +2638,7 @@ def fingerprint(mutation, original):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--postgres", action="store_true", help="Use only an explicitly authorised disposable CARERELAY_TEST_DSN")
     parser.add_argument("--run", action="store_true", help="Mutate only with all source writers idle")
     parser.add_argument("--validate-only", action="store_true")
     parser.add_argument("--anchors-only", action="store_true")
@@ -2539,7 +2646,13 @@ def main():
     parser.add_argument("--only", action="append", default=[], help="Exact named cases, repeatable")
     parser.add_argument("--resume", type=Path)
     args = parser.parse_args()
-    mutations = [m for m in build_mutations() if args.filter.casefold() in m.label.casefold() and (not args.only or m.label in args.only)]
+    global ENGINE_DSN
+    if args.postgres:
+        ENGINE_DSN = os.environ.get("CARERELAY_TEST_DSN")
+        if not ENGINE_DSN or "carerelay_disabled" in ENGINE_DSN:
+            raise SystemExit("An explicitly authorised disposable CARERELAY_TEST_DSN is required")
+    selected = build_postgres_mutations() if args.postgres else build_mutations()
+    mutations = [m for m in selected if args.filter.casefold() in m.label.casefold() and (not args.only or m.label in args.only)]
     if not mutations:
         raise SystemExit("No matching mutations; no proof claimed")
     directory = args.resume or Path(tempfile.mkdtemp(prefix="carerelay-slice15-mutations-"))
