@@ -1181,6 +1181,15 @@ def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjec
     visible = False
     interpretation = "idle"
     for kind, payload, _ in bundle.events:
+        if kind == "restatement_recorded":
+            # A later recorded round supersedes an earlier unavailable check for this plan.
+            try:
+                recorded = json.loads(payload)
+            except (ValueError, TypeError):
+                recorded = None
+            if not isinstance(recorded, dict) or recorded.get("disposition_version", disposition.version) == disposition.version:
+                interpretation = "idle"
+            continue
         if kind not in {"readback_started", "hint_event", "barrier_recorded", "interpretation_unavailable"}:
             continue
         try:

@@ -1097,3 +1097,37 @@ import {{readFileSync}} from 'node:fs';
 const choice=JSON.parse(readFileSync(0,'utf8'));
 console.log(JSON.stringify(barrierChoiceDigest(choice)));''', choice)
     assert result == hashlib.sha256(canonical({"kind": "select_barrier", "payload": {"choice_id": choice}, "schema": "carerelay-command-v1"})).hexdigest()
+
+
+@pytest.mark.parametrize("later", ["barrier", "waiting"])
+def test_s20_superseded_unavailable_check_leaves_no_stale_feedback(tmp_path, later):
+    """Slice 20, found with VoiceOver: one unavailable check stuck to every later screen.
+
+    After a later recorded round the barrier screen still said "We could not check that
+    answer just now", and the waiting projection carried that feedback, which the decoder
+    rightly refuses, so a patient who had just requested saw "We cannot load your plan".
+    A later recorded round or a new read-back attempt supersedes the earlier event.
+    """
+    from _journey_fixtures import seed_journey
+    from _legacy_service_probes import historical_attempt
+    from carerelay.domain.models import HintLevel
+    service = make_service(tmp_path / "s20-stale.sqlite")
+    ep = "00000000-0000-4000-8000-000000000021"
+    try:
+        seed_journey(service, ep, "unavailable")
+        assert service.project_journey(ep).flow.interpretation == "unavailable"
+        service.submit_restatement(ep, "see the doctor today before 6pm myself", HintLevel.H1)
+        if later == "waiting":
+            service.record_barrier(ep, "booking", "fictional_provider")
+            service.change_consent(ep, granted=True)
+            historical_attempt(service, ep, purpose="s20-waiting")
+        body = json.loads(json.dumps(journey_surface(service.project_journey(ep))))
+    finally:
+        service._store.close()
+    assert body["step"] == ("barrier" if later == "barrier" else "permission")
+    assert body["flow"]["interpretation"] == "scored"
+    assert "feedback" not in body["text"], body["text"]
+    decoded = node(f'''import {{decodeJourney}} from {json.dumps(module("journey"))};
+import {{readFileSync}} from 'node:fs';
+const d=JSON.parse(readFileSync(0,'utf8'));console.log(JSON.stringify(decodeJourney(d,d.episode_id)!==null));''', body)
+    assert decoded is True
