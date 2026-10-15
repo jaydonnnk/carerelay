@@ -1,6 +1,6 @@
 # CareRelay: project and execution instructions
 
-## Slice 19 accepted; main publication in progress: 15 October 2026
+## Slice 19 accepted and shipped to main: 15 October 2026
 
 [verified] The user accepted the bounded real-engine Check and explicitly
 requested main push and an eleven-part Slice 20 handoff. `00-status.md` owns
@@ -8,8 +8,11 @@ the exact receipt. Fresh shipping checks: 2,029 passed/232 Postgres skips/one
 warning, production typecheck/build pass. Current 156 engine/824 offline named
 RED and 39 truthfulness RED match their source/control backups; accepted actual
 engine proof remains 2,261 passes/zero skips. No source/test change in shipping.
-Main publication and final receipt are in progress. No Slice 20/21 branch or
-implementation starts. Known Escape/BODY focus stays Slice 20; ADP stays off.
+Five scoped commits were safely integrated into main; the first live push
+matched `d19859b`. All 234 file hashes/index entries survived checkout exactly.
+Main repeats the safe offline result. The receipt/current-state sweep is within
+the same request; final refs are checked after its publication. No Slice 20/21
+branch or implementation starts. Known Escape/BODY focus stays Slice 20; ADP stays off.
 Handoff: `docs/handoffs/patient-experience-slice20-2026-10-15.md`.
 Earlier checkpoints below describe their historical state.
 

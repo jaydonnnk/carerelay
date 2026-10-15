@@ -38,9 +38,11 @@ blocked; bare `tomorrow` remains uncertain in `fixture-provisional-0`.
 ### 2. Where work sits
 
 [verified] Slices 14 to 18 are accepted and shipped. Slice 19's bounded local
-real-engine Check was accepted on 15 October. Its authorised publication is
-recorded in `00-status.md`; verify its completed receipt and live main before
-starting Slice 20. Slice 19's branch is `slice-19-postgres-proof`, originally
+real-engine Check was accepted and shipped to main on 15 October. Five scoped
+commits were safely integrated; the first live main check matched `d19859b`.
+The receipt/current-state sweep is published within the same request. Verify
+its completed receipt in `00-status.md` and live main before starting Slice 20.
+Slice 19's branch is `slice-19-postgres-proof`, originally
 created from `a392b97abb24fe277e158c1926b1b808320088e4`. That is a historical
 base, not the next branch point. Query the final current main tip afresh.
 
@@ -110,7 +112,8 @@ Review: `docs/reviews/slice19-local-check-2026-10-15.md`. Evidence locations:
 - `/tmp/carerelay-s19-preflight/`: original 231-file tree/index/video snapshot,
   offline baseline, branch preservation and exact engine authority receipt.
 - `/tmp/carerelay-s19-shipping-20261015/`: shipping snapshot of 232 existing
-  files/index/video, current proof audit, fresh offline suite and frontend checks.
+  files/index/video, current proof audit, fresh offline suites before and after main integration,
+  frontend checks and exact 234-file/index checkout preservation.
 
 [verified] The approved dedicated cluster `/tmp/carerelay-s19-postgres-17.11`,
 database `carerelay_slice19_disposable`, role `carerelay_s19`, loopback 55419,

@@ -1,4 +1,4 @@
-# CareRelay Slice 19: authorised main publication, 15 October 2026
+# CareRelay Slice 19: main publication verified, 15 October 2026
 
 Operational memory only. `00-status.md` owns state and authority.
 
@@ -22,7 +22,9 @@ receipt are in `00-status.md`. No later slice starts.
 - [x] Recheck current Check/publication instruction in `00-status.md`.
 - [x] Fresh shipping snapshot/proof audit and offline suite/typecheck/build.
 - [x] Prepare eleven-part Slice 20 handoff.
-- [ ] Coherent commits, safe main integration, push, final receipt and preservation.
+- [x] Five coherent commits, safe main integration/push and 234-file/index preservation.
+- [x] Full safe offline suite on main reproduces 2,029/232/one warning.
+- [x] Prepare receipt/current-state sweep; verify final refs after its publication.
 
 Evidence: `/tmp/carerelay-s19-resume-20261015/`; current proof audit and final
 review identify exact logs/JUnit. Preparatory 143/156 engine runs and earlier
@@ -36,3 +38,7 @@ hosted access, real credentials, clinical benefit or deployment claim.
 
 [verified] Shipping evidence: `/tmp/carerelay-s19-shipping-20261015/`. Fresh
 offline checks reproduce 2,029/232/one warning; current proof hashes match.
+
+[verified] First live origin/main push matches `d19859b`. The local Slice 19
+branch is retained; final refs follow receipt publication. Stop on main with
+Slice 20/21 unstarted. Full evidence/authority remain in `00-status.md`.

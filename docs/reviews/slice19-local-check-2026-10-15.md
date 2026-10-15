@@ -7,9 +7,13 @@ main publication and the Slice 20 handoff. `00-status.md` records the exact
 authority and publication receipt. Fresh shipping checks reproduce 2,029
 offline passes/232 engine skips/one warning; production typecheck/build pass.
 Accepted engine/named/truthfulness proof matches current source/control bytes.
-Shipping does not rerun or relabel those completed proof runs. The original
-review below is retained as a pre-acceptance record; its pending/uncommitted
+Five scoped commits reached main; first live origin/main matched `d19859b`.
+The full safe offline suite on main reproduces the result above. Shipping does
+not rerun or relabel those completed proof runs. The original review below is
+retained as a pre-acceptance record; its pending/uncommitted
 statements describe review time. Slice 20/21 implementation remains unstarted.
+
+## Original review before acceptance
 
 Supporting note, authoritative for nothing. `00-status.md` owns state.
 
