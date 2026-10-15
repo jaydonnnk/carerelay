@@ -82,3 +82,12 @@ Extracted 11 Oct 2026 with `pypdf` (installed into the managed venv; no
 - Suite: **888 passed, 43 skipped, 0 failed** on macOS 11 Oct 2026 (collected
   931); Windows figure 10 Oct 2026 was 856 passed, 0 skipped.
 - Out of scope for the agent: pushing to `origin` (user instructs push).
+## 15 October 2026: Slice 20 publication prerequisite
+
+[verified] F6 is separately accepted. Scoped Slice 20 publication and named
+Slice 21 operator/live-fictional work are authorised; 00-status.md owns scope.
+Slice 20 closure does not pass deferred accessibility/named/truthfulness proof.
+Use the six-field read-back instruction, never the old seven-field schema.
+Local credential rotation, active compatible version and processing/settings
+facts remain live prerequisites. No secret values, desktop control, Slice 21
+Git publication or CareRelay deployment are authorised by this record.

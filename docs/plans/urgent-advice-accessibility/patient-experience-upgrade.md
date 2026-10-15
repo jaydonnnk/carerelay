@@ -1,5 +1,49 @@
 # Patient experience upgrade: updated 13 October 2026
 
+## Slice 20 F6 acceptance and publication authority: 15 October 2026
+
+[verified] The user explicitly accepted F6's existing stale-feedback repair and
+approved the prepared Slice 20 commits, main integration and origin/main push.
+The user reports Render Auto-Deploy Off and Vercel's ignored build command
+`exit 0` saved. No CareRelay deployment is authorised. The user-directed Slice
+20 closure and its incomplete accessibility/named/truthfulness proof are kept.
+F7's Gate 3 decision, absent F8 icons and unproved F9 announcements remain open.
+
+[verified] External snapshots preserve the original 238 files, raw/logical
+index and protected video. Reviewed source/test bytes remain unchanged apart
+from intentional staging/commits. Fresh preparation suite: 2,035 passed,
+232 Postgres skips, one warning; production typecheck/build pass. Focused F6
+proof has two named RED cases over one distinct edit, exact restoration and
+green before/after controls. Full suite after restoration also passes.
+
+[verified] Slice 21 continuation, operator instruction/runbook revisions, ADP
+publication AND activation and at most 24 fictional extraction requests are
+authorised for CareRelay, account 200053387891, existing Experience GkTbUc,
+endpoint `https://wss.lke.tencentcloud.com/adp/v2/chat`. Live requests remain
+blocked on compatible activation, settings/processing confirmation and local
+credential rotation after a value was exposed in chat. No secret is copied
+into repository records. Region and retention are unknown. The character
+prompt does not establish retention. ADP stays off and no live call has run.
+Slice 21 Git publication and deployment are not authorised.
+
+## Slice 20 closure checkpoint: historical, 15 October 2026
+
+[verified] The user explicitly requested marking Slice 20 complete and the
+Slice 21 ADP handoff. `00-status.md` records COMPLETE BY USER-DIRECTED CLOSURE,
+not a full accessibility pass. Local baseline: 2,035 passed/232 Postgres skips/
+one warning; typecheck/build pass. Final standard Chrome keyboard/reflow/scanner
+checks have bounded evidence; the full reader path and remaining proof do not.
+The named run stopped at 571/851 RED with exact source restoration; no current
+complete mutation/truthfulness claim is made. F6 separate acceptance, F7 Gate 3
+first-run recovery decision, F8 icons and F9 reader reliability remain open.
+
+[verified] Work remains uncommitted on `slice-20-accessibility-proof`. No Git
+shipping or Slice 21 implementation/live-call authority follows from preparing
+the handoff. ADP stays disabled. No further desktop/screen control is requested.
+Review: `docs/reviews/patient-experience-browser-accessibility.md`.
+Handoff: `docs/handoffs/patient-experience-slice21-2026-10-15.md`.
+Earlier dated checkpoints below are historical; `00-status.md` owns state.
+
 ## Slice 18 accepted and shipped to main: 14 October 2026
 
 [verified] The user accepted the bounded Slice 18 Check and authorised scoped

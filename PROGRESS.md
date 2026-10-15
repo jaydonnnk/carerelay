@@ -1,44 +1,33 @@
-# CareRelay Slice 19: main publication verified, 15 October 2026
+# CareRelay Slice 20 publication and Slice 21 entry: 15 October 2026
 
-Operational memory only. `00-status.md` owns state and authority.
+Operational memory only. `00-status.md` owns gate/slice authority.
 
-[verified] Shipping preflight found `slice-19-postgres-proof`/main/live main at
-`a392b97abb24fe277e158c1926b1b808320088e4`. The publication request and Check
-receipt are in `00-status.md`. No later slice starts.
+- [x] Read complete handoff, repo instructions, current state and owning contracts.
+- [x] External 238-file snapshot, raw/logical index and protected video preserved.
+- [x] Fresh baseline and post-mutation full suite: 2,035 passed/232 engine skips/one warning.
+- [x] Production typecheck/build pass; 35 inherited final-source hashes match.
+- [x] F6: two named RED over one distinct edit, exact restores and green controls.
+- [x] User explicitly accepts F6 and authorises scoped Slice 20 publication.
+- [x] User reports Render auto-deploy Off and Vercel ignored build step exit 0.
+- [x] User authorises named Slice 21 operator work and at most 24 fictional live requests.
+- [ ] Complete coherent Slice 20 commits, safe main integration and verified push.
+- [ ] Create slice-21-adp-enablement from verified published main.
+- [ ] Prepare and verify the narrow transport/configuration without enabling ADP.
+- [!] Live requests: exposed-key rotation, compatible active instruction, settings,
+  processing region and retention/logging arrangements remain unresolved.
+- [ ] Actual local production journey proof and Slice 21 Check acceptance.
 
-- [x] Preserve inherited dirty work, original and resume snapshots, index entries/video.
-- [x] Carry forward the exact approved disposable PostgreSQL 17.11 target scope.
-- [x] Fix engine constructor/seed/policy test isolation and shared null-parameter SQL.
-- [x] Actual connection/process races, crash windows, late dimensions, migration and triggers.
-- [x] Current engine 156 named RED/141 edits; offline 824 RED/805 edits.
-- [x] Truthfulness 39/39 RED; supplemental action-pending first-refusal proof.
-- [x] Final full real-engine suite 2,261 passed/zero skips/one warning.
-- [x] Final offline 2,029 passed/232 engine skips/one warning.
-- [x] Authenticated HTTP/curl loss/replay, actual backend and engine recovery.
-- [x] Actual browser refresh: same episode/rows/text, zero POST/extraction/dispatch.
-- [x] 249 serialized-surface scanner controls; production typecheck/build.
-- [x] Bounded adversarial/architecture review, current authority and documentation.
-- [x] Final preservation/LF/no-added-em-dash/diff/ref checks and exact cluster cleanup receipt.
-- [x] Recheck current Check/publication instruction in `00-status.md`.
-- [x] Fresh shipping snapshot/proof audit and offline suite/typecheck/build.
-- [x] Prepare eleven-part Slice 20 handoff.
-- [x] Five coherent commits, safe main integration/push and 234-file/index preservation.
-- [x] Full safe offline suite on main reproduces 2,029/232/one warning.
-- [x] Prepare receipt/current-state sweep; verify final refs after its publication.
+ADP target: CareRelay, account 200053387891, Experience GkTbUc,
+https://wss.lke.tencentcloud.com/adp/v2/chat. No secret value is recorded.
+Operator received the six-field instruction draft and rotation/publication steps.
+The old seven-field prompt is incompatible. Region and retention are unknown.
 
-Evidence: `/tmp/carerelay-s19-resume-20261015/`; current proof audit and final
-review identify exact logs/JUnit. Preparatory 143/156 engine runs and earlier
-failing suites are historical, not combined. See `docs/reviews/slice19-local-check-2026-10-15.md`.
+Slice 20 remains complete by user-directed closure. Deferred proof stays deferred:
+571/851 named cases ran; full current truthfulness and reader/expired/recovery
+matrix remain unfinished. F7 needs a Gate 3 decision; F8 icons/F9 announcements
+are unresolved. No desktop or screen-reader control will resume.
 
-[verified] Approved gate/copy/config/manifests and frontend behavior are unchanged.
-The protected tracked video is byte-exact. Git changed only raw index stat cache;
-logical entries/flags are unchanged and both raw versions are saved. Known
-Escape/BODY-focus failure stays Slice 20; live ADP stays disabled. No install,
-hosted access, real credentials, clinical benefit or deployment claim.
-
-[verified] Shipping evidence: `/tmp/carerelay-s19-shipping-20261015/`. Fresh
-offline checks reproduce 2,029/232/one warning; current proof hashes match.
-
-[verified] First live origin/main push matches `d19859b`. The local Slice 19
-branch is retained; final refs follow receipt publication. Stop on main with
-Slice 20/21 unstarted. Full evidence/authority remain in `00-status.md`.
+Evidence: /tmp/carerelay-s21-preflight-20261015T075950Z/ and
+/tmp/carerelay-s20-authorised-shipping-20261015/. Reviewable preparation is in
+the calling chat outputs. Preserve unrelated vibe_images and the tracked video.
+No CareRelay deployment or Slice 21 commit/merge/push is authorised.
