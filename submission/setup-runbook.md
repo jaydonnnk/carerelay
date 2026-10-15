@@ -126,7 +126,21 @@ the browser. Warm the service before a judge opens the link.
 
 ---
 
-## Part B: the ADP Experience URL
+## Part B: accepted Slice 21 ADP scope, 16 October 2026
+
+[verified] The user accepted the bounded Slice 21 demo with seven live cases unrun. Call 18 is the first valid, scored HTTPS extraction through the actual local product, in 5,305 ms. The total ledger is 18 of 24 used; 6 remain. Neither acceptance nor cleanup authorises another call or the proposed increase to 25. `00-status.md` owns current scope.
+
+[verified operator report] Named target remains CareRelay, account 200053387891, Experience GkTbUc, endpoint `https://wss.lke.tencentcloud.com/adp/v2/chat`. Instruction `carerelay-readback-instruction-v2` is published AND active; current model is DeepSeek V4 Pro, tools/plugins off and knowledge base empty. Provider version metadata, region and retention remain unknown. Recorded security settings are default moderation, Serious risk reply and masking off. No model, setting or instruction publication change is part of cleanup.
+
+[verified configuration/source] Keep `ADP_EXTRACTION_ENABLED` false by default. The adapter accepts schema `carerelay-readback-v2`, phrase text only, with code locating exact source occurrences. It keeps the 15-second whole-response cap, 2,048 input code points, 16 KiB answer/frame and 64 KiB wire. No retry or lexical fallback. Only code owns comparison, guidance, deadlines, permissions and closure; actions remain `local-sim`.
+
+[verified] A default-off interactive preview uses the labelled offline extractor and makes no ADP request. That preview demonstrates the patient journey, not a fresh live ADP inference. Real ADP integration is separately supported by the recorded call-18 result in `docs/reviews/adp-readback-observations.md`. An interactive review that must make fresh live ADP calls requires an explicit plan/count and a guard that reserves every submission before sending. Do not enable unmetered browser submissions merely to make a demo look live.
+
+If a later live plan is approved, use only confirmed fictional inputs, fresh sessions, disposable SQLite, scenario time and loopback. The existing private child loader selects only `ADP_APPKEY` and `ADP_CHAT_ENDPOINT`; never print values or load inherited hosted database defaults. Reserve first in the existing ledger, count failures/losses, make no retry and stop at the first failure. Never persist raw model output, reasoning or SSE. Do not disable moderation to force JSON compliance.
+
+[verified boundaries] The user has authorised Slice 21 branch/main publication; `00-status.md` owns the final Git receipt. No hosted deployment or hosted ADP success is claimed. Earlier operator setup and captures below are historical. No further database access, install, publication or deployment follows from bounded Check acceptance.
+
+## Part B historical setup: the ADP Experience URL
 
 The ADP agent is a submission artefact. **Publishing it does not change this
 repository's code**, and it must not: ADP occupies the interpretation step only, and
@@ -181,9 +195,7 @@ pasted in, and the two clinical probes the agent was observed to refuse, are rec
 7. **Record it.** Enter the Experience URL in the links table of
    `submission/description.md` and tick the ADP row in `docs/PLAN.md` section 10.
 
-**If you later want the agent in the actual interpretation path**, that is not a
-console task. It needs Slice 13 switched on, which reopens Gate 2
-(`04-slices.md`, Slice 13 row: "CONDITIONAL, default do not run").
+**Historical scope correction, 15 October 2026:** the old conditional Slice 13 remains unbuilt. The approved confirmed-word integration is Slice 21, under Gate 2 sections 13.6/13.7, Gate 3 section 9.7 and the current operator steps above.
 
 ---
 

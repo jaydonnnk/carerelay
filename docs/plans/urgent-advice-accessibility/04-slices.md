@@ -1,5 +1,29 @@
 # Slice plan: CareRelay urgent-advice accessibility
 
+[verified user instruction] On 16 October 2026 the user answered "Sure i approve the experiment please finish up slice 21!" to the exact wording-only Gate 2/3/4 proposal and at most one ledger-reserved product call. The narrow amendment is RE-APPROVED. It preserves the v2 schema, published instruction v2, current model/settings, 15-second cap, all byte limits, no retry/fallback, default-off and code authority. Stop after that one live result. No shipping or additional live calls are authorised. `00-status.md` owns the receipt.
+
+[verified] Narrow Slice 21 span-text grounding amendment RE-APPROVED 15 October 2026.
+The user answered "Approve Gates 2, 3 and 4 as written in
+docs/reviews/slice21-span-text-amendment-proposal.md, including uncertain for
+not-found spans and instruction v2." The model returns span text only; code
+locates exactly one word-bounded exact occurrence, and none or several stays
+uncertain. Wire schema `carerelay-readback-v2`, instruction
+`carerelay-readback-instruction-v2`. All other contracts are unchanged.
+
+[verified] Narrow Slice 21 live-budget amendment RE-APPROVED 15 October 2026.
+The user explicitly approved the prepared amendments to Gate 2 section 13.6,
+Gate 3 section 9.7 and Gate 4 Slice 21: live read-back cap 15 seconds, inherited
+fake-profile controls five seconds, complete-answer mode to be observed, and
+all input/byte/terminal/no-retry/code-authority/default-off constraints preserved.
+This does not authorise deployment or Slice 21 Git publication. Other gate
+contracts remain unchanged; `00-status.md` owns the approval receipt.
+
+[verified] Narrow Slice 21 frontend scoring-timeout footprint amendment
+RE-APPROVED 15 October 2026. The user answered "Approve Gate 4". Slice 21 may
+change `frontend/lib/api.ts` only for the score_words/repair_words command
+timeout (20 seconds); every other call keeps five seconds. No retry, copy or
+other frontend change. `00-status.md` owns the receipt.
+
 **Gate 4 amendment: RE-APPROVED 13 October 2026 Singapore time.**
 [verified] The user explicitly answered "Yep i approve" and requested a handoff
 for the next agent to start Slice 14 then Slice 15. Section 9 is the approved
@@ -904,6 +928,20 @@ invoke `architect-reviewer` in post-slice cleanup mode, then ask the applicable
 
 ### Slice 21: authorised live ADP enablement, separate from action execution
 
+[verified user instruction] On 16 October 2026 the user answered "Sure i approve the experiment please finish up slice 21!" to the exact wording-only Gate 2/3/4 proposal and at most one ledger-reserved product call. The narrow amendment is RE-APPROVED. It preserves the v2 schema, published instruction v2, current model/settings, 15-second cap, all byte limits, no retry/fallback, default-off and code authority. Stop after that one live result. No shipping or additional live calls are authorised. `00-status.md` owns the receipt.
+
+Prove the server wording change with failing-first request-content tests, named deletion/substitution mutations and the full offline suite. Run at most one positive local-product call, reserve it first in the existing ledger, then stop on either result. No frontend, dependency, console setting or publication change. The remaining corpus/serialized proof and Check acceptance remain separate.
+
+[hypothesis, narrow engineering amendment] The Slice 21 live response cap is
+15 seconds for the whole response, as justified by Gate 2 section 13.6 and
+specified in Gate 3 section 9.7. Slice 18's existing five-second fake controls
+remain historical/current controls for those profiles. Observe and test the
+provider's complete-answer mode with Incremental false before enabling it;
+retain 2,048 input code points, 16 KiB final/frame, 64 KiB wire and no retry.
+Prove a late terminal is unscored at the new live cap. The one 30-second
+diagnostic exception supplies no production-budget pass or general timing claim.
+
+
 **Proposed branch:** `slice-21-adp-enablement`. **Effort:** 4 to 8 h of engineering
 observation/integration, excluding operator/access waiting and publishing work.
 
@@ -922,6 +960,14 @@ observation/integration, excluding operator/access waiting and publishing work.
   `docs/reviews/adp-readback-observations.md`; later operator revisions to
   `submission/adp-agent-instruction.md` and `submission/setup-runbook.md`, separately
   authorised as Gate 3 section 9.2 permits. No general asset/claims rewrite here.
+  Amended 15 October 2026: `frontend/lib/api.ts` only for the score_words/repair_words
+  command timeout (20 seconds, all other calls unchanged at five seconds), and
+  `tests/test_journey_commands.py` for its real-module timeout, single-request and
+  no-retry proof. No other frontend file, copy or behaviour change.
+  Amended 15 October 2026: the model returns span text only, under wire schema `carerelay-readback-v2` and instruction `carerelay-readback-instruction-v2`.
+  Code locates exactly one word-bounded exact occurrence; none or several stays uncertain.
+  The operator publishes AND activates the revised instruction before any further live call.
+  Exact files are unchanged.
 - **Exit/proof:** G24 to G30/G34 plus actual positive paraphrase, known wrong
   time, missing values, clinical advice/refusal/injection, negation, alternatives
   and backward correction probes in new sessions. Capture redacted profiled

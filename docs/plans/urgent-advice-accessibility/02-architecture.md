@@ -1,5 +1,23 @@
 # Architecture: CareRelay urgent-advice accessibility
 
+[verified user instruction] On 16 October 2026 the user answered "Sure i approve the experiment please finish up slice 21!" to the exact wording-only Gate 2/3/4 proposal and at most one ledger-reserved product call. The narrow amendment is RE-APPROVED. It preserves the v2 schema, published instruction v2, current model/settings, 15-second cap, all byte limits, no retry/fallback, default-off and code authority. Stop after that one live result. No shipping or additional live calls are authorised. `00-status.md` owns the receipt.
+
+[verified] Narrow Slice 21 span-text grounding amendment RE-APPROVED 15 October 2026.
+The user answered "Approve Gates 2, 3 and 4 as written in
+docs/reviews/slice21-span-text-amendment-proposal.md, including uncertain for
+not-found spans and instruction v2." The model returns span text only; code
+locates exactly one word-bounded exact occurrence, and none or several stays
+uncertain. Wire schema `carerelay-readback-v2`, instruction
+`carerelay-readback-instruction-v2`. All other contracts are unchanged.
+
+[verified] Narrow Slice 21 live-budget amendment RE-APPROVED 15 October 2026.
+The user explicitly approved the prepared amendments to Gate 2 section 13.6,
+Gate 3 section 9.7 and Gate 4 Slice 21: live read-back cap 15 seconds, inherited
+fake-profile controls five seconds, complete-answer mode to be observed, and
+all input/byte/terminal/no-retry/code-authority/default-off constraints preserved.
+This does not authorise deployment or Slice 21 Git publication. Other gate
+contracts remain unchanged; `00-status.md` owns the approval receipt.
+
 **Gate 2: RE-APPROVED 13 October 2026 (revision 4).** [verified] The user
 explicitly answered "Yep i approve gate 2" and requested a Gate 3 handoff.
 Section 13 is approved architecture, not implemented or validated behaviour.
@@ -655,6 +673,10 @@ Main call order ([hypothesis]):
 
 ### 13.6 D17: ADP extracts confirmed read-back only
 
+[verified user instruction] On 16 October 2026 the user answered "Sure i approve the experiment please finish up slice 21!" to the exact wording-only Gate 2/3/4 proposal and at most one ledger-reserved product call. The narrow amendment is RE-APPROVED. It preserves the v2 schema, published instruction v2, current model/settings, 15-second cap, all byte limits, no retry/fallback, default-off and code authority. Stop after that one live result. No shipping or additional live calls are authorised. `00-status.md` owns the receipt.
+
+[hypothesis] The server instruction explicitly names each v2 output key/type and forbids echoing input metadata. This wording experiment is not evidence of model reliability; each live result remains one observation.
+
 [hypothesis] Choose the role explicitly:
 **Confirmed patient words → ADP extraction → deterministic CareRelay comparison.**
 This is a new decision, distinct from the old unbuilt Slice 13
@@ -680,11 +702,15 @@ The instruction distinguishes a fictional read-back from a request for advice:
 repeating the supplied example is eligible for extraction, not automatic refusal.
 The strict extraction object has a pinned schema version, nullable raw
 `action_span`, `deadline_span`, `next_owner_span`, explicit `uncertain_fields`
-and a refusal flag. Each non-null span carries source offsets into the exact
-confirmed string. Reject unknown keys, wrong types, unknown field names,
+and a refusal flag.
+[hypothesis, Slice 21 grounding amendment] Each non-null field carries exact span text only.
+Code, not the model, locates it: exactly one word-bounded, exact code-point occurrence in the confirmed string becomes the source span.
+No occurrence or more than one occurrence leaves that field null and uncertain.
+Model-supplied offsets are not accepted.
+Every accepted span is still a verbatim slice of the confirmed words, and only domain code canonicalises it.
+Reject unknown keys, wrong types, unknown field names,
 duplicate JSON keys, multiple objects, markdown/prose, unsupported versions,
-truncated streams, overlong output or spans that do not exactly match their
-source slice. No model-selected action ID, urgency, timestamp, route, confidence
+truncated streams or overlong output. No model-selected action ID, urgency, timestamp, route, confidence
 score, match verdict or patient sentence is accepted. ADR-0007 stays binding:
 only domain code canonicalises raw spans against versioned policy tables and
 the injected clock/timezone.
@@ -700,12 +726,27 @@ responses are unscored. No confidence
 threshold turns uncertainty into success. Grounded spans reduce fabrication;
 they do not prove general language understanding.
 
-[hypothesis, unmeasured engineering limits] Start with a five-second total
-ADP response budget, no automatic retry, 2,048 input characters and 16 KiB
+[hypothesis, Slice 21 engineering cap] Use a fifteen-second total live ADP
+response budget, no automatic retry, 2,048 input characters and 16 KiB
 assembled answer limit. The budget includes the full stream, not just its first
 byte. Parse only the final bounded answer channel; never stream reasoning to
 the patient. Gate 3 will specify adapter/envelope validation and timeout tests;
 any budget change needs recorded justification, not an implied latency result.
+
+[verified diagnostic justification, 15 October 2026] One separately approved
+30-second observation produced a source-grounded six-field reply at 11,816 ms,
+then exceeded the unchanged 64 KiB wire cap before terminal completion. Five
+prior five-second observations did not complete. Fifteen seconds is the approved engineering
+cap for the bounded live corpus, not measured worst-case latency or a guarantee.
+Preserve the inherited five-second fake-profile controls. Prefer a separately
+observed complete-answer profile with Incremental false to reduce stream
+overhead; do not raise the 16 KiB answer/frame or 64 KiB wire limits. A missing
+terminal, over-limit reply or failed corpus still keeps production ADP disabled.
+Urgent guidance remains available before and independently of extraction.
+
+[verified diagnostic justification, 15 October 2026] After an operator model switch, two actual local product calls finished in under 9 seconds, but both returned spans that failed the exact source-offset check.
+Code-located offsets keep exact-source grounding while removing the model's offset arithmetic.
+
 
 Timeout, transport/auth failure, refusal or invalid object: record an unscored
 interpretation result, preserve the confirmed draft and current question,
