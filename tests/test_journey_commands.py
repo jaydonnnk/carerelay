@@ -1369,3 +1369,77 @@ def test_s20_superseded_unavailable_check_leaves_no_stale_feedback(tmp_path, lat
 import {{readFileSync}} from 'node:fs';
 const d=JSON.parse(readFileSync(0,'utf8'));console.log(JSON.stringify(decodeJourney(d,d.episode_id)!==null));''', body)
     assert decoded is True
+
+
+S21_API_LOADER = '''import {readFileSync} from 'node:fs';
+import {stripTypeScriptTypes} from 'node:module';
+import {createServer} from 'node:http';
+const loadApi=async()=>{let source=readFileSync('frontend/lib/api.ts','utf8').replace('import "server-only";','');
+ source=source.replace('"./journey"',JOURNEY);
+ return import('data:text/javascript;base64,'+Buffer.from(stripTypeScriptTypes(source)).toString('base64'));};'''
+
+
+def s21_api_script(body):
+    return S21_API_LOADER.replace("JOURNEY", json.dumps(json.dumps(module("journey")))) + "\n" + body
+
+
+def test_s21_only_scoring_commands_wait_for_the_live_extraction_budget():
+    # Real api.ts; only AbortSignal.timeout is observed, so each call's bound is exact.
+    result = node(s21_api_script('''const seen=[];const original=AbortSignal.timeout.bind(AbortSignal);
+AbortSignal.timeout=ms=>{seen.push(ms);return original(ms);};
+const server=createServer(async(req,res)=>{for await(const part of req){}res.writeHead(500);res.end('{}');});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+try{process.env.CARERELAY_API_URL='http://127.0.0.1:'+server.address().port;const api=await loadApi();const bounds={};
+ const record=async(name,call)=>{const before=seen.length;await call();bounds[name]=seen.slice(before);};
+ await record('get',()=>api.getEpisode('e'));
+ await record('create',()=>api.createCommand('e','t'));
+ await record('select_example',()=>api.selectExampleCommand('e','t'));
+ await record('prepare_words',()=>api.prepareWordsCommand('e','d',null));
+ await record('prepare_barrier',()=>api.prepareBarrierCommand('e','d'));
+ for(const kind of ['readback_started','confirm_words','score_words','repair_words','show_plan','hide_plan','h3','supersede_extraction'])
+  await record(kind,()=>api.readbackCommand('e','t',kind,'parent','words','old'));
+ for(const kind of ['select_barrier','grant_share','decline_share','revoke_share','request'])
+  await record(kind,()=>api.permissionCommand('e','t',kind,'booking'));
+ console.log(JSON.stringify(bounds));
+}finally{await new Promise(resolve=>server.close(resolve));}'''))
+    scoring = {"score_words", "repair_words"}
+    assert set(result) == {"get", "create", "select_example", "prepare_words", "prepare_barrier", "readback_started",
+        "confirm_words", "score_words", "repair_words", "show_plan", "hide_plan", "h3", "supersede_extraction",
+        "select_barrier", "grant_share", "decline_share", "revoke_share", "request"}
+    assert {name: bounds for name, bounds in result.items()} == {
+        name: [20000] if name in scoring else [5000] for name in result}
+
+
+def test_s21_scoring_receives_a_late_answer_with_one_post_and_no_retry(s17_permission_projection):
+    # Real loopback HTTP, unmocked timer: a six-second scoring answer arrives intact.
+    result = node(s21_api_script('''const d=JSON.parse(readFileSync(0,'utf8'));const posts=[];
+const server=createServer(async(req,res)=>{for await(const part of req){}const entry={url:req.url,closedEarly:false};posts.push(entry);
+ res.on('close',()=>{if(!res.writableFinished)entry.closedEarly=true;});
+ setTimeout(()=>{if(res.destroyed)return;res.writeHead(503,{'Content-Type':'application/json'});
+  res.end(JSON.stringify({receipt:{operation_id:'synthetic-operation',state:'unavailable',result_ref:null,scored:false,replayed:false},journey:d}));},6000);});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+try{process.env.CARERELAY_API_URL='http://127.0.0.1:'+server.address().port;const api=await loadApi();
+ const started=Date.now();const outcome=await api.readbackCommand(d.episode_id,'t','score_words','parent');
+ const elapsed=Date.now()-started;await new Promise(resolve=>setTimeout(resolve,200));
+ console.log(JSON.stringify({ok:outcome.ok,state:outcome.ok?outcome.value.receipt.state:outcome.reason,elapsed,posts}));
+}finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}'''), s17_permission_projection)
+    assert result["ok"] is True and result["state"] == "unavailable"
+    assert result["elapsed"] >= 6000
+    assert result["posts"] == [{"url": "/api/episodes/" + s17_permission_projection["episode_id"] + "/restatements",
+        "closedEarly": False}]
+
+
+def test_s21_scoring_abort_is_unavailable_after_one_post_and_never_retried():
+    # The real bound is scaled down so a silent server reaches it; the request is sent once.
+    result = node(s21_api_script('''const original=AbortSignal.timeout.bind(AbortSignal);const seen=[];
+AbortSignal.timeout=ms=>{seen.push(ms);return original(ms/100);};const posts=[];
+const server=createServer(async(req,res)=>{for await(const part of req){}posts.push(req.url);});
+await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
+try{process.env.CARERELAY_API_URL='http://127.0.0.1:'+server.address().port;const api=await loadApi();
+ const outcome=await api.readbackCommand('e','t','repair_words','parent');
+ await new Promise(resolve=>setTimeout(resolve,500));
+ console.log(JSON.stringify({outcome,posts,seen}));
+}finally{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}'''))
+    assert result["outcome"] == {"ok": False, "reason": "unavailable", "detail": "journey unavailable"}
+    assert result["posts"] == ["/api/episodes/e/restatements/parent/repairs"]
+    assert result["seen"] == [20000]

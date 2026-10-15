@@ -92,10 +92,15 @@ export async function selectExampleCommand(episodeId: string, operationToken: st
   return command(`/api/episodes/${encodeURIComponent(episodeId)}/intake`, episodeId,
     { operation_token: operationToken, example_id: "scripted-appointment" }, "select_example");
 }
+// Scoring waits for the approved 15-second live extraction plus two local
+// transactions; every other command keeps the five-second bound. Never retried.
+const COMMAND_TIMEOUT_MS = 5000;
+const SCORING_TIMEOUT_MS = 20000;
 async function command(path: string, episodeId: string, body: Record<string, string>, kind: "create" | "select_example" | ReadbackKind | PermissionKind = "create"): Promise<CommandOutcome> {
   try {
+    const timeout = kind === "score_words" || kind === "repair_words" ? SCORING_TIMEOUT_MS : COMMAND_TIMEOUT_MS;
     const response = await fetch(`${API_URL}${path}`, { method: "POST", redirect: "error", cache: "no-store",
-      signal: AbortSignal.timeout(5000), headers: { "Content-Type": "application/json", ...(API_TOKEN ? { Authorization: `Bearer ${API_TOKEN}` } : {}) },
+      signal: AbortSignal.timeout(timeout), headers: { "Content-Type": "application/json", ...(API_TOKEN ? { Authorization: `Bearer ${API_TOKEN}` } : {}) },
       body: JSON.stringify(body) });
     if (response.status === 409) {
       const journey = await readConflict(response, episodeId);

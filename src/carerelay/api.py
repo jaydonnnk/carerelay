@@ -45,6 +45,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
 
 from carerelay import __version__
+from carerelay.adp_extraction import configured_readback_extractor
 from carerelay.presentation import journey_surface, command_surface
 from carerelay.journey_commands import CommandConflict, CommandInvalid, verify_operation
 from carerelay.coordinator import (
@@ -414,6 +415,7 @@ _SERVICE = EpisodeService(
     display_tz=fixture.DISPLAY_TZ,
     disposition_factory=fixture.disposition,
     bound_complaint=fixture.BOUND_COMPLAINT,
+    readback_extractor=configured_readback_extractor(os.environ),
     policy_provenance=(
         "PROVISIONAL: non-clinical placeholder, authored rather than sourced. "
         "Option C was dropped on 1 October 2026 after the source check cleared "

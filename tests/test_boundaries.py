@@ -1195,7 +1195,7 @@ def test_new_readback_server_files_are_scanned_with_positive_controls():
 
 
 def scan_python_source_for_secrets(source):
-    """The transport key name is allowed only with the server variable as value."""
+    """Allow the transport variable and an exact server environment-name lookup."""
     tree = ast.parse(source)
     lines = source.splitlines(keepends=True)
     for node in ast.walk(tree):
@@ -1207,6 +1207,18 @@ def scan_python_source_for_secrets(source):
                     and isinstance(value.value, ast.Name) and value.value.id == "self"):
                 line = lines[key.lineno - 1].encode("utf-8")
                 lines[key.lineno - 1] = (line[:key.col_offset] + b'"transport_auth"' + line[key.end_col_offset:]).decode("utf-8")
+    for function in ast.walk(tree):
+        if not isinstance(function, ast.FunctionDef) or function.name != "configured_readback_extractor":
+            continue
+        for node in ast.walk(function):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute) and node.func.attr == "get"
+                    and isinstance(node.func.value, ast.Name) and node.func.value.id == "config"
+                    and len(node.args) == 2 and not node.keywords
+                    and isinstance(node.args[0], ast.Constant) and node.args[0].value == "ADP_APPKEY"
+                    and isinstance(node.args[1], ast.Constant) and node.args[1].value == ""):
+                key = node.args[0]
+                line = lines[key.lineno - 1].encode("utf-8")
+                lines[key.lineno - 1] = (line[:key.col_offset] + b'"server_environment_name"' + line[key.end_col_offset:]).decode("utf-8")
     return scan_for_secrets("".join(lines))
 
 
@@ -1215,3 +1227,12 @@ def test_transport_auth_key_name_is_not_a_literal_or_serialized_secret_exemption
     assert "appkey" in scan_python_source_for_secrets('body = {"AppKey": "SYNTHETIC_SERVER_SECRET_VALUE_123456789"}')
     assert "appkey" in scan_python_source_for_secrets('body = {"AppKey": self.patient_value}')
     assert "appkey" in scan_for_secrets('{"AppKey":"synthetic-value"}')
+
+
+def test_server_environment_key_lookup_has_only_a_name_exemption():
+    allowed = 'def configured_readback_extractor(config):\n    key = config.get("ADP_APPKEY", "")\n'
+    assert scan_python_source_for_secrets(allowed) == []
+    assert "appkey" in scan_python_source_for_secrets(allowed.replace('""', '"SYNTHETIC_SERVER_SECRET_VALUE_123456789"'))
+    assert "appkey" in scan_python_source_for_secrets(allowed.replace('config.get', 'other.get'))
+    assert "appkey" in scan_python_source_for_secrets('config = {"ADP_APPKEY": "SYNTHETIC_SERVER_SECRET_VALUE_123456789"}')
+    assert "appkey" in scan_for_secrets('{"ADP_APPKEY":"synthetic-value"}')

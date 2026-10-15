@@ -1161,9 +1161,11 @@ class EpisodeService:
             return CommandResponse(receipt, self.project_journey(binding.episode_id))
         request = ExtractionInput(context.confirmed_text, frozenset(policy.action_aliases) | policy.permitted_action_ids,
             frozenset(policy.deadline_forms), frozenset(policy.owner_aliases) | policy.permitted_owner_ids,
-            binding.operation_id, getattr(self._readback_extractor, "instruction_version", "offline-fixture-v1"), "carerelay-readback-v1")
+            binding.operation_id, getattr(self._readback_extractor, "instruction_version", "offline-fixture-v1"),
+            getattr(self._readback_extractor, "schema_version", "carerelay-readback-v1"))
         try:
-            result = self._readback_extractor.extract(request, budget_seconds=5.0)
+            from carerelay.adp_extraction import LIVE_BUDGET_SECONDS
+            result = self._readback_extractor.extract(request, budget_seconds=LIVE_BUDGET_SECONDS)
             if result.mode == "adp" and (not trusted_adp_result(result)
                     or result.correlation_id != request.correlation_id or result.instruction_version != request.instruction_version):
                 result = unvalidated_adp_result(request)
@@ -1220,7 +1222,12 @@ class EpisodeService:
                     "operation_id": binding.operation_id, "correlation_id": binding.operation_id,
                     "terminal_state": receipt.state, "scored": False,
                     "instruction_observation": "configured operator assertion",
-                    "transport_provenance": result.transport_provenance}, now)
+                    "transport_provenance": result.transport_provenance,
+                    "span_locations": dict(result.span_locations) or None}, now)
+            elif result.span_locations:
+                # Code-located outcome per field; the model's phrase text is not recorded here.
+                tx._event("extraction_located", {"operation_id": binding.operation_id,
+                    "span_locations": dict(result.span_locations)}, now)
         return CommandResponse(receipt, self.project_journey(binding.episode_id))
 
     @staticmethod
@@ -1373,7 +1380,10 @@ class EpisodeService:
         `domain` and no write path reads them, so a wrong verdict cannot move an
         episode. Each carries the values it was taken from.
         """
+        from carerelay.adp_extraction import LIVE_PROFILE
         now_utc = self._clock.now_utc()
+        located = {payload["operation_id"]: payload["span_locations"] for payload in
+                   (json.loads(raw) for kind, raw, _ in bundle.events if kind == "extraction_located")}
         snapshot = bundle.snapshot
         if snapshot.disposition is not None and bundle.policy_text is None:
             raise rules.JourneyUnavailable("recorded policy unavailable")
@@ -1556,7 +1566,9 @@ class EpisodeService:
                 "operation_id", "terminal_state", "scored", "interpreter_mode", "instruction_version", "schema_version",
                 "transport_profile", "request_id", "trace_id", "model_version", "validation", "failure_category")},
                 "correlation_id": row["operation_id"], "instruction_observation": "configured operator assertion",
+                "span_locations": located.get(row["operation_id"]),
                 "transport_provenance": "fake-offline" if row["transport_profile"] in {"fake-incremental-v1", "fake-complete-v1"}
+                    else "https" if row["transport_profile"] == LIVE_PROFILE
                     else "local-sim" if row["transport_profile"] == "offline" else "unknown"}
                 for row in bundle.commands if row["phase"] == "completed" and row["validation"] is not None)
                 + tuple(json.loads(payload) for kind, payload, _ in bundle.events if kind == "extraction_observed"),

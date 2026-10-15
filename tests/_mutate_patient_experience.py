@@ -1,4 +1,4 @@
-"""Patient-experience guards through Slice 20: offline or opt-in real Postgres.
+"""Patient-experience guards through Slice 21: offline or opt-in real Postgres.
 
 Use --validate-only to resolve anchors, collect selectors and run their controls.
 Run mutations only after all source writers stop. --filter and --resume retain
@@ -210,6 +210,7 @@ def build_mutations():
     add_slice16_full_width_question_mutation(add)
     add_slice18_mutations(add)
     add_slice20_mutations(add)
+    add_slice21_mutations(add)
     boundary = (ROOT / 'tests/test_boundaries.py').read_text()
     start = boundary.index('NO_PLAN_DETECTORS = {'); end = boundary.index('\n}', start)
     for name, pattern in re.findall(r'    "([a-z_]+)": r"([^"]+)",', boundary[start:end]):
@@ -1678,7 +1679,7 @@ def add_slice16_flow_mutations(add):
     for case, old, new in [
         ("mode", 'result.mode != "local-sim"', 'False'),
         ("validation", 'result.mode != "local-sim" or result.validation != "valid"', 'result.mode != "local-sim" or False'),
-        ("schema", 'raw.schema_version != "carerelay-readback-v1"', 'False'),
+        ("schema", 'raw.schema_version != schema_version', 'False'),
         ("refused_type", 'type(raw.refused) is not bool', 'False'),
         ("refused", 'or raw.refused:', 'or False:'),
         ("uncertainty_type", 'not isinstance(raw.uncertain_fields, frozenset)', 'False'),
@@ -1971,8 +1972,8 @@ def add_slice18_mutations(add):
     """Named first-boundary controls for the fake-only adapter."""
     rows = [('Slice18 G24 extraction positive use',
       'src/carerelay/adp_extraction.py',
-      'raw = validate_raw_extraction(answer.payload, confirmed_text=request.confirmed_text)',
-      'raw = RawExtraction(SCHEMA_VERSION, None, None, None, frozenset(COMPARISON_FIELDS), False)',
+      'raw, locations = _validate_wire(answer.payload, confirmed_text=request.confirmed_text)',
+      'raw, locations = RawExtraction(SCHEMA_VERSION, None, None, None, frozenset(COMPARISON_FIELDS), False), ()',
       'tests/test_adp_extraction.py::test_positive_fake_profiles'),
      ('Slice18 G25 exact object shapes',
       'src/carerelay/adp_extraction.py',
@@ -1983,7 +1984,7 @@ def add_slice18_mutations(add):
       'src/carerelay/adp_extraction.py',
       'if key in obj:',
       'if False:',
-      'tests/test_adp_extraction.py::test_strict_object[duplicate_nested]'),
+      'tests/test_adp_extraction.py::test_strict_object[duplicate_root]'),
      ('Slice18 G25 nonfinite',
       'src/carerelay/adp_extraction.py',
       'raise ExtractionInvalid("nonfinite")',
@@ -2038,15 +2039,13 @@ def add_slice18_mutations(add):
       'tests/test_adp_extraction.py::test_strict_object[unknown_field]'),
      ('Slice18 G25 refusal spans',
       'src/carerelay/adp_extraction.py',
-      'any(obj[key] is not None for key in ("action_span", "deadline_span", "next_owner_span")) or '
-      'set(uncertain) != set(COMPARISON_FIELDS)',
+      'any(obj[key] is not None for key in _TEXT_KEYS) or set(uncertain) != set(COMPARISON_FIELDS)',
       'False or set(uncertain) != set(COMPARISON_FIELDS)',
       'tests/test_adp_extraction.py::test_strict_object[refused_span]'),
      ('Slice18 G25 refusal uncertainty',
       'src/carerelay/adp_extraction.py',
-      'any(obj[key] is not None for key in ("action_span", "deadline_span", "next_owner_span")) or '
-      'set(uncertain) != set(COMPARISON_FIELDS)',
-      'any(obj[key] is not None for key in ("action_span", "deadline_span", "next_owner_span")) or False',
+      'any(obj[key] is not None for key in _TEXT_KEYS) or set(uncertain) != set(COMPARISON_FIELDS)',
+      'any(obj[key] is not None for key in _TEXT_KEYS) or False',
       'tests/test_adp_extraction.py::test_strict_object[refused_uncertainty]'),
      ('Slice18 G25 null uncertainty',
       'src/carerelay/adp_extraction.py',
@@ -2058,46 +2057,6 @@ def add_slice18_mutations(add):
       'if type(value) is not str:',
       'if False:',
       'tests/test_adp_extraction.py::test_string_type_at_first_boundary'),
-     ('Slice18 G26 start type',
-      'src/carerelay/adp_extraction.py',
-      'type(start) is not int or type(end) is not int',
-      'False or type(end) is not int',
-      'tests/test_adp_extraction.py::test_offset_types_at_first_boundary'),
-     ('Slice18 G26 end type',
-      'src/carerelay/adp_extraction.py',
-      'type(start) is not int or type(end) is not int',
-      'type(start) is not int or False',
-      'tests/test_adp_extraction.py::test_offset_types_at_first_boundary'),
-     ('Slice18 G26 bounds negative',
-      'src/carerelay/adp_extraction.py',
-      'not 0 <= start < end <= len(confirmed_text)',
-      'not start < end <= len(confirmed_text)',
-      'tests/test_adp_extraction.py::test_strict_object[negative]'),
-     ('Slice18 G26 bounds empty',
-      'src/carerelay/adp_extraction.py',
-      'not 0 <= start < end <= len(confirmed_text)',
-      'not 0 <= start <= end <= len(confirmed_text)',
-      'tests/test_adp_extraction.py::test_strict_object[empty]'),
-     ('Slice18 G26 bounds overrun',
-      'src/carerelay/adp_extraction.py',
-      'not 0 <= start < end <= len(confirmed_text)',
-      'not 0 <= start < end',
-      'tests/test_adp_extraction.py::test_strict_object[overrun]'),
-     ('Slice18 G26 exact source',
-      'src/carerelay/adp_extraction.py',
-      'if confirmed_text[start:end] != text:',
-      'if False:',
-      'tests/test_adp_extraction.py::test_strict_object[source]'),
-     ('Slice18 G26 Unicode offsets',
-      'src/carerelay/adp_extraction.py',
-      'if confirmed_text[start:end] != text:',
-      'if False:',
-      'tests/test_adp_extraction.py::test_strict_object[utf16]'),
-     ('Slice18 G26 byte offsets',
-      'src/carerelay/adp_extraction.py',
-      'if confirmed_text[start:end] != text:',
-      'if False:',
-      'tests/test_adp_extraction.py::test_strict_object[byte_offset]'),
      ('Slice18 G26 canonical IDs',
       'src/carerelay/adp_extraction.py',
       'if text in _CANONICAL_IDS:',
@@ -2107,12 +2066,12 @@ def add_slice18_mutations(add):
       'src/carerelay/adp_extraction.py',
       'text[:1].isascii() and text[:1].isalnum() and start > 0',
       'False and text[:1].isascii() and text[:1].isalnum() and start > 0',
-      'tests/test_adp_extraction.py::test_strict_object[word_start]'),
+      'tests/test_adp_extraction.py::test_grounding[inside_longer_word]'),
      ('Slice18 G26 word end',
       'src/carerelay/adp_extraction.py',
       'text[-1:].isascii() and text[-1:].isalnum() and end < len(confirmed_text)',
       'False and text[-1:].isascii() and text[-1:].isalnum() and end < len(confirmed_text)',
-      'tests/test_adp_extraction.py::test_strict_object[word_end]'),
+      'tests/test_adp_extraction.py::test_grounding[one_bounded_one_embedded]'),
      ('Slice18 G27 profile identifiers',
       'src/carerelay/adp_extraction.py',
       'if not _SAFE_ID.fullmatch(value):',
@@ -2160,8 +2119,8 @@ def add_slice18_mutations(add):
       'tests/test_adp_extraction.py::test_sse_envelope[correlation]'),
      ('Slice18 G27 provider error',
       'src/carerelay/adp_extraction.py',
-      'raise ExtractionInvalid("provider_error")',
-      'continue',
+      'raise ExtractionInvalid("correlation")\n        if kind == "error":\n            raise ExtractionInvalid("provider_error")',
+      'raise ExtractionInvalid("correlation")\n        if kind == "error":\n            continue',
       'tests/test_adp_extraction.py::test_sse_envelope[error]'),
      ('Slice18 G27 heartbeat keys',
       'src/carerelay/adp_extraction.py',
@@ -2271,8 +2230,8 @@ def add_slice18_mutations(add):
       'tests/test_adp_extraction.py::test_profile_guard_at_first_boundary[complete_twice]'),
      ('Slice18 G27 unknown events',
       'src/carerelay/adp_extraction.py',
-      'raise ExtractionInvalid("event_type")',
-      'continue',
+      'stage = "terminal"\n        else:\n            raise ExtractionInvalid("event_type")',
+      'stage = "terminal"\n        else:\n            continue',
       'tests/test_adp_extraction.py::test_profile_guard_at_first_boundary[unknown_extra_event]'),
      ('Slice18 G27 terminal required',
       'src/carerelay/adp_extraction.py',
@@ -2281,8 +2240,8 @@ def add_slice18_mutations(add):
       'tests/test_adp_extraction.py::test_sse_envelope[missing_terminal]'),
      ('Slice18 G28 budget clamp',
       'src/carerelay/adp_extraction.py',
-      'deadline = started + min(budget_seconds, 5.0)',
-      'deadline = started + min(budget_seconds, 6.0)',
+      'min(budget_seconds, LIVE_BUDGET_SECONDS if live else 5.0)',
+      'min(budget_seconds, LIVE_BUDGET_SECONDS if live else 6.0)',
       'tests/test_adp_extraction.py::test_default_disabled_and_single_five_second_deadline'),
      ('Slice18 G28 blocked connection budget',
       'src/carerelay/adp_extraction.py',
@@ -2555,6 +2514,160 @@ def add_slice20_mutations(add):
             'recorded.get("disposition_version", disposition.version) == disposition.version:\n                pass', stale + f"[{case}]")
 
 
+def add_slice21_mutations(add):
+    target = "src/carerelay/adp_extraction.py"
+    test = "tests/test_adp_extraction.py::"
+    printer = "tools/print_adp_prompt.py"
+    capture_test = test + "test_offline_prompt_printer_uses_exact_adapter_text_without_credentials"
+    for label, old, new, selector in [
+        ("adapter path", '    extractor.extract(request)', '    prompts.append("{}")', capture_test),
+        ("exact text", '    return prompts[0]', '    return prompts[0] + " "', capture_test),
+        ("live instruction", 'adp.LIVE_INSTRUCTION, adp.SCHEMA_VERSION', '"fake-instruction-v1", adp.SCHEMA_VERSION', capture_test),
+        ("capture required", '        raise RuntimeError("Offline adapter did not produce exactly one prompt")',
+         '        return ""', test + "test_offline_prompt_printer_requires_one_capture"),
+    ]:
+        add("Slice21 prompt printer " + label, printer, old, new, selector)
+    for label, constraint in [
+        ("keys", "with exactly these six keys: schema_version, action_text, deadline_text, next_owner_text, uncertain_fields, refused."),
+        ("version", 'schema_version must be the string \\"carerelay-readback-v2\\".'),
+        ("text_types", "Never use an object, array, number or boolean for those three text fields."),
+        ("uncertainty", "uncertain_fields must be an array containing only the field names action_id, deadline_utc and next_owner_id, with no duplicates."),
+        ("refusal", "refused must be a JSON boolean."),
+        ("json_only", "No advice, prose, markdown, code fences or trailing punctuation outside the JSON."),
+        ("metadata", "Do not echo instruction, instruction_version, schema, correlation_id, confirmed_words or vocabularies as output keys."),
+    ]:
+        add("Slice21 wording " + label, target, constraint, "Omitted output constraint.",
+            test + "test_live_request_explicitly_instructs_the_approved_output_shape[" + label + "]")
+    rows = [
+        ("endpoint", 'if endpoint != "https://wss.lke.tencentcloud.com/adp/v2/chat" or allow_redirects is not False:',
+         'if allow_redirects is not False:', "test_https_transport_refuses_unapproved_endpoint_before_auth"),
+        ("redirect flag", 'or allow_redirects is not False:', 'or False:',
+         "test_https_transport_refuses_redirect_flag_and_expired_budget"),
+        ("budget expiry", 'if seconds <= 0:', 'if seconds < 0:',
+         "test_https_transport_refuses_redirect_flag_and_expired_budget"),
+        ("TLS verification", 'context=ssl.create_default_context()', 'context=ssl._create_unverified_context()',
+         "test_https_transport_one_post_and_bounded_closed_response"),
+        ("one POST", 'connection.request("POST", "/adp/v2/chat", payload, {"Content-Type": "application/json"})',
+         'connection.request("POST", "/adp/v2/chat", payload, {"Content-Type": "application/json"})\n            connection.request("POST", "/adp/v2/chat", payload, {"Content-Type": "application/json"})',
+         "test_https_transport_one_post_and_bounded_closed_response"),
+        ("status refusal", 'if response.status != 200:', 'if False:',
+         "test_https_transport_never_follows_redirect_or_retries"),
+        ("remaining header budget", '\n            stream_socket.settimeout(remaining())',
+         '\n            stream_socket.settimeout(5.0)', "test_https_transport_budget_shrinks_after_request_and_headers"),
+        ("remaining read budget", '\n                    stream_socket.settimeout(remaining())',
+         '\n                    stream_socket.settimeout(5.0)', "test_https_transport_budget_shrinks_after_request_and_headers"),
+        ("bounded reads", 'response.read1(4096)', 'response.read1(1024 * 1024)',
+         "test_https_transport_one_post_and_bounded_closed_response"),
+        ("late read", 'chunk = response.read1(4096)\n                    remaining()',
+         'chunk = response.read1(4096)', "test_https_transport_never_yields_bytes_read_after_the_deadline"),
+        ("late header cleanup", 'if response is not None:\n                response.close()',
+         'if False:\n                response.close()', "test_https_transport_closes_late_headers_without_reading_the_body"),
+        ("stream response cleanup", 'def close():\n            response.close()\n            connection.close()',
+         'def close():\n            connection.close()', "test_https_transport_closes_a_partially_consumed_response"),
+        ("stream connection cleanup", 'def close():\n            response.close()\n            connection.close()',
+         'def close():\n            response.close()', "test_https_transport_closes_a_partially_consumed_response"),
+        ("unobserved provenance", 'if self._profile not in FAKE_PROFILES or getattr(self._transport, "provenance", None) != "fake-offline":',
+         'if self._profile not in FAKE_PROFILES:', "test_unobserved_https_transport_cannot_claim_a_fake_profile"),
+    ]
+    for label, old, new, selector in rows:
+        add("Slice21 HTTPS " + label, target, old, new, test + selector)
+    live = "test_live_profile_refuses_each_unrecognised_or_incomplete_shape"
+    config = "test_backend_configuration_is_default_off_and_never_falls_back"
+    rows = [
+        ("done order", 'if stage != "terminal" or sentinel:\n                raise ExtractionInvalid("live_done_order")',
+         'if sentinel:\n                raise ExtractionInvalid("live_done_order")', live + "[early_sentinel]"),
+        ("duplicate done", 'if stage != "terminal" or sentinel:\n                raise ExtractionInvalid("live_done_order")',
+         'if stage != "terminal":\n                raise ExtractionInvalid("live_done_order")', live + "[after_sentinel_done]"),
+        ("done required", 'if not sentinel:\n        raise ExtractionInvalid("missing_terminal")',
+         'if False:\n        raise ExtractionInvalid("missing_terminal")', live + "[missing_sentinel]"),
+        ("request correlation", 'extra.get("RequestId") != request_id', 'False', live + "[ack_request]"),
+        ("conversation correlation", 'record.get("ConversationId") != conversation_id or', '', live + "[ack_conversation]"),
+        ("related record", 'if record["RelatedRecordId"] != ack_id or response_id', 'if response_id', live + "[related_record]"),
+        ("response identity", 'or response_id is not None and identity != response_id:', ':', live + "[response_id]"),
+        ("terminal payload", '(identity != reply_id or text != payload)', '(identity != reply_id)', live + "[terminal_payload]"),
+        ("channel allowlist", 'if message["Type"] not in {"thought", "reply"}:', 'if False:', live + "[tool_message]"),
+        ("content index", 'type(obj["ContentIndex"]) is not int or obj["ContentIndex"] != 0):', 'False):', live + "[content_index]"),
+        ("processing identity", 'current is None or obj["MessageId"] != identity or', 'current is None or',
+         live + "[processing_id]"),
+        ("response media", 'expected_media_type="text/event-stream" if live else None', 'expected_media_type=None',
+         "test_live_adapter_rejects_wrong_media_without_fallback"),
+        ("budget ceiling", 'min(budget_seconds, LIVE_BUDGET_SECONDS if live else 5.0)', 'budget_seconds',
+         "test_live_adapter_uses_pinned_request_profile_and_single_budget[30-15.0]"),
+        ("budget constant", 'LIVE_BUDGET_SECONDS = 15.0', 'LIVE_BUDGET_SECONDS = 30.0',
+         "test_live_adapter_uses_pinned_request_profile_and_single_budget[None-15.0]"),
+        ("request profile", 'body.update(Stream="enable", Incremental=True, StreamingThrottle=100)',
+         'body.update(Stream="enable", Incremental=True)', "test_live_adapter_uses_pinned_request_profile_and_single_budget[3-3.0]"),
+        ("instruction pin", 'if live and request.instruction_version != LIVE_INSTRUCTION:', 'if False:',
+         "test_live_adapter_rejects_instruction_mismatch_before_call"),
+        ("concrete transport", 'type(self._transport) is HttpsReadbackTransport\n                and ', '',
+         "test_live_adapter_refuses_a_forged_https_transport_before_auth"),
+        ("default off", 'config.get("ADP_EXTRACTION_ENABLED", "false")', 'config.get("ADP_EXTRACTION_ENABLED", "true")',
+         config + "[None-local-sim-valid]"),
+        ("typo stays disabled", 'enabled=flag in {"true", "1"})', 'enabled=True)', config + "[ture-adp-disabled]"),
+        ("no lexical fallback", 'if flag in {"", "false", "0"}:', 'if flag not in {"true", "1"}:', config + "[ture-adp-disabled]"),
+    ]
+    for label, old, new, selector in rows:
+        add("Slice21 live " + label, target, old, new, test + selector)
+    grounding = "test_grounding"
+    rows = [
+        ("locate one", 'if len(starts) == 1:', 'if len(starts) >= 1:', grounding + "[two_occurrences]"),
+        ("locate not found", 'locations.append((field, "ambiguous" if starts else "not_found"))',
+         'locations.append((field, "ambiguous"))', grounding + "[not_found]"),
+        ("locate overlap", 'index = confirmed_text.find(text, index + 1)', 'index = confirmed_text.find(text, index + len(text))',
+         grounding + "[overlapping]"),
+        ("locate edges", 'if _word_bounded(confirmed_text, index, index + len(text)):', 'if True:', grounding + "[inside_longer_word]"),
+        ("locate later occurrences", 'index = confirmed_text.find(text, index + 1)', 'index = -1', grounding + "[one_bounded_one_embedded]"),
+        ("locate exact case", 'index = confirmed_text.find(text)\n', 'index = confirmed_text.casefold().find(text.casefold())\n', grounding + "[case]"),
+        ("locate exact whitespace", 'index = confirmed_text.find(text)\n', 'index = " ".join(confirmed_text.split()).find(text)\n', grounding + "[whitespace]"),
+        ("locate exact normalisation", 'index = confirmed_text.find(text)\n',
+         'index = __import__("unicodedata").normalize("NFC", confirmed_text).find(text)\n', grounding + "[nfc]"),
+        ("located span offsets", 'spans.append(SourceSpan(text, starts[0], starts[0] + len(text)))',
+         'utf16 = len(confirmed_text[:starts[0]].encode("utf-16-le")) // 2\n            spans.append(SourceSpan(text, utf16, utf16 + len(text)))', grounding + "[located]"),
+        ("unlocated field uncertain", '            spans.append(None)\n            uncertain.add(field)', '            spans.append(None)', grounding + "[not_found]"),
+        ("empty phrase", 'if not text:\n            raise ExtractionInvalid("span_empty")', 'if False:\n            raise ExtractionInvalid("span_empty")',
+         "test_strict_object[empty]"),
+        ("ADP eligibility revalidation", 'return _grounded_raw(result.raw, confirmed_text=confirmed_text, schema_version=SCHEMA_VERSION)',
+         'return result.raw', "test_located_span_survives_the_adp_eligibility_boundary_and_other_words_do_not"),
+        ("live provider error", '        kind = obj["Type"]\n        if kind == "error":\n            raise ExtractionInvalid("provider_error")',
+         '        kind = obj["Type"]\n        if kind == "error":\n            continue', live + "[provider_error]"),
+        ("live unknown event", 'raise ExtractionInvalid("text_channel")\n        else:\n            raise ExtractionInvalid("event_type")',
+         'raise ExtractionInvalid("text_channel")\n        else:\n            continue', live + "[unknown_event]"),
+    ]
+    for label, old, new, selector in rows:
+        add("Slice21 grounding " + label, target, old, new, test + selector)
+    detail = "test_non_text_field_reports_field_and_json_type_only"
+    for label, old, new, case in [
+        ("field named", 'f"span_text_type:{field}:{_json_type(text)}"', 'f"span_text_type:{_json_type(text)}"', "object"),
+        ("value never included", 'f"span_text_type:{field}:{_json_type(text)}"', 'f"span_text_type:{field}:{_json_type(text)}:{text}"', "array"),
+        ("object type", 'return "object"', 'return "unknown"', "object"),
+        ("array type", 'return "array"', 'return "unknown"', "array"),
+        ("boolean before number", '    if type(value) is bool:\n        return "boolean"\n', '', "boolean"),
+        ("float is number", 'if type(value) in (int, float):', 'if type(value) is int:', "float"),
+    ]:
+        add("Slice21 type detail " + label, target, old, new, test + detail + "[" + case + "]")
+    add("Slice21 grounding ledger locate outcome", "src/carerelay/service.py",
+        '                "span_locations": located.get(row["operation_id"]),', '                "span_locations": None,',
+        test + "test_not_found_phrase_is_uncertain_and_recorded_in_the_ledger")
+    add("Slice21 live ledger HTTPS provenance", "src/carerelay/service.py",
+        '                    else "https" if row["transport_profile"] == LIVE_PROFILE\n', '',
+        test + "test_live_https_rows_report_https_transport_in_the_judge_ledger[unavailable]")
+    api, journey = "frontend/lib/api.ts", "tests/test_journey_commands.py::"
+    choose = 'kind === "score_words" || kind === "repair_words" ? SCORING_TIMEOUT_MS : COMMAND_TIMEOUT_MS'
+    rows = [
+        ("scoring bound", 'const SCORING_TIMEOUT_MS = 20000;', 'const SCORING_TIMEOUT_MS = 5000;',
+         "test_s21_scoring_receives_a_late_answer_with_one_post_and_no_retry"),
+        ("bound leaks to every command", choose, 'SCORING_TIMEOUT_MS',
+         "test_s21_only_scoring_commands_wait_for_the_live_extraction_budget"),
+        ("repair bound", choose, 'kind === "score_words" ? SCORING_TIMEOUT_MS : COMMAND_TIMEOUT_MS',
+         "test_s21_scoring_abort_is_unavailable_after_one_post_and_never_retried"),
+        ("no retry", '  } catch { return { ok: false, reason: "unavailable", detail: "journey unavailable" }; }\n}\n\nexport async function prepareWordsCommand',
+         '  } catch { return kind === "repair_words" ? command(path, episodeId, body, "create") : { ok: false, reason: "unavailable", detail: "journey unavailable" }; }\n}\n\nexport async function prepareWordsCommand',
+         "test_s21_scoring_abort_is_unavailable_after_one_post_and_never_retried"),
+    ]
+    for label, old, new, selector in rows:
+        add("Slice21 frontend " + label, api, old, new, journey + selector)
+
+
 ENGINE_DSN = None
 
 
@@ -2672,10 +2785,12 @@ def env():
         CARERELAY_TEST_DSN=ENGINE_DSN or "postgresql://127.0.0.1:1/carerelay_disabled", ADP_EXTRACTION_ENABLED="false")
 
 
-def run(selectors, directory, label, collect=False):
+def run(selectors, directory, label, collect=False, control=None):
     xml = directory / f"{label}.xml"
     command = [sys.executable, "-m", "pytest", *selectors, "-o", "addopts=", "-q",
         f"--basetemp={directory / (label + '-pytest')}"]
+    if control is not None:
+        command.append(control)
     command += ["--collect-only"] if collect else [f"--junitxml={xml}"]
     child = subprocess.run(command, cwd=ROOT, env=env(), capture_output=True, text=True)
     output = child.stdout + child.stderr
@@ -2685,6 +2800,10 @@ def run(selectors, directory, label, collect=False):
     cases = ET.parse(xml).findall(".//testcase") if xml.exists() else []
     failures = [failure for case in cases for failure in case.findall("failure")]
     invalid = any(case.find("error") is not None or case.find("skipped") is not None for case in cases)
+    control_cases = [case for case in cases if control is not None and
+        case.attrib.get("name", "").startswith(control.rsplit("::", 1)[-1])]
+    control_green = control is None or bool(control_cases) and all(
+        not any(case.find(tag) is not None for tag in ("error", "skipped", "failure")) for case in control_cases)
     runtime = re.search(r"(?:SyntaxError|IndentationError|ImportError|ModuleNotFoundError|NameError|AttributeError|TypeError|KeyError|OperationalError):", output)
     def assertion(failure):
         text = failure.text or ""
@@ -2693,8 +2812,9 @@ def run(selectors, directory, label, collect=False):
             "DID NOT RAISE" in message or "DID NOT RAISE" in text or
             bool(TYPED_REFUSAL.search(text)))
     return {"green": child.returncode == 0 and bool(cases) and not failures and not invalid,
-        "red": child.returncode == 1 and bool(failures) and not invalid and not runtime and all(map(assertion, failures)),
-        "exit": child.returncode, "cases": len(cases), "failures": len(failures), "runtime_error": bool(runtime)}
+        "red": child.returncode == 1 and bool(failures) and not invalid and not runtime and all(map(assertion, failures)) and control_green,
+        "exit": child.returncode, "cases": len(cases), "failures": len(failures), "runtime_error": bool(runtime),
+        "control_green": control_green, "control_cases": len(control_cases)}
 
 
 def fingerprint(mutation, original):
@@ -2788,7 +2908,15 @@ def main():
                 try:
                     path.write_bytes(baseline.replace(mutation.old.encode(), mutation.new.encode()))
                     purge(path)
-                    result["mutant"] = run([mutation.selector], directory, prefix + "-mutant")
+                    control = None
+                    if mutation.label.startswith("Slice21 HTTPS "):
+                        guarded_positive = {"TLS verification", "one POST", "bounded reads",
+                            "stream response cleanup", "stream connection cleanup"}
+                        control_name = ("test_https_transport_refuses_unapproved_endpoint_before_auth"
+                            if mutation.label.removeprefix("Slice21 HTTPS ") in guarded_positive
+                            else "test_https_transport_one_post_and_bounded_closed_response")
+                        control = "tests/test_adp_extraction.py::" + control_name
+                    result["mutant"] = run([mutation.selector], directory, prefix + "-mutant", control=control)
                 finally:
                     path.write_bytes(baseline)
                     purge(path)
