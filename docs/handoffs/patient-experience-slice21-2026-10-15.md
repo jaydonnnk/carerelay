@@ -2,6 +2,18 @@
 
 Supporting handoff. `00-status.md` owns gate/slice state.
 
+## Git prerequisite and credential recommendation update: 15 October 2026
+
+[verified] Slice 20 is committed and safely published to main. The first live
+remote verification matches `3ca5429`; the current final receipt is owned by
+`00-status.md`. F6 acceptance is explicit. The user declined recommended AppKey
+rotation; it is not a mandatory approval gate. No secret value is written here.
+The authorised Slice 21 branch may now start from verified published main.
+Compatible active instruction and console settings are still unverified; region
+and retention are unknown. No live request, desktop control, CareRelay deployment
+or Slice 21 Git publication has occurred. Earlier readiness prohibitions below
+are historical except where the owning current status preserves them.
+
 ## Continuation authority addendum: 15 October 2026
 
 [verified] The user now accepts F6 and explicitly authorises the prepared Slice

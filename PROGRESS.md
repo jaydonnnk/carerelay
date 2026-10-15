@@ -10,11 +10,11 @@ Operational memory only. `00-status.md` owns gate/slice authority.
 - [x] User explicitly accepts F6 and authorises scoped Slice 20 publication.
 - [x] User reports Render auto-deploy Off and Vercel ignored build step exit 0.
 - [x] User authorises named Slice 21 operator work and at most 24 fictional live requests.
-- [ ] Complete coherent Slice 20 commits, safe main integration and verified push.
+- [x] Three coherent Slice 20 commits, guarded main integration and live push match 3ca5429.
 - [ ] Create slice-21-adp-enablement from verified published main.
 - [ ] Prepare and verify the narrow transport/configuration without enabling ADP.
-- [!] Live requests: exposed-key rotation, compatible active instruction, settings,
-  processing region and retention/logging arrangements remain unresolved.
+- [!] Live requests: compatible active instruction and console settings remain unverified.
+  Region/retention remain unknown. User declined recommended key rotation.
 - [ ] Actual local production journey proof and Slice 21 Check acceptance.
 
 ADP target: CareRelay, account 200053387891, Experience GkTbUc,

@@ -1,30 +1,39 @@
 # Design principles — the four tests
 
-## Slice 20 F6 acceptance and publication authority: 15 October 2026
+## Slice 20 accepted F6 and verified main publication: 15 October 2026
 
-[verified] The user explicitly accepted F6's existing stale-feedback repair and
-approved the prepared Slice 20 commits, main integration and origin/main push.
-The user reports Render Auto-Deploy Off and Vercel's ignored build command
-`exit 0` saved. No CareRelay deployment is authorised. The user-directed Slice
-20 closure and its incomplete accessibility/named/truthfulness proof are kept.
-F7's Gate 3 decision, absent F8 icons and unproved F9 announcements remain open.
+[verified] The user separately accepted F6 and explicitly authorised the prepared
+Slice 20 commits, safe main integration and push. Three scoped commits landed:
+`eacff6f` clears stale read-back failure, `f207571` preserves focus/status and
+approved dialog copy, and `3ca5429` records closure, handoffs and exact scope.
+Main advanced by a guarded fast-forward ref update before checkout; all 238
+file hashes and logical index entries survived exactly. The first push and
+live origin/main verification both match `3ca5429`. Only main was pushed.
+This receipt publication is within the same request; final refs are checked
+again afterwards. The Slice 20 branch is retained and aligned at close.
 
-[verified] External snapshots preserve the original 238 files, raw/logical
-index and protected video. Reviewed source/test bytes remain unchanged apart
-from intentional staging/commits. Fresh preparation suite: 2,035 passed,
-232 Postgres skips, one warning; production typecheck/build pass. Focused F6
-proof has two named RED cases over one distinct edit, exact restoration and
-green before/after controls. Full suite after restoration also passes.
+[verified] Fresh shipping suite: 2,035 passed, 232 engine skips, one warning.
+Reviewed frontend/source hashes still match the passed production typecheck
+and build. Focused F6 proof has two named RED cases over one distinct edit,
+green before/after and exact restoration. The user-directed closure exception
+is preserved: original full accessibility/named/truthfulness proof remains
+incomplete. F7's Gate 3 decision, F8 icons and F9 announcements remain open.
 
-[verified] Slice 21 continuation, operator instruction/runbook revisions, ADP
-publication AND activation and at most 24 fictional extraction requests are
-authorised for CareRelay, account 200053387891, existing Experience GkTbUc,
-endpoint `https://wss.lke.tencentcloud.com/adp/v2/chat`. Live requests remain
-blocked on compatible activation, settings/processing confirmation and local
-credential rotation after a value was exposed in chat. No secret is copied
-into repository records. Region and retention are unknown. The character
-prompt does not establish retention. ADP stays off and no live call has run.
-Slice 21 Git publication and deployment are not authorised.
+[verified] The user reports Render auto-deploy Off and Vercel ignored build
+command `exit 0`. No deployment command or hosted database access occurred.
+No CareRelay deployment is authorised. Protected video, unrelated vibe_images,
+approved gates/copy/manifests and historical log redactions are preserved.
+
+[verified] Slice 21 continuation and operator instruction/runbook revisions,
+ADP publication AND activation and at most 24 fictional extraction requests
+are authorised for CareRelay, account 200053387891, Experience GkTbUc, endpoint
+`https://wss.lke.tencentcloud.com/adp/v2/chat`. The user declined recommended
+AppKey rotation; that recommendation is not an additional approval gate. No
+credential value is copied into repository records. Region and retention are
+unknown, and the character prompt does not establish them. Compatible active
+instruction and console settings remain unverified. No live request has run.
+Create the authorised Slice 21 branch only after verified main publication.
+Slice 21 commits/merge/push and CareRelay deployment remain unauthorised.
 
 ## Slice 20 closure checkpoint: historical, 15 October 2026
 

@@ -2,6 +2,15 @@
 
 Supporting note, authoritative for nothing. `00-status.md` owns slice state.
 
+## Verified publication receipt: 15 October 2026
+
+[verified] Three scoped commits were safely fast-forwarded into main before
+checkout. All 238 files and index entries survived exactly. The first push and
+live remote verification match `3ca5429`. Fresh shipping suite reproduces
+2,035 passed/232 engine skips/one warning. No original deferred reader/named
+matrix is restarted or passed by this publication. `00-status.md` owns final
+publication state; the review and closure below retain their historical scope.
+
 ## Publication addendum: 15 October 2026
 
 [verified] The user separately accepted F6 and authorised the prepared Slice 20

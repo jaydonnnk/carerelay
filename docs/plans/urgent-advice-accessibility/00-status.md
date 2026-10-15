@@ -3,33 +3,42 @@
 - Gate 1: Product, **narrowly RE-APPROVED 14 October 2026** for Slice 16's exact five confirmation/help and pending/retry strings in `patient-experience-copy.md`. The user answered "Approve these exact Gate 1 strings". The 12 October approved inventory is preserved. Approved strings are exposed only by the guarded offline Slice 16 controls; specialized non-timing and system-date copy remain blocked. Gates 2 to 4 contracts are unchanged.
 - Gate 2: Architecture, **RE-APPROVED 13 October 2026 (revision 4)** for the patient-experience journey and ADP read-back extraction design in `02-architecture.md` section 13. The user explicitly answered "Yep i approve gate 2" and requested a Gate 3 handoff. The previously approved section 5.2 durable-stop rule is unchanged. This architecture approval alone authorises no implementation.
 - Gate 3: Program Design, **RE-APPROVED 13 October 2026**, including section 9.12 identity correction. User answered "approve" after the reproduced no-event counterexample. Slice 14 is locally complete and shipped; Slice 15 Check is accepted with disclosed blocked viewport items and Slice 15 is shipped to main.
-- Gate 4: Slice plan, **RE-APPROVED 13 October 2026** for `04-slices.md` section 9. Its contract is unchanged. Slice 15 Check accepted 14 October 2026 by the user ("Yes, ship") with viewport items disclosed as blocked, not passed, and carried to Slice 20; Slice 15 is shipped to main. Slice 16's offline/SQLite Check is ACCEPTED 14 October 2026. The user answered "I accept" and requested main publication and cleanup, then notification before Slice 17. Slice 16 is shipped to main by verified fast-forward and origin/main publication. Slice 17's bounded local Check is ACCEPTED 14 October 2026; the user explicitly authorised scoped working-tree commits and origin/main publication. Slice 17 is shipped to main by verified safe fast-forward and origin/main publication. The user explicitly continued Slice 18 on 14 October 2026. Its bounded offline Check is ACCEPTED 14 October 2026, with the disclosed Escape-focus failure carried to Slice 20. The user explicitly authorised Slice 18 commits, main integration and origin/main push; Slice 18 is shipped to main. Slice 19's bounded real-engine Check is ACCEPTED 15 October 2026; scoped commits were safely integrated and pushed to origin/main as verified below. Slice 20 is COMPLETE BY USER-DIRECTED CLOSURE on 15 October 2026, with the unfinished proof explicitly recorded below. Slice 21 continuation and bounded live/operator work are authorised as recorded below. Its Git prerequisite is being published; live settings, processing and credential readiness remain unresolved. No install or CareRelay deployment is authorised.
+- Gate 4: Slice plan, **RE-APPROVED 13 October 2026** for `04-slices.md` section 9. Its contract is unchanged. Slice 15 Check accepted 14 October 2026 by the user ("Yes, ship") with viewport items disclosed as blocked, not passed, and carried to Slice 20; Slice 15 is shipped to main. Slice 16's offline/SQLite Check is ACCEPTED 14 October 2026. The user answered "I accept" and requested main publication and cleanup, then notification before Slice 17. Slice 16 is shipped to main by verified fast-forward and origin/main publication. Slice 17's bounded local Check is ACCEPTED 14 October 2026; the user explicitly authorised scoped working-tree commits and origin/main publication. Slice 17 is shipped to main by verified safe fast-forward and origin/main publication. The user explicitly continued Slice 18 on 14 October 2026. Its bounded offline Check is ACCEPTED 14 October 2026, with the disclosed Escape-focus failure carried to Slice 20. The user explicitly authorised Slice 18 commits, main integration and origin/main push; Slice 18 is shipped to main. Slice 19's bounded real-engine Check is ACCEPTED 15 October 2026; scoped commits were safely integrated and pushed to origin/main as verified below. Slice 20 is COMPLETE BY USER-DIRECTED CLOSURE on 15 October 2026, with the unfinished proof explicitly recorded below. Slice 21 continuation and bounded live/operator work are authorised as recorded below. Its Slice 20 Git prerequisite is published; compatible activation and live settings remain unverified. No install or CareRelay deployment is authorised.
 
-## Slice 20 F6 acceptance and publication authority: 15 October 2026
+## Slice 20 accepted F6 and verified main publication: 15 October 2026
 
-[verified] The user explicitly accepted F6's existing stale-feedback repair and
-approved the prepared Slice 20 commits, main integration and origin/main push.
-The user reports Render Auto-Deploy Off and Vercel's ignored build command
-`exit 0` saved. No CareRelay deployment is authorised. The user-directed Slice
-20 closure and its incomplete accessibility/named/truthfulness proof are kept.
-F7's Gate 3 decision, absent F8 icons and unproved F9 announcements remain open.
+[verified] The user separately accepted F6 and explicitly authorised the prepared
+Slice 20 commits, safe main integration and push. Three scoped commits landed:
+`eacff6f` clears stale read-back failure, `f207571` preserves focus/status and
+approved dialog copy, and `3ca5429` records closure, handoffs and exact scope.
+Main advanced by a guarded fast-forward ref update before checkout; all 238
+file hashes and logical index entries survived exactly. The first push and
+live origin/main verification both match `3ca5429`. Only main was pushed.
+This receipt publication is within the same request; final refs are checked
+again afterwards. The Slice 20 branch is retained and aligned at close.
 
-[verified] External snapshots preserve the original 238 files, raw/logical
-index and protected video. Reviewed source/test bytes remain unchanged apart
-from intentional staging/commits. Fresh preparation suite: 2,035 passed,
-232 Postgres skips, one warning; production typecheck/build pass. Focused F6
-proof has two named RED cases over one distinct edit, exact restoration and
-green before/after controls. Full suite after restoration also passes.
+[verified] Fresh shipping suite: 2,035 passed, 232 engine skips, one warning.
+Reviewed frontend/source hashes still match the passed production typecheck
+and build. Focused F6 proof has two named RED cases over one distinct edit,
+green before/after and exact restoration. The user-directed closure exception
+is preserved: original full accessibility/named/truthfulness proof remains
+incomplete. F7's Gate 3 decision, F8 icons and F9 announcements remain open.
 
-[verified] Slice 21 continuation, operator instruction/runbook revisions, ADP
-publication AND activation and at most 24 fictional extraction requests are
-authorised for CareRelay, account 200053387891, existing Experience GkTbUc,
-endpoint `https://wss.lke.tencentcloud.com/adp/v2/chat`. Live requests remain
-blocked on compatible activation, settings/processing confirmation and local
-credential rotation after a value was exposed in chat. No secret is copied
-into repository records. Region and retention are unknown. The character
-prompt does not establish retention. ADP stays off and no live call has run.
-Slice 21 Git publication and deployment are not authorised.
+[verified] The user reports Render auto-deploy Off and Vercel ignored build
+command `exit 0`. No deployment command or hosted database access occurred.
+No CareRelay deployment is authorised. Protected video, unrelated vibe_images,
+approved gates/copy/manifests and historical log redactions are preserved.
+
+[verified] Slice 21 continuation and operator instruction/runbook revisions,
+ADP publication AND activation and at most 24 fictional extraction requests
+are authorised for CareRelay, account 200053387891, Experience GkTbUc, endpoint
+`https://wss.lke.tencentcloud.com/adp/v2/chat`. The user declined recommended
+AppKey rotation; that recommendation is not an additional approval gate. No
+credential value is copied into repository records. Region and retention are
+unknown, and the character prompt does not establish them. Compatible active
+instruction and console settings remain unverified. No live request has run.
+Create the authorised Slice 21 branch only after verified main publication.
+Slice 21 commits/merge/push and CareRelay deployment remain unauthorised.
 
 ## Slice 20 closure checkpoint: historical: 15 October 2026
 
@@ -1007,10 +1016,10 @@ no full-upgrade promise for 16 October or current cutoff assertion is made.
 - [x] Slice 17: permission/truthful simulated failure, `slice-17-permission-failure`; bounded Check accepted and shipped to main 14 October 2026.
 - [x] Slice 18: strict fake-transport extraction on `slice-18-adp-boundary`; bounded local Check ACCEPTED 14 October 2026 and shipped to main on explicit user instruction. Disclosed accessibility failure remains Slice 20.
 - [x] Slice 19: bounded real-engine Check ACCEPTED and shipped to main 15 October 2026 from `slice-19-postgres-proof`; exact proof and publication receipt above.
-- [x] Slice 20: COMPLETE BY USER-DIRECTED CLOSURE, 15 October 2026, `slice-20-accessibility-proof`; original full proof remains incomplete as disclosed above. F6 separately accepted; authorised publication in progress.
+- [x] Slice 20: COMPLETE BY USER-DIRECTED CLOSURE, 15 October 2026, `slice-20-accessibility-proof`; original full proof remains incomplete as disclosed above. F6 separately accepted; shipped to main by verified safe fast-forward and push.
 - [ ] Slice 21: separately authorised live ADP enablement, `slice-21-adp-enablement`.
 
-**Next boundary:** Slice 20 is closed by explicit user instruction with incomplete proof disclosed. F6 and scoped publication are explicitly authorised. Verify main publication before creating the authorised Slice 21 branch. Compatible activation, credential rotation and processing/settings facts still block live calls. Live ADP remains disabled.
+**Next boundary:** Slice 20 is closed by explicit user instruction with incomplete proof disclosed. F6 and scoped publication are explicitly authorised. Verify main publication before creating the authorised Slice 21 branch. Compatible activation and console settings remain unverified; region and retention stay unknown. Rotation is recommended, not required. Live ADP remains disabled.
 
 ## Gate 3 reopen and re-approval: patient-experience program design, 13 October 2026
 
