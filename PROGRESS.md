@@ -9,10 +9,10 @@ Operational memory only. `00-status.md` owns approval/state.
 - [x] External snapshot of 245 files, raw/logical index and ledger; verified review preview PIDs stopped.
 - [x] Fresh full suite: 2,118 passed, 232 PostgreSQL skips, one warning; frontend typecheck/build pass.
 - [x] Two unrelated protected assets retained in place with local-only excludes. Public log supersets/redactions retained.
-- [ ] Coherent scoped commits and initial slice-branch publication.
-- [ ] Guarded fast-forward main ref before checkout, preservation check and main push.
-- [ ] Reconcile publication records, publish receipt to both refs and verify live alignment/clean tree.
-- [ ] Restart the chosen offline review preview and return the final publication receipt.
+- [x] Four scoped commits: d40f9e0 integration/tests, 34606bb contracts/observations, c99d46b bounded acceptance/demo records, 27291ed lessons. Initial slice-branch push verified.
+- [x] Guarded main ref advance before checkout; all 244 tracked hashes/index entries preserved. Main push verified live equal to branch at initial tip 27291ed.
+- [x] Main full suite repeats 2,118 passed/232 skips/one warning. Publication record sweep prepared for final receipt publication to both refs; final remote/clean-tree audit follows that push and is reported externally.
+- [x] Offline preview restarted on main at http://127.0.0.1:8520/example, preserving the review DB; no ADP credentials loaded. Final publication result follows receipt push.
 
 ## Earlier accepted cleanup: history
 

@@ -13,12 +13,16 @@
 
 [verified shipping checks] Fresh full offline suite: 2,118 passed, 232 PostgreSQL skips, one existing warning. Fresh frontend typecheck and production build pass in the source-matching production build copy. Existing current 170 named RED proof, call-18 positive local-product proof and seven unrun live-case limits are retained. No new PostgreSQL or ADP request is made. Historical published session-log additions/redactions are preserved rather than overwritten by older working copies.
 
-[verified state] Publication is in progress; success is not claimed in this preflight receipt. `00-status.md` owns the final publication receipt. ADP stays default-off with the existing schema/caps/no-retry/code-authority contract. No new branch beyond Slice 21 or manual deployment is authorised.
+[verified publication] Four scoped commits were published on `slice-21-adp-enablement`, then integrated into `main` by a guarded fast-forward ref update before checkout. Both live remote refs matched initial tip `27291ed4d79c4186c6062deaced88b86ba329d58`. All 244 tracked file hashes and logical index entries survived checkout exactly; the two unrelated local assets stayed byte-preserved in place. The same user request publishes this receipt/current-state sweep to both refs, with final live alignment checked afterwards. Checkout is main; the slice branch is retained and aligned. No next-slice branch is opened.
+
+[verified final verification] The complete suite on main repeats 2,118 passed, 232 PostgreSQL skips and one existing warning. Fresh frontend typecheck/build passed, and the 170-RED source/control fingerprints remain exact. Credential-pattern scans and newly tracked boundary tests pass. Protected video/image/usage text and public log redactions/additions are preserved. The chosen offline preview was restarted on main with its existing disposable review database. No new live call or hosted database access occurred; ledger remains 18/24 used, 6 remain. No deployment command was run; hosted behavior was not checked.
+
+[verified retained limits] Slice 21 remains accepted by bounded closure with seven live cases unrun. ADP stays default-off under the existing v2 schema, 15-second cap, byte limits, no retry/fallback and code authority. Further calls, later slices and deployment retain separate authority. Final ref verification after this receipt is reported in the shipping result.
 
 - [x] Explicit branch/main publication authority and preservation preflight.
 - [x] Fresh offline suite and frontend checks.
-- [ ] Scoped commits, branch publication, safe main integration and main push.
-- [ ] Post-publication record sweep, final live-ref checks and clean-tree audit.
+- [x] Four scoped commits, slice-branch publication, guarded main fast-forward and initial main push.
+- [x] Post-publication record sweep, initial live-ref equality and clean checkout audit. This receipt is published within the same instruction; final refs are checked afterwards.
 
 ## Slice 21 acceptance and cleanup: historical receipt, 16 October 2026
 
@@ -1283,9 +1287,9 @@ no full-upgrade promise for 16 October or current cutoff assertion is made.
 - [x] Slice 18: strict fake-transport extraction on `slice-18-adp-boundary`; bounded local Check ACCEPTED 14 October 2026 and shipped to main on explicit user instruction. Disclosed accessibility failure remains Slice 20.
 - [x] Slice 19: bounded real-engine Check ACCEPTED and shipped to main 15 October 2026 from `slice-19-postgres-proof`; exact proof and publication receipt above.
 - [x] Slice 20: COMPLETE BY USER-DIRECTED CLOSURE, 15 October 2026, `slice-20-accessibility-proof`; original full proof remains incomplete as disclosed above. F6 separately accepted; shipped to main by verified safe fast-forward and push.
-- [x] Slice 21: COMPLETE BY USER-ACCEPTED BOUNDED CLOSURE, 16 October 2026, on `slice-21-adp-enablement`, with Git publication now authorised and in progress. One valid/scored HTTPS extraction through the actual local product, call 18 at 5,305 ms. Seven live cases remain unrun and are accepted as disclosed limits. Original full corpus Check is not retroactively passed. Ledger 18/24 used, 6 remain; ADP default-off. No Git publication/deployment.
+- [x] Slice 21: COMPLETE BY USER-ACCEPTED BOUNDED CLOSURE, 16 October 2026; committed, fast-forwarded into main and published on both main and retained slice-21-adp-enablement. Call 18 is one valid/scored HTTPS extraction through the actual local product at 5,305 ms. Seven live cases remain unrun as accepted limits; original full corpus Check is not retroactively passed. Ledger 18/24 used, 6 remain. ADP default-off; no deployment command.
 
-**Next boundary:** Cleanup is complete; the user reviews the chosen offline walkthrough plus recorded real ADP proof. Further ADP requests require a specific approved plan/count and advance ledger reservation. The optional seven-case/25-total proposal is unapproved; acceptance does not execute it. No later slice, shipping or deployment starts.
+**Next boundary:** Authorised Slice 21 publication and cleanup are complete; the user reviews the restarted offline walkthrough plus recorded real ADP proof. Further ADP requests require a specific approved plan/count and advance ledger reservation. The optional seven-case/25-total proposal is unapproved. No later slice or deployment is started.
 
 
 ## Gate 3 reopen and re-approval: patient-experience program design, 13 October 2026

@@ -8,7 +8,11 @@
 
 [verified shipping checks] Fresh full offline suite: 2,118 passed, 232 PostgreSQL skips, one existing warning. Fresh frontend typecheck and production build pass in the source-matching production build copy. Existing current 170 named RED proof, call-18 positive local-product proof and seven unrun live-case limits are retained. No new PostgreSQL or ADP request is made. Historical published session-log additions/redactions are preserved rather than overwritten by older working copies.
 
-[verified state] Publication is in progress; success is not claimed in this preflight receipt. `00-status.md` owns the final publication receipt. ADP stays default-off with the existing schema/caps/no-retry/code-authority contract. No new branch beyond Slice 21 or manual deployment is authorised.
+[verified publication] Four scoped commits were published on `slice-21-adp-enablement`, then integrated into `main` by a guarded fast-forward ref update before checkout. Both live remote refs matched initial tip `27291ed4d79c4186c6062deaced88b86ba329d58`. All 244 tracked file hashes and logical index entries survived checkout exactly; the two unrelated local assets stayed byte-preserved in place. The same user request publishes this receipt/current-state sweep to both refs, with final live alignment checked afterwards. Checkout is main; the slice branch is retained and aligned. No next-slice branch is opened.
+
+[verified final verification] The complete suite on main repeats 2,118 passed, 232 PostgreSQL skips and one existing warning. Fresh frontend typecheck/build passed, and the 170-RED source/control fingerprints remain exact. Credential-pattern scans and newly tracked boundary tests pass. Protected video/image/usage text and public log redactions/additions are preserved. The chosen offline preview was restarted on main with its existing disposable review database. No new live call or hosted database access occurred; ledger remains 18/24 used, 6 remain. No deployment command was run; hosted behavior was not checked.
+
+[verified retained limits] Slice 21 remains accepted by bounded closure with seven live cases unrun. ADP stays default-off under the existing v2 schema, 15-second cap, byte limits, no retry/fallback and code authority. Further calls, later slices and deployment retain separate authority. Final ref verification after this receipt is reported in the shipping result.
 
 The earlier acceptance/cleanup records below describe their own checkpoints.
 

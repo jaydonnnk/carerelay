@@ -2,7 +2,7 @@
 
 Supporting evidence only. `00-status.md` owns state. Slice 21 is accepted by bounded closure, with the seven live cases unrun. Earlier checkpoints retain their original dated evidence and limits.
 
-## Publication preflight: 16 October 2026
+## Publication receipt: 16 October 2026
 
 [verified user instruction, 16 October 2026] "Can u publish the branch, clean up the working tree, and merge / push to main thanks" authorises scoped Slice 21 commits, publication of `slice-21-adp-enablement`, safe fast-forward integration into `main`, and both remote pushes. The accepted bounded closure and seven unrun live cases remain unchanged. This grants no new ADP call, later slice or deployment command.
 
@@ -10,7 +10,11 @@ Supporting evidence only. `00-status.md` owns state. Slice 21 is accepted by bou
 
 [verified shipping checks] Fresh full offline suite: 2,118 passed, 232 PostgreSQL skips, one existing warning. Fresh frontend typecheck and production build pass in the source-matching production build copy. Existing current 170 named RED proof, call-18 positive local-product proof and seven unrun live-case limits are retained. No new PostgreSQL or ADP request is made. Historical published session-log additions/redactions are preserved rather than overwritten by older working copies.
 
-[verified state] Publication is in progress; success is not claimed in this preflight receipt. `00-status.md` owns the final publication receipt. ADP stays default-off with the existing schema/caps/no-retry/code-authority contract. No new branch beyond Slice 21 or manual deployment is authorised.
+[verified publication] Four scoped commits were published on `slice-21-adp-enablement`, then integrated into `main` by a guarded fast-forward ref update before checkout. Both live remote refs matched initial tip `27291ed4d79c4186c6062deaced88b86ba329d58`. All 244 tracked file hashes and logical index entries survived checkout exactly; the two unrelated local assets stayed byte-preserved in place. The same user request publishes this receipt/current-state sweep to both refs, with final live alignment checked afterwards. Checkout is main; the slice branch is retained and aligned. No next-slice branch is opened.
+
+[verified final verification] The complete suite on main repeats 2,118 passed, 232 PostgreSQL skips and one existing warning. Fresh frontend typecheck/build passed, and the 170-RED source/control fingerprints remain exact. Credential-pattern scans and newly tracked boundary tests pass. Protected video/image/usage text and public log redactions/additions are preserved. The chosen offline preview was restarted on main with its existing disposable review database. No new live call or hosted database access occurred; ledger remains 18/24 used, 6 remain. No deployment command was run; hosted behavior was not checked.
+
+[verified retained limits] Slice 21 remains accepted by bounded closure with seven live cases unrun. ADP stays default-off under the existing v2 schema, 15-second cap, byte limits, no retry/fallback and code authority. Further calls, later slices and deployment retain separate authority. Final ref verification after this receipt is reported in the shipping result.
 
 ## Accepted bounded result: historical receipt, 16 October 2026
 
@@ -20,7 +24,7 @@ Supporting evidence only. `00-status.md` owns state. Slice 21 is accepted by bou
 
 [verified scope] Cleanup and local review preparation are authorised. ADP remains default-off, with the same v2 schema, 15-second cap, byte limits, no retry/fallback and code authority. The ledger stays 18 of 24 used, 6 remain; this acceptance authorises no further calls or increase to 25. The seven-case proposal is retained as an optional, unapproved future evidence plan. No commit, merge, push, deployment, install, hosted database or desktop/VoiceOver work is authorised. Protected assets and inherited dirty/untracked work remain preserved.
 
-## Accepted cleanup and local review: 16 October 2026
+## Accepted cleanup and local review: historical checkpoint, 16 October 2026
 
 [verified cleanup/review, 16 October 2026] The user selected "Interactive offline walkthrough plus evidence from the successful real ADP run". Current submission/instruction/runbook/README claims are reconciled; obsolete handoffs are labelled historical and the extra-call proposal is deferred. Active v2 instruction content and all product/test/frontend/tool source are byte-unchanged in this cleanup. Five untracked, ignored generated cache directories, 18 files, were moved to recoverable external quarantine. All 245 inherited files remain; 223 retain their entry hashes, with 22 intended documentation changes. The logical index and protected video/images/usage text are preserved.
 

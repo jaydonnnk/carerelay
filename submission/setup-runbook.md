@@ -138,7 +138,7 @@ the browser. Warm the service before a judge opens the link.
 
 If a later live plan is approved, use only confirmed fictional inputs, fresh sessions, disposable SQLite, scenario time and loopback. The existing private child loader selects only `ADP_APPKEY` and `ADP_CHAT_ENDPOINT`; never print values or load inherited hosted database defaults. Reserve first in the existing ledger, count failures/losses, make no retry and stop at the first failure. Never persist raw model output, reasoning or SSE. Do not disable moderation to force JSON compliance.
 
-[verified boundaries] The user has authorised Slice 21 branch/main publication; `00-status.md` owns the final Git receipt. No hosted deployment or hosted ADP success is claimed. Earlier operator setup and captures below are historical. No further database access, install, publication or deployment follows from bounded Check acceptance.
+[verified boundaries] Slice 21 is committed and published on main and the retained slice branch; `00-status.md` owns the Git receipt. No hosted deployment or hosted ADP success is claimed. Earlier operator setup and captures below are historical. No further database access, install, publication or deployment follows from bounded Check acceptance.
 
 ## Part B historical setup: the ADP Experience URL
 
