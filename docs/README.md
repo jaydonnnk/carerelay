@@ -99,4 +99,8 @@ supplies the later contracts and limits. `00-status.md` owns shipping state.
 
 [verified] Slice 17's bounded local permission/failure Check is documented in [the Slice 17 review](reviews/slice17-local-check-2026-10-14.md). `00-status.md` owns state and the user acceptance/shipping boundary.
 
-[verified] Current next-agent Slice 18 handoff: [strict offline ADP extraction](handoffs/patient-experience-slice18-2026-10-14.md). Slice 17 acceptance/publication state remains in `00-status.md`.
+[verified] Historical Slice 18 entry handoff: [strict offline ADP extraction](handoffs/patient-experience-slice18-2026-10-14.md). Slice 17 acceptance/publication state remains in `00-status.md`.
+
+[verified] Slice 19 local proof, 15 October 2026: [reviews/slice19-local-check-2026-10-15.md](reviews/slice19-local-check-2026-10-15.md). This supporting review retains the pre-acceptance evidence and a dated acceptance addendum. `00-status.md` owns current state.
+
+[verified] Current next-agent handoff: [Slice 20 production accessibility](handoffs/patient-experience-slice20-2026-10-15.md), using the same eleven-part structure as Slice 19. Slice 20 is unstarted in this shipping session.

@@ -1,51 +1,38 @@
-# CareRelay Slice 18: 14 October 2026
+# CareRelay Slice 19: authorised main publication, 15 October 2026
 
-Operational memory only. `00-status.md` owns gate and slice state.
+Operational memory only. `00-status.md` owns state and authority.
 
-[verified] Strict fake-transport extraction is built on `slice-18-adp-boundary`,
-from verified main/live main `0fac90dde43882b9322d575fbd80114650e4dc19`. The user
-accepted the bounded Check and requested commits/main publication and the
-numbered Slices 19 to 21 handoff. Seven scoped commits are on main; no Slice 19/20/21
-branch or implementation is created. State/acceptance authority is 00-status.md.
+[verified] Shipping preflight found `slice-19-postgres-proof`/main/live main at
+`a392b97abb24fe277e158c1926b1b808320088e4`. The publication request and Check
+receipt are in `00-status.md`. No later slice starts.
 
-- [x] External 228-file/video/index snapshot and branch before editing.
-- [x] Baseline 1,869 passed, 54 skips, one warning.
-- [x] Exact schema/Unicode/SSE, fake profiles, whole budget and independent caps.
-- [x] One call, disabled zero-call, no retries/fallback, immutable safe provenance.
-- [x] Committed claim, transport outside locks, current-state/parent/cue rechecks.
-- [x] Full current named proof 824 RED, zero survivors/not proven; exact restores.
-- [x] Truthfulness 39/39 RED, exact restores.
-- [x] Final suite 2,029 passed, 56 Postgres skips, one warning; typecheck/build pass.
-- [x] Real HTTP/curl/lost/stale/two-worker, production browser and positive scanners.
-- [x] Narrow architecture cleanup, records, LF/diff/no-added-em-dash/preservation.
-- [x] Named preview processes/tabs stopped; viewport reset; video still tracked.
+- [x] Preserve inherited dirty work, original and resume snapshots, index entries/video.
+- [x] Carry forward the exact approved disposable PostgreSQL 17.11 target scope.
+- [x] Fix engine constructor/seed/policy test isolation and shared null-parameter SQL.
+- [x] Actual connection/process races, crash windows, late dimensions, migration and triggers.
+- [x] Current engine 156 named RED/141 edits; offline 824 RED/805 edits.
+- [x] Truthfulness 39/39 RED; supplemental action-pending first-refusal proof.
+- [x] Final full real-engine suite 2,261 passed/zero skips/one warning.
+- [x] Final offline 2,029 passed/232 engine skips/one warning.
+- [x] Authenticated HTTP/curl loss/replay, actual backend and engine recovery.
+- [x] Actual browser refresh: same episode/rows/text, zero POST/extraction/dispatch.
+- [x] 249 serialized-surface scanner controls; production typecheck/build.
+- [x] Bounded adversarial/architecture review, current authority and documentation.
+- [x] Final preservation/LF/no-added-em-dash/diff/ref checks and exact cluster cleanup receipt.
+- [x] Recheck current Check/publication instruction in `00-status.md`.
+- [x] Fresh shipping snapshot/proof audit and offline suite/typecheck/build.
+- [x] Prepare eleven-part Slice 20 handoff.
+- [ ] Coherent commits, safe main integration, push, final receipt and preservation.
 
-[verified limitation] Native Escape closes the dialog but focus ends at BODY.
-This is recorded for Slice 20, not passed. VoiceOver/zoom/full accessibility,
-real Postgres and live ADP remain unproven. No clinical/participant benefit.
+Evidence: `/tmp/carerelay-s19-resume-20261015/`; current proof audit and final
+review identify exact logs/JUnit. Preparatory 143/156 engine runs and earlier
+failing suites are historical, not combined. See `docs/reviews/slice19-local-check-2026-10-15.md`.
 
-Review: `docs/reviews/slice18-local-check-2026-10-14.md`.
-Evidence: `/tmp/carerelay-s18-full-named-1/`, `/tmp/carerelay-s18-truthfulness.log`,
-`/tmp/carerelay-s18-final-suite.log`, `/tmp/carerelay-s18-live/` and
-`/tmp/carerelay-s18-preflight/`. Temporary evidence may disappear.
+[verified] Approved gate/copy/config/manifests and frontend behavior are unchanged.
+The protected tracked video is byte-exact. Git changed only raw index stat cache;
+logical entries/flags are unchanged and both raw versions are saved. Known
+Escape/BODY-focus failure stays Slice 20; live ADP stays disabled. No install,
+hosted access, real credentials, clinical benefit or deployment claim.
 
-[verified] Review fixed outer-lock extraction, Unicode SSE line splitting,
-unsafe/absent provenance, omitted canonical ID and huge-integer classification.
-Earlier mutation probes are historical; the complete 824-case run owns proof.
-The first new probe's three masked refusals and attribute error were corrected.
-
-Existing runtimes remain the handoff's Python and Node. No installation,
-real configuration/credential change, provider call, Postgres access,
-deployment or participants occurred. Both-engine code contracts exist; the
-additional actual Postgres cases remain skipped for Slice 19.
-
-[verified] Fresh shipping suite: 2,029 passed, 56 Postgres skips, one warning;
-typecheck/build pass. Current inherited target/control fingerprints and exact
-restores match. Snapshot: `/tmp/carerelay-s18-shipping/`, 230 files plus index.
-Handoff: `docs/handoffs/patient-experience-slice19-21-2026-10-14.md`.
-[verified] Safe main ref update preceded checkout, preserving 231 file hashes
-and index entries. Push succeeded; first live remote check matched `6dc765b`.
-This receipt is published in the same request, with final live refs reported
-thereafter. Checkout is main and the retained local Slice 18 branch is aligned.
-Only main is pushed. Source/test/video bytes are unchanged; named ports remain
-free. No next-slice code, cleanup deletion, installation or external runtime.
+[verified] Shipping evidence: `/tmp/carerelay-s19-shipping-20261015/`. Fresh
+offline checks reproduce 2,029/232/one warning; current proof hashes match.

@@ -1,5 +1,33 @@
 # CareRelay reframe and accessibility plan
 
+## Slice 19 accepted; main publication in progress: 15 October 2026
+
+[verified] The user accepted the bounded real-engine Check and explicitly
+requested main push and an eleven-part Slice 20 handoff. `00-status.md` owns
+the exact receipt. Fresh shipping checks: 2,029 passed/232 Postgres skips/one
+warning, production typecheck/build pass. Current 156 engine/824 offline named
+RED and 39 truthfulness RED match their source/control backups; accepted actual
+engine proof remains 2,261 passes/zero skips. No source/test change in shipping.
+Main publication and final receipt are in progress. No Slice 20/21 branch or
+implementation starts. Known Escape/BODY focus stays Slice 20; ADP stays off.
+Handoff: `docs/handoffs/patient-experience-slice20-2026-10-15.md`.
+Earlier checkpoints below describe their historical state.
+
+## Slice 19 Check checkpoint: historical, 15 October 2026
+
+[verified] Slice 19 is built on uncommitted `slice-19-postgres-proof`; the bounded
+real-engine Check is ready for user acceptance. `00-status.md` owns state.
+Final PostgreSQL-enabled suite: 2,261 passed, zero skips, one warning.
+Current engine/offline named proof is 156/824 RED with exact restores;
+truthfulness is 39/39 RED. Actual recovery/refresh and limits are recorded
+in `docs/reviews/slice19-local-check-2026-10-15.md`. Main/live main remain `a392b97abb24fe277e158c1926b1b808320088e4`.
+
+[verified] No Git shipping or Slice 20/21 starts. Live ADP remains disabled.
+The known Escape/BODY-focus failure stays Slice 20. Stop for Check acceptance;
+acceptance alone grants neither shipping nor continuation. Earlier checkpoints
+below are historical. Protected video and unrelated work remain preserved.
+
+
 ## Slice 18 accepted and shipped to main: 14 October 2026
 
 [verified] The user accepted the bounded Slice 18 Check and authorised scoped

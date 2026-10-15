@@ -3,7 +3,111 @@
 - Gate 1: Product, **narrowly RE-APPROVED 14 October 2026** for Slice 16's exact five confirmation/help and pending/retry strings in `patient-experience-copy.md`. The user answered "Approve these exact Gate 1 strings". The 12 October approved inventory is preserved. Approved strings are exposed only by the guarded offline Slice 16 controls; specialized non-timing and system-date copy remain blocked. Gates 2 to 4 contracts are unchanged.
 - Gate 2: Architecture, **RE-APPROVED 13 October 2026 (revision 4)** for the patient-experience journey and ADP read-back extraction design in `02-architecture.md` section 13. The user explicitly answered "Yep i approve gate 2" and requested a Gate 3 handoff. The previously approved section 5.2 durable-stop rule is unchanged. This architecture approval alone authorises no implementation.
 - Gate 3: Program Design, **RE-APPROVED 13 October 2026**, including section 9.12 identity correction. User answered "approve" after the reproduced no-event counterexample. Slice 14 is locally complete and shipped; Slice 15 Check is accepted with disclosed blocked viewport items and Slice 15 is shipped to main.
-- Gate 4: Slice plan, **RE-APPROVED 13 October 2026** for `04-slices.md` section 9. Its contract is unchanged. Slice 15 Check accepted 14 October 2026 by the user ("Yes, ship") with viewport items disclosed as blocked, not passed, and carried to Slice 20; Slice 15 is shipped to main. Slice 16's offline/SQLite Check is ACCEPTED 14 October 2026. The user answered "I accept" and requested main publication and cleanup, then notification before Slice 17. Slice 16 is shipped to main by verified fast-forward and origin/main publication. Slice 17's bounded local Check is ACCEPTED 14 October 2026; the user explicitly authorised scoped working-tree commits and origin/main publication. Slice 17 is shipped to main by verified safe fast-forward and origin/main publication. The user explicitly continued Slice 18 on 14 October 2026. Its bounded offline Check is ACCEPTED 14 October 2026, with the disclosed Escape-focus failure carried to Slice 20. The user explicitly authorised Slice 18 commits, main integration and origin/main push; Slice 18 is shipped to main. Slices 19 to 21 remain unstarted; no install or external-runtime authority follows.
+- Gate 4: Slice plan, **RE-APPROVED 13 October 2026** for `04-slices.md` section 9. Its contract is unchanged. Slice 15 Check accepted 14 October 2026 by the user ("Yes, ship") with viewport items disclosed as blocked, not passed, and carried to Slice 20; Slice 15 is shipped to main. Slice 16's offline/SQLite Check is ACCEPTED 14 October 2026. The user answered "I accept" and requested main publication and cleanup, then notification before Slice 17. Slice 16 is shipped to main by verified fast-forward and origin/main publication. Slice 17's bounded local Check is ACCEPTED 14 October 2026; the user explicitly authorised scoped working-tree commits and origin/main publication. Slice 17 is shipped to main by verified safe fast-forward and origin/main publication. The user explicitly continued Slice 18 on 14 October 2026. Its bounded offline Check is ACCEPTED 14 October 2026, with the disclosed Escape-focus failure carried to Slice 20. The user explicitly authorised Slice 18 commits, main integration and origin/main push; Slice 18 is shipped to main. Slice 19's bounded real-engine Check is ACCEPTED 15 October 2026; scoped commits, main integration and origin/main push are explicitly authorised and in progress below. Slices 20/21 remain unstarted. No install or external-runtime authority follows.
+
+## Slice 19 accepted; authorised main publication in progress: 15 October 2026
+
+[verified] The user answered "I accept. Push to main and then the handoff prompt
+for slice 20. Please follow the prompt structure for slice 19 thanks". This
+accepts the bounded real-engine Check below and authorises scoped commits, safe
+main integration, origin/main push and the eleven-part Slice 20 handoff. It does
+not start Slice 20 or grant its Git shipping, nor Slice 21/live ADP authority.
+
+[verified] Shipping preflight: HEAD/main/live origin/main all match
+`a392b97abb24fe277e158c1926b1b808320088e4`; no staged changes. External
+`/tmp/carerelay-s19-shipping-20261015/` snapshots all 232 existing files,
+logical/raw index and protected tracked video. Current engine/offline proof
+matches all 40 control hashes per run, 10/17 target backups and seven
+truthfulness backups. All 156/824 named results retain meaningful RED and green
+before/after controls. Existing final actual-engine JUnit remains 2,261 passes,
+zero skips; shipping does not rerun the removed dedicated cluster.
+
+[verified] Fresh shipping offline suite: 2,029 passed, 232 Postgres skips, one
+existing Starlette warning, exit 0. Typecheck and production build pass on the
+41 matching frozen source/frontend files. The skipped engine cases do not
+replace the accepted real-engine proof. No source/test change during shipping.
+
+- [x] Exact Check acceptance and explicit scoped publication request recorded.
+- [x] Live refs, external tree/index/video snapshot and current proof audit.
+- [x] Fresh offline suite, production typecheck/build and frozen-source audit.
+- [x] Concrete eleven-part Slice 20 handoff, without starting its branch.
+- [ ] Coherent commits, safe main ref advance before checkout and live push check.
+- [ ] Published receipt, current-state sweep and final preservation/ref check.
+
+[verified] Handoff: `docs/handoffs/patient-experience-slice20-2026-10-15.md`.
+The known Escape/BODY-focus failure stays Slice 20; live ADP remains disabled.
+The following local Check/preflight sections are historical checkpoints.
+
+## Slice 19 local Check before acceptance: historical, 15 October 2026
+
+[verified] Continued only Slice 19 on `slice-19-postgres-proof`, retaining the
+prior agent's uncommitted work and exact named disposable-engine approval.
+HEAD/local main/live origin/main remain `a392b97abb24fe277e158c1926b1b808320088e4`. No commit, merge,
+push, deployment, install, hosted database, live ADP or later-slice work occurred.
+
+[verified] Final full suite with PostgreSQL 17.11/psycopg 3.3.6 enabled:
+2,261 passed, zero skips, one existing warning. All 232 Postgres-gated
+cases execute. Current engine mutations: 156 named RED over 141
+edits; offline: 824 RED over 805 edits; truthfulness:
+39/39 RED. Zero survivor/unproven, fresh controls and exact restores.
+Final offline suite: 2,029 passed/232 engine skips/one warning.
+Source parity and offline skips are not substituted for engine proof.
+
+[verified] Real connection/lock barriers, atomic score/action/receipt crashes,
+late extraction dimensions, first-terminal callbacks, genuine old-schema
+migration/reapplications, exact 15-table/46-trigger catalog and
+independent seeded phase/claim/update/delete/truncate/upsert refusals pass.
+Actual authenticated HTTP survives backend SIGKILL and PostgreSQL immediate
+shutdown/recovery with identical serialized rows/deadlines and projections.
+Known/unknown curl remains 200/404; valid replay 200, changed body 409. Browser
+refresh returns to the same episode with zero POST/extraction/dispatch and
+unchanged rows. 249 same-surface scanner controls pass; typecheck/build
+and bounded architecture review pass. The only functional source repair is
+SQL null-parameter typing. Fixture defects and superseded runs are disclosed.
+
+[verified] Review/proof map: `docs/reviews/slice19-local-check-2026-10-15.md`. Current evidence:
+`/tmp/carerelay-s19-resume-20261015/`. Tree/index entries/protected tracked video
+and approved gate/copy/config/manifests are preserved. Raw index changes are
+Git stat-cache metadata only, with both versions retained. Named preview and
+exact disposable-target cleanup receipts are retained; unrelated work is kept.
+
+[unknown] User Slice 19 Check acceptance is pending. No shipping or Slice 20/21
+continuation is inferred. Live ADP remains disabled; hosted persistence, full
+accessibility and clinical benefit remain unproven. Prior Escape/BODY-focus
+failure remains Slice 20. Stop at this Check boundary.
+
+## Slice 19 preflight and scoped engine authority: historical checkpoint, 14 October 2026
+
+[verified] The user explicitly continued Slice 19 only and requested the complete
+real-engine Check before acceptance. `slice-19-postgres-proof` was created from
+verified HEAD/local main/live origin/main
+`a392b97abb24fe277e158c1926b1b808320088e4`. All 231 files, index entries and raw
+index bytes survived exactly. The protected tracked video retains its recorded
+49,394,082 bytes and SHA-256. External snapshot: `/tmp/carerelay-s19-preflight/`.
+Fresh offline baseline: 2,029 passed, 56 Postgres skips, one warning, exit 0.
+
+[verified authority] The user accidentally selected "Use another named disposable
+target", requested reopening the question, then answered "Whichever u recommend"
+to the complete exact-target approval question. This delegates the displayed
+choice and scope. Chosen target: existing PostgreSQL 17.11 Postgres.app binaries,
+new cluster `/tmp/carerelay-s19-postgres-17.11`, localhost `127.0.0.1:55419`,
+database `carerelay_slice19_disposable`, role `carerelay_s19`. Authority covers
+creation/start, connection, DDL, fictional test writes, race/crash/restart and
+stopping/removing only this cluster/database. No install, hosted database,
+existing cluster, real credentials, deployment or live ADP is authorised.
+
+[verified failure] Initial actual-engine baseline: 3 failed, 2,072 passed,
+10 errors, zero skips, one warning, exit 1. Journey fixtures passed a SQLite-only
+constructor argument, and the generic seeder violated command digest/phase
+shape. Fixture corrections exposed PostgreSQL's untyped-null SQL parameter in
+initial scoring. A bounded shared-query text cast is under verification.
+Logs/JUnit and exact authority receipt are in the external preflight directory.
+
+[verified historical checkpoint] On 14 October, Slice 19 was incomplete. Real-engine
+races, migration, crash, trigger mutations, HTTP restart and browser refresh were
+still open. The current 15 October result is recorded above.
+No Check acceptance, Git shipping or later-slice continuation is inferred.
+Gates/copy are unchanged; Escape/BODY focus remains Slice 20 and ADP stays off.
 
 ## Slice 18 accepted Check and main publication: 14 October 2026
 
@@ -790,11 +894,11 @@ no full-upgrade promise for 16 October or current cutoff assertion is made.
 - [x] Slice 16: offline/SQLite Check ACCEPTED and shipped to main 14 October 2026, `slice-16-confirmed-readback`; cleanup complete. Its later explicit continuation started Slice 17.
 - [x] Slice 17: permission/truthful simulated failure, `slice-17-permission-failure`; bounded Check accepted and shipped to main 14 October 2026.
 - [x] Slice 18: strict fake-transport extraction on `slice-18-adp-boundary`; bounded local Check ACCEPTED 14 October 2026 and shipped to main on explicit user instruction. Disclosed accessibility failure remains Slice 20.
-- [ ] Slice 19: disposable Postgres races/restarts, `slice-19-postgres-proof`.
+- [x] Slice 19: bounded real-engine Check ACCEPTED 15 October 2026 on `slice-19-postgres-proof`; explicitly authorised main publication is in progress.
 - [ ] Slice 20: production accessibility proof/remediation, `slice-20-accessibility-proof`.
 - [ ] Slice 21: separately authorised live ADP enablement, `slice-21-adp-enablement`.
 
-**Next boundary:** Slice 18 is accepted and shipped; stop on main with the Slices 19 to 21 handoff. Slice 19 needs explicit continuation and separately authorised disposable engine access; Slices 20/21 do not start automatically. Exact copy remains approved; specialized non-timing/system-date copy stays blocked. Later shipping and external scopes require separate user instructions.
+**Next boundary:** Finish the explicitly authorised Slice 19 main publication and provide the eleven-part Slice 20 handoff. Stop on main without starting Slice 20/21. Submitting the handoff continues Slice 20 only; its Check acceptance and Git shipping remain separate. Approved copy is preserved; live ADP remains disabled.
 
 ## Gate 3 reopen and re-approval: patient-experience program design, 13 October 2026
 
@@ -2145,6 +2249,7 @@ The map spans three folders, reorganised on 30 September 2026 so that a review a
 | `docs/handoffs/patient-experience-slice17-18-2026-10-14.md` (repo root) | implementation handoff | [verified] Historical Slice 16/17 checkpoints, superseded by the dedicated Slice 18 handoff; no current continuation authority |
 | `docs/handoffs/patient-experience-slice18-2026-10-14.md` (repo root) | historical implementation handoff | [verified] Accepted Slice 17 scope, exact strict fake-transport Slice 18 prompt, controls, preservation and separate authority boundaries |
 | `docs/handoffs/patient-experience-slice19-21-2026-10-14.md` (repo root) | current next-agent handoff | [verified] Accepted Slice 18 scope, numbered continuation prompt for Slice 19 first, engine/accessibility/live ADP contracts and separate authority boundaries |
+| `docs/reviews/slice19-local-check-2026-10-15.md` (repo root) | supporting review | [verified] Bounded local real-engine proof, current mutations, actual recovery/refresh, limits and pending Check acceptance |
 | `docs/reviews/slice18-local-check-2026-10-14.md` (repo root) | supporting review | [verified] Accepted bounded fake-transport Check, current 824 named RED and 39 truthfulness RED, visible evidence and disclosed accessibility failure |
 | `docs/reviews/slice16-local-check-2026-10-14.md` (repo root) | supporting review | [verified] Accepted offline/SQLite Check, cleanup and bounded evidence; no engine/live ADP claim |
 | `docs/reviews/slice17-local-check-2026-10-14.md` (repo root) | supporting review | [verified] Accepted local permission/failure Check, current 727 named RED and 39 truthfulness RED, process/browser/scanner scope and limitations |
