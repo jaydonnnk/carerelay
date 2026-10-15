@@ -1,5 +1,7 @@
 # Slice 15: third continuation handoff, 14 October 2026
 
+[verified current-state pointer, 16 October 2026] Historical handoff, superseded for continuation by `00-status.md`. Confirmation-copy approval, the accepted disposable PostgreSQL proof and positive ADP product extraction are complete. Slice 21 is now accepted by bounded closure with seven live cases unrun. Preserve this history; do not restart its old pending work or infer new calls/shipping authority.
+
 [verified] The user requested a new-agent handoff, then working-tree cleanup and
 main publication before Slices 16 to 18. Slice 15 remains INCOMPLETE on dirty
 `slice-15-durable-start`. No commit, merge or push occurred. `00-status.md` owns

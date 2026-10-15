@@ -1,5 +1,7 @@
 # Slice 15: fourth continuation handoff, 14 October 2026
 
+[verified current-state pointer, 16 October 2026] Historical handoff, superseded for continuation by `00-status.md`. Confirmation-copy approval, the accepted disposable PostgreSQL proof and positive ADP product extraction are complete. Slice 21 is now accepted by bounded closure with seven live cases unrun. Preserve this history; do not restart its old pending work or infer new calls/shipping authority.
+
 [verified] The user requested a copy-paste handoff prompt near the end of this
 session's context. Slice 15's verification battery is COMPLETE locally on dirty
 `slice-15-durable-start`. Its authority records are NOT yet written and no commit,

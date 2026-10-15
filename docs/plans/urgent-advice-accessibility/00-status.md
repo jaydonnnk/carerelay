@@ -1,11 +1,277 @@
 # Status: CareRelay urgent-advice accessibility
 
 - Gate 1: Product, **narrowly RE-APPROVED 14 October 2026** for Slice 16's exact five confirmation/help and pending/retry strings in `patient-experience-copy.md`. The user answered "Approve these exact Gate 1 strings". The 12 October approved inventory is preserved. Approved strings are exposed only by the guarded offline Slice 16 controls; specialized non-timing and system-date copy remain blocked. Gates 2 to 4 contracts are unchanged.
-- Gate 2: Architecture, **RE-APPROVED 13 October 2026 (revision 4)** for the patient-experience journey and ADP read-back extraction design in `02-architecture.md` section 13. The user explicitly answered "Yep i approve gate 2" and requested a Gate 3 handoff. The previously approved section 5.2 durable-stop rule is unchanged. This architecture approval alone authorises no implementation.
-- Gate 3: Program Design, **RE-APPROVED 13 October 2026**, including section 9.12 identity correction. User answered "approve" after the reproduced no-event counterexample. Slice 14 is locally complete and shipped; Slice 15 Check is accepted with disclosed blocked viewport items and Slice 15 is shipped to main.
-- Gate 4: Slice plan, **RE-APPROVED 13 October 2026** for `04-slices.md` section 9. Its contract is unchanged. Slice 15 Check accepted 14 October 2026 by the user ("Yes, ship") with viewport items disclosed as blocked, not passed, and carried to Slice 20; Slice 15 is shipped to main. Slice 16's offline/SQLite Check is ACCEPTED 14 October 2026. The user answered "I accept" and requested main publication and cleanup, then notification before Slice 17. Slice 16 is shipped to main by verified fast-forward and origin/main publication. Slice 17's bounded local Check is ACCEPTED 14 October 2026; the user explicitly authorised scoped working-tree commits and origin/main publication. Slice 17 is shipped to main by verified safe fast-forward and origin/main publication. The user explicitly continued Slice 18 on 14 October 2026. Its bounded offline Check is ACCEPTED 14 October 2026, with the disclosed Escape-focus failure carried to Slice 20. The user explicitly authorised Slice 18 commits, main integration and origin/main push; Slice 18 is shipped to main. Slice 19's bounded real-engine Check is ACCEPTED 15 October 2026; scoped commits were safely integrated and pushed to origin/main as verified below. Slice 20 is COMPLETE BY USER-DIRECTED CLOSURE on 15 October 2026, with the unfinished proof explicitly recorded below. Slice 21 continuation and bounded live/operator work are authorised as recorded below. Its Slice 20 Git prerequisite is published; compatible activation and live settings remain unverified. No install or CareRelay deployment is authorised.
+- Gate 2: Architecture, **RE-APPROVED 13 October 2026 (revision 4)** for the patient-experience journey and ADP read-back extraction design in `02-architecture.md` section 13. The user explicitly answered "Yep i approve gate 2" and requested a Gate 3 handoff. The previously approved section 5.2 durable-stop rule is unchanged. This architecture approval alone authorises no implementation. Narrow live-budget amendment RE-APPROVED 15 October 2026; see the exact receipt below. Narrow Slice 21 span-text grounding amendment RE-APPROVED 15 October 2026; see the exact receipt below. Narrow Slice 21 wording experiment RE-APPROVED 16 October 2026; see the receipt below.
+- Gate 3: Program Design, **RE-APPROVED 13 October 2026**, including section 9.12 identity correction. User answered "approve" after the reproduced no-event counterexample. Slice 14 is locally complete and shipped; Slice 15 Check is accepted with disclosed blocked viewport items and Slice 15 is shipped to main. Narrow live-budget amendment RE-APPROVED 15 October 2026; see the exact receipt below. Narrow Slice 21 span-text grounding amendment RE-APPROVED 15 October 2026; see the exact receipt below. Narrow Slice 21 wording experiment RE-APPROVED 16 October 2026; see the receipt below.
+- Gate 4: Slice plan, **RE-APPROVED 13 October 2026** for `04-slices.md` section 9. Its contract is unchanged. Slice 15 Check accepted 14 October 2026 by the user ("Yes, ship") with viewport items disclosed as blocked, not passed, and carried to Slice 20; Slice 15 is shipped to main. Slice 16's offline/SQLite Check is ACCEPTED 14 October 2026. The user answered "I accept" and requested main publication and cleanup, then notification before Slice 17. Slice 16 is shipped to main by verified fast-forward and origin/main publication. Slice 17's bounded local Check is ACCEPTED 14 October 2026; the user explicitly authorised scoped working-tree commits and origin/main publication. Slice 17 is shipped to main by verified safe fast-forward and origin/main publication. The user explicitly continued Slice 18 on 14 October 2026. Its bounded offline Check is ACCEPTED 14 October 2026, with the disclosed Escape-focus failure carried to Slice 20. The user explicitly authorised Slice 18 commits, main integration and origin/main push; Slice 18 is shipped to main. Slice 19's bounded real-engine Check is ACCEPTED 15 October 2026; scoped commits were safely integrated and pushed to origin/main as verified below. Slice 20 is COMPLETE BY USER-DIRECTED CLOSURE on 15 October 2026, with the unfinished proof explicitly recorded below. Slice 21 continuation and bounded live/operator work are authorised as recorded below. Its Slice 20 Git prerequisite and operator activation/settings checks are complete. The approved live cap is 15 seconds. Eighteen of 24 fictional requests are used. Two actual local product calls reached the 15-second cap unscored; after a model switch, two more completed in under 9 seconds but failed span grounding; the first two span-text (v2) calls returned a non-string field and a wrong key set. Call 18 is the first valid, scored HTTPS extraction through the product, at 5,305 ms. The user accepted Slice 21 as a bounded fictional demo on 16 October, with the seven live cases unrun. The original full live-corpus Check remains incomplete; ADP stays default-off. No install or CareRelay deployment is authorised. Narrow live-budget amendment RE-APPROVED 15 October 2026; see the exact receipt below. Narrow Slice 21 frontend scoring-timeout footprint amendment RE-APPROVED 15 October 2026; see the exact receipt below. Narrow Slice 21 span-text grounding amendment RE-APPROVED 15 October 2026; see the exact receipt below. Narrow Slice 21 wording experiment RE-APPROVED 16 October 2026; see the receipt below.
 
-## Slice 20 accepted F6 and verified main publication: 15 October 2026
+## Slice 21 publication: 16 October 2026
+
+[verified user instruction, 16 October 2026] "Can u publish the branch, clean up the working tree, and merge / push to main thanks" authorises scoped Slice 21 commits, publication of `slice-21-adp-enablement`, safe fast-forward integration into `main`, and both remote pushes. The accepted bounded closure and seven unrun live cases remain unchanged. This grants no new ADP call, later slice or deployment command.
+
+[verified preflight] HEAD, local main and live remote main start at `41db1053da516831720367bab0479570ff343b46`; the slice branch is not yet on the remote. All 245 inherited files and the raw/logical index are externally snapshotted. The review previews were stopped by verified owned PIDs before source checkout. Unrelated `submission/workbuddy_usage.txt` and the cover draft remain byte-preserved in place and are locally excluded from Git publication; public ignore rules are unchanged.
+
+[verified shipping checks] Fresh full offline suite: 2,118 passed, 232 PostgreSQL skips, one existing warning. Fresh frontend typecheck and production build pass in the source-matching production build copy. Existing current 170 named RED proof, call-18 positive local-product proof and seven unrun live-case limits are retained. No new PostgreSQL or ADP request is made. Historical published session-log additions/redactions are preserved rather than overwritten by older working copies.
+
+[verified state] Publication is in progress; success is not claimed in this preflight receipt. `00-status.md` owns the final publication receipt. ADP stays default-off with the existing schema/caps/no-retry/code-authority contract. No new branch beyond Slice 21 or manual deployment is authorised.
+
+- [x] Explicit branch/main publication authority and preservation preflight.
+- [x] Fresh offline suite and frontend checks.
+- [ ] Scoped commits, branch publication, safe main integration and main push.
+- [ ] Post-publication record sweep, final live-ref checks and clean-tree audit.
+
+## Slice 21 acceptance and cleanup: historical receipt, 16 October 2026
+
+[verified user instruction, 16 October 2026] "Okay i accept slice 21 with the seven live cases. Please clean up what needs to be cleaned up and then i can check the final demo thanks" accepts the bounded fictional-demo result with the seven live cases unrun, as proposed in the preceding exchange. **Slice 21: COMPLETE BY USER-ACCEPTED BOUNDED CLOSURE.** This is an explicit acceptance exception to the original full live-corpus exit, not a passing claim for unrun cases. The original Gate 4 test matrix remains intact.
+
+[verified accepted evidence] Call 18 produced one valid, scored HTTPS extraction through the actual local product in 5,305 ms; all three phrases were located and code performed comparison. The plan/deadline/owner stayed unchanged, execution not_started and closure open. Offline source was verified at 2,118 passes, 232 PostgreSQL skips, one warning, with 170 current named mutations RED and exact restores. Seven live categories are unrun: known wrong time, missing values, clinical refusal, injection, negation, alternatives and backward correction. Reliability, full accessibility, clinical readiness and hosted ADP behavior are not established.
+
+[verified scope] Cleanup and local review preparation are authorised. ADP remains default-off, with the same v2 schema, 15-second cap, byte limits, no retry/fallback and code authority. The ledger stays 18 of 24 used, 6 remain; this acceptance authorises no further calls or increase to 25. The seven-case proposal is retained as an optional, unapproved future evidence plan. No commit, merge, push, deployment, install, hosted database or desktop/VoiceOver work is authorised. Protected assets and inherited dirty/untracked work remain preserved.
+
+- [x] Bounded Slice 21 result accepted with seven live cases explicitly unrun.
+- [x] Original full corpus exit and other proof limits retained without relabelling.
+- [x] Scope-preserving cleanup, claims sweep and final local review preparation.
+
+[verified cleanup/review, 16 October 2026] The user selected "Interactive offline walkthrough plus evidence from the successful real ADP run". Current submission/instruction/runbook/README claims are reconciled; obsolete handoffs are labelled historical and the extra-call proposal is deferred. Active v2 instruction content and all product/test/frontend/tool source are byte-unchanged in this cleanup. Five untracked, ignored generated cache directories, 18 files, were moved to recoverable external quarantine. All 245 inherited files remain; 223 retain their entry hashes, with 22 intended documentation changes. The logical index and protected video/images/usage text are preserved.
+
+[verified local review] The production preview at `http://127.0.0.1:8520/example` uses disposable SQLite, scenario time and local-sim extraction with no ADP credentials loaded. It is left running for user review. Positive read-back, wrong-time field repair, permission gating, neutral waiting, an explicitly injected local-sim failure callback and refresh are observed. Plan/read-back reflow fits measured 1280px and 320px viewports; no new full accessibility claim. The focused boundary suite passes 196 tests with one existing warning. Earlier 2,118-pass full-suite/170-RED proof remains applicable to the unchanged source, and is not described as freshly rerun.
+
+[verified probe corrections] One extra driver initially searched buttons/links instead of labelled radio choices; another wrongly expected immediate terminal failure after dispatch. Existing tests and actual API/DOM established the approved separate-callback sequence, and corrected probes passed without product changes. These driver/expectation failures are retained in lessons and cleanup evidence.
+
+[verified stop boundary] No further ADP call, call-limit increase, Git publication or hosted deployment occurred. Ledger remains byte-identical at 18 of 24 used, 6 remain. Recorded real ADP evidence is `outputs/adp-call18-evidence.json`; review steps are `outputs/final-demo-review.md`. The preview itself makes no fresh ADP inference. Current evidence/runtime/PIDs and recoverable cache locations are in this chat's `work/slice21-accepted-cleanup/`. User review is next; shipping/deployment retain separate authority.
+
+## Slice 21 wording experiment result: historical checkpoint, 16 October 2026
+
+[verified] The approved wording experiment is complete. Call 18 was reserved before sending and produced exactly one valid, scored HTTPS extraction through the actual local product in 5,305 ms from confirmation click to settled UI. All three phrases were located; code recorded `recall_scaffolded` and showed "What makes it difficult?". Refresh made no further extraction. Original disposition version/action/deadline/owner were retained, execution is not_started, evidence none and closure open. No consent, care evidence, human acceptance or action origin was added.
+
+[verified] Offline: 2,118 passed, 232 PostgreSQL skips, one existing warning. Seven new wording cases failed before the edit; the adapter suite then passed 238 cases. One complete current run of 170 named adapter/Slice 21 mutations is RED, zero SURVIVED/NOT PROVEN, exact restores. Production diff is exactly the approved instruction string. Published instruction source, frontend and model/settings are unchanged. Serialized API/DOM/AX/SSR/RSC, logs, SQLite files and ledger scans cover 13 surfaces with 78 same-surface serialized positive controls. No AppKey value, thought/reasoning, raw SSE or done sentinel was found. This is bounded local evidence, not reliability or full accessibility proof.
+
+[verified incomplete] Slice 21 remains INCOMPLETE. Seven distinct local-product cases remain: known wrong time, missing values, clinical refusal, injection, negation, alternatives and backward correction. Ledger: 18 of 24 used, 6 remain. The approved one-call experiment is spent; no further request is authorised. `docs/reviews/slice21-remaining-proof-proposal.md` prepares, but does not apply, a seven-case plan and a total allowance of 25. All byte limits, 15-second cap, code authority and default-off remain. Owned preview processes are stopped. No shipping or deployment. Stop for the user's decision.
+
+## Slice 21 wording experiment approval: 16 October 2026
+
+[verified user instruction] On 16 October 2026 the user answered "Sure i approve the experiment please finish up slice 21!" to the exact wording-only Gate 2/3/4 proposal and at most one ledger-reserved product call. The narrow amendment is RE-APPROVED. It preserves the v2 schema, published instruction v2, current model/settings, 15-second cap, all byte limits, no retry/fallback, default-off and code authority. Stop after that one live result. No shipping or additional live calls are authorised. `00-status.md` owns the receipt.
+
+- [x] Gate 2 section 13.6: explicit output-shape wording under unchanged v2 boundaries.
+- [x] Gate 3 section 9.7: exact replacement instruction; all other prompt/transport/validation inputs preserved.
+- [x] Gate 4 Slice 21: failing-first tests, named mutations, full offline suite, at most one positive product call and stop.
+
+Approval history: **16 October 2026, Gates 2, 3 and 4 narrowly REOPENED and RE-APPROVED** for this wording experiment. Gate 1 and all earlier approved contracts remain unchanged. No model/configuration publication, cap/schema change or shipping approval is inferred.
+
+[verified] Fresh pre-edit baseline: 2,111 passed, 232 PostgreSQL skips, one existing warning. Existing dirty tree/index preserved; branch remains `slice-21-adp-enablement`. At approval, 17 of 24 calls are used and 7 remain. No call has yet been reserved or sent for this experiment.
+
+## Slice 21 offline schema diagnosis: historical, 16 October 2026
+
+[verified user instruction] Continue Slice 21 only on the existing dirty branch.
+Build a credential-free prompt printer and research structured output before any
+further product request. A specific plan and call count need new approval.
+Any schema, cap or contract change needs a prepared Gate 2/3/4 amendment and
+explicit approval before application. No such amendment is applied here.
+
+[verified] `tools/print_adp_prompt.py` calls `AdpReadbackExtractor.extract` with
+the current fictional fixture vocabularies, live v2 instruction/schema versions
+and a synthetic correlation. An in-memory fake transport captures
+`Contents[0].Text` unchanged at a loopback-only placeholder endpoint. It reads
+no environment or credential file, opens no socket/database and generates no
+model reply. Live and fake profiles use the same prompt construction code.
+The fixed sentence is `Myself, today before 6pm, I'll see the doctor`.
+The exact stdout is saved in the current chat's `outputs/adp-console-prompt.txt`.
+
+[verified] Both new tests failed first because the printer was missing, then
+passed. Four named `Slice21 prompt printer` mutations are RED with exact
+restoration: adapter path, exact text, live instruction, capture required.
+The first run had one NOT PROVEN runtime failure; its mutant was isolated and
+the complete four-case rerun passed. Earlier 159 adapter/Slice 21 mutations
+were not rerun as a combined 163-case claim.
+Fresh baseline: 2,109 passed, 232 PostgreSQL skips, one existing warning.
+Final full offline suite: 2,111 passed, 232 PostgreSQL skips, one existing warning.
+No frontend file changed, so no new frontend build claim is made.
+
+[verified source/offline] The generated prompt and the active-v2 source block
+agree on the six keys, v2 version, phrase text/null, uncertainty field names and
+boolean refusal. All three v2 examples pass the current validator. No direct
+instruction conflict was found. The server's schema is shorthand, not JSON
+Schema. `schema.version` describes the input metadata; output uses
+`schema_version`. Neither prompt asks for correlation/instruction metadata in
+the reply. Published/active remote text remains operator-reported, not freshly
+inspected. No production prompt or published instruction was changed.
+
+[vendor claim] Tencent documents JSON Schema output in Agent advanced settings
+under Multi-Agent, and JSON output variables in workflow LLM nodes. The current
+app mode and API reply envelope remain unknown. The subsequent operator report
+names DeepSeek V4 Pro and says no JSON Schema control exists in this app's
+advanced settings. This is not evidence that the documented Multi-Agent feature
+is available here. The documented ADP v2 request parameter table has
+no `response_format` or response-schema parameter. Do not import one from a
+different model API. Primary links and scope limits are in the observation review.
+
+[verified operator report/offline] The operator supplied a console reply to the
+exact fictional prompt. Its JSON object passes the production validator:
+action offsets 31:45, deadline 8:24, owner 0:6, no uncertainty/refusal. The user
+confirmed the period was their punctuation; ADP ended at `}`. No punctuation
+cleanup was needed. This clarification grants no implementation/live approval.
+The screenshot contains no JSON Schema
+control in its visible application-settings list; broader app mode is unknown.
+This proves one schema-capable console object, not product/API success,
+reliability, latency or the cause of calls 16/17.
+
+[hypothesis, proposed only] Recommend exactly one wording experiment: explicitly
+declare the six output keys/types in the server instruction and forbid request
+metadata in output. Exact unapproved Gate 2/3/4 amendment, replacement text,
+offline proof and at most one product call are prepared in
+`docs/reviews/slice21-wording-experiment-proposal.md`. No wording, model, schema,
+cap, console setting or approved gate document is changed. The specific plan
+and one-call count await explicit approval.
+
+[verified] Zero new product calls; the existing ledger remains byte-identical,
+17 of 24 reserved entries, 7 remain. ADP stays default-off with unchanged byte
+limits, 15-second live cap, one call, no retry/fallback and code authority.
+Slice 21 Check remains incomplete. No desktop/VoiceOver, hosted database,
+commit, merge, push or deployment. Stop for the user's decision on that plan.
+
+## Slice 21 frontend scoring-timeout amendment approved: 15 October 2026
+
+[verified user instruction] The user answered "Approve Gate 4" to the exact
+prepared proposal. Gate 4 Slice 21's exact-file list is narrowly RE-APPROVED.
+Gates 1, 2 and 3 do not specify a frontend fetch timeout and are unchanged.
+
+- [x] Gate 4 Slice 21: add `frontend/lib/api.ts` only for the score_words/repair_words command timeout, 20 seconds.
+- [x] Every other frontend call keeps its five-second bound; no retry, copy, backend, schema, dependency or hosting change.
+- [x] Add `tests/test_journey_commands.py` for real-module timeout, single-request and no-retry proof.
+
+Approval history: **15 October 2026, Gate 4 Slice 21 footprint narrowly REOPENED
+and RE-APPROVED the same day.** The 20-second bound is the 15-second live cap plus
+local claim/finalise transactions and the server hop. It is an engineering bound,
+not a latency result. Hosted function-duration limits are unknown and untested.
+No call allowance, deployment or Slice 21 commit/merge/push is granted.
+
+## Slice 21 live-budget amendment approved: 15 October 2026
+
+[verified user instruction] "Approve the 15-second live-budget amendments"
+answers the exact prepared Gate 2 section 13.6, Gate 3 section 9.7 and Gate 4
+Slice 21 proposal. These three gates are narrowly RE-APPROVED for the same
+engineering-cap change. Gate 1 and every other gate decision are unchanged.
+
+- [x] Gate 2 section 13.6: live whole-response cap 15 seconds with diagnostic justification.
+- [x] Gate 3 section 9.7: matching signature/clock contract; fake controls retain five seconds.
+- [x] Gate 4 Slice 21: complete-answer observation and late-terminal proof under the new live cap.
+
+[verified] Keep input 2,048 code points, answer/frame 16 KiB, wire 64 KiB,
+stateless sessions, strict grounding/channel/terminal, no retry or lexical
+fallback, code authority and disabled production until profile/corpus proof.
+At this approval receipt, 18 of 24 fictional calls remained; the current checkpoint below records the later count. No extra call allowance,
+installation, CareRelay deployment or Slice 21 commit/merge/push is granted.
+Runtime/profile wiring is now implemented with offline proof; actual local product proof remains incomplete as recorded below.
+
+## Slice 21 span-text grounding amendment approved: 15 October 2026
+
+[verified user instruction] "Approve Gates 2, 3 and 4 as written in docs/reviews/slice21-span-text-amendment-proposal.md, including uncertain for not-found spans and instruction v2."
+Gates 2, 3 and 4 are narrowly REOPENED and RE-APPROVED the same day for this one change. Gate 1 copy is unchanged.
+
+- [x] Gate 2 section 13.6: span text only; code locates exactly one word-bounded exact occurrence; none or several is uncertain; diagnostic justification added.
+- [x] Gate 3 section 9.7: wire schema `carerelay-readback-v2`, six keys with `*_text` fields, per-field `located`/`not_found`/`ambiguous`, revised grounding test row.
+- [x] Gate 4 Slice 21: instruction `carerelay-readback-instruction-v2` published AND activated before any further live call; exact files unchanged.
+
+Approval history: **15 October 2026, Gates 2, 3 and 4 narrowly REOPENED and RE-APPROVED the same day** for span-text grounding.
+The user accepted the stated trade-off: a not-found span is uncertain and can use a repair round, rather than making the whole response unavailable.
+Call limit (9 of 24 remaining), byte limits, 15-second cap, no retry, no fallback and default-off configuration are unchanged.
+No deployment or Slice 21 commit, merge or push is granted.
+
+[verified] Offline implementation of the amendment: 2,104 passed, 232 PostgreSQL skips, one warning.
+One complete run of the 153 named mutations targeting the adapter plus all Slice 21 rows is RED, with zero SURVIVED or NOT PROVEN and exact restores.
+Eight retired offset-only Slice 18 rows were removed and their anchors migrated; four stale Slice 18 anchors from earlier Slice 21 edits were repaired.
+[verified operator report] The user then confirmed instruction v2 is published AND active, unchanged, on the same fast model with other settings unchanged.
+[verified] Call 16, the first v2 call, went through the actual local product with `Myself, today before 6pm, I'll see the doctor`.
+It settled in 11,231 ms and was refused as `span_text_type`: the reply had the v2 keys, but a field value was neither a string nor null.
+The product stayed unscored, showed the approved unavailable sentence and made one HTTPS request. Live calls stopped at this first invalid result, as agreed.
+Sixteen of 24 calls are used; 8 remain. No positive product extraction exists. ADP stays default-off.
+
+[verified user instruction] The user then asked for a bounded, content-free detail on that refusal (field and JSON type, never the value), offline proof, one positive call, then stop.
+`span_text_type` now reads `span_text_type:<field>:<object|array|number|boolean>`. A failing-first test covers five value types and checks the value never appears; six new mutations are RED.
+Offline: 2,109 passed, 232 PostgreSQL skips, one warning; 159 named adapter/Slice 21 mutations RED with exact restores.
+Call 17, same positive words, settled at 6,128 ms and was refused earlier, as `object_keys`: the reply did not have exactly the six v2 keys. The new detail did not fire.
+Unscored, approved unavailable sentence, one HTTPS row. Stopped as instructed. Seventeen of 24 calls are used; 7 remain. ADP stays default-off.
+
+## Slice 21 product-proof checkpoint: 15 October 2026
+
+[verified user instruction] After the checkpoint below, the user chose: "I will switch the ADP agent to a faster non-reasoning model in the console, then republish and activate it. After that, spend up to 3 calls re-testing the positive case through the local product under the unchanged 15-second cap."
+The user then confirmed the switch is done: new model selected, published AND active, tools/plugins off and knowledge base empty.
+The model name was not given and stays unknown. The call limit, byte limits and 15-second cap are unchanged.
+
+[verified] Model-switch re-test, calls 14 and 15, through the actual local product after the operator confirmed the new model published AND active (model name unknown).
+Both finished well inside the cap, at 8,932 and 8,396 ms, and passed the observed envelope, terminal and done checks.
+Both were refused by the grounding guard as `span_source`: a returned span's text did not equal the confirmed words at its offsets.
+Call 14 used `Myself, today before 6pm, I'll see the doctor`; call 15 used plain alias wording `I will go to the clinic today before six myself`, so capitalisation is not the cause.
+Each stayed unscored with the approved unavailable sentence and one HTTPS row. The third authorised call was not spent, because a repeat would not separate the remaining causes.
+Fifteen of 24 calls are used; 9 remain. No positive product extraction exists. ADP stays default-off.
+
+[verified user instruction] The user then asked for a Gate 2/3/4 amendment: the model returns span text only, and code finds the single exact occurrence to set offsets; no match or several matches stay uncertain.
+The proposal and instruction v2 are prepared in `docs/reviews/slice21-span-text-amendment-proposal.md`.
+The user later approved it as written; see the receipt above.
+
+[verified] The user answered "Approve Gate 4" to the exact scoring-only frontend timeout amendment.
+`frontend/lib/api.ts` now waits 20 seconds only for score_words and repair_words.
+Every other call keeps five seconds, and nothing is retried. `00-status.md` holds the receipt.
+
+[verified] Calls 12 and 13 went through the actual local product: production Next server action, real FastAPI, production HTTPS adapter, disposable SQLite and scenario time.
+Call 12 (grounded positive paraphrase) and call 13 (known wrong time) both reached the 15-second whole-response cap, at 15,051 and 15,035 ms from click to settled screen.
+Each produced exactly one HTTPS extraction row, unscored, with the approved unavailable sentence, unchanged plan, no consumed repair and no lexical fallback.
+The browser received the backend's 503 journey instead of aborting, which proves the timeout amendment end to end. Refresh made no further call.
+Thirteen of 24 calls are used; 11 remain. The other six prepared cases were stopped by the ledger guard before any click, and no request was sent for them.
+
+[verified] On the current profile, two of five calls completed in 10.1 to 10.3 seconds and three did not finish within 15 seconds.
+No positive extraction has been observed through the product, so the Gate 4 Slice 21 exit is not met.
+ADP stays default-off. Live calls are paused for a user decision on latency.
+
+[verified] The product run exposed a judge-ledger defect: live HTTPS rows read transport provenance `unknown`.
+The ledger now maps the live profile to `https`. A failing-first test and its mutation prove it, and the stored live rows now read `https`.
+
+[verified] Current Slice 21 mutation proof: 39 named mutations RED, zero SURVIVED or NOT PROVEN, exact restores.
+The first run found six survivors and one runtime error. Two unreachable parser checks were removed and three cases were sharpened.
+Fresh full offline suite: 2,109 passed, 232 PostgreSQL skips, one existing warning. Frontend typecheck and production build pass.
+Captured product surfaces contain no AppKey value, thought channel, raw SSE or done sentinel. A planted-key control is detected.
+
+[unknown] Serialized RSC/SSR/accessibility scans of a valid live answer, the remaining corpus categories and any reliability claim stay unproven, because no live answer completed in the product.
+No Slice 21 commit, merge, push or deployment. Evidence: `/tmp/carerelay-s21-product-20261015/`.
+Detailed observations: `docs/reviews/adp-readback-observations.md`.
+
+## Slice 21 continuation checkpoint: historical, 15 October 2026
+
+[verified] Work is paused for the user's requested fresh-agent handoff, with no
+new live calls or implementation after that request. Slice 20's accepted F6 and
+publication remain at `41db1053da516831720367bab0479570ff343b46`. Slice 21 is
+uncommitted on `slice-21-adp-enablement`; no deployment or Slice 21 publication.
+
+[verified] The user approved the 15-second live-budget amendments to Gate 2
+section 13.6, Gate 3 section 9.7 and Gate 4 Slice 21; these are applied. Fake
+profiles retain five seconds. All byte limits, code authority, no retry/fallback
+and default-off configuration remain. Operator reports instruction published
+AND active, key rotated/local file updated, tools/plugins off, empty knowledge
+base, Tencent Hy3 selected, Deep Thinking off and Thinking Level low active.
+Default moderation, Serious risk reply and masking off are recorded. Provider
+model/version, processing region and retention remain unknown.
+
+[verified] Eleven of 24 authorised fictional calls are consumed; 13 remain.
+Call 11 completed valid missing-fields extraction in 10,329 ms and 26,604 wire
+bytes, including response.completed, exact done/[DONE] control and EOF. Call 10
+still timed out at 15 seconds. The single 30-second diagnostic is consumed.
+These observation-helper calls do not prove the actual local product path.
+
+[verified] Bounded HTTPS transport, observed-profile parser and default-off API
+wiring are implemented. Fresh full offline suite: 2,102 passed, 232 PostgreSQL
+skips, one existing warning. Focused adapter/wiring suite: 439 passed, two skips.
+The earlier 14 RED transport mutations are historical after later source edits;
+two cleanup anchors now have zero matches. Current mutation proof is incomplete.
+
+[verified] Frontend command fetch still aborts after five seconds in
+`frontend/lib/api.ts`, before the approved live budget. No frontend edit was
+made. Its narrow scoring-only timeout/footprint amendment remains to be prepared
+and reviewed. Actual product/corpus, serialized scanner and current mutation
+proof remain unfinished; ADP stays default-off and Slice 21 Check is not ready.
+Continuation: `docs/handoffs/patient-experience-slice21-continuation-2026-10-15.md`.
+Detailed observations: `docs/reviews/adp-readback-observations.md`.
+
+## Slice 20 accepted F6 and verified main publication: historical receipt, 15 October 2026
 
 [verified] The user separately accepted F6 and explicitly authorised the prepared
 Slice 20 commits, safe main integration and push. Three scoped commits landed:
@@ -624,7 +890,7 @@ That answer exercises the user's earlier conditional authority for scoped commit
 - [verified] Real Postgres engine behaviour is unproven and allocated to separately authorised Slice 19.
 - [verified] No Slice 16 work, installation, real configuration or credential change, external runtime call, deployment or participant work occurred. Gates 1 to 4 contracts are unchanged. Slice 9's participant run remains CUT; no participant validation is claimed.
 
-**Next boundary:** the user accepted the Check with the disclosed blocker, so Slice 15 ships by coherent commits, fast-forward into `main` and push of `origin/main`; then "Continue to slice 16, or re-steer?" Slice 16 also remains blocked on the separate Gate 1 confirmation-copy approval.
+**Next boundary:** Slice 20 is closed and published with incomplete original proof disclosed; F6 is separately accepted. Slice 21 diagnostic authority is consumed. The prepared 15-second live-budget amendment for Gates 2/3/4 is not applied or approved. Keep five-second product behavior and ADP disabled until that narrow decision; then observe complete mode within unchanged byte limits before integration and Check. No deployment or Slice 21 publication.
 
 ## Slice 15: third incomplete handoff, 14 October 2026
 
@@ -1017,9 +1283,10 @@ no full-upgrade promise for 16 October or current cutoff assertion is made.
 - [x] Slice 18: strict fake-transport extraction on `slice-18-adp-boundary`; bounded local Check ACCEPTED 14 October 2026 and shipped to main on explicit user instruction. Disclosed accessibility failure remains Slice 20.
 - [x] Slice 19: bounded real-engine Check ACCEPTED and shipped to main 15 October 2026 from `slice-19-postgres-proof`; exact proof and publication receipt above.
 - [x] Slice 20: COMPLETE BY USER-DIRECTED CLOSURE, 15 October 2026, `slice-20-accessibility-proof`; original full proof remains incomplete as disclosed above. F6 separately accepted; shipped to main by verified safe fast-forward and push.
-- [ ] Slice 21: separately authorised live ADP enablement, `slice-21-adp-enablement`.
+- [x] Slice 21: COMPLETE BY USER-ACCEPTED BOUNDED CLOSURE, 16 October 2026, on `slice-21-adp-enablement`, with Git publication now authorised and in progress. One valid/scored HTTPS extraction through the actual local product, call 18 at 5,305 ms. Seven live cases remain unrun and are accepted as disclosed limits. Original full corpus Check is not retroactively passed. Ledger 18/24 used, 6 remain; ADP default-off. No Git publication/deployment.
 
-**Next boundary:** Slice 20 is closed by explicit user instruction with incomplete proof disclosed. F6 and scoped publication are explicitly authorised. Verify main publication before creating the authorised Slice 21 branch. Compatible activation and console settings remain unverified; region and retention stay unknown. Rotation is recommended, not required. Live ADP remains disabled.
+**Next boundary:** Cleanup is complete; the user reviews the chosen offline walkthrough plus recorded real ADP proof. Further ADP requests require a specific approved plan/count and advance ledger reservation. The optional seven-case/25-total proposal is unapproved; acceptance does not execute it. No later slice, shipping or deployment starts.
+
 
 ## Gate 3 reopen and re-approval: patient-experience program design, 13 October 2026
 
@@ -2369,6 +2636,8 @@ The map spans three folders, reorganised on 30 September 2026 so that a review a
 | `patient-experience-upgrade.md` | supporting execution note | [verified] Handoff reconciliation, incremental order, verification and manual dependencies |
 | `docs/handoffs/patient-experience-slice17-18-2026-10-14.md` (repo root) | implementation handoff | [verified] Historical Slice 16/17 checkpoints, superseded by the dedicated Slice 18 handoff; no current continuation authority |
 | `docs/handoffs/patient-experience-slice18-2026-10-14.md` (repo root) | historical implementation handoff | [verified] Accepted Slice 17 scope, exact strict fake-transport Slice 18 prompt, controls, preservation and separate authority boundaries |
+| `docs/reviews/adp-readback-observations.md` (repo root) | supporting live-integration review | [verified] Slice 21 transport/profile/config proof, 11 fictional observations, current gaps and truthful product limits |
+| `docs/handoffs/patient-experience-slice21-continuation-2026-10-15.md` (repo root) | continuation handoff | [verified] Historical at 11 calls; superseded on counts and the frontend blocker by the product-proof checkpoint above |
 | `docs/handoffs/patient-experience-slice19-21-2026-10-14.md` (repo root) | current next-agent handoff | [verified] Accepted Slice 18 scope, numbered continuation prompt for Slice 19 first, engine/accessibility/live ADP contracts and separate authority boundaries |
 | `docs/reviews/slice19-local-check-2026-10-15.md` (repo root) | supporting review | [verified] Bounded local real-engine proof, current mutations, actual recovery/refresh, limits and pending Check acceptance |
 | `docs/reviews/slice18-local-check-2026-10-14.md` (repo root) | supporting review | [verified] Accepted bounded fake-transport Check, current 824 named RED and 39 truthfulness RED, visible evidence and disclosed accessibility failure |

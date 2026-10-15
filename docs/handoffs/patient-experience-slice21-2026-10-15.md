@@ -1,5 +1,13 @@
 # Slice 21 ADP handoff: 15 October 2026
 
+[verified current-state pointer, 16 October 2026] Historical handoff, superseded for continuation by `00-status.md`. Confirmation-copy approval, the accepted disposable PostgreSQL proof and positive ADP product extraction are complete. Slice 21 is now accepted by bounded closure with seven live cases unrun. Preserve this history; do not restart its old pending work or infer new calls/shipping authority.
+
+[verified continuation update] The later current-state handoff is
+`docs/handoffs/patient-experience-slice21-continuation-2026-10-15.md`. Its verified
+publication, rotated-key/activation facts, 15-second approval and 11-call count
+supersede the earlier checkpoint facts below. Preserve the original Slice 20
+closure and proof limitations.
+
 Supporting handoff. `00-status.md` owns gate/slice state.
 
 ## Git prerequisite and credential recommendation update: 15 October 2026

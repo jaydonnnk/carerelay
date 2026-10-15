@@ -1,6 +1,99 @@
 # Patient experience upgrade: updated 13 October 2026
 
-## Slice 20 accepted F6 and verified main publication: 15 October 2026
+## Slice 21 publication: 16 October 2026
+
+[verified user instruction, 16 October 2026] "Can u publish the branch, clean up the working tree, and merge / push to main thanks" authorises scoped Slice 21 commits, publication of `slice-21-adp-enablement`, safe fast-forward integration into `main`, and both remote pushes. The accepted bounded closure and seven unrun live cases remain unchanged. This grants no new ADP call, later slice or deployment command.
+
+[verified preflight] HEAD, local main and live remote main start at `41db1053da516831720367bab0479570ff343b46`; the slice branch is not yet on the remote. All 245 inherited files and the raw/logical index are externally snapshotted. The review previews were stopped by verified owned PIDs before source checkout. Unrelated `submission/workbuddy_usage.txt` and the cover draft remain byte-preserved in place and are locally excluded from Git publication; public ignore rules are unchanged.
+
+[verified shipping checks] Fresh full offline suite: 2,118 passed, 232 PostgreSQL skips, one existing warning. Fresh frontend typecheck and production build pass in the source-matching production build copy. Existing current 170 named RED proof, call-18 positive local-product proof and seven unrun live-case limits are retained. No new PostgreSQL or ADP request is made. Historical published session-log additions/redactions are preserved rather than overwritten by older working copies.
+
+[verified state] Publication is in progress; success is not claimed in this preflight receipt. `00-status.md` owns the final publication receipt. ADP stays default-off with the existing schema/caps/no-retry/code-authority contract. No new branch beyond Slice 21 or manual deployment is authorised.
+
+The earlier acceptance/cleanup records below describe their own checkpoints.
+
+## Slice 21 accepted bounded closure: historical receipt, 16 October 2026
+
+[verified user instruction, 16 October 2026] "Okay i accept slice 21 with the seven live cases. Please clean up what needs to be cleaned up and then i can check the final demo thanks" accepts the bounded fictional-demo result with the seven live cases unrun, as proposed in the preceding exchange. **Slice 21: COMPLETE BY USER-ACCEPTED BOUNDED CLOSURE.** This is an explicit acceptance exception to the original full live-corpus exit, not a passing claim for unrun cases. The original Gate 4 test matrix remains intact.
+
+[verified accepted evidence] Call 18 produced one valid, scored HTTPS extraction through the actual local product in 5,305 ms; all three phrases were located and code performed comparison. The plan/deadline/owner stayed unchanged, execution not_started and closure open. Offline source was verified at 2,118 passes, 232 PostgreSQL skips, one warning, with 170 current named mutations RED and exact restores. Seven live categories are unrun: known wrong time, missing values, clinical refusal, injection, negation, alternatives and backward correction. Reliability, full accessibility, clinical readiness and hosted ADP behavior are not established.
+
+[verified scope] Cleanup and local review preparation are authorised. ADP remains default-off, with the same v2 schema, 15-second cap, byte limits, no retry/fallback and code authority. The ledger stays 18 of 24 used, 6 remain; this acceptance authorises no further calls or increase to 25. The seven-case proposal is retained as an optional, unapproved future evidence plan. No commit, merge, push, deployment, install, hosted database or desktop/VoiceOver work is authorised. Protected assets and inherited dirty/untracked work remain preserved.
+
+Earlier dated checkpoints below are historical; `00-status.md` owns current state.
+
+## Slice 21 product-proof checkpoint: 15 October 2026
+
+[verified] Model-switch re-test, calls 14 and 15, through the actual local product after the operator confirmed the new model published AND active (model name unknown).
+Both finished well inside the cap, at 8,932 and 8,396 ms, and passed the observed envelope, terminal and done checks.
+Both were refused by the grounding guard as `span_source`: a returned span's text did not equal the confirmed words at its offsets.
+Call 14 used `Myself, today before 6pm, I'll see the doctor`; call 15 used plain alias wording `I will go to the clinic today before six myself`, so capitalisation is not the cause.
+Each stayed unscored with the approved unavailable sentence and one HTTPS row. The third authorised call was not spent, because a repeat would not separate the remaining causes.
+Fifteen of 24 calls are used; 9 remain. No positive product extraction exists. ADP stays default-off.
+
+[verified] The user answered "Approve Gate 4" to the exact scoring-only frontend timeout amendment.
+`frontend/lib/api.ts` now waits 20 seconds only for score_words and repair_words.
+Every other call keeps five seconds, and nothing is retried. `00-status.md` holds the receipt.
+
+[verified] Calls 12 and 13 went through the actual local product: production Next server action, real FastAPI, production HTTPS adapter, disposable SQLite and scenario time.
+Call 12 (grounded positive paraphrase) and call 13 (known wrong time) both reached the 15-second whole-response cap, at 15,051 and 15,035 ms from click to settled screen.
+Each produced exactly one HTTPS extraction row, unscored, with the approved unavailable sentence, unchanged plan, no consumed repair and no lexical fallback.
+The browser received the backend's 503 journey instead of aborting, which proves the timeout amendment end to end. Refresh made no further call.
+Thirteen of 24 calls are used; 11 remain. The other six prepared cases were stopped by the ledger guard before any click, and no request was sent for them.
+
+[verified] On the current profile, two of five calls completed in 10.1 to 10.3 seconds and three did not finish within 15 seconds.
+No positive extraction has been observed through the product, so the Gate 4 Slice 21 exit is not met.
+ADP stays default-off. Live calls are paused for a user decision on latency.
+
+[verified] The product run exposed a judge-ledger defect: live HTTPS rows read transport provenance `unknown`.
+The ledger now maps the live profile to `https`. A failing-first test and its mutation prove it, and the stored live rows now read `https`.
+
+[verified] Current Slice 21 mutation proof: 39 named mutations RED, zero SURVIVED or NOT PROVEN, exact restores.
+The first run found six survivors and one runtime error. Two unreachable parser checks were removed and three cases were sharpened.
+Fresh full offline suite: 2,109 passed, 232 PostgreSQL skips, one existing warning. Frontend typecheck and production build pass.
+Captured product surfaces contain no AppKey value, thought channel, raw SSE or done sentinel. A planted-key control is detected.
+
+[unknown] Serialized RSC/SSR/accessibility scans of a valid live answer, the remaining corpus categories and any reliability claim stay unproven, because no live answer completed in the product.
+No Slice 21 commit, merge, push or deployment. Evidence: `/tmp/carerelay-s21-product-20261015/`.
+Detailed observations: `docs/reviews/adp-readback-observations.md`.
+
+## Slice 21 continuation checkpoint: historical, 15 October 2026
+
+[verified] Work is paused for the user's requested fresh-agent handoff, with no
+new live calls or implementation after that request. Slice 20's accepted F6 and
+publication remain at `41db1053da516831720367bab0479570ff343b46`. Slice 21 is
+uncommitted on `slice-21-adp-enablement`; no deployment or Slice 21 publication.
+
+[verified] The user approved the 15-second live-budget amendments to Gate 2
+section 13.6, Gate 3 section 9.7 and Gate 4 Slice 21; these are applied. Fake
+profiles retain five seconds. All byte limits, code authority, no retry/fallback
+and default-off configuration remain. Operator reports instruction published
+AND active, key rotated/local file updated, tools/plugins off, empty knowledge
+base, Tencent Hy3 selected, Deep Thinking off and Thinking Level low active.
+Default moderation, Serious risk reply and masking off are recorded. Provider
+model/version, processing region and retention remain unknown.
+
+[verified] Eleven of 24 authorised fictional calls are consumed; 13 remain.
+Call 11 completed valid missing-fields extraction in 10,329 ms and 26,604 wire
+bytes, including response.completed, exact done/[DONE] control and EOF. Call 10
+still timed out at 15 seconds. The single 30-second diagnostic is consumed.
+These observation-helper calls do not prove the actual local product path.
+
+[verified] Bounded HTTPS transport, observed-profile parser and default-off API
+wiring are implemented. Fresh full offline suite: 2,102 passed, 232 PostgreSQL
+skips, one existing warning. Focused adapter/wiring suite: 439 passed, two skips.
+The earlier 14 RED transport mutations are historical after later source edits;
+two cleanup anchors now have zero matches. Current mutation proof is incomplete.
+
+[verified] Frontend command fetch still aborts after five seconds in
+`frontend/lib/api.ts`, before the approved live budget. No frontend edit was
+made. Its narrow scoring-only timeout/footprint amendment remains to be prepared
+and reviewed. Actual product/corpus, serialized scanner and current mutation
+proof remain unfinished; ADP stays default-off and Slice 21 Check is not ready.
+Continuation: `docs/handoffs/patient-experience-slice21-continuation-2026-10-15.md`.
+Detailed observations: `docs/reviews/adp-readback-observations.md`.
+
+## Slice 20 accepted F6 and verified main publication: historical receipt, 15 October 2026
 
 [verified] The user separately accepted F6 and explicitly authorised the prepared
 Slice 20 commits, safe main integration and push. Three scoped commits landed:

@@ -1,5 +1,17 @@
 # Demo walkthrough
 
+## Current review scope: 16 October 2026
+
+[verified] Slice 21 is accepted as a bounded fictional demo with seven live cases unrun. The real ADP read-back path is implemented and produced one valid, scored local-product result in call 18 at 5,305 ms. Code performs comparison and owns the plan, permissions, actions and closure. Actions remain simulated.
+
+[verified configuration] ADP stays default-off. A default-off interactive walkthrough uses the labelled offline extractor; it does not make fresh ADP requests. The real live result is recorded in `docs/reviews/adp-readback-observations.md`. Fresh live demonstrations require a specifically approved call plan and advance reservation for each submission. Review mode must be stated before the demonstration.
+
+For a current browser walkthrough, use the locally prepared production frontend: open the fictional example, read the plan, choose "Say it in your words", type and review the answer, then explicitly confirm "Save and check these words". A correct answer advances to "What makes it difficult?". Review the permission path. A submitted simulated request first shows "No reply yet."; a separate local-sim callback supplies a failure event and the unresolved screen. Do not imply an automatic terminal failure or real care. The current review note records the local URL/mode and observed steps.
+
+## Historical Slice 12 API capture: 11 October 2026
+
+The remainder is retained evidence from an older API. Its commands, endpoint bodies and hosted-site instructions are not the current patient-journey runbook. Several legacy writes are intentionally retired. Use the current browser flow and accepted Slice 21 records above; do not run these historical commands as final-demo setup.
+
 **What this is.** A script for the live demonstration required by Challenge 1, with
 the real responses captured underneath each step. Every response in this file was
 taken from a running server on 11 October 2026, not written from memory.

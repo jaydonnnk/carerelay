@@ -150,44 +150,17 @@ reachable through projection bugs, which is why the fault harness exists.
   submission (`02-architecture.md:298`). No fixture names a real facility
   (`01-product.md:146`).
 
-### 3.5 Where the AI actually sits, and what drives generation
+### 3.5 Where the AI sits
 
-Stated plainly, because it is the question a judge will ask.
+[verified local integration] ADP interprets confirmed fictional read-back words. It returns source phrases for the action, deadline and person who acts under the six-key v2 schema. CareRelay validates the reply, locates the exact source phrases and compares them with the stored plan in deterministic domain code. The model cannot choose guidance, change a deadline, grant permission, dispatch an action or close an episode. Patient wording comes from the approved renderer.
 
-**The shipped build makes no model call.** The step designed for a language model is
-the *interpretation* step: turning a patient's free-text restatement into candidate
-values. Today that step is occupied by a deterministic longest-match scanner, which
-is labelled `simulated = True` (`src/carerelay/coordinator.py:143-223`). Every
-execution result in the demo carries `origin = local-sim` by design
-(`00-status.md:497`).
+[verified observation, 16 October 2026] Call 18 passed through the production Next server action, real local FastAPI and HTTPS ADP adapter. One extraction was valid and scored, all three phrases were located, and the screen advanced to the feasibility question in 5,305 ms from confirmation click. The original plan/deadline/owner remained, execution was not_started and closure stayed open. Earlier slow/invalid replies failed closed. Detailed evidence is in `docs/reviews/adp-readback-observations.md`.
 
-**The contract a model must satisfy, and it is the same contract the scanner
-satisfies:** the model proposes, `domain` validates against a closed vocabulary, and
-`state` records. Coordinator outputs are structured values only. "No model-generated
-text reaches the patient" is an approved architectural rule
-(`02-architecture.md:302`). Concretely, a model may say which span looks like a
-deadline; it may not decide the deadline, and it may never write line 1.
+[verified accepted scope] The user accepted this bounded fictional demo with seven further live cases unrun. One positive result does not establish general model reliability, clinical safety or full accessibility. ADP is default-off. An offline review uses the explicitly labelled local-sim extractor and must not be presented as a fresh live ADP call. Slice 21 Git publication is authorised; `00-status.md` owns its receipt. This local proof is not evidence of the hosted site's behavior.
 
-**Why it is gated there.** ADP's chat API returns free-form generated text by
-construction, so ADP is admissible on the interpretation path and nowhere else
-(`adp-and-deployment-impact.md:2`). On publish, ADP yields two artefacts: a shareable
-Experience URL and a secret AppKey (guide section 4). Planned guardrails for that
-agent: refuse clinical advice, and limit its knowledge base to the non-clinical
-fixture (`docs/PLAN.md:519`).
+[verified boundary] Real ADP extraction does not make simulated booking or caregiver actions into platform-originated execution. Action origin stays `local-sim`. ADP tool execution is outside this integration; the earlier transport spike supplies no clinical or action-execution claim.
 
-**What is actually proven about ADP today.** A Gate A spike on 2 October 2026
-reached the chat endpoint, saw a caller-supplied `ConversationId` honoured across two
-client objects, and saw the failure-event origin behave. That proves **transport**,
-not that CareRelay's own code uses the platform (`00-status.md:263-291`). ADP
-tool-calling is a **vendor claim**; MCP tool execution, platform-originated failure
-events and session resume are **unknown** and undocumented in the guide
-(`02-architecture.md:364`).
-
-**The prompts that did drive generation are the ones that built this repository.**
-Every module, test, document and review in `github.com/jaydonnnk/carerelay` was
-written through WorkBuddy and CodeBuddy, which is also the submission's mandatory
-usage proof: the written history is published at `docs/session-logs/` and three
-redacted chat screenshots are at `submission/usage-proof/screenshots/`.
+[verified local artifacts] Development-history records, redacted screenshots and the protected WorkBuddy usage video are retained in the repository. Their presence is evidence of the submitted development process, not an organiser acceptance or scoring result.
 
 ### 3.6 Key design trade-offs, as the project records them
 
@@ -265,6 +238,6 @@ survive the hackathon".
 |---|---|
 | Source | `https://github.com/jaydonnnk/carerelay.git` (public) |
 | Live frontend | `https://carerelay-self.vercel.app` |
-| Live API on Render | `https://carerelay-dzt3.onrender.com`. Bearer-token protected: `/health` is open, every `/api` and `/ledger` route answers 401 without the token. Runs on Render's free plan, so it spins down after 15 idle minutes and takes about a minute to answer the first request again |
-| ADP Experience URL | `https://adp.tencentcloud.com/webim_exp/#/chat/GkTbUc`. Shareable. The ADP agent is an **additive interpretation surface only** (Decision D-A): it is not wired into this repository's code, and Slice 13 was not run. The AppKey is a separate artefact and is deliberately not recorded anywhere |
+| Recorded API URL | `https://carerelay-dzt3.onrender.com`. Hosted behavior was not refreshed in this local Slice 21 cleanup. Current code requires server-held auth for protected routes; this row is not a new deployment, uptime or hosting-cost claim |
+| ADP Experience URL | `https://adp.tencentcloud.com/webim_exp/#/chat/GkTbUc`. Additive read-back extraction only. Slice 21 is wired and demonstrated through the local product, with bounded acceptance and seven live cases unrun. The older conditional Slice 13 remains unbuilt. The AppKey is server-held and is not recorded here. No hosted Slice 21 deployment is claimed |
 | Demo video | Not produced. Optional in the requirements |

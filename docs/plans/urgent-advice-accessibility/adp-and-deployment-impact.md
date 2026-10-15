@@ -1,5 +1,27 @@
 # ADP and deployment: impact on the approved architecture
 
+## Slice 21 publication: 16 October 2026
+
+[verified user instruction, 16 October 2026] "Can u publish the branch, clean up the working tree, and merge / push to main thanks" authorises scoped Slice 21 commits, publication of `slice-21-adp-enablement`, safe fast-forward integration into `main`, and both remote pushes. The accepted bounded closure and seven unrun live cases remain unchanged. This grants no new ADP call, later slice or deployment command.
+
+[verified preflight] HEAD, local main and live remote main start at `41db1053da516831720367bab0479570ff343b46`; the slice branch is not yet on the remote. All 245 inherited files and the raw/logical index are externally snapshotted. The review previews were stopped by verified owned PIDs before source checkout. Unrelated `submission/workbuddy_usage.txt` and the cover draft remain byte-preserved in place and are locally excluded from Git publication; public ignore rules are unchanged.
+
+[verified shipping checks] Fresh full offline suite: 2,118 passed, 232 PostgreSQL skips, one existing warning. Fresh frontend typecheck and production build pass in the source-matching production build copy. Existing current 170 named RED proof, call-18 positive local-product proof and seven unrun live-case limits are retained. No new PostgreSQL or ADP request is made. Historical published session-log additions/redactions are preserved rather than overwritten by older working copies.
+
+[verified state] Publication is in progress; success is not claimed in this preflight receipt. `00-status.md` owns the final publication receipt. ADP stays default-off with the existing schema/caps/no-retry/code-authority contract. No new branch beyond Slice 21 or manual deployment is authorised.
+
+The earlier acceptance/cleanup records below describe their own checkpoints.
+
+## Slice 21 accepted bounded closure: historical receipt, 16 October 2026
+
+[verified user instruction, 16 October 2026] "Okay i accept slice 21 with the seven live cases. Please clean up what needs to be cleaned up and then i can check the final demo thanks" accepts the bounded fictional-demo result with the seven live cases unrun, as proposed in the preceding exchange. **Slice 21: COMPLETE BY USER-ACCEPTED BOUNDED CLOSURE.** This is an explicit acceptance exception to the original full live-corpus exit, not a passing claim for unrun cases. The original Gate 4 test matrix remains intact.
+
+[verified accepted evidence] Call 18 produced one valid, scored HTTPS extraction through the actual local product in 5,305 ms; all three phrases were located and code performed comparison. The plan/deadline/owner stayed unchanged, execution not_started and closure open. Offline source was verified at 2,118 passes, 232 PostgreSQL skips, one warning, with 170 current named mutations RED and exact restores. Seven live categories are unrun: known wrong time, missing values, clinical refusal, injection, negation, alternatives and backward correction. Reliability, full accessibility, clinical readiness and hosted ADP behavior are not established.
+
+[verified scope] Cleanup and local review preparation are authorised. ADP remains default-off, with the same v2 schema, 15-second cap, byte limits, no retry/fallback and code authority. The ledger stays 18 of 24 used, 6 remain; this acceptance authorises no further calls or increase to 25. The seven-case proposal is retained as an optional, unapproved future evidence plan. No commit, merge, push, deployment, install, hosted database or desktop/VoiceOver work is authorised. Protected assets and inherited dirty/untracked work remain preserved.
+
+Earlier dated checkpoints below are historical; `00-status.md` owns current state.
+
 **14 October 2026, Slice 15 shipped to main. [verified]**
 After the user answered "Yes, ship", Slice 15 went out as eight scoped commits on `slice-15-durable-start`.
 Main advanced by a verified fast-forward-only ref update before checkout, then `origin/main` was pushed.
