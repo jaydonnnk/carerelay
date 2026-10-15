@@ -128,6 +128,9 @@ the browser. Warm the service before a judge opens the link.
 
 ## Part B: accepted Slice 21 ADP scope, 16 October 2026
 
+[verified follow-up authority] The user subsequently stated "I give full approval for all live calls" for the remaining fictional ADP cases and live local-demo assessment. The earlier 24 total is superseded; no new numeric ceiling was specified. Reserve and count each request before transmission, preserve all existing runtime limits/no-retry/stop-on-failure rules, and update the stale helper/authority guard with offline proof. This adds no hosted deployment or future implementation shipping authority. The accepted baseline below remains dated history; `00-status.md` owns current authority.
+
+
 [verified] The user accepted the bounded Slice 21 demo with seven live cases unrun. Call 18 is the first valid, scored HTTPS extraction through the actual local product, in 5,305 ms. The total ledger is 18 of 24 used; 6 remain. Neither acceptance nor cleanup authorises another call or the proposed increase to 25. `00-status.md` owns current scope.
 
 [verified operator report] Named target remains CareRelay, account 200053387891, Experience GkTbUc, endpoint `https://wss.lke.tencentcloud.com/adp/v2/chat`. Instruction `carerelay-readback-instruction-v2` is published AND active; current model is DeepSeek V4 Pro, tools/plugins off and knowledge base empty. Provider version metadata, region and retention remain unknown. Recorded security settings are default moderation, Serious risk reply and masking off. No model, setting or instruction publication change is part of cleanup.

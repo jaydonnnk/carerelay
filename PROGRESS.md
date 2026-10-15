@@ -1,5 +1,13 @@
 # CareRelay Slice 21 shipping: 16 October 2026
 
+## New live follow-up handoff
+
+- [x] User authorises all fictional ADP calls needed for the seven-case/live-local-demo follow-up; old total-24 ceiling superseded, no new numeric ceiling. Existing caps/schema/no-retry/stop-on-failure and reservation rules retained.
+- [x] Accepted source and receipt published; main final receipt push timeout recovered with bounded HTTP/1.1 Git retry. Both remote refs verified at 01723a9 before this authority note.
+- [x] Copy-paste handoff prepared from current evidence and exact new authority. Final reference substitution and remote/clean-tree verification follow publication of this authority record. No new ADP call in this chat.
+
+Earlier publication checkpoints below are historical.
+
 Operational memory only. `00-status.md` owns approval/state.
 
 ## Current publication

@@ -2,6 +2,16 @@
 
 Supporting evidence only. `00-status.md` owns state. Slice 21 is accepted by bounded closure, with the seven live cases unrun. Earlier checkpoints retain their original dated evidence and limits.
 
+## New live-evidence authority: 16 October 2026
+
+[verified user instruction, 16 October 2026] The user requested a copy-paste handoff for another agent to tackle the remaining ADP live cases and assess a live ADP demo, and stated: "I give full approval for all live calls". This authorises the fictional ADP requests reasonably needed for that Slice 21 follow-up and live local-demo verification without repeated per-call/count approval. The earlier total allowance of 24 is superseded for this follow-up; 18 historical reservations remain consumed and must not be altered. No new numeric ceiling was specified.
+
+[verified scope boundary] The existing 15-second whole-response cap, input/byte limits, strict v2 schema, one transport call per extraction, no retry or lexical fallback, code-owned decisions, fictional-only processing and default-off configuration remain. Every request, including diagnostic/failed/lost requests, must be reserved before transmission. Existing stop-at-first-unexpected-failure remains; offline diagnosis may continue, and schema/cap/contract changes still require prepared gate amendments and explicit approval. This approval adds no hosted deployment, real patient processing, hosted database, desktop/VoiceOver, dependency installation or Git publication authority for future implementation.
+
+[verified handoff state] The accepted bounded Slice 21 result remains accepted; the seven live categories are still unrun. This is further Slice 21 evidence work, not Slice 22. The live ledger helper/authority JSON still enforce the old 24 total and need a fail-capable, approval-consistent update before using the expanded permission. Retain history, locking, reservation-before-send and unfinished-reservation protection; do not silently remove accounting. A manual live demo needs automatic per-submission reservation, not an unmetered ADP-enabled server.
+
+[verified publication prerequisite] The accepted source and shipping receipt are published on main and retained slice-21-adp-enablement, both live verified at 01723a9ce97b513efabc358ced7c0fd760a007c4 before this new authority record. The final receipt main push initially timed out, then a bounded HTTP/1.1 Git retry succeeded. No ADP request was retried or added. This follow-up authority record is published within the existing scoped Git-publication request; future implementation shipping requires its own instruction.
+
 ## Publication receipt: 16 October 2026
 
 [verified user instruction, 16 October 2026] "Can u publish the branch, clean up the working tree, and merge / push to main thanks" authorises scoped Slice 21 commits, publication of `slice-21-adp-enablement`, safe fast-forward integration into `main`, and both remote pushes. The accepted bounded closure and seven unrun live cases remain unchanged. This grants no new ADP call, later slice or deployment command.
