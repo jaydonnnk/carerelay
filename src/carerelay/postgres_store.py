@@ -18,11 +18,10 @@ Four things are genuinely different here and none of them is a translation:
    "the latest attempt" means.** Three reads in `load_snapshot` and two in the
    `list_*` methods used `rowid` as insertion order. Postgres has no equivalent
    that survives a `VACUUM` (`ctid` is physical and moves), so the ordering is
-   now the recorded timestamp with the primary key as a stated tiebreaker. The
-   columns used are `opened_at`, `recorded_at` and `occurred_at`, which are
-   ISO-8601 text and sort lexicographically. Where a `UNIQUE` constraint already
-   makes the row unique (`expiry_events`), the ordering is irrelevant and is
-   kept only for determinism.
+   ordered by append-only event references. Recorded timestamps and keys remain
+   the fallback for legacy rows without references. Equal or regressed clocks
+   therefore retain the recorded event order. Where a `UNIQUE` constraint
+   already makes the row unique (`expiry_events`), ordering is irrelevant.
 2. **`INSERT OR REPLACE` does not exist, and the O1 defence changes path.**
    SQLite's `REPLACE` deletes the conflicting row and `recursive_triggers = ON`
    sends that implicit delete through the `BEFORE DELETE` trigger. Postgres has
@@ -224,7 +223,7 @@ class PostgresEpisodeStore:
     # -- lifecycle ---------------------------------------------------------
 
     def init_schema(self, *, force: bool = False) -> None:
-        """Apply the schema and the 42-trigger DDL, unless already applied.
+        """Apply the schema and append-only/binding DDL, unless already applied.
 
         The explicit entry point for the DDL that `__init__` runs on the first
         store per DSN. `force=True` re-applies it, which is what a migration or a
@@ -1796,10 +1795,10 @@ class PostgresEpisodeStore:
         rather than papered over.** The SQLite store orders by `rowid`, which is
         insertion order and is exactly right there. Postgres has no `rowid`;
         `ctid` looks like one but is a physical address that a `VACUUM` moves, so
-        it is not a safe substitute. The ordering here is the recorded timestamp
-        with the primary key as a tiebreaker. `expiry_events` is unaffected in
-        substance because `UNIQUE (episode_id, disposition_version)` already
-        makes at most one row match.
+        it is not a safe substitute. Append-only event references now determine
+        record order, including equal or regressed timestamps. Timestamp/key
+        order remains the fallback for legacy rows without references.
+        `expiry_events` has at most one row per episode/disposition version.
         """
         with self._read() as cur:
             return self._load_snapshot(cur, episode_id)
@@ -1886,7 +1885,7 @@ class PostgresEpisodeStore:
         )
 
     def load_journey_bundle(self, episode_id: str) -> JourneyBundle:
-        """No-plan snapshot parity; actual Postgres proof remains Slice 19."""
+        """Read one coherent persisted bundle in a repeatable, read-only transaction."""
         with self.journey_transaction(episode_id, write=False) as tx:
             return tx.load_bundle(episode_id)
 
