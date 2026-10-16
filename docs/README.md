@@ -27,6 +27,15 @@ or imply a gate approval. Everything else is supporting.
 
 ---
 
+## Judge view and architecture visual (Slice 23, 16 October 2026)
+
+The judge start page is `/demo` and the judge stage is `/demo/stage` (`frontend/app/demo/`).
+The stage frames the unchanged patient route beside a read-only ledger panel.
+The standalone architecture visual for the submission is `submission/architecture.html`; its dashed box is a proposal, not an integration.
+`00-status.md` owns Slice 23's state.
+
+---
+
 ## Convention (set 30 September 2026)
 
 - **All review artefacts and documentation go under `docs/`.** A review is filed in

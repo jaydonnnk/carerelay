@@ -1,5 +1,14 @@
 # CareRelay: project and execution instructions
 
+## Slice 23 judge view: local Check accepted, 16 October 2026
+
+[verified] Slice 23 is built on uncommitted `slice-23-judge-view` from main `abd2c3f`: `/demo`, `/demo/stage` and read-only ledger read-back detail.
+Fresh suite: 2,194 passed, 233 skips, one existing warning; typecheck and build pass; 30 of 30 new and 74 of 74 affected existing named mutations RED with exact restores.
+The full offline path and two guarded live stage submissions (ledger entries 29 and 30, both valid as expected) were observed; the live pair is stopped.
+Positioning: CareRelay addresses the care-navigation part of Challenge 1, helping older adults understand a supplied care plan, identify barriers and see whether help has actually been arranged. It adds no clinical triage and no healthcare-service integration.
+Disclosed deviations (null timing under scenario time, new offline actor wording) and an unresolved credential-history finding are in `00-status.md`, which owns the receipt.
+The user answered "I accept the Slice 23 Check, including the disclosed deviations and the new offline actor wording." The Check is accepted. No commit, merge, push, deployment, install, credential change or history rewrite is authorised.
+
 ## Redesign and judge view: 16 October 2026
 
 [verified user instruction] The user answered "Approve Gate 1 for the redesign mockups, the new judge view and copy. Proceed to the Gate 2/3/4 amendments for the judge view and ledger extension."

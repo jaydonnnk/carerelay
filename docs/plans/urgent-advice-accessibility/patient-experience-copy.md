@@ -64,6 +64,10 @@ Lane and chip wording, APPROVED with two honesty corrections to the mockup:
 - **Correction 2:** a different value reads "Different from plan", not "Later than plan". The ledger does not record which way a time differs.
 - Comparison results: "Same", "Different from plan", "Unclear".
 - Simulated lane heading: "The simulated provider replied: {failed | accepted}", or "The simulated provider has not replied".
+- Offline actor wording, APPROVED 16 October 2026 with the Slice 23 Check ("including the disclosed deviations and the new offline actor wording"). Used only when the stored provenance is not a live HTTPS call:
+  - Actor name in place of "Tencent ADP": "The local stand-in" (local simulation) or "The offline test transport" (test transport); the relay track leg reads "Local stand-in" or "Offline test transport".
+  - Note: "Offline run: a local stand-in did the reading step. Tencent ADP was not contacted for this check."
+  - Note: "Offline run: a test transport did the reading step. Tencent ADP was not contacted for this check."
 - Axis values: request sent "Not sent", "Sent", "Acknowledged" or "Failed"; proof of care "None" or "Simulated"; case "Still open", "Closed", "Handed to a human" or "Expired".
 
 ## Slice 16 confirmation amendment: APPROVED 14 October 2026

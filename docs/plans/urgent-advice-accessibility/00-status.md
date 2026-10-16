@@ -33,11 +33,67 @@ No commit, push, deployment, install or new live ADP call is authorised by this 
 - [x] Draft Gate 2, 3 and 4 amendments: `02-architecture.md` section 14, `03-program-design.md` section 10, `04-slices.md` section 10 (Slices 22 and 23); judge panel copy drafted in `patient-experience-copy.md`.
 - [x] Obtain explicit Gate 2, 3 and 4 re-approval, with the drafted judge panel copy: user answer quoted below, 16 October 2026.
 - [x] Slice 22: patient redesign and one-press start, on `slice-22-patient-redesign`. Local Check ACCEPTED 16 October 2026; the user answered "I accept, pls commit te working tree and push to main". Scoped commits, fast-forward of main and origin/main push are authorised by that answer.
-- [ ] Slice 23: judge view and ledger read-back detail, after Slice 22's Check and explicit continuation.
+- [x] Slice 23: judge view and ledger read-back detail, on `slice-23-judge-view`. Local Check ACCEPTED 16 October 2026; the user answered "I accept the Slice 23 Check, including the disclosed deviations and the new offline actor wording." See the Slice 23 section below.
 
 Approval history: **16 October 2026, Gate 1 REOPENED and RE-APPROVED** for the redesign and judge view. **Gates 2, 3 and 4 REOPENED and RE-APPROVED the same day.** The user answered "Approve Gates 2, 3 and 4 as drafted (02-architecture section 14, 03-program-design section 10, 04-slices section 10), including the judge panel copy and the two honesty corrections. Start Slice 22."
 This approves Gate 2 section 14 (D19 to D21), Gate 3 section 10, Gate 4 section 10, the judge panel copy drafted in `patient-experience-copy.md` and its two honesty corrections ("Checked in {s} s" and "Different from plan").
 It authorises Slice 22 to start. Slice 23 needs Slice 22's Check and explicit continuation. No commit, push, merge, deployment, install or credential change is authorised.
+
+## Slice 23: judge view and ledger read-back detail, local Check ready, 16 October 2026
+
+[verified user instruction, 16 October 2026] The user's handoff supplied explicit continuation to Slice 23 with Slice 22 accepted and shipped. It authorises the approved Slice 23 contract, at most two guarded live stage submissions under the existing live authority, and no commit, merge, push, deployment, install, credential change or history rewrite.
+
+[verified] Branch `slice-23-judge-view` was created from main `abd2c3f` (clean tree, equal to cached `origin/main`). Nothing is committed. Fresh pre-edit baseline: 2,138 passed, 232 PostgreSQL skips, one existing warning.
+
+[verified] Built, per Gate 2 section 14, Gate 3 section 10 and Gate 4 section 10:
+
+- Domain (`rules.py`): `plan_view(bundle, now_utc)` extracted from `derive_journey`, so the patient journey and the ledger share one plan builder. Patient behaviour is unchanged.
+- Ledger (`service.py`, `presentation.py`): `journey_step`, `interpretation` and `plan_reference` from the pure derivation on the ledger's own read-only bundle; `restatements[].readback` with the confirmed words joined by confirmation ID, episode and plan version (zero or several matches give null), stored spans and stored per-field results; `extractions[].elapsed_ms` from stored claim and completion times. No table, migration, route or write.
+- Frontend: `/demo` (static judge start page), `/demo/stage` (server-rendered panel beside the patient route in a same-origin frame), `components/judge/` (`StageFrame`, `RelayTrack`, `ReadbackLanes`, `OutcomeLanes`), `lib/judge.ts` (strict decoder, panel-state table, relay track, approved copy, frame-message guard), `lib/api.ts` types. Judge styles live in a new `app/demo/judge.css`, scoped under `.judge`, so the patient CSS is unchanged.
+- The Slice 22 parent message in `lib/journey.ts` was already in place; `PatientJourney.tsx` needed no change.
+
+[verified proof]
+
+- Full offline suite: 2,194 passed, 233 skips (the 232 earlier PostgreSQL skips plus the new PostgreSQL ledger-shape check), one existing warning. Frontend typecheck and production build pass in the repository and in a source-matching copy.
+- New tests: `tests/test_judge_view.py` (56) covering L1 to L6, S1, F1, F2, F3, F5, the copy corrections and patient/judge separation; one PostgreSQL ledger-shape test in `tests/test_journey_postgres.py`, skipped without an authorised disposable DSN, so engine proof is not claimed.
+- 30 of 30 new named mutations RED with byte-exact restores: L1 one, L2 two, L3 four, L4 two, L5 one, L6 three, S1 one, F1 four, F2 three, F3 two, F5 four, copy three.
+- Existing harness: all 914 anchors resolve exactly once; the 74 existing mutations whose anchors lie in the edited `derive_journey`, `plan_view` and ledger regions are RED with exact restores.
+
+[verified live, local offline] Production build on `http://127.0.0.1:8550` with an offline local-sim backend on `127.0.0.1:8551`, disposable SQLite and scenario time; no ADP credential loaded.
+The full path ran through the stage: one press to the plan; folded read-back; `I will go to the clinic myself today before 8pm`; the panel showed the saved words, three copied phrases, "By when: Different from plan" and next screen "Let’s check the time"; repair `today before 6pm` showed one copied phrase and all three "Same" with the plan reference still "6pm today"; booking barrier; consent; neutral waiting on both sides; a separate local-sim failure callback; then "The booking failed" on the panel and the slip on the phone after Refresh and reload.
+The store then held one disposition version 1 (deadline 2026-09-30T10:00Z, owner patient), one failed attempt, no acceptance, escalation or evidence, and closure open. Repeated stage and ledger reads changed no table count.
+A stray click on the frame's "Try an example" link created a second, abandoned episode during the run; it is not part of the evidence.
+Viewport checks: stage and `/demo` at 1440px and 375px with no horizontal scroll; the patient route at 320px with Larger text, no horizontal scroll.
+
+[verified live, guarded ADP] The existing guard was used unchanged: `launch_backend.py live s23-stage-live-20261016 8561 s21-manual-live-demo`, which asserts the guarded transport and reserves each HTTPS send before the socket opens. Before sending, the live ledger held 28 entries, none unfinished, not halted, manual-demo phase 2 of 20.
+Entry 28 (10:25, `6pm appointment`, valid) was made outside this session and is recorded here only as found.
+Two stage submissions were sent, then the live pair was stopped:
+
+| Entry | Words | Result | Guard time | Request |
+| --- | --- | --- | --- | --- |
+| 29 | `I will go to the clinic myself today before 8pm` | valid, scored; all three located; code mismatch on the time | 6,501 ms | `1643b50e589f44ab94f587e48b4456e9` |
+| 30 | `today before 6pm` (repair) | valid, scored; deadline located; all three "Same"; barrier step | 7,902 ms | `f6be8da303f54a048d0f062098396ade` |
+
+The panel showed "Live HTTPS call", "Agent Development Platform", the matching request prefixes, instruction and schema v2, and "1 call, no retry". The ledger now holds 30 entries, none unfinished, not halted; manual-demo phase 4 of 20. A stage reload added no row and no ledger entry.
+
+[verified leak checks] Live stage HTML, RSC and DOM, the frame DOM, the stored ledger JSON, backend and frontend logs and both SQLite stores were scanned for AppKey fields, reasoning or thought channels, raw stream markers, ConversationId and the three local secret values (matched without printing). No hit in 14 surfaces. Every surface detected each planted control in its own serialized form. The frame DOM contained no ledger value.
+
+[verified deviations from the approved drafts, disclosed for acceptance]
+
+- `elapsed_ms` is null under the fixed scenario clock, which stamps claim and completion with one instant; the panel then shows no "Checked in" chip. The live stage ran on scenario time, so the Gate 4 item "show the live chip and a real elapsed_ms" is met for the chip but not for the time. A ticking scenario clock would need a separate decision.
+- When the stored provenance is local simulation or the offline test transport, the panel names "The local stand-in" or "The offline test transport" instead of Tencent ADP, and shows: "Offline run: a local stand-in did the reading step. Tencent ADP was not contacted for this check." These strings are new, outside the approved inventory, and need Gate 1 approval or replacement.
+- The decoder also rejects a stored plan with a null step, so a record the patient reader cannot project shows "panel read failed", never "about to get her plan".
+- `/demo` omits the "Open the evidence ledger" link beside the dated live figures, because `/ledger` shows the current episode, not those calls. The stage links "Open the full ledger" as approved.
+- In the "check did not run" state the panel shows the reader lane only; it does not show an older round's words or comparison in place of the failed check.
+- The `/demo` evidence strip keeps the approved "8 of 8 recent live ADP calls" and "5.1 to 6.2 s" figures for calls 20 to 27; calls 28 to 30 are not included in it.
+
+[unknown, not claimed] PostgreSQL engine behaviour of the new ledger fields, screen-reader behaviour inside the frame, hosted build and deployment, clinical safety and patient benefit.
+
+[verified security finding, not resolved] Commits before `abd2c3f` carried non-empty `CARERELAY_API_TOKEN`, `ADP_APPKEY` and `ADP_API_SECRET` values in `.env.example`, and that history is on `origin/main`. A hash comparison found the historical token and API secret equal to the current local `.env` values; the historical AppKey differs from the current one. Rotation is required and was not done; no history rewrite was done.
+
+[verified user instruction, 16 October 2026] The user answered "I accept the Slice 23 Check, including the disclosed deviations and the new offline actor wording." **Slice 23 Check ACCEPTED**, with the six disclosed deviations above. The offline actor strings ("The local stand-in", "The offline test transport" and the two "Offline run: ..." notes) are approved judge copy and recorded in `patient-experience-copy.md`. This acceptance authorises no commit, merge, push, deployment, install, credential change or history rewrite. Credential rotation remains the user's action.
+
+[verified] Preview left running for review: offline stage `http://127.0.0.1:8550/demo`; PIDs in this session's scratchpad `s23/backend.pid` and `s23/frontend.pid`. The live pair is stopped.
 
 ## Slice 22: patient redesign and one-press start, local Check ready, 16 October 2026
 
