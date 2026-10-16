@@ -221,6 +221,12 @@ export type Ledger = {
     dwell_seconds: number | null;
     extraction_provenance: { mode: string; validation: string; confirmation_id: string;
       retained: { field: string; source_restatement_id: string; source_confirmation_id: string }[] } | null;
+    // Slice 23: stored read-back detail. Decoded strictly by `lib/judge.ts` before use.
+    readback: {
+      confirmed_words: string | null;
+      spans: { action_id: string | null; deadline_utc: string | null; next_owner_id: string | null };
+      fields: { action_id: string; deadline_utc: string; next_owner_id: string };
+    };
   }[];
   extractions: {
     operation_id: string;
@@ -238,6 +244,7 @@ export type Ledger = {
     validation: string;
     failure_category: string | null;
     instruction_observation: string;
+    elapsed_ms: number | null;
   }[];
   escalation: { escalation_id: string; human_path: string | null } | null;
   acceptance: { acceptance_id: string } | null;
@@ -246,6 +253,10 @@ export type Ledger = {
   fault_assertions: FaultAssertion[];
   simulated: boolean;
   fixture_label: string;
+  journey_step: string | null;
+  interpretation: string | null;
+  plan_reference: { disposition_version: number; action_text: string; deadline_display: string;
+    owner_display: string | null; fallback_display: string } | null;
 };
 
 /**
