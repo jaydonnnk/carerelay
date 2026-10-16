@@ -1,9 +1,56 @@
 # Status: CareRelay urgent-advice accessibility
 
-- Gate 1: Product, **RE-APPROVED 16 October 2026** for the redesign and judge view in `design/mocks/redesign/`. The user answered "Approve Gate 1 for the redesign mockups, the new judge view and copy." See the receipt below. Earlier approvals: **narrowly RE-APPROVED 14 October 2026** for Slice 16's exact five confirmation/help and pending/retry strings in `patient-experience-copy.md`. The user answered "Approve these exact Gate 1 strings". The 12 October approved inventory is preserved. Approved strings are exposed only by the guarded offline Slice 16 controls; specialized non-timing and system-date copy remain blocked. Gates 2 to 4 contracts are unchanged.
+- Gate 1: Product, **RE-APPROVED 16 October 2026 (wording change, second approval that day)**: the user answered "yea approve the gate 1 strings commit and push" for the drafted patient wording table and "uilt for the NTU LKCMedicine challenge yea this works" for the judge credit line. See "Patient wording change and production latency fix" below. Earlier the same day: **RE-APPROVED 16 October 2026** for the redesign and judge view in `design/mocks/redesign/`. The user answered "Approve Gate 1 for the redesign mockups, the new judge view and copy." See the receipt below. Earlier approvals: **narrowly RE-APPROVED 14 October 2026** for Slice 16's exact five confirmation/help and pending/retry strings in `patient-experience-copy.md`. The user answered "Approve these exact Gate 1 strings". The 12 October approved inventory is preserved. Approved strings are exposed only by the guarded offline Slice 16 controls; specialized non-timing and system-date copy remain blocked. Gates 2 to 4 contracts are unchanged.
 - Gate 2: Architecture, **RE-APPROVED 16 October 2026** for section 14 of `02-architecture.md`; the user answered "Approve Gates 2, 3 and 4 as drafted (02-architecture section 14, 03-program-design section 10, 04-slices section 10), including the judge panel copy and the two honesty corrections. Start Slice 22." Prior state: **RE-APPROVED 13 October 2026 (revision 4)** for the patient-experience journey and ADP read-back extraction design in `02-architecture.md` section 13. The user explicitly answered "Yep i approve gate 2" and requested a Gate 3 handoff. The previously approved section 5.2 durable-stop rule is unchanged. This architecture approval alone authorises no implementation. Narrow live-budget amendment RE-APPROVED 15 October 2026; see the exact receipt below. Narrow Slice 21 span-text grounding amendment RE-APPROVED 15 October 2026; see the exact receipt below. Narrow Slice 21 wording experiment RE-APPROVED 16 October 2026; see the receipt below.
 - Gate 3: Program Design, **RE-APPROVED 16 October 2026** for section 10 of `03-program-design.md`; the user answered "Approve Gates 2, 3 and 4 as drafted (02-architecture section 14, 03-program-design section 10, 04-slices section 10), including the judge panel copy and the two honesty corrections. Start Slice 22." Prior state: **RE-APPROVED 13 October 2026**, including section 9.12 identity correction. User answered "approve" after the reproduced no-event counterexample. Slice 14 is locally complete and shipped; Slice 15 Check is accepted with disclosed blocked viewport items and Slice 15 is shipped to main. Narrow live-budget amendment RE-APPROVED 15 October 2026; see the exact receipt below. Narrow Slice 21 span-text grounding amendment RE-APPROVED 15 October 2026; see the exact receipt below. Narrow Slice 21 wording experiment RE-APPROVED 16 October 2026; see the receipt below.
 - Gate 4: Slice plan, **RE-APPROVED 16 October 2026** for section 10 of `04-slices.md` (Slices 22 and 23); the user answered "Approve Gates 2, 3 and 4 as drafted (02-architecture section 14, 03-program-design section 10, 04-slices section 10), including the judge panel copy and the two honesty corrections. Start Slice 22." Prior state: **RE-APPROVED 13 October 2026** for `04-slices.md` section 9. Its contract is unchanged. Slice 15 Check accepted 14 October 2026 by the user ("Yes, ship") with viewport items disclosed as blocked, not passed, and carried to Slice 20; Slice 15 is shipped to main. Slice 16's offline/SQLite Check is ACCEPTED 14 October 2026. The user answered "I accept" and requested main publication and cleanup, then notification before Slice 17. Slice 16 is shipped to main by verified fast-forward and origin/main publication. Slice 17's bounded local Check is ACCEPTED 14 October 2026; the user explicitly authorised scoped working-tree commits and origin/main publication. Slice 17 is shipped to main by verified safe fast-forward and origin/main publication. The user explicitly continued Slice 18 on 14 October 2026. Its bounded offline Check is ACCEPTED 14 October 2026, with the disclosed Escape-focus failure carried to Slice 20. The user explicitly authorised Slice 18 commits, main integration and origin/main push; Slice 18 is shipped to main. Slice 19's bounded real-engine Check is ACCEPTED 15 October 2026; scoped commits were safely integrated and pushed to origin/main as verified below. Slice 20 is COMPLETE BY USER-DIRECTED CLOSURE on 15 October 2026, with the unfinished proof explicitly recorded below. Slice 21 continuation and bounded live/operator work are authorised as recorded below. Its Slice 20 Git prerequisite and operator activation/settings checks are complete. The approved live cap is 15 seconds. Eighteen historical fictional requests are consumed; the latest user approval supersedes the old 24-request total for the live-evidence follow-up. Two actual local product calls reached the 15-second cap unscored; after a model switch, two more completed in under 9 seconds but failed span grounding; the first two span-text (v2) calls returned a non-string field and a wrong key set. Call 18 is the first valid, scored HTTPS extraction through the product, at 5,305 ms. The user accepted Slice 21 as a bounded fictional demo on 16 October, with the seven live cases unrun at acceptance. Under the later follow-up authority, all seven ran once each through the guarded local product as expected (calls 20 to 26), and a guarded manual live preview auto-reserves every submission; see the follow-up result below. The original full live-corpus Check remains incomplete; ADP stays default-off. No install or CareRelay deployment is authorised. Narrow live-budget amendment RE-APPROVED 15 October 2026; see the exact receipt below. Narrow Slice 21 frontend scoring-timeout footprint amendment RE-APPROVED 15 October 2026; see the exact receipt below. Narrow Slice 21 span-text grounding amendment RE-APPROVED 15 October 2026; see the exact receipt below. Narrow Slice 21 wording experiment RE-APPROVED 16 October 2026; see the receipt below.
+
+## Patient wording change and production latency fix: 16 October 2026
+
+[verified user instruction] The user asked to remove "Demo only · fictional plan · no real care", "fictional provider" and "example" from the patient site, and to "just say ntu or make up a scenario".
+Naming NTU as the care provider was declined: NTU LKCMedicine is a real organisation that runs no such service, and Gate 1 forbids naming a real healthcare facility.
+The user accepted a credit line instead, "Built for the NTU LKCMedicine challenge", on the judge start page only.
+The user then answered "approve the gate 1 strings commit and push" to the drafted wording table, which authorises this change, its commits and the main push.
+**Gate 1 is narrowly RE-APPROVED 16 October 2026** for these strings.
+
+[verified] Approved patient strings now shipped:
+
+| Where | Before | After |
+| --- | --- | --- |
+| Banner on every screen | Demo only · fictional plan · no real care | removed |
+| Footer on every screen, and the `fixture_label` value | none | Simulated demo. Not medical advice. |
+| Start heading, line and button | Try an example / See what happens when a request fails. / See the example | Your care plan / See how CareRelay helps you act on it. / Start |
+| Restart link | Try an example | Start again |
+| Plan action | Go to the fictional provider's same-day review. | Go to the clinic for a same-day review. |
+| Fallback route | the fictional nurse line | the nurse helpline |
+| Plan slip heading and notice | Your example plan / Fictional plan. No real care. | Your plan / removed |
+| Input help | Demo: use made-up words only. | Please don't enter personal details. |
+| Confirm help | ...checks them against your example plan. | ...checks them against your plan. |
+
+[verified disclosed deviations, applied as the same approved substitutions]
+"With the fictional provider, to request an appointment." became "With the clinic, to request an appointment."
+"This example cannot help with that." became "We cannot help with that here."
+"Handed to the nurse line" became "Handed to the nurse helpline", and every outcome sentence that names the fallback route now reads "the nurse helpline".
+The plan dialog keeps its own simulated label, because the modal hides the page footer from assistive technology; it now reads the approved footer text instead of "Fictional plan. No real care."
+The approved "accept 'I' as who acts" was implemented as the first-person commitments "I will", "I'll", "I am going" and "I'm going", not a bare "I": a bare alias made an aside such as "today before six. I like tea." uncertain in field repair, which an existing test caught.
+The judge pages keep their judge-facing "fictional" wording; only the judge slip's action line was updated to match the patient plan.
+
+[verified frozen study record] The cut Gate B study froze the 30 September wording into its pre-registered protocol and fixed card.
+That record is not rewritten: `fixture.STUDY_V1_ACTION_TEXT`, `STUDY_V1_FALLBACK_ROUTE_TEXT` and `STUDY_V1_ROUTE_DISPLAY` keep the frozen wording, and the study code and tests now read those.
+
+[verified checks] Full suite: 2,200 passed, 233 skips, one existing warning (2,194 before, plus six new owner-alias tests).
+The new first-person owner test is RED when the "i will" alias is removed, with an exact restore.
+Frontend typecheck and production build pass.
+A local production build over disposable SQLite showed the start, plan, read-back with "I will go to the clinic today before 6pm", barrier, permission and in-flight request screens with the new wording, and the 375px view had no horizontal scroll.
+
+[verified production latency, operational] Before this change, production showed "We cannot load your plan" after "See the example".
+Each journey request runs 30 to 94 sequential SQL statements; with the database far from the Render service each took about 0.16 to 0.22 s, so create took 12.2 s and reads 5.9 to 7.0 s, past the frontend's 5 s command bound.
+The user moved the database to a new Supabase project in Virginia; afterwards create took 656 ms, example selection 594 ms and a plan reload 484 ms on production.
+No code was changed for this. The earlier `ap-southeast-2` statements in this file are historical.
+The Render service region was not read from the dashboard; `render.yaml` still says `singapore`, which Render applies only when a service is first created. [unknown]
+
+[verified limits] The backend wording reaches production only after a Render deploy, because Render auto-deploy is off.
+No new ADP call, credential change, hosted database access by the agent or deployment command was made.
 
 ## Redesign and judge view: Gates 1 to 4 re-approved, 16 October 2026
 

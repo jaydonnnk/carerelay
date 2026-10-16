@@ -1,5 +1,23 @@
 # Patient experience copy inventory: APPROVED with Slice 16 and redesign amendments
 
+## Patient wording change: APPROVED 16 October 2026
+
+The user answered "yea approve the gate 1 strings commit and push" to the drafted table below.
+These strings supersede the matching strings in the sections that follow; `00-status.md` holds the receipt and the disclosed deviations.
+
+- Removed: "Demo only · fictional plan · no real care" (banner), "Fictional plan. No real care." (plan slip), "Fictional" (failed-screen slip).
+- Footer on every patient screen, and the dialog's own label: "Simulated demo. Not medical advice."
+- Start: "Your care plan", "No plan yet.", "See how CareRelay helps you act on it.", "Start".
+- Restart link: "Start again".
+- Plan action: "Go to the clinic for a same-day review."
+- Fallback route: "the nurse helpline", so "If that does not work, call the nurse helpline."
+- Plan slip and dialog heading: "Your plan".
+- Input help: "Please don't enter personal details."
+- Confirm help: "This saves the words shown above and checks them against your plan."
+- Applied as the same substitutions: "With the clinic, to request an appointment.", "We cannot help with that here.", "Handed to the nurse helpline".
+- Judge start page credit: "Built for the NTU LKCMedicine challenge".
+- Accepted words for who acts gain "I will", "I'll", "I am going" and "I'm going".
+
 ## Redesign and judge view amendment: APPROVED 16 October 2026
 
 [verified] The user answered "Approve Gate 1 for the redesign mockups, the new judge view and copy." on 16 October 2026.

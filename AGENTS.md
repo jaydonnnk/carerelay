@@ -1,5 +1,14 @@
 # CareRelay: project and execution instructions
 
+## Patient wording change and latency fix: 16 October 2026
+
+[verified] Gate 1 is narrowly RE-APPROVED for the patient wording table in `00-status.md`: the user answered "yea approve the gate 1 strings commit and push".
+The striped banner is gone; the simulated label is now the footer and `fixture_label` "Simulated demo. Not medical advice.". The plan reads "Go to the clinic for a same-day review." with "the nurse helpline" as fallback.
+NTU is named only in the judge credit "Built for the NTU LKCMedicine challenge", never as a provider.
+The frozen study protocol keeps its 30 September wording through `fixture.STUDY_V1_*`.
+Production "We cannot load your plan" was database distance (30 to 94 queries per request at about 0.2 s each), fixed by the user's move to a Virginia Supabase project; no code change.
+Suite: 2,200 passed, 233 skips, one existing warning. `00-status.md` owns the receipt.
+
 ## Slice 23 judge view: local Check accepted, 16 October 2026
 
 [verified] Slice 23 is built on uncommitted `slice-23-judge-view` from main `abd2c3f`: `/demo`, `/demo/stage` and read-only ledger read-back detail.
