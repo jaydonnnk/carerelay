@@ -1205,3 +1205,35 @@ Order: the patient redesign comes first because the judge stage frames the patie
 Re-approval of Gates 2, 3 and 4 authorises Slice 22 to start.
 Slice 23 starts only after Slice 22's Check and the user's explicit continuation.
 Neither authorises Git publication, deployment, install or credential change.
+
+## 11. Hosted ADP reservation guard: DRAFT 16 October 2026
+
+[verified] Gate 4 is REOPENED 16 October 2026 for this section only, and it is a draft until the user re-approves it.
+It sequences Gate 2 section 15 and Gate 3 section 11. Sections 1 to 10 are unchanged. `00-status.md` owns gate state.
+
+### Slice 24: durable reservation guard for hosted ADP
+
+- **Goal/visible result:** with live ADP switched on and ceilings set, every send is reserved in the database before it leaves; a failure halts later sends; a refused send shows the patient the existing unavailable sentence and the judge "Not sent to Tencent ADP". With live off, nothing changes.
+- **Entry:** Gates 2, 3 and 4 re-approved for these sections; the 11.7 judge strings approved at Gate 1; ceiling values set by the user; branch `slice-24-hosted-adp-guard` created from current `main` and confirmed before the first edit.
+- **Exact files:** those in Gate 3 section 11.1; tests in a new `tests/test_adp_guard.py`, `tests/test_adp_guard_postgres.py`, `tests/test_judge_view.py` and the existing append-only and deployment tests; a new named-mutation harness `tests/_mutate_slice24.py`.
+- **Exit/proof:**
+  - Checks G1 to G20, written failing first, each RED under its named mutation with exact restore and cache purge; the harness prints RED, SURVIVED and NOT PROVEN separately and refuses selectors that do not resolve.
+  - G7 race: two writers released together by a barrier on SQLite (two connections) and on Postgres with a disposable DSN only, never the production database. Without a disposable DSN the Postgres race is recorded as unproven.
+  - An offline product run through the production Next.js build and FastAPI on disposable SQLite, with a no-network stub transport counting connection attempts: the reservation exists before the stub is called; a stub failure halts; the next submission is refused with zero connection attempts and the guard tables' bytes unchanged; the panel shows "Not sent to Tencent ADP"; `status` and `clear-halt` work.
+  - A serialized leak scan of API JSON, DOM, SSR and RSC payloads, logs, the CLI output and the SQLite files, with planted controls detected in each surface's own escaped form: no AppKey value or field, thought channel, raw SSE line, done sentinel or ConversationId.
+  - Full suite against the baseline of 2,200 passed, 233 skips and one existing warning; frontend typecheck and production build.
+  - Latency: the guard's reservation and finish measured on SQLite and, if available, the disposable Postgres; reported against the 5 to 6 s ADP time and the 20 s frontend scoring timeout.
+- **Exclusions/stop:** no change to the v2 schema, instruction v2, the 15-second cap, byte limits, retry rule or code authority; no live ADP call, production database access, commit, push or deployment during the slice. Stop for the Check.
+
+### 11.1 Going live, after the Check is accepted
+
+1. The user grants commit, merge-to-main and push authority, as one question.
+2. After the push, the user redeploys Render (auto-deploy is off) and Vercel (its build is skipped by `exit 0`), sets the three ceilings, then sets `ADP_EXTRACTION_ENABLED=true`.
+3. One fictional live submission on `https://carerelay-self.vercel.app`: `I will go to the clinic today before 6pm`.
+4. Record the request ID prefix, the timing, the reservation row from `status`, the judge stage's provenance text and a leak scan of that response.
+5. Stop at the first unexpected result, record it, and ask before any further live call.
+
+### 11.2 Approval boundary
+
+Re-approval of Gates 2, 3 and 4 authorises Slice 24 to start once the entry items are met.
+It authorises no Git publication, deployment, credential change or production database access.

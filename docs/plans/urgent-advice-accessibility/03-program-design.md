@@ -1667,3 +1667,164 @@ End to end, in the in-app browser against a local production build with disposab
 
 [hypothesis] Patient redesign and start fix: 4 to 7 hours. Judge view and ledger detail: 6 to 10 hours. Unmeasured.
 Approval of this section authorises no implementation by itself; Gate 4 sequences it.
+
+## 11. Durable reservation guard for hosted ADP: DRAFT 16 October 2026
+
+[verified] Gate 3 is REOPENED 16 October 2026 for this section only, and it is a draft until the user re-approves it.
+It designs Gate 2 section 15 (D22 to D24). Sections 1 to 10 are unchanged. `00-status.md` owns gate state.
+Every behaviour and result below is planned, not observed.
+
+### 11.1 File ownership
+
+| File | Change | Owner of |
+|---|---|---|
+| `src/carerelay/adp_guard.py` (new) | `GuardCeilings`, `GuardRefused`, `GuardedHttpsTransport`, `GuardedReadbackExtractor`, `build_guard(config, store)`, the operator command (`python -m carerelay.adp_guard`) | Guard policy, transport hook, CLI |
+| `src/carerelay/adp_extraction.py` | `configured_readback_extractor(config, store)`; `extract` maps `GuardRefused` to `not_sent` before its generic handler; `HttpsReadbackTransport.open` gains a `before_send` hook called immediately before `connection.request` | Selection, outcome mapping |
+| `src/carerelay/state.py`, `src/carerelay/postgres_schema.py` | Three new tables in `APPEND_ONLY_TABLES` with their DDL | Schema, append-only |
+| `src/carerelay/state.py`, `src/carerelay/postgres_store.py` | `reserve_adp_call`, `finish_adp_call`, `adp_guard_status`, `record_adp_halt_clear`, `mark_adp_call_lost` | Locked writes on each engine |
+| `src/carerelay/api.py` | Pass `_STORE` to `configured_readback_extractor` | Wiring only |
+| `frontend/lib/judge.ts` | Accept `not_sent`; label and panel copy from 11.7 | Judge rendering |
+| `docs/plans/urgent-advice-accessibility/patient-experience-copy.md` | The 11.7 strings, once Gate 1 approves them | Copy |
+| `.env.example`, `render.yaml` | Ceiling names, no values; mark `ADP_EXPERIENCE_URL` and `ADP_API_SECRET` as read by nothing | Configuration names |
+
+No route, dependency, schema version, instruction, cap or byte limit changes.
+
+### 11.2 Configuration
+
+| Name | Value | Missing or invalid with live on |
+|---|---|---|
+| `ADP_EXTRACTION_ENABLED` | `true` or `1` turns live on; anything else, or unset, keeps today's offline path | n/a |
+| `ADP_CHAT_ENDPOINT` | Exactly `https://wss.lke.tencentcloud.com/adp/v2/chat` | `invalid`, `endpoint_config` (unchanged) |
+| `ADP_APPKEY` | Secret; never printed, logged or committed | `invalid`, `prompt_auth` (unchanged) |
+| `ADP_GUARD_MAX_PER_EPISODE` | Integer 1 to 10,000 | `not_sent`, `guard_config` |
+| `ADP_GUARD_MAX_PER_DAY` | Integer 1 to 10,000, Singapore calendar day | `not_sent`, `guard_config` |
+| `ADP_GUARD_MAX_TOTAL` | Integer 1 to 10,000 | `not_sent`, `guard_config` |
+| `APP_DATABASE_URL` | Durable database; with live on, unset (in-memory) is refused | `not_sent`, `guard_config` |
+
+`build_guard` parses the three ceilings strictly: digits only, no sign, no whitespace, no zero.
+When live is on and parsing fails, `configured_readback_extractor` still returns a guarded extractor whose every send is refused with `guard_config`. It never returns an unguarded live extractor and never returns the offline extractor.
+
+### 11.3 Table DDL
+
+SQLite (Postgres uses `BIGINT`, `TIMESTAMPTZ` and `BOOLEAN` equivalents with the same checks):
+
+```sql
+CREATE TABLE IF NOT EXISTS adp_reservations (
+    number INTEGER PRIMARY KEY CHECK (number >= 1),
+    request_id TEXT NOT NULL UNIQUE CHECK (length(request_id) = 32 AND request_id NOT GLOB '*[^0-9a-f]*'),
+    operation_id TEXT NOT NULL UNIQUE,
+    episode_id TEXT NOT NULL REFERENCES episodes(id),
+    sgt_day TEXT NOT NULL CHECK (length(sgt_day) = 10),
+    reserved_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS adp_reservation_outcomes (
+    number INTEGER PRIMARY KEY REFERENCES adp_reservations(number),
+    outcome TEXT NOT NULL CHECK (outcome IN ('valid','refused','invalid','timeout','transport','void','lost')),
+    failure_category TEXT CHECK (failure_category IS NULL OR length(failure_category) <= 64),
+    elapsed_ms INTEGER CHECK (elapsed_ms IS NULL OR elapsed_ms >= 0),
+    finished_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS adp_guard_controls (
+    seq INTEGER PRIMARY KEY,
+    kind TEXT NOT NULL CHECK (kind IN ('halt','clear')),
+    number INTEGER REFERENCES adp_reservations(number),
+    reason TEXT NOT NULL CHECK (length(reason) BETWEEN 1 AND 200),
+    recorded_at TEXT NOT NULL,
+    CHECK ((kind = 'halt' AND number IS NOT NULL) OR kind = 'clear')
+);
+```
+
+All three join `APPEND_ONLY_TABLES` on both engines, so they inherit the refusing update, delete and truncate triggers and the existing every-table-is-guarded test.
+`operation_id UNIQUE` makes a second send for one extraction impossible at the engine.
+Halted means the highest-`seq` control row has `kind = 'halt'`.
+
+### 11.4 Store methods and locking
+
+```text
+reserve_adp_call(request_id, operation_id, ceilings, now_utc) -> int        # raises GuardRefused(reason)
+finish_adp_call(number, outcome, failure_category, elapsed_ms, now_utc) -> None
+adp_guard_status(ceilings, now_utc) -> GuardStatus                         # read only
+record_adp_halt_clear(reason, now_utc) -> None
+mark_adp_call_lost(number, reason, now_utc) -> None                        # finishes as 'lost' and halts
+```
+
+`reserve_adp_call` runs in one write transaction: `BEGIN IMMEDIATE` on SQLite; on Postgres `SELECT pg_advisory_xact_lock(<fixed 64-bit key>)` first.
+Inside it, in the Gate 2 order: halted, any reservation without an outcome, the pending claimed `score_words` or `repair_words` command for `operation_id` (gives the episode), per-episode count, per-day count, total count, then `INSERT` with `number = coalesce(max(number), 0) + 1`, then commit.
+Counts exclude `void`. The primary key backs the lock: a second writer that skipped the lock fails its insert instead of exceeding a ceiling.
+`finish_adp_call` inserts the outcome and, for `invalid`, `timeout`, `transport` or `lost`, a halt control in the same transaction.
+
+### 11.5 Transport hook and outcome mapping
+
+```text
+GuardedReadbackExtractor.extract(request, budget_seconds)
+  -> AdpReadbackExtractor.extract with GuardedHttpsTransport
+       -> GuardedHttpsTransport.open(endpoint, body, ...)
+            1. parse body["RequestId"] and the correlation_id from body["Contents"][0]["Text"]; failure -> GuardRefused("guard_unbound")
+            2. store.reserve_adp_call(...)           # committed before any socket
+            3. HttpsReadbackTransport.open(..., before_send=mark_transmitted)
+  <- finally: if a reservation was made for this RequestId,
+        finish_adp_call(number, outcome from result, or 'void' when mark_transmitted never ran, or 'transport' on exception)
+```
+
+- `AdpReadbackExtractor.extract` catches `GuardRefused` before its generic `except Exception` and returns `validation = "not_sent"`, `failure_category = <reason>`, with no request sent. Its `transport_provenance` stays `https`, because that is the configured transport; `not_sent` is what tells readers no call left.
+- `score_confirmed` treats `not_sent` like any other non-valid result: no score, `terminal_state = 'unavailable'`, the approved unavailable sentence. Its code is unchanged.
+- A finish failure is logged by category only and leaves the row unfinished, which refuses every later send.
+
+### 11.6 Operator command
+
+```text
+python -m carerelay.adp_guard status
+python -m carerelay.adp_guard clear-halt --reason "<1 to 200 chars>"
+python -m carerelay.adp_guard mark-lost <number> --reason "<1 to 200 chars>"
+```
+
+It opens the store named by `APP_DATABASE_URL` and refuses to run without it.
+`status` prints the ceilings, counted totals (episode maximum, today, all time), halt state with its reason, any unfinished number, and the last ten rows as number, outcome, category, elapsed time and the first 8 characters of the request ID.
+It prints no words, prompt, AppKey, reply, DSN or full request ID.
+
+### 11.7 Judge copy, drafted for Gate 1
+
+| Where | Draft |
+|---|---|
+| Transport chip and ADP lane heading when `validation = "not_sent"` | Not sent to Tencent ADP |
+| Panel headline | The check was not sent, so nothing changed. |
+| Paragraph, `guard_halted` | Live checks are paused after an earlier call failed, until an operator reviews it. Tencent ADP was not contacted. Mei sees one safe sentence and her plan stays as it was. |
+| Paragraph, `guard_unfinished` | Another live check was still running, and only one runs at a time. Tencent ADP was not contacted. Mei sees one safe sentence and her plan stays as it was. |
+| Paragraph, any ceiling reason | The live-check limit set for this demo is reached. Tencent ADP was not contacted. Mei sees one safe sentence and her plan stays as it was. |
+| Paragraph, `guard_config` or `guard_unbound` | Live checks are switched on but not set up safely, so nothing was sent. Tencent ADP was not contacted. Mei sees one safe sentence and her plan stays as it was. |
+
+No patient string is added or changed.
+
+### 11.8 Planned fail-capable checks (no results)
+
+Each check below fails under its named mutation, restored byte-exact; the harness also deletes compiled caches after each restore.
+
+| ID | Check | Named mutation |
+|---|---|---|
+| G1 | The reservation row is committed before `connection.request` runs | reserve after send |
+| G2 | A halt refuses with zero connection attempts | halt ignored |
+| G3 | An unfinished reservation refuses | unfinished ignored |
+| G4 | Per-episode ceiling refuses at the limit | episode ceiling ignored |
+| G5 | Per-day ceiling refuses at the limit and opens on the next Singapore day | day ceiling ignored |
+| G6 | Total ceiling refuses at the limit | total ceiling ignored |
+| G7 | Two writers released together on one engine never exceed a ceiling of one | lock removed |
+| G8 | Invalid, timeout, transport and lost each halt | failure never halts |
+| G9 | Valid and a structured refusal do not halt | refusal halts |
+| G10 | Every outcome finishes its row exactly once | finish skipped |
+| G11 | `void` only when the payload never reached the socket, and `void` does not count | void counted, or transmitted marked void |
+| G12 | Live on with a missing or invalid ceiling, or in-memory database, sends nothing | config falls open |
+| G13 | Live on never returns an unguarded or offline extractor | guard bypassed |
+| G14 | A send without a pending scoring claim is refused | unbound accepted |
+| G15 | A second send for one operation is refused by the engine | second send allowed |
+| G16 | The three tables refuse update and delete on both engines | append-only trigger dropped |
+| G17 | `status` writes nothing; `clear-halt` and `mark-lost` require a reason | status writes, reason optional |
+| G18 | The panel labels `not_sent` "Not sent to Tencent ADP", never "Live HTTPS call", and decodes it | not_sent rendered as live |
+| G19 | Live off: offline extractor, no guard tables read, no ADP contact | default changed |
+| G20 | Test runs leave the production target and the archived harness ledger byte-identical | test reaches a real target |
+
+G7 and G16 run on SQLite always and on Postgres only with a disposable DSN; without one they are recorded as skipped, not passed.
+
+### 11.9 Effort and approval boundary
+
+[hypothesis] Guard, schema and wiring: 4 to 6 hours. Tests, mutations and the offline product run: 4 to 6 hours. Unmeasured.
+Approval of this section authorises no implementation by itself; Gate 4 sequences it.

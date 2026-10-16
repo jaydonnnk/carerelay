@@ -898,3 +898,89 @@ Plan, deadline, owner, urgency, closure, sticky expiry and durable-stop rules ar
 - **Node middleware.** Next 15.5 supports Node-runtime middleware. If it fails in the build, the fallback keeps today's `/example` press and still fixes the not-found screen; that costs one extra press.
 - **Panel freshness.** It depends on one same-origin message; the Refresh control covers a lost message.
 - **Words on a judge surface.** Acceptable only because every input is fictional and labelled. A real-patient deployment would need a separate decision.
+
+## 15. Revision 6: durable reservation guard for hosted ADP, DRAFT 16 October 2026
+
+[verified] Gate 2 is REOPENED 16 October 2026 for this section only, and it is a draft until the user re-approves it.
+The user approved hosted ADP in principle ("i approve hosted adp, so mark that down"); that approval does not switch it on, and `00-status.md` owns gate state.
+Sections 1 to 14, the section 5.2 durable-stop rule and D17's ADP boundary are unchanged.
+
+Decision summary (proposed design; behaviour stays [hypothesis] until proved):
+
+- **D22:** every live ADP send is reserved in the application database, inside the HTTPS transport, before the socket opens.
+- **D23:** three configured ceilings, a durable halt and a single in-flight call bound every send; any missing piece fails closed.
+- **D24:** a send the guard refuses is shown to the patient as today's unavailable sentence and to the judge as not sent, never as a live call.
+
+### 15.1 Fit and inspected gaps
+
+[verified] Sources inspected on `main` at `d6ae945`:
+
+- `configured_readback_extractor` (`src/carerelay/adp_extraction.py:831`) returns a live HTTPS extractor as soon as `ADP_EXTRACTION_ENABLED` is `true` or `1`. Nothing meters the calls.
+- The only guard that ever ran is the temporary harness `live_guard.py`, which monkeypatches `HttpsReadbackTransport.open` and `AdpReadbackExtractor.extract` and keeps its ledger in a JSON file. It is outside the repository and cannot run on Render. A copy is kept outside the repository at `~/carerelay-evidence-archive/s21-live-guard-20261016/`.
+- The code reads three ADP names only: `ADP_EXTRACTION_ENABLED`, `ADP_CHAT_ENDPOINT` and `ADP_APPKEY`. `ADP_EXPERIENCE_URL` and `ADP_API_SECRET` in `.env.example` are read by nothing.
+- A transport exception inside `extract` becomes `validation: "transport"` with `transport_provenance: "https"`. The judge panel would then say Tencent ADP "refused, ran out of time or replied in the wrong shape" beside "Live HTTPS call", which is false for a send that never left the server.
+- The Docker image runs one uvicorn worker, and the API serialises use cases with an in-process lock. A Render deploy can still overlap two instances, so the guard cannot rely on either.
+- The public site needs no sign-in, so anyone who opens the patient page can trigger a check.
+
+### 15.2 D22: reservation before transmission
+
+[hypothesis]
+
+- The guard lives in the transport. A guarded HTTPS transport commits a reservation row in the application database, then opens the socket. No code path reaches the socket without a committed row.
+- The row records its sequence number, the ADP `RequestId`, the operation (correlation) ID, its episode, the Singapore calendar day and the time. It holds no words, prompt, AppKey or reply.
+- A reservation is accepted only for an operation that has a pending claimed `score_words` or `repair_words` command, which names its episode. Anything else is refused with nothing sent.
+- Every reservation is finished exactly once with one outcome: `valid`, `refused`, `invalid`, `timeout`, `transport`, `void` or `lost`.
+  - `void` means the payload was never handed to the socket layer. Only code can record it, and only when that is certain.
+  - `lost` is an operator record for a reservation whose process died; transmission is unknown, so it counts.
+- The finish is written from the extractor's own result, in a `finally`, so a crash leaves the row unfinished and that blocks every later send (D23).
+- Tables are append-only, with refusing triggers on SQLite and Postgres like the existing tables. Finishing, halting and clearing are new rows, never updates.
+
+### 15.3 D23: ceilings, halt and fail-closed configuration
+
+[hypothesis] A reservation is refused, with nothing sent, when any of these holds, checked in this order:
+
+| Reason | Condition | Clears when |
+|---|---|---|
+| `guard_config` | Live extraction is on but a ceiling is missing, not a positive integer, or the database is the in-memory default | Operator sets valid ceilings and a durable database |
+| `guard_halted` | The latest halt control is a halt | Operator records a clear, with a reason |
+| `guard_unfinished` | Any reservation has no outcome yet | The call finishes, or an operator records it `lost` |
+| `guard_episode_ceiling` | This episode's counted reservations reach the per-episode ceiling | Never for that episode |
+| `guard_day_ceiling` | Today's (Singapore day) counted reservations reach the per-day ceiling | The next Singapore day |
+| `guard_total_ceiling` | All counted reservations reach the total ceiling | Operator raises the ceiling |
+| `guard_unbound` | No pending scoring claim matches the operation | Never; it is a code fault |
+
+- Counted means every reservation except `void`. A refusal by the guard is not a reservation and counts nothing.
+- An `invalid`, `timeout`, `transport` or `lost` outcome counts and writes a halt in the same transaction. `valid` and `refused` do not halt.
+- Ceilings are not failures and never halt.
+- The unfinished rule allows one live call at a time across the whole site. A second visitor who submits during that call gets the unavailable sentence. This is the simplest bound that two tabs, two workers or an overlapping deploy cannot exceed.
+- Serialisation is enforced by the engine: `BEGIN IMMEDIATE` on SQLite, a transaction-scoped advisory lock on Postgres, and a primary key on the sequence number underneath both, so two writers cannot both take the same next number.
+- The guard runs inside the existing 15-second whole-response budget; it does not extend it.
+- With `ADP_EXTRACTION_ENABLED` off, nothing changes: the offline extractor runs, no guard is built and ADP is never contacted.
+
+### 15.4 D24: honest rendering of a refused send
+
+[hypothesis]
+
+- The extractor reports a guard refusal as `validation: "not_sent"` with the reason as its failure category, kept apart from `transport`.
+- The patient sees the approved sentence "We could not check that answer just now. Your plan has not changed." No new patient string.
+- The judge panel labels such a row "Not sent to Tencent ADP" and says Tencent ADP was not contacted, with the reason in plain words. The exact strings are drafted for Gate 1 in `patient-experience-copy.md`.
+- No reservation number, count or ceiling reaches the patient surface. The operator command (15.5) is where they are read.
+
+### 15.5 Operator path
+
+[hypothesis] A module command reads `APP_DATABASE_URL` and offers `status`, `clear-halt --reason` and `mark-lost <number> --reason`.
+It prints counts, ceilings, the halt state and the latest rows without words, request bodies or secrets.
+It is the only way to clear a halt. It runs where the operator holds the database URL; whether Render's free plan offers a shell is [unknown].
+
+### 15.6 Unchanged
+
+The v2 schema, instruction v2, the 15-second cap, every byte limit, one transport call per extraction, no retry, no lexical fallback, code-owned decisions and fictional-only processing are unchanged.
+Plan, deadline, owner, urgency, closure and the durable-stop rule are unchanged.
+Tencent processing region and retention remain [unknown]; real patient data stays out of scope.
+
+### 15.7 Least-confident decisions
+
+- **Halt on any failure.** Safer, but one timeout from any visitor pauses live checks for everyone until an operator clears it, during judging too.
+- **One call at a time.** Two judges checking within the same 6 seconds will see one unavailable result.
+- **Operator access.** Clearing a halt needs the production database URL on a trusted machine.
+- **Ceiling values.** They are a product decision, recorded in `00-status.md` when the user sets them; ADP pricing per call is [unknown].

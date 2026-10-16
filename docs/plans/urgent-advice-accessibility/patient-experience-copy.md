@@ -88,6 +88,18 @@ Lane and chip wording, APPROVED with two honesty corrections to the mockup:
   - Note: "Offline run: a test transport did the reading step. Tencent ADP was not contacted for this check."
 - Axis values: request sent "Not sent", "Sent", "Acknowledged" or "Failed"; proof of care "None" or "Simulated"; case "Still open", "Closed", "Handed to a human" or "Expired".
 
+### Judge copy for a send the guard refused: DRAFT 16 October 2026, needs Gate 1 approval
+
+[hypothesis] Drafted with Gate 2 section 15 and Gate 3 section 11.7 for Slice 24.
+Shown only on the judge stage when the stored extraction says `not_sent`. No patient string is added or changed: the patient keeps "We could not check that answer just now. Your plan has not changed."
+
+- Transport chip and ADP lane heading: "Not sent to Tencent ADP"
+- Headline: "The check was not sent, so nothing changed."
+- Paragraph when paused: "Live checks are paused after an earlier call failed, until an operator reviews it. Tencent ADP was not contacted. Mei sees one safe sentence and her plan stays as it was."
+- Paragraph when another check is running: "Another live check was still running, and only one runs at a time. Tencent ADP was not contacted. Mei sees one safe sentence and her plan stays as it was."
+- Paragraph at any limit: "The live-check limit set for this demo is reached. Tencent ADP was not contacted. Mei sees one safe sentence and her plan stays as it was."
+- Paragraph when not set up: "Live checks are switched on but not set up safely, so nothing was sent. Tencent ADP was not contacted. Mei sees one safe sentence and her plan stays as it was."
+
 ## Slice 16 confirmation amendment: APPROVED 14 October 2026
 
 [verified] The user explicitly answered "Approve these exact Gate 1 strings"

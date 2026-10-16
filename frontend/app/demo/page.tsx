@@ -14,7 +14,7 @@ export default function DemoIntro() {
     <div className="judge">
       <header className="stage-bar">
         <span className="wordmark">CareRelay</span>
-        <span className="sim-note">Fictional demo. No real care.</span>
+        <span className="sim-note">Built for the NTU LKCMedicine challenge.</span>
       </header>
       <main className="intro">
         <section className="hero">

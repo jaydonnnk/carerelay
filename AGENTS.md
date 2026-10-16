@@ -1,5 +1,16 @@
 # CareRelay: project and execution instructions
 
+## Hosted ADP guard gates reopened: 16 October 2026
+
+[verified] Gates 2, 3 and 4 are reopened, and Gate 1 narrowly for judge copy, to design the durable reservation guard (draft `02-architecture.md` section 15, `03-program-design.md` section 11, `04-slices.md` Slice 24) on branch `hosted-adp-guard-gates`.
+Approval and ceiling values are pending. `00-status.md` owns the state.
+
+## Hosted ADP approval: 16 October 2026
+
+[verified] The user answered "Ive already set the ADP credentials on render( i approve hosted adp, so mark that down)". Hosted ADP on Render is approved in principle; credentials are reported set, values never recorded.
+Do not set `ADP_EXTRACTION_ENABLED` on Render until a durable in-repository reservation guard has approved Gate 2/3/4 amendments and a passed slice Check: the flag alone sends unmetered live calls.
+No commit, push or deployment is authorised by this approval. Handoff: `docs/handoffs/hosted-adp-live-2026-10-16.md`. `00-status.md` owns the receipt.
+
 ## Patient wording change and latency fix: 16 October 2026
 
 [verified] Gate 1 is narrowly RE-APPROVED for the patient wording table in `00-status.md`: the user answered "yea approve the gate 1 strings commit and push".

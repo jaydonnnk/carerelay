@@ -51,7 +51,7 @@ export default async function StagePage() {
     <div className="judge">
       <header className="stage-bar">
         <span className="wordmark">CareRelay</span>
-        <span className="sim-note">Fictional demo. No real care.</span>
+        <span className="sim-note">Built for the NTU LKCMedicine challenge.</span>
         <nav aria-label="View">
           <Link href="/demo/stage" aria-current="page">Judge view</Link>
           <Link href="/">Patient only</Link>
