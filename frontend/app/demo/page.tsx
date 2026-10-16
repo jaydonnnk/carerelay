@@ -30,7 +30,7 @@ export default function DemoIntro() {
             <section className="slip" aria-label="Mei's example plan">
               <div className="slip-head"><strong>Mei&apos;s plan</strong><span>Fictional plan. No real care.</span></div>
               <dl className="slip-rows">
-                <div><dt><Icon name="calendar" />What to do</dt><dd>Go to the fictional provider&apos;s same-day review.</dd></div>
+                <div><dt><Icon name="calendar" />What to do</dt><dd>Go to the clinic for a same-day review.</dd></div>
                 <div><dt><Icon name="clock" />Before</dt><dd>6pm today</dd></div>
                 <div><dt><Icon name="person" />Who acts</dt><dd>Mei</dd></div>
               </dl>
@@ -79,6 +79,7 @@ export default function DemoIntro() {
           </div>
         </section>
       </main>
+      <footer className="judge-credit">Built for the NTU LKCMedicine challenge</footer>
     </div>
   );
 }
