@@ -1230,7 +1230,8 @@ def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjec
             interpretation = "uncertain" if latest.comparison.uncertain else "scored"
         if "deadline_utc" in latest.comparison.mismatched and completed_repairs < MAX_REPAIR_ROUNDS:
             repair_field = "deadline_utc"
-    step, question, allowed = "plan", None, ("readback_started", "show_plan", "hide_plan", "grant_share", "revoke_share")
+    # Gate 2 D21 (Slice 22): consent is granted only on its own step.
+    step, question, allowed = "plan", None, ("readback_started", "show_plan", "hide_plan", "revoke_share")
     if closure.care_evidenced:
         step, allowed = "documented", ()
     elif closure.closure is ClosureState.EXPIRED_UNRESOLVED:
@@ -1240,9 +1241,9 @@ def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjec
     elif closure.closure is ClosureState.ESCALATED_TO_HUMAN:
         step, allowed = "handoff", ()
     elif stopped:
-        step, allowed = "stopped", ("show_plan", "hide_plan", "grant_share", "revoke_share")
+        step, allowed = "stopped", ("show_plan", "hide_plan", "revoke_share")
     elif closure.execution is ExecutionStatus.FAILED or snapshot.escalation_outcome == "failed":
-        step, allowed = "unresolved", ("show_plan", "hide_plan", "grant_share", "revoke_share")
+        step, allowed = "unresolved", ("show_plan", "hide_plan", "revoke_share")
     elif closure.execution is ExecutionStatus.ACKNOWLEDGED or snapshot.escalation_id is not None:
         # Contact/acknowledgement cannot choose a success or failure heading.
         step, allowed = "plan", ("show_plan", "hide_plan", "revoke_share")
@@ -1275,6 +1276,9 @@ def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjec
         allowed = ("revoke_share",) if closure.closure is ClosureState.EXPIRED_UNRESOLVED else ("show_plan", "hide_plan", "revoke_share")
     elif not pending and step in {"readback", "repair"}:
         allowed = tuple(k for k in allowed if k not in {"score_words", "repair_words"} or confirmed is not None)
+    if step != "permission" and not bundle.consent_granted:
+        # Outside the consent step, withdrawal is offered only while consent is granted.
+        allowed = tuple(k for k in allowed if k != "revoke_share")
     flow = FlowView(stopped, snapshot.flow_stop_reason, disposition.version if stopped else None,
         started, latest.restatement_id if latest else None, repair_field, completed_repairs,
         hint, visible, interpretation)

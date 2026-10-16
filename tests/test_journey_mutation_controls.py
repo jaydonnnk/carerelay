@@ -142,8 +142,11 @@ def test_decoder_independent_invariant(tmp_path, case):
         bad["action_owner_id"] = "caregiver"
     if case in {"execution_enum", "outcome_escalation_path"}:
         # Actual neutral contact copy and cue/revoke offers survive the bad value.
+        # Slice 22 (Gate 2 D21): withdrawal is offered only while consent is granted; the
+        # acknowledged request was consented, the unknown nurse-line handoff was not.
         assert good["step"] == "plan"
-        assert {offer["kind"] for offer in good["commands"]} == {"show_plan", "hide_plan", "revoke_share"}
+        consented = case == "execution_enum"
+        assert {offer["kind"] for offer in good["commands"]} == {"show_plan", "hide_plan"} | ({"revoke_share"} if consented else set())
     if case == "unresolved_failure":
         # Keep actual failed-screen copy/offers; only both execution aliases change.
         assert good["step"] == "unresolved" and good["outcome"]["execution"] == "failed"

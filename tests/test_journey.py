@@ -101,6 +101,56 @@ def test_s17_unsupported_barrier_stops_without_request(tmp_path, choice):
         service._store.close()
 
 
+@pytest.mark.parametrize("case", ["plan", "failed", "stopped"])
+def test_s22_consent_is_not_granted_outside_its_step(tmp_path, case):
+    """Gate 2 D21: a correctly signed grant built for a non-consent step is refused,
+    and no consent row is written. Before Slice 22 these steps offered the grant."""
+    from _journey_fixtures import seed_journey
+    from carerelay.journey_commands import (CommandConflict, OperationBinding, operation_identity,
+                                            request_digest)
+    service = make_service(tmp_path / "s22-consent.sqlite")
+    try:
+        ep = "s22-" + case
+        seed_journey(service, ep, case)
+        journey = service.project_journey(ep)
+        assert journey.step in {"plan", "unresolved", "stopped"}
+        assert not any(o.kind == "grant_share" for o in journey.commands)
+        key = service._operation_signing_key()
+        digest = request_digest("grant_share", {})
+        binding = OperationBinding(operation_identity(episode_id=ep, kind="grant_share",
+            revision=journey.revision, body_sha256=digest, signing_key=key), ep,
+            journey.disposition_version, journey.revision, "grant_share",
+            service._readback_purpose(journey, "grant_share"), digest, None, None)
+        before = service._store._conn.execute("SELECT COUNT(*) FROM consents").fetchone()[0]
+        with pytest.raises(CommandConflict):
+            service.change_share_consent(binding, granted=True)
+        assert service._store._conn.execute("SELECT COUNT(*) FROM consents").fetchone()[0] == before
+    finally:
+        service._store.close()
+
+
+def test_s22_withdrawal_is_offered_only_while_granted(tmp_path):
+    """Control and defect in one path: withdrawal appears after a grant and
+    disappears after the grant is withdrawn, outside the consent step."""
+    from carerelay.domain.models import CallbackResult, ExecutionStatus, Origin
+    service = make_service(tmp_path / "s22-revoke.sqlite")
+    try:
+        ep = s17_understood(service)
+        service.record_barrier_choice(s17_binding(service, ep, "select_barrier", "booking"), choice_id="booking")
+        service.change_share_consent(s17_binding(service, ep, "grant_share"), granted=True)
+        service.request_appointment(s17_binding(service, ep, "request"))
+        service.receive_callback(ep, "fictional_provider", "fictional-s22-failure",
+            CallbackResult(transition=ExecutionStatus.FAILED), Origin.LOCAL_SIM)
+        failed = service.project_journey(ep)
+        assert failed.step == "unresolved"
+        assert [o.kind for o in failed.commands] == ["show_plan", "hide_plan", "revoke_share"]
+        service.change_share_consent(s17_binding(service, ep, "revoke_share"), granted=False)
+        withdrawn = service.project_journey(ep)
+        assert [o.kind for o in withdrawn.commands] == ["show_plan", "hide_plan"]
+    finally:
+        service._store.close()
+
+
 def s17_ready(service, episode="00000000-0000-4000-8000-000000000017"):
     ep = s17_understood(service, episode)
     service.record_barrier_choice(s17_binding(service, ep, "select_barrier", "booking"), choice_id="booking")
@@ -877,8 +927,10 @@ def test_twelve_screens_and_contradictions(world, case):
     assert body["care_evidenced"] == (step == "documented")
     # Slice 17 adds permission commands. Assert each screen's exact
     # capabilities so a wrong progression offer cannot hide behind a blanket [].
+    # Slice 22 (Gate 2 D21): consent is granted only on its own step, and outside
+    # that step withdrawal is offered only while consent is actually granted.
     expected_commands = {
-        "plan": ["readback_started", "show_plan", "hide_plan", "grant_share", "revoke_share"],
+        "plan": ["readback_started", "show_plan", "hide_plan"],
         "readback": ["confirm_words", "show_plan", "hide_plan", "h3"],
         "repair": ["confirm_words", "show_plan", "hide_plan", "h3"],
         "uncertain": ["confirm_words", "show_plan", "hide_plan", "h3"],
@@ -887,12 +939,12 @@ def test_twelve_screens_and_contradictions(world, case):
         "permission": ["grant_share", "decline_share", "revoke_share", "show_plan", "hide_plan"],
         "declined": ["grant_share", "decline_share", "revoke_share", "show_plan", "hide_plan"],
     }
-    for neutral in ("waiting", "acknowledged", "handoff_attempted", "handoff_unknown"):
-        expected_commands[neutral] = ["show_plan", "hide_plan", "revoke_share"]
-    for unresolved in ("failed", "handoff_failed", "stopped", "h3"):
-        expected_commands[unresolved] = ["show_plan", "hide_plan", "grant_share", "revoke_share"]
+    granted = {"waiting", "acknowledged", "failed", "expired_accepted"}
+    for neutral in ("waiting", "acknowledged", "handoff_attempted", "handoff_unknown",
+                    "failed", "handoff_failed", "stopped", "h3"):
+        expected_commands[neutral] = ["show_plan", "hide_plan"] + (["revoke_share"] if neutral in granted else [])
     for expired in ("expired", "expired_accepted", "expired_handoff", "expired_stopped"):
-        expected_commands[expired] = ["revoke_share"]
+        expected_commands[expired] = ["revoke_share"] if expired in granted else []
     expected = expected_commands.get(case, [])
     assert [o["kind"] for o in body["commands"]] == expected
     assert body["disposition_version"] == 1
