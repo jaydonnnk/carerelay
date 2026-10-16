@@ -70,7 +70,7 @@ import json
 import sqlite3
 import threading
 import uuid
-from collections.abc import Iterator, Mapping, Sequence
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from contextlib import contextmanager
 from dataclasses import dataclass
 from dataclasses import asdict
@@ -363,6 +363,9 @@ APPEND_ONLY_TABLES: tuple[str, ...] = (
     "restatements",
     "events",
     "journey_commands",
+    "adp_reservations",
+    "adp_reservation_outcomes",
+    "adp_guard_controls",
 )
 
 
@@ -774,6 +777,30 @@ CREATE TABLE IF NOT EXISTS journey_commands (
     CHECK (scored = 0 OR (terminal_state = 'applied' AND kind IN ('score_words','repair_words')
             AND result_kind IS NOT NULL AND result_kind = 'restatement' AND result_ref IS NOT NULL))
 );
+-- Slice 24 (Gate 3 section 11.3): live ADP reservations, append-only.
+CREATE TABLE IF NOT EXISTS adp_reservations (
+    number INTEGER PRIMARY KEY CHECK (number >= 1),
+    request_id TEXT NOT NULL UNIQUE CHECK (length(request_id) = 32 AND request_id NOT GLOB '*[^0-9a-f]*'),
+    operation_id TEXT NOT NULL UNIQUE,
+    episode_id TEXT NOT NULL REFERENCES episodes(id),
+    sgt_day TEXT NOT NULL CHECK (length(sgt_day) = 10),
+    reserved_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS adp_reservation_outcomes (
+    number INTEGER PRIMARY KEY REFERENCES adp_reservations(number),
+    outcome TEXT NOT NULL CHECK (outcome IN ('valid','refused','invalid','timeout','transport','void','lost')),
+    failure_category TEXT CHECK (failure_category IS NULL OR length(failure_category) <= 64),
+    elapsed_ms INTEGER CHECK (elapsed_ms IS NULL OR elapsed_ms >= 0),
+    finished_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS adp_guard_controls (
+    seq INTEGER PRIMARY KEY,
+    kind TEXT NOT NULL CHECK (kind IN ('halt','clear')),
+    number INTEGER REFERENCES adp_reservations(number),
+    reason TEXT NOT NULL CHECK (length(reason) BETWEEN 1 AND 200),
+    recorded_at TEXT NOT NULL,
+    CHECK ((kind = 'halt' AND number IS NOT NULL) OR kind = 'clear')
+);
 CREATE INDEX IF NOT EXISTS journey_commands_episode_id ON journey_commands(episode_id, id);
 CREATE INDEX IF NOT EXISTS journey_commands_pending ON journey_commands(episode_id) WHERE phase = 'claimed';
 CREATE INDEX IF NOT EXISTS events_episode_id ON events(episode_id, id);
@@ -1026,6 +1053,28 @@ class SqliteEpisodeStore:
             raise
         else:
             self._conn.execute("COMMIT")
+
+    @contextmanager
+    def adp_guard_transaction(self, *, write: bool) -> Iterator[Callable[[str, tuple], list[tuple]]]:
+        """Slice 24 (Gate 3 section 11.4): one guard transaction, `BEGIN IMMEDIATE` when writing.
+
+        Yields `run(sql, params)` returning plain tuples; `adp_guard` owns the SQL.
+        Never nested in a journey transaction: a reservation must commit on its own.
+        """
+        with self._mutex:
+            if self._journey_tx is not None:
+                raise StateError("guard transaction cannot nest")
+            try:
+                self._conn.execute("BEGIN IMMEDIATE" if write else "BEGIN")
+            except sqlite3.OperationalError as exc:
+                raise LockContention("guard lock unavailable") from exc
+            try:
+                yield lambda sql, params=(): [tuple(row) for row in self._conn.execute(sql, params).fetchall()]
+            except BaseException:
+                self._conn.execute("ROLLBACK")
+                raise
+            else:
+                self._conn.execute("COMMIT" if write else "ROLLBACK")
 
     # -- audit -------------------------------------------------------------
 

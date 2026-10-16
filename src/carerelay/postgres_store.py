@@ -268,6 +268,36 @@ class PostgresEpisodeStore:
         with self._mutex, self._write_unlocked(episode_id, attempt_id=attempt_id) as cur:
             yield cur
 
+    #: Slice 24: the one advisory lock key that serialises live ADP reservations.
+    ADP_GUARD_LOCK_KEY = 0x43524144505F4731
+
+    @contextmanager
+    def adp_guard_transaction(self, *, write: bool) -> Iterator:
+        """Slice 24 (Gate 3 section 11.4): one guard transaction under an advisory lock when writing."""
+        with self._mutex:
+            if self._journey_tx is not None:
+                raise StateError("guard transaction cannot nest")
+            cur = self._conn.cursor()
+            try:
+                cur.execute(f"SET LOCAL lock_timeout = '{int(self.lock_timeout_s * 1000)}ms'")
+                if write:
+                    cur.execute("SELECT pg_advisory_xact_lock(%s)", (self.ADP_GUARD_LOCK_KEY,))
+
+                def run(sql, params=()):
+                    cur.execute(sql.replace("?", "%s"), params)
+                    return [tuple(row) for row in cur.fetchall()] if cur.description else []
+                yield run
+            except BaseException:
+                self._conn.rollback()
+                raise
+            else:
+                if write:
+                    self._conn.commit()
+                else:
+                    self._conn.rollback()
+            finally:
+                cur.close()
+
     @contextmanager
     def _read(self) -> Iterator[psycopg.Cursor]:
         with self._mutex, self._read_unlocked() as cur:

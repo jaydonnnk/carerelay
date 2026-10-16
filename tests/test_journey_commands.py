@@ -286,7 +286,7 @@ console.log(JSON.stringify({{same:c.decodeLocator(signed,key),a,distinct:a.episo
 
 def test_render_and_bootstrap_source_has_no_mutation():
     # Structural guard only. Network/render/revalidation proof requires Next.js.
-    for file in ("app/page.tsx", "app/example/route.ts", "components/PatientJourney.tsx", "components/HintCard.tsx"):
+    for file in ("app/patient/page.tsx", "app/example/route.ts", "components/PatientJourney.tsx", "components/HintCard.tsx"):
         source = (ROOT / "frontend" / file).read_text()
         for forbidden in ("createEpisode(", "recordHintEvent(", "showCard(", "hideCard(", 'method: "POST"'):
             assert forbidden not in source, (file, forbidden)
@@ -319,8 +319,8 @@ const bad=GET(new NextRequest("http://127.0.0.1:8140/example"));
 console.log(JSON.stringify({{calls,status:good.status,location:good.headers.get("location"),cookie:good.headers.get("set-cookie"),
  badStatus:bad.status,badLocation:bad.headers.get("location"),badCookie:bad.headers.get("set-cookie")}}));''')
     assert result["status"] == result["badStatus"] == 303
-    assert result["location"] == "/"
-    assert result["badLocation"] == "/?recovery=1"
+    assert result["location"] == "/patient"
+    assert result["badLocation"] == "/patient?recovery=1"
     assert result["badCookie"] is None
     assert result["calls"] == 0
     assert isinstance(result["cookie"], str)
@@ -525,7 +525,7 @@ def test_additive_migration_twice_preserves_old_histories(tmp_path):
             upgraded._conn.executescript(_append_only_ddl())
         assert {table: [tuple(r) for r in upgraded._conn.execute("SELECT * FROM " + table)] for table in old_tables} == before
         from carerelay.state import APPEND_ONLY_TABLES
-        assert set(APPEND_ONLY_TABLES) == set(old_tables) | {"journey_commands"}
+        assert set(APPEND_ONLY_TABLES) == set(old_tables) | {"journey_commands", "adp_reservations", "adp_reservation_outcomes", "adp_guard_controls"}
         assert upgraded._conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert upgraded._conn.execute("PRAGMA foreign_key_check").fetchall() == []
     service = command_service(path)

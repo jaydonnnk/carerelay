@@ -3,6 +3,7 @@ from dataclasses import dataclass, field, replace
 import hashlib
 from http.client import HTTPSConnection
 import json
+import logging
 from queue import Empty, Full, Queue
 import re
 import ssl
@@ -245,13 +246,17 @@ class HttpsReadbackTransport:
 
     provenance = "https"
 
-    def __init__(self, *, monotonic=time.monotonic):
+    def __init__(self, *, monotonic=time.monotonic, guard=None):
         self._monotonic = monotonic
+        #: Slice 24: the reservation guard. A live send without one is refused by the extractor.
+        self.guard = guard
 
     def open(self, endpoint: str, body: dict, *, deadline_monotonic: float,
              allow_redirects: Literal[False]) -> TransportResponse:
         if endpoint != "https://wss.lke.tencentcloud.com/adp/v2/chat" or allow_redirects is not False:
             raise ValueError("unapproved_transport_target")
+        # Slice 24: no socket without a committed reservation for exactly this RequestId.
+        ticket = self.guard.claim(body.get("RequestId")) if self.guard is not None else None
 
         def remaining():
             seconds = deadline_monotonic - self._monotonic()
@@ -264,6 +269,8 @@ class HttpsReadbackTransport:
         response = None
         try:
             payload = json.dumps(body, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf-8")
+            if ticket is not None:
+                ticket.begin_send()
             connection.request("POST", "/adp/v2/chat", payload, {"Content-Type": "application/json"})
             # Keep this socket even when Connection: close detaches it from HTTPConnection.
             stream_socket = connection.sock
@@ -781,6 +788,34 @@ class AdpReadbackExtractor:
                 "RequestId": request_id, "VisitorId": uuid4().hex}
         if live:
             body.update(Stream="enable", Incremental=True, StreamingThrottle=100)
+        guard = getattr(self._transport, "guard", None) if live else None
+        ticket = None
+        if live:
+            # Slice 24 (Gate 2 D22/D23): reserved and committed before the transport may open.
+            from carerelay.adp_guard import GuardRefused
+            if guard is None:
+                return result("not_sent", failure="guard_config")
+            try:
+                ticket = guard.reserve(request_id, request.correlation_id)
+            except GuardRefused as refusal:
+                return result("not_sent", failure=refusal.reason)
+            except Exception:
+                return result("not_sent", failure="guard_unavailable")
+        final = None
+        try:
+            final = self._exchange(body, request, deadline, live, result)
+            return final
+        finally:
+            if ticket is not None:
+                try:
+                    guard.finish(ticket, final.validation if final is not None else None,
+                                 final.failure_category if final is not None else "exception")
+                except Exception:
+                    # The row stays unfinished, which refuses every later send until an operator acts.
+                    logging.getLogger("carerelay.adp_guard").error("adp guard finish failed")
+
+    def _exchange(self, body, request, deadline, live, result):
+        request_id = body["RequestId"]
         try:
             frames = _timed_frames(self._transport, self._endpoint, body, deadline_monotonic=deadline,
                                    monotonic=self._monotonic, expected_media_type="text/event-stream" if live else None)
@@ -828,12 +863,17 @@ class OfflineReadbackExtractor:
                                 "offline-fixture-v1", "carerelay-readback-v1", None, None)
 
 
-def configured_readback_extractor(config) -> ReadbackExtractor:
-    """Server-held selection; a requested ADP path never falls back to local scoring."""
+def configured_readback_extractor(config, store=None) -> ReadbackExtractor:
+    """Server-held selection; a requested ADP path never falls back to local scoring.
+
+    Slice 24: a live path always carries the reservation guard. An unusable guard
+    configuration still returns the guarded extractor, which then sends nothing.
+    """
     flag = config.get("ADP_EXTRACTION_ENABLED", "false").strip().lower()
     if flag in {"", "false", "0"}:
         return OfflineReadbackExtractor()
-    return AdpReadbackExtractor(transport=HttpsReadbackTransport(), profile=LIVE_PROFILE,
+    from carerelay.adp_guard import build_guard
+    return AdpReadbackExtractor(transport=HttpsReadbackTransport(guard=build_guard(config, store)), profile=LIVE_PROFILE,
         endpoint=config.get("ADP_CHAT_ENDPOINT", ""), app_key=config.get("ADP_APPKEY", ""),
         enabled=flag in {"true", "1"})
 

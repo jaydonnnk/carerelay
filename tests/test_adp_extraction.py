@@ -100,7 +100,27 @@ def https_transport(monkeypatch, *, status=200, chunks=(b"first", b"second"), fa
             calls.append(("close",))
             if close_signal is not None: close_signal.set()
     monkeypatch.setattr(adp, "HTTPSConnection", Connection)
-    return factory(monotonic=(lambda: now[0]) if now else lambda: 10.0), calls
+    return factory(monotonic=(lambda: now[0]) if now else lambda: 10.0, guard=PermissiveGuard()), calls
+
+
+class PermissiveGuard:
+    """Slice 24 test double: reserves everything, records each reservation and finish."""
+
+    def __init__(self):
+        self.reserved, self.finished = [], []
+
+    def reserve(self, request_id, operation_id):
+        from carerelay.adp_guard import Ticket
+        self.reserved.append((request_id, operation_id))
+        return Ticket(len(self.reserved), request_id, 0.0)
+
+    def claim(self, request_id):
+        from carerelay.adp_guard import Ticket
+        return Ticket(0, str(request_id), 0.0)
+
+    def finish(self, ticket, validation, category):
+        self.finished.append((ticket.number, validation, category))
+        return validation
 
 
 def test_https_transport_preserves_response_media_type(monkeypatch):

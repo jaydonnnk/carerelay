@@ -332,6 +332,19 @@ def _one_row_per_table(path: str | Path) -> None:
             "INSERT OR IGNORE INTO events (episode_id, kind, payload, recorded_at) "
             "VALUES (?, ?, ?, ?)",
             (EPISODE_ID, "raw_event", "", stamp),
+        ),        "adp_reservations": (
+            "INSERT INTO adp_reservations (number, request_id, operation_id, episode_id, sgt_day, reserved_at) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (1, "a" * 32, "raw-command", EPISODE_ID, "2026-09-30", stamp),
+        ),
+        "adp_reservation_outcomes": (
+            "INSERT INTO adp_reservation_outcomes (number, outcome, failure_category, elapsed_ms, finished_at) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (1, "valid", None, 5000, stamp),
+        ),
+        "adp_guard_controls": (
+            "INSERT INTO adp_guard_controls (kind, number, reason, recorded_at) VALUES (?, ?, ?, ?)",
+            ("clear", None, "raw seed", stamp),
         ),
     }
     assert set(rows) == set(state.APPEND_ONLY_TABLES), (

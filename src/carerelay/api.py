@@ -398,6 +398,15 @@ def _open_store() -> SqliteEpisodeStore | EpisodeStore:
 
 _STORE = _open_store()
 
+
+def scripted_provider_reply(config) -> bool:
+    """Slice 24 (demo B): on by default only in a public deployment; `APP_SCRIPTED_PROVIDER_REPLY=on|off` overrides."""
+    explicit = (config.get("APP_SCRIPTED_PROVIDER_REPLY") or "").strip().casefold()
+    if explicit in {"on", "off"}:
+        return explicit == "on"
+    return (config.get(APP_ENV_ENV) or "").strip().casefold() in PUBLIC_ENVS
+
+
 #: Slice 6. The coordinator reaches the world only through this surface, and the
 #: surface reaches the provider, which is a labelled local simulation. The
 #: `origin` every action outcome carries comes from here, so it cannot be set
@@ -415,7 +424,8 @@ _SERVICE = EpisodeService(
     display_tz=fixture.DISPLAY_TZ,
     disposition_factory=fixture.disposition,
     bound_complaint=fixture.BOUND_COMPLAINT,
-    readback_extractor=configured_readback_extractor(os.environ),
+    readback_extractor=configured_readback_extractor(os.environ, _STORE),
+    scripted_provider_reply=scripted_provider_reply(os.environ),
     policy_provenance=(
         "PROVISIONAL: non-clinical placeholder, authored rather than sourced. "
         "Option C was dropped on 1 October 2026 after the source check cleared "
