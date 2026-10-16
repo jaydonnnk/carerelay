@@ -24,6 +24,14 @@ export function encodeLocator(value: EpisodeLocator, key: string): string {
   const payload = Buffer.from(JSON.stringify(value)).toString("base64url");
   return `${payload}.${mac(payload, key).toString("base64url")}`;
 }
+/**
+ * Slice 22 middleware bootstrap: issue a locator only when the request carries none.
+ * An existing cookie, valid or not, is left for the page to judge; nothing reaches the backend.
+ */
+export function locatorToIssue(existing: string | undefined, key: string): string | null {
+  if (existing !== undefined) return null;
+  return encodeLocator(newLocator(), key);
+}
 export function decodeLocator(cookie: string, key: string): EpisodeLocator | null {
   try {
     if (cookie.length > 1024 || !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(cookie)) return null;

@@ -25,7 +25,7 @@ body {
   padding: 0;
   background: var(--paper);
   color: var(--ink);
-  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans), system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   /* 20px base: this screen is read by an older adult, often on a phone. */
   font-size: 20px;
   line-height: 1.5;
@@ -149,54 +149,103 @@ p.ledger-note {
   padding: 0.6rem 0.8rem;
 }
 
-/* Approved patient palette and flat entry/recovery layout. No timed behavior. */
-.journey { --ink: #352b31; --paper: #eee8dd; --accent: #542c48;
-  min-height: 100vh; background: var(--paper); color: var(--ink); font-size: 1rem; }
+/*
+ * Slice 22: the redesign approved at Gate 1 on 16 October 2026 (`design/mocks/redesign/`).
+ * The plan is a yellow appointment slip; green is the one next action; red means no one has
+ * agreed to help yet; hatching marks anything simulated. Still no animation and no timed behavior.
+ */
+.journey {
+  --ink: #1b2230; --paper: #f3f5f2; --surface: #ffffff; --muted: #4f5866; --rule: #d3d9d4;
+  --slip: #fff0a3; --slip-edge: #e8d46a; --act: #0d5e4f; --act-soft: #dcefe9;
+  --alert: #b3261e; --alert-soft: #fbe5e3; --accent: var(--act);
+  --sim: repeating-linear-gradient(135deg, #e3e6e2 0 6px, #f3f5f2 6px 12px);
+  --column: 32rem;
+  min-height: 100vh; background: var(--paper); color: var(--ink); font-size: 1rem;
+}
 .journey-large { font-size: 2rem; }
-.journey-header { max-width: 40rem; margin: auto; padding: 1rem;
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; }
-.journey .screen { padding: 1.5rem 1rem 3rem; overflow-wrap: anywhere; }
-.journey h1 { font-size: 1.7em; line-height: 1.2; color: var(--accent); }
-.journey .demo-label { font-size: .8em; }
-.journey-status { font-size: 1.25em; font-weight: 650; }
+.journey .icon { width: 1.5em; height: 1.5em; flex: none; }
+.journey p { margin: 0; }
+
+.journey-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem;
+  padding: .75rem max(1rem, calc((100% - var(--column)) / 2)); background: var(--surface); border-bottom: 1px solid var(--rule); }
+.wordmark { font-weight: 800; letter-spacing: -.01em; display: inline-flex; align-items: center; gap: .45em; }
+.wordmark::before { content: ""; width: .9em; height: .55em; background: var(--slip); border: 2px solid var(--ink); border-radius: 2px; }
+.journey .screen { max-width: var(--column); margin: 0 auto; padding: 1.1rem 1rem 3rem; overflow-wrap: anywhere; }
+.journey .screen > * + * { margin-top: .9rem; }
 /* One persistent polite region: present before its text changes, collapsed while empty. */
-.journey-live:empty { margin: 0; }
-.text-control, .journey .control { font: inherit; padding: .65em .8em; min-height: 48px;
-  border: 2px solid var(--accent); border-radius: .3rem; cursor: pointer; }
-.text-control { color: var(--accent); background: transparent; }
-.journey .primary { display: inline-block; background: var(--accent); color: #fff;
-  text-decoration: none; max-width: 100%; }
-.journey :focus-visible { outline: 3px solid var(--accent); outline-offset: 4px; }
+.journey .screen > .journey-live:empty { margin-top: 0; }
+.journey h1 { font-size: 1.65em; line-height: 1.15; letter-spacing: -.015em; margin-bottom: 0; color: var(--ink); }
+.journey .demo-label { display: inline-block; font-size: .78em; color: var(--muted); padding: .3em .6em; border-radius: 4px; background: var(--sim); }
+.journey-status { font-size: 1.1em; font-weight: 700; }
+.journey-question { font-weight: 700; }
+
+.journey-progress { display: flex; align-items: center; gap: .6rem; font-size: .8em; color: var(--muted); }
+.journey-progress .bars { display: flex; gap: .3rem; flex: 1; }
+.journey-progress b { flex: 1; height: 5px; border-radius: 3px; background: var(--rule); }
+.journey-progress b.done { background: var(--act); }
+
+/* The plan slip, with the perforated line of a clinic appointment card. */
+.slip { background: var(--slip); border-radius: 6px; padding: 1rem 1.1rem 1.1rem; box-shadow: 0 1px 0 var(--slip-edge), 0 8px 18px -12px rgb(27 34 48 / 45%); }
+.slip-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: .1rem 1rem;
+  padding-bottom: .65rem; margin-bottom: .8rem; border-bottom: 2px dashed rgb(27 34 48 / 22%); font-size: .82em; color: var(--muted); }
+.slip-head strong { color: var(--ink); font-size: 1.05em; }
+.journey-plan { margin: 0; }
+.journey-plan > div { position: relative; padding: .4rem 0 .4rem 2.6em; }
+.journey-plan dt { font-size: .85em; color: var(--muted); }
+.journey-plan dt .icon { position: absolute; left: 0; top: .45rem; width: 1.8em; height: 1.8em; color: var(--ink); }
+.journey-plan dd { margin: 0; font-size: 1.3em; font-weight: 800; line-height: 1.2; }
+.slip.folded { background: var(--surface); border: 2px dashed var(--slip-edge); box-shadow: none; }
+.fold-msg { display: flex; gap: .8rem; align-items: center; }
+.slip.folded .control { margin-top: .8rem; }
+
+.journey-status-box { display: flex; gap: .7rem; align-items: flex-start; padding: .85rem 1rem; border-radius: 10px; }
+.journey-status-box .icon { margin-top: .05em; }
+.journey-status-box.open { background: var(--alert-soft); color: var(--alert); }
+.journey-status-box.calm { background: var(--act-soft); color: var(--act); }
+.journey-status-box .journey-line { color: var(--ink); }
+.journey-status-box .journey-line:first-child { font-weight: 700; color: inherit; }
+.journey-fallback { display: flex; gap: .7rem; align-items: flex-start; padding: 0 1rem; color: var(--muted); }
+
+/* Controls: at least 48px tall; green is the one next action. */
+.journey .control, .text-control { font: inherit; font-weight: 700; display: inline-flex; align-items: center; justify-content: center;
+  min-height: 56px; padding: .6em 1.2em; border: 2px solid var(--act); border-radius: 10px; cursor: pointer;
+  background: transparent; color: var(--act); text-decoration: none; max-width: 100%; }
+.journey .control.primary { display: flex; width: 100%; background: var(--act); color: #fff; }
+.text-control { min-height: 48px; font-size: .9em; padding: .4em .9em; }
+.journey .control[disabled] { cursor: not-allowed; opacity: .45; }
+.journey button[aria-disabled="true"], .journey [aria-disabled="true"] { cursor: wait; opacity: .65; }
+.journey :focus-visible { outline: 3px solid var(--act); outline-offset: 3px; }
+.journey-new-example { display: block; width: fit-content; color: var(--act); font-weight: 600; text-underline-offset: 3px; }
+.journey .screen > .journey-new-example { margin-top: 1.4rem; }
 .skip-link { position: absolute; left: -10000px; }
-.skip-link:focus { left: 1rem; top: 1rem; padding: .5rem; background: #fff; color: #542c48; }
+.skip-link:focus { left: 1rem; top: 1rem; padding: .5rem; background: #fff; color: var(--act); }
 
-.journey-plan { margin: 1.5rem 0; }
-.journey-plan > div { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: .75rem; padding: .6rem 0; }
-.journey-plan dt { font-weight: 600; }
-.journey-plan dd { margin: 0; overflow-wrap: anywhere; }
-.journey-line { margin: .75rem 0; }
-.journey-question { font-weight: 600; }
-.journey-new-example { display: inline-block; margin-top: 1.5rem; }
-.journey button:disabled, .journey [aria-disabled="true"] { cursor: wait; opacity: .65; }
-.journey form { margin-top: 1rem; }
-@media (max-width: 380px) { .journey-plan > div { grid-template-columns: 1fr; gap: .2rem; } }
+.journey form > * + * { margin-top: .7rem; }
+.journey label { font-weight: 700; }
+.journey form > #readback-help { margin-top: .15rem; color: var(--muted); }
+.journey textarea { display: block; width: 100%; min-height: 6.5em; font: inherit; padding: .7em; color: var(--ink);
+  background: var(--surface); border: 2px solid var(--ink); border-radius: 10px; resize: vertical; }
+.answer-preview > * + * { margin-top: .6rem; }
+.answer-preview h2 { font-size: 1.1em; margin: 0; }
+.answer-preview blockquote { margin: 0; padding: .6rem .9rem; background: var(--surface); border-left: 4px solid var(--ink);
+  border-radius: 0 8px 8px 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.timing-repair > * + * { margin-top: .5rem; }
 
-.journey textarea { display: block; box-sizing: border-box; width: 100%; min-height: 7em;
-  font: inherit; padding: .7em; color: var(--text); background: #fff;
-  border: 2px solid var(--accent); border-radius: .4rem; resize: vertical; }
-.journey label { font-weight: 650; }
-.journey .control { margin: .4rem .4rem .4rem 0; }
-.answer-preview { margin-block: 1.3rem; }
-.answer-preview blockquote { margin: .75rem 0; padding-left: 1rem; border-left: 3px solid var(--accent);
-  white-space: pre-wrap; overflow-wrap: anywhere; }
-.timing-repair { margin-block: 1rem; }
-.plan-dialog { box-sizing: border-box; width: min(36rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem);
-  overflow: auto; padding: 1.3rem; color: var(--text); background: #faf8f4; border: 2px solid var(--accent);
-  border-radius: .5rem; font: inherit; }
-.plan-dialog::backdrop { background: rgb(40 25 36 / 45%); }
-
-.journey-choices { border: 0; padding: 0; margin: 1rem 0; min-width: 0; }
-.journey-choices legend { font-weight: 650; margin-bottom: .75rem; }
-.journey-choice { display: flex; align-items: flex-start; gap: .7em; padding: .7em 0; min-height: 48px; cursor: pointer; }
-.journey-choice input { flex: 0 0 auto; font: inherit; width: 1.2em; height: 1.2em; margin: .15em 0 0; accent-color: var(--accent); }
+.journey-choices { border: 0; padding: 0; margin: 0; min-width: 0; }
+.journey-choices legend { font-weight: 700; margin-bottom: .6rem; padding: 0; }
+.journey-choice { display: flex; align-items: center; gap: .7em; padding: .75em .9em; min-height: 56px; cursor: pointer;
+  background: var(--surface); border: 2px solid var(--rule); border-radius: 10px; }
+.journey-choices .journey-choice + .journey-choice { margin-top: .5rem; }
+.journey-choice:has(input:checked) { border-color: var(--act); }
+.journey-choice input { flex: 0 0 auto; width: 1.2em; height: 1.2em; margin: 0; accent-color: var(--act); }
 .journey-choice span { min-width: 0; overflow-wrap: anywhere; }
+.journey section > * + * { margin-top: .7rem; }
+
+.plan-dialog { box-sizing: border-box; width: min(34rem, calc(100% - 2rem)); max-height: calc(100dvh - 2rem); overflow: auto;
+  padding: 1.2rem; color: var(--ink); background: var(--slip); border: 0; border-radius: 8px; font: inherit;
+  box-shadow: 0 20px 40px -20px rgb(27 34 48 / 60%); }
+.plan-dialog > * + * { margin-top: .8rem; }
+.plan-dialog h2 { margin: 0; font-size: 1.2em; }
+.plan-dialog::backdrop { background: rgb(27 34 48 / 50%); }
+/* The modal centres itself; the column's sibling spacing must not pin it to the top. */
+.journey .screen > dialog.plan-dialog { margin: auto; }

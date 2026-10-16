@@ -2,20 +2,66 @@
 import { useActionState, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { startExample, selectExample, prepareReadbackWords, submitReadback, prepareBarrierChoice, submitPermission, type ActionResult } from "@/app/actions";
-import { ENTRY_COPY, RECOVERY_COPY, JOURNEY_LABEL, reconcileJourney, type Journey, type PlanView, type CommandOffer } from "@/lib/journey";
+import { ENTRY_COPY, RECOVERY_COPY, JOURNEY_LABEL, SLIP_COPY, notifyParent, progressStep, progressLabel, reconcileJourney, startThenSelect,
+  type Journey, type PlanView, type CommandOffer } from "@/lib/journey";
 import { HintCard } from "./HintCard";
 
-type Props = { state: "entry" | "recovery"; creationToken?: string } | { state: "loaded"; journey: Journey };
+/** Slice 22: icons accompany text and never replace it (`patient-experience-copy.md`). */
+const PATHS = {
+  calendar: <><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M8 3v4M16 3v4M3 10h18M8 14h3M8 17h6" /></>,
+  clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
+  person: <><circle cx="12" cy="8" r="4" /><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" /></>,
+  phone: <path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z" />,
+  alert: <><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></>,
+  check: <><circle cx="12" cy="12" r="9" /><path d="M8 12l3 3 5-6" /></>,
+  folded: <><path d="M3 3l18 18" /><path d="M10.6 6.1A10 10 0 0 1 12 6c5 0 9 6 9 6a17 17 0 0 1-2.7 3.3M6.5 7.5A17 17 0 0 0 3 12s4 6 9 6a9 9 0 0 0 4-1" /></>,
+} as const;
+type IconName = keyof typeof PATHS;
+
+function Icon({ name }: { name: IconName }) {
+  return <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
+    strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">{PATHS[name]}</svg>;
+}
+
+type Props = { state: "entry" | "recovery" | "start"; creationToken?: string } | { state: "loaded"; journey: Journey };
 function PlanRows({ plan, labels }: { plan: PlanView; labels: Record<string, string> }) {
   return <dl className="journey-plan">
-    <div><dt>{labels.action_label}</dt><dd>{plan.action_text}</dd></div>
-    <div><dt>{labels.deadline_label}</dt><dd>{plan.deadline_display}</dd></div>
-    {plan.current_owner_display !== null && <div><dt>{labels.owner_label}</dt><dd>{plan.current_owner_display}</dd></div>}
+    <div><dt><Icon name="calendar" />{labels.action_label}</dt><dd>{plan.action_text}</dd></div>
+    <div><dt><Icon name="clock" />{labels.deadline_label}</dt><dd>{plan.deadline_display}</dd></div>
+    {plan.current_owner_display !== null && <div><dt><Icon name="person" />{labels.owner_label}</dt><dd>{plan.current_owner_display}</dd></div>}
   </dl>;
+}
+/** The plan as a yellow appointment slip (Gate 1, 16 October 2026). */
+function PlanSlip({ plan, labels, notice }: { plan: PlanView; labels: Record<string, string>; notice: string }) {
+  return <section className="slip" aria-label={SLIP_COPY.heading}>
+    <p className="slip-head"><strong>{SLIP_COPY.heading}</strong><span>{notice}</span></p>
+    <PlanRows plan={plan} labels={labels} />
+  </section>;
+}
+/** The server's four lines, unchanged and in order: who has agreed, urgency, deadline, fallback. */
+function Lines({ lines, open, children }: { lines: string[]; open: boolean; children?: React.ReactNode }) {
+  if (lines.length !== 4) return <>{lines.map((line, i) => <p className="journey-line" key={i}>{line}</p>)}{children}</>;
+  return <>
+    <div className={`journey-status-box ${open ? "open" : "calm"}`}>
+      <Icon name={open ? "alert" : "check"} />
+      <div>{lines.slice(0, 3).map((line, i) => <p className="journey-line" key={i}>{line}</p>)}</div>
+    </div>
+    {children}
+    <p className="journey-line journey-fallback"><Icon name="phone" /><span>{lines[3]}</span></p>
+  </>;
+}
+function Progress({ step }: { step: number }) {
+  return <div className="journey-progress">
+    <span aria-hidden="true" className="bars">{[1, 2, 3, 4].map(n => <b key={n} className={n <= step ? "done" : undefined} />)}</span>
+    <span>{progressLabel(step)}</span>
+  </div>;
+}
+async function createThenSelect(previous: ActionResult | null, form: FormData): Promise<ActionResult> {
+  return startThenSelect(form, f => startExample(previous, f), f => selectExample(previous, f));
 }
 function ExampleForm({ token, kind, onResult, onPending }: { token: string; kind: "create" | "select_example";
   onResult: (r: ActionResult) => void; onPending: (pending: boolean) => void }) {
-  const [result, action, pending] = useActionState(kind === "create" ? startExample : selectExample, null);
+  const [result, action, pending] = useActionState(kind === "create" ? createThenSelect : selectExample, null);
   useReportPending(pending, onPending);
   useEffect(() => { if (result) onResult(result); }, [result, onResult]);
   return <form action={action} onSubmit={event => { if (pending) event.preventDefault(); }}>
@@ -252,6 +298,10 @@ export function PatientJourney(props: Props) {
     setCurrent(next);
   }
   useEffect(() => { accept(props, true); }, [props]); // A server refresh can change expiry at equal revision.
+  useEffect(() => {
+    // Slice 22: a same-origin judge stage re-reads its ledger; the message carries only the revision.
+    if (typeof window !== "undefined" && current.state === "loaded") notifyParent(window, current.journey.revision);
+  }, [current]);
   // Keep a stable callback so an action result is applied once, not after every text-size render.
   const resultHandler = useRef<(r: ActionResult) => void>(() => {});
   const focusAfterResult = useRef<{ step: string | undefined; active: Element | null; recovery: boolean } | null>(null);
@@ -312,31 +362,44 @@ export function PatientJourney(props: Props) {
   const readback = journey?.commands.find(o => o.kind === "readback_started" && o.operation_token);
   const show = journey?.commands.find(o => o.kind === "show_plan" && o.operation_token);
   const hide = journey?.commands.find(o => o.kind === "hide_plan" && o.operation_token);
+  const progress = journey ? progressStep(journey) : null;
+  const folded = journey !== null && ["readback", "repair"].includes(journey.step);
+  // The slip is open on the plan and request-failed screens; there "Show my plan" would repeat it.
+  const slip = journey?.plan && (journey.step === "plan" || journey.step === "unresolved") ? journey.plan : null;
+  const open = journey?.closure === "open" || journey?.closure === "expired_unresolved";
+  const showButton = show && !slip && <button className="control" type="button" ref={showOpener} aria-disabled={busy(commandPending)} onClick={() => run(show)}>{copy.show_label}</button>;
   return <div className={`journey${large ? " journey-large" : ""}`}>
     <a className="skip-link" href="#main">Skip to main content</a>
-    <header className="journey-header"><span>CareRelay</span>
+    <header className="journey-header"><span className="wordmark">CareRelay</span>
       <button className="text-control" aria-pressed={large} onClick={() => setLarge(!large)}>{large ? "Smaller text" : "Larger text"}</button>
     </header>
     {/* Focus lands here after a step change; its name says which step and status it is. */}
     <main id="main" className="screen" tabIndex={-1} ref={main} aria-labelledby="journey-heading journey-state">
       <p className="demo-label">{journey?.fixture_label ?? JOURNEY_LABEL}</p>
+      {progress !== null && <Progress step={progress} />}
       <h1 id="journey-heading" tabIndex={-1} ref={heading}>{recovery ? RECOVERY_COPY.heading : copy.heading}</h1>
       {!recovery && copy.status && <p id="journey-state" className="journey-status">{copy.status}</p>}
       {(recovery || copy.description && journey?.step !== "barrier") && <p>{recovery ? RECOVERY_COPY.description : copy.description}</p>}
-      {journey?.step === "plan" && journey.plan && <PlanRows plan={journey.plan} labels={copy} />}
-      {journey?.lines.map((line, i) => <p className="journey-line" key={i}>{line}</p>)}
+      {journey?.step === "plan" && slip && <PlanSlip plan={slip} labels={copy} notice={SLIP_COPY.notice} />}
+      {journey && <Lines lines={journey.lines} open={open}>
+        {journey.step === "unresolved" && slip && <PlanSlip plan={slip} labels={SLIP_COPY} notice={SLIP_COPY.short_notice} />}
+      </Lines>}
       {journey?.question && journey.step !== "barrier" && journey.question.text !== copy.heading && <p className="journey-question">{journey.question.text}</p>}
+      {folded && <section className="slip folded" aria-label={SLIP_COPY.folded}>
+        <p className="fold-msg"><Icon name="folded" /><span>{SLIP_COPY.folded}</span></p>
+        {showButton}
+      </section>}
       {copy.notice && <p className="demo-label">{copy.notice}</p>}
       <p role="status" className="journey-live">{liveStatus}</p>
       {journey && ["readback", "repair"].includes(journey.step) && <ReadbackForm
         key={`${journey.flow.readback_attempt_id}:${journey.flow.latest_restatement_id}`} journey={journey}
         onResult={onResult} onPending={reportPending} prepared={prepared} />}
       {journey?.step === "barrier" && <BarrierForm key={journey.disposition_version} journey={journey} onResult={onResult} onPending={reportPending} />}
-      {journey && journey.commands.some(o => ["grant_share", "decline_share", "revoke_share", "request"].includes(o.kind)) &&
+      {journey?.step === "permission" && journey.commands.some(o => ["grant_share", "decline_share", "revoke_share", "request"].includes(o.kind)) &&
         <PermissionControls key={`${journey.disposition_version}:${journey.step}`} journey={journey} onResult={onResult}
           onPending={reportPending} />}
       {readback && <button className="control primary" type="button" aria-disabled={busy(commandPending)} onClick={() => run(readback)}>{copy.readback_label}</button>}
-      {show && <button className="control" type="button" ref={showOpener} aria-disabled={busy(commandPending)} onClick={() => run(show)}>{copy.show_label}</button>}
+      {!folded && showButton}
       <HintCard visible={journey?.revealed_plan != null} revision={journey?.revision ?? 0} title={copy.revealed_heading} closeLabel={copy.hide_label}
         opener={showOpener} fallback={main} onHide={() => { if (hide) void run(hide); }}>
         {journey?.revealed_plan && <>

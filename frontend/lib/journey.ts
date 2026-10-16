@@ -314,3 +314,50 @@ export async function readPrepared(response: Response): Promise<string | null> {
   return record(value) && exactKeys(value, ["operation_token"]) && bounded(value.operation_token, 4096) &&
     /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value.operation_token) ? value.operation_token : null;
 }
+
+/** Slice 22 approved Gate 1 strings (`patient-experience-copy.md`, 16 October 2026). */
+export const SLIP_COPY = {
+  heading: "Your example plan", notice: "Fictional plan. No real care.", short_notice: "Fictional",
+  folded: "Your plan is folded away while you say it in your words.",
+  action_label: "What to do", deadline_label: "Before", owner_label: "Who acts",
+} as const;
+const PROGRESS: Record<string, number> = { plan: 1, readback: 2, repair: 2, barrier: 3, permission: 4 };
+/** Presentation only: which of the four action steps the server's step is. Outcome screens get none. */
+export function progressStep(journey: Journey): number | null {
+  const n = PROGRESS[journey.step];
+  if (n === undefined) return null;
+  // A plan step after a provider acknowledgement is an outcome, not step one.
+  if (journey.step === "plan" && journey.outcome !== null && journey.outcome.execution !== "not_started") return null;
+  return n;
+}
+export function progressLabel(n: number): string {
+  return `Step ${n} of 4`;
+}
+
+/**
+ * One press starts the example: create, then select with the token the create result offers.
+ * Each command keeps its own replay token, so a lost response replays and never creates twice.
+ */
+export async function startThenSelect<R extends { state: string; journey?: Journey }>(form: FormData,
+    create: (form: FormData) => Promise<R>, select: (form: FormData) => Promise<R>): Promise<R> {
+  const created = await create(form);
+  if (created.state !== "loaded" || !created.journey) return created;
+  const offer = created.journey.commands.find(o => o.kind === "select_example" && o.operation_token);
+  if (!offer?.operation_token) return created;
+  const next = new FormData();
+  next.set("operation_token", offer.operation_token);
+  return select(next);
+}
+
+/**
+ * Slice 22 (Gate 3 section 10.6): tell a same-origin judge stage that the journey changed.
+ * The message carries only the revision. A cross-origin parent cannot be read, so it gets nothing.
+ */
+export function notifyParent(win: Window, revision: number): boolean {
+  if (win.parent === win) return false;
+  let origin: string;
+  try { origin = win.parent.location.origin; } catch { return false; }
+  if (origin !== win.location.origin) return false;
+  win.parent.postMessage({ type: "carerelay-journey", revision }, win.location.origin);
+  return true;
+}

@@ -13,7 +13,9 @@ export default async function PatientPage({ searchParams }: {
   const locator = decodeLocator(cookie, process.env.CARERELAY_API_TOKEN ?? "");
   if (!locator) return <PatientJourney state="recovery" />;
   const result = await getEpisode(locator.episode_id);
-  if (!result.ok) return <PatientJourney state="recovery"
-    creationToken={result.reason === "not_found" ? creationOperation(locator, process.env.CARERELAY_API_TOKEN ?? "") : undefined} />;
+  // Slice 22 (F7): a valid locator whose episode does not exist yet is a start, not a failure.
+  if (!result.ok && result.reason === "not_found") return <PatientJourney state="start"
+    creationToken={creationOperation(locator, process.env.CARERELAY_API_TOKEN ?? "")} />;
+  if (!result.ok) return <PatientJourney state="recovery" />;
   return <PatientJourney state="loaded" journey={result.value} />;
 }
