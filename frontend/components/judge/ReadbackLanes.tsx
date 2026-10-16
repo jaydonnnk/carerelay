@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { FIELD_LABEL, FIELDS, RESULT_LABEL, TRANSPORT_LABEL, actorName, checkedIn, readerHeading,
+import { FIELD_LABEL, FIELDS, RESULT_LABEL, transportLabel, actorName, checkedIn, readerHeading,
   type Field, type LedgerDetail } from "@/lib/judge";
 import { Icon } from "./RelayTrack";
 
@@ -30,7 +30,8 @@ export function ReadbackLanes({ detail }: { detail: LedgerDetail }) {
   const latest = detail.latest;
   const extraction = detail.lastExtraction;
   const plan = detail.plan_reference;
-  const live = extraction?.transport === "https";
+  const sent = extraction !== null && extraction.validation !== "not_sent";
+  const live = sent && extraction?.transport === "https";
   // A check that did not run has no round of its own; an older round is not shown in its place.
   const ran = extraction !== null && extraction.validation === "valid";
   const planSays: Record<Field, string | null> = { action_id: plan?.action_text ?? null,
@@ -53,14 +54,14 @@ export function ReadbackLanes({ detail }: { detail: LedgerDetail }) {
           <div className="lane-body">
             {ran && latest?.confirmed_words ? <p className="quote">{marked(latest.confirmed_words, latest.spans)}</p> : null}
             <div className="meta">
-              <span><b>{TRANSPORT_LABEL[extraction.transport]}</b></span>
-              {timing ? <span>{timing}</span> : null}
-              {extraction.request_id ? <span>Request <b className="code">{extraction.request_id.slice(0, 8)}…</b></span> : null}
-              <span>Instruction <b>{extraction.instruction_version}</b></span>
-              <span>Schema <b>{extraction.schema_version}</b></span>
-              <span><b>1</b> call, no retry</span>
+              <span><b>{transportLabel(extraction)}</b></span>
+              {sent && timing ? <span>{timing}</span> : null}
+              {sent && extraction.request_id ? <span>Request <b className="code">{extraction.request_id.slice(0, 8)}…</b></span> : null}
+              {sent ? <span>Instruction <b>{extraction.instruction_version}</b></span> : null}
+              {sent ? <span>Schema <b>{extraction.schema_version}</b></span> : null}
+              {sent ? <span><b>1</b> call, no retry</span> : <span><b>0</b> calls</span>}
             </div>
-            <p className="lane-after">{actorName(detail) === "Tencent ADP" ? "ADP" : actorName(detail)} may only copy words that are really there. CareRelay checks every phrase against the saved text before using it.</p>
+            {sent ? <p className="lane-after">{actorName(detail) === "Tencent ADP" ? "ADP" : actorName(detail)} may only copy words that are really there. CareRelay checks every phrase against the saved text before using it.</p> : null}
           </div>
         </section>
       ) : null}

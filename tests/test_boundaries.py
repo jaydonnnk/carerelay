@@ -551,7 +551,7 @@ VICTIM_FILES: tuple[tuple[str, str], ...] = (
     ("frontend server module", "frontend/lib/api.ts"),
     ("frontend server action", "frontend/app/actions.ts"),
     ("frontend server layout", "frontend/app/layout.tsx"),
-    ("frontend page", "frontend/app/page.tsx"),
+    ("frontend page", "frontend/app/patient/page.tsx"),
     ("frontend ledger page", "frontend/app/ledger/page.tsx"),
     ("frontend component", "frontend/components/HintCard.tsx"),
     ("frontend journey", "frontend/components/PatientJourney.tsx"),
@@ -724,7 +724,7 @@ class TestNoSecretIsCommitted:
         required = {
             "frontend/lib/api.ts",
             "frontend/app/actions.ts",
-            "frontend/app/page.tsx",
+            "frontend/app/patient/page.tsx",
             "frontend/components/HintCard.tsx",
             "frontend/next.config.mjs",
             "frontend/package.json",

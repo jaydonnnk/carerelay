@@ -54,7 +54,7 @@ export default async function StagePage() {
         <span className="sim-note">Built for the NTU LKCMedicine challenge.</span>
         <nav aria-label="View">
           <Link href="/demo/stage" aria-current="page">Judge view</Link>
-          <Link href="/">Patient only</Link>
+          <Link href="/patient">Patient only</Link>
         </nav>
       </header>
       <StageFrame>
@@ -66,7 +66,7 @@ export default async function StagePage() {
         <div className="step-head"><h1>{copy.headline}</h1></div>
         <p className="lede">{copy.paragraph}</p>
         {offlineNote(detail) ? <p className="offline-note">{offlineNote(detail)}</p> : null}
-        {state ? <RelayTrack legs={trackLegs(state)} readerName={legName} /> : null}
+        {state ? <RelayTrack legs={trackLegs(state, detail?.lastExtraction?.validation === "not_sent")} readerName={legName} /> : null}
         {lanes && state && detail && READBACK_LANES.has(state) ? <ReadbackLanes detail={detail} /> : null}
         {lanes && state && detail && OUTCOME_LANES.has(state) ? <OutcomeLanes detail={detail} state={state} /> : null}
         {lanes && state && detail && heading ? (

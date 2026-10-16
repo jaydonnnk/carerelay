@@ -447,12 +447,12 @@ def test_f5_stage_frame_uses_the_guard_and_never_posts():
     source = (ROOT / "frontend/components/judge/StageFrame.tsx").read_text()
     assert "acceptFrameMessage(event, window.location.origin, frame.current?.contentWindow)" in source
     assert "postMessage" not in source
-    assert '<iframe ref={frame} src="/"' in source
+    assert '<iframe ref={frame} src="/patient"' in source
 
 
 def test_patient_surface_receives_no_ledger_data():
     """D19: the frame document is the patient page; nothing judge-side flows into it."""
-    for path in ["frontend/app/page.tsx", "frontend/components/PatientJourney.tsx", "frontend/lib/journey.ts",
+    for path in ["frontend/app/patient/page.tsx", "frontend/components/PatientJourney.tsx", "frontend/lib/journey.ts",
                  "frontend/middleware.ts"]:
         text = (ROOT / path).read_text()
         for needle in ("getLedger", "lib/judge", "components/judge", "/demo", "/ledger"):

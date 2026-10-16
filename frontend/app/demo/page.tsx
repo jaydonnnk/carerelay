@@ -22,7 +22,7 @@ export default function DemoIntro() {
             <h1>Mei has until 6pm.</h1>
             <p>Mei is 72 and fictional. Her plan says to get a same-day review before 6pm. CareRelay checks she understood it, helps her act on it, and never pretends help is arranged when it is not.</p>
             <div className="actions">
-              <Link className="btn" href="/demo/stage">Start the demo</Link>
+              <a className="btn" href="/demo/start">Start the demo</a>
               <a className="textlink" href="#adp">See where Tencent ADP is used</a>
             </div>
           </div>

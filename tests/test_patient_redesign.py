@@ -111,7 +111,7 @@ console.log(JSON.stringify({{matcher:mod.config.matcher,runtime:mod.config.runti
  issued:set?decodeLocator(set.value,"fictional-s22-key")!==null:false,httpOnly:set?.httpOnly??null,
  forwarded:set?forwarded.includes(set.value):false,kept:kept.cookies.get("carerelay_demo_locator")??null,
  remote:remote.cookies.get("carerelay_demo_locator")??null}}));''')
-    assert observed == {"matcher": ["/"], "runtime": "nodejs", "issued": True, "httpOnly": True,
+    assert observed == {"matcher": ["/patient"], "runtime": "nodejs", "issued": True, "httpOnly": True,
                         "forwarded": True, "kept": None, "remote": None}
 
 

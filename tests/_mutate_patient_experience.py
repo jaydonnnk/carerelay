@@ -54,7 +54,7 @@ def build_mutations():
     def add(label, target, old, new, selector):
         rows.append(Mutation(label, target, old, new, selector))
     add("G09 relative bootstrap redirect", "frontend/app/example/route.ts",
-        'headers: { Location: "/" }', 'headers: { Location: "http://localhost:8140/" }',
+        'headers: { Location: "/patient" }', 'headers: { Location: "http://localhost:8140/patient" }',
         D + "test_real_bootstrap_handler_sets_cookie_before_any_backend_call")
     add("G09 bootstrap cookie", "frontend/app/example/route.ts",
         'response.cookies.set(LOCATOR_COOKIE, cookie, options);', '// omitted cookie',
@@ -83,7 +83,7 @@ def build_mutations():
     add("G37 persistent HTTP reads", "src/carerelay/api.py",
         'return journey_surface(service.project_journey(episode_id))',
         'raise HTTPException(status_code=404, detail="volatile registry")', J + "test_fresh_process_reads")
-    add("G09 structural render mutation", "frontend/app/page.tsx",
+    add("G09 structural render mutation", "frontend/app/patient/page.tsx",
         '  const cookie = (await cookies()).get(LOCATOR_COOKIE)?.value;',
         '  await createEpisode();\n  const cookie = (await cookies()).get(LOCATOR_COOKIE)?.value;',
         D + "test_render_and_bootstrap_source_has_no_mutation")
@@ -1728,7 +1728,7 @@ def add_slice16_flow_mutations(add):
         'if False:', field + "test_confirmed_round_zero_and_grounded_timing_repair")
     pin("G18 persisted provenance", STATE, 'provenance=provenance,', 'provenance=None,', field + "test_ledger_names_offline_provenance_and_keeps_legacy_unknown")
     pin("G08 fresh document on readback", "frontend/components/PatientJourney.tsx",
-        'window.location.assign("/"); // A fresh document removes the prior plan\'s HTML/RSC.',
+        'window.location.assign("/patient"); // A fresh document removes the prior plan\'s HTML/RSC.',
         '// omitted document replacement', F + "test_readback_transition_replaces_the_answer_bearing_document")
     pin("G23 hide keeps opener focus", "frontend/components/PatientJourney.tsx",
         'if (result.journey.step === journey?.step) showOpener.current?.focus();',

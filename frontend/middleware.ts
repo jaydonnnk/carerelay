@@ -6,7 +6,7 @@ import { LOCATOR_COOKIE, locatorCookieOptions, locatorToIssue } from "@/lib/epis
  * page renders, so the start screen needs one press. This is the `/example` bootstrap moved
  * earlier: no backend call, no episode, no disposition. Any failure passes the request through.
  */
-export const config = { matcher: ["/"], runtime: "nodejs" };
+export const config = { matcher: ["/patient"], runtime: "nodejs" };
 
 export function middleware(request: NextRequest) {
   try {

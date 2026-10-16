@@ -22,7 +22,7 @@ const CLOSURE = ["open", "closed_with_evidence", "escalated_to_human", "expired_
 type Closure = (typeof CLOSURE)[number];
 const TRANSPORT = ["https", "fake-offline", "local-sim"] as const;
 export type Transport = (typeof TRANSPORT)[number];
-const VALIDATION = ["valid", "invalid", "refused", "timeout", "transport", "disabled"] as const;
+const VALIDATION = ["valid", "invalid", "refused", "timeout", "transport", "disabled", "not_sent"] as const;
 type Validation = (typeof VALIDATION)[number];
 const MAX = 2048;
 
@@ -39,6 +39,7 @@ export type Extraction = {
   request_id: string | null;
   instruction_version: string;
   schema_version: string;
+  failure_category: string | null;
 };
 export type PlanReference = { disposition_version: number; action_text: string; deadline_display: string;
   owner_display: string | null; fallback_display: string };
@@ -77,13 +78,15 @@ function decodeReadback(v: unknown): Readback | null {
 function decodeExtraction(v: unknown): Extraction | null {
   if (!isObj(v)) return null;
   const { transport_provenance: transport, validation, scored, elapsed_ms: elapsed, request_id: request,
-    instruction_version: instruction, schema_version: schema } = v;
+    instruction_version: instruction, schema_version: schema, failure_category: category } = v;
   if (!oneOf(transport, TRANSPORT) || !oneOf(validation, VALIDATION)) return null;
   if (scored !== true && scored !== false && scored !== 0 && scored !== 1) return null;
   if (elapsed !== null && !(Number.isSafeInteger(elapsed) && (elapsed as number) >= 0)) return null;
   if (!nullableStr(request) || !str(instruction) || !str(schema)) return null;
+  if (category !== undefined && !nullableStr(category)) return null;
   return { transport, validation, scored: scored === true || scored === 1, elapsed_ms: elapsed as number | null,
-    request_id: request, instruction_version: instruction, schema_version: schema };
+    request_id: request, instruction_version: instruction, schema_version: schema,
+    failure_category: (category ?? null) as string | null };
 }
 
 function decodePlan(v: unknown): PlanReference | null | undefined {
@@ -196,7 +199,7 @@ export type Leg = { mark: "active" | "done" | "failed" | null; small: string; ta
 export type Legs = { mei: Leg; adp: Leg; rules: Leg; provider: Leg; nurse: Leg };
 
 /** Gate 3 section 10.5: ring, tick, red ring or none per leg; the tag moves only on handoff. */
-export function trackLegs(state: PanelState): Legs {
+export function trackLegs(state: PanelState, notSent = false): Legs {
   const failed = state === "request failed";
   const legs: Legs = {
     mei: { mark: null, small: failed ? "Still has to act" : "Says her plan back", tag: true },
@@ -206,7 +209,7 @@ export function trackLegs(state: PanelState): Legs {
     nurse: { mark: null, small: failed ? "Her fallback now" : "Fictional fallback", tag: false },
   };
   if (state === "pending") legs.adp.mark = "active";
-  if (READBACK_LANES.has(state) && state !== "pending") { legs.adp.mark = "done"; legs.rules.mark = "active"; }
+  if (READBACK_LANES.has(state) && state !== "pending") { legs.adp.mark = notSent ? null : "done"; legs.rules.mark = "active"; }
   if (state === "request sent") { legs.adp.mark = legs.rules.mark = "done"; legs.provider.mark = "active"; }
   if (failed) { legs.adp.mark = legs.rules.mark = "done"; legs.provider.mark = "failed"; }
   if (state === "handoff") { legs.mei.tag = false; legs.nurse.tag = true; legs.nurse.mark = "active"; }
@@ -255,7 +258,8 @@ export function stateCopy(state: PanelState, d: LedgerDetail | null): { headline
       return { headline: "Mei's answer does not match her plan.", paragraph: `Code found a different ${FIELD_NOUN[field]}. Mei is asked to try other words or show her plan.` };
     }
     case "uncertain": return { headline: "CareRelay could not confirm Mei's answer.", paragraph: `${actor} marked part of it as unclear, such as a “won't”, an “or” or a changed mind. Code does not guess, so Mei is asked again.` };
-    case "check did not run": return { headline: "The check did not run, so nothing changed.", paragraph: `${actor} refused, ran out of time or replied in the wrong shape. Mei sees one safe sentence and her plan stays as it was.` };
+    case "check did not run": if (d?.lastExtraction?.validation === "not_sent") return notSentCopy(d.lastExtraction.failure_category);
+      return { headline: "The check did not run, so nothing changed.", paragraph: `${actor} refused, ran out of time or replied in the wrong shape. Mei sees one safe sentence and her plan stays as it was.` };
     case "permission": return { headline: "Mei decides whether to share her plan.", paragraph: "Nothing is shared without her agreement. Only the action and the deadline would go to the simulated provider." };
     case "request sent": return { headline: "The simulated request is out. No reply yet.", paragraph: "A sent request is not care. Mei's case stays open until someone agrees." };
     case "request failed": return { headline: `The booking failed. CareRelay says so, and keeps the ${deadline} deadline.`, paragraph: "Mei agreed to share her plan so the simulated provider could book her in. The provider rejected the request. Nothing in the plan changed, and nobody is shown as helping." };
@@ -267,12 +271,30 @@ export function stateCopy(state: PanelState, d: LedgerDetail | null): { headline
   }
 }
 
+/** Slice 24 (Gate 3 section 11.7): the guard refused, so nothing left the server. */
+export const NOT_SENT_LABEL = "Not sent to Tencent ADP";
+const NOT_SENT_TAIL = " Tencent ADP was not contacted. Mei sees one safe sentence and her plan stays as it was.";
+export function notSentCopy(category: string | null): { headline: string; paragraph: string } {
+  const reason = category === "guard_halted" ? "Live checks are paused after an earlier call failed, until an operator reviews it."
+    : category === "guard_unfinished" ? "Another live check was still running, and only one runs at a time."
+    : category === "guard_episode_ceiling" || category === "guard_day_ceiling" || category === "guard_total_ceiling"
+      ? "The live-check limit set for this demo is reached."
+    : "Live checks are switched on but not set up safely, so nothing was sent.";
+  return { headline: "The check was not sent, so nothing changed.", paragraph: reason + NOT_SENT_TAIL };
+}
+
+/** The transport chip: a refused send is never shown as a live call. */
+export function transportLabel(e: Extraction): string {
+  return e.validation === "not_sent" ? NOT_SENT_LABEL : TRANSPORT_LABEL[e.transport];
+}
+
 export const READ_FAILED = { headline: "The judge panel cannot read this episode right now.", paragraph: "Nothing on this panel is a record until the read succeeds." };
 
 /** ADP lane heading from the stored validation and the spans this round's reader copied. */
 export function readerHeading(d: LedgerDetail): string {
   const actor = actorName(d);
   const v = d.lastExtraction?.validation;
+  if (v === "not_sent") return NOT_SENT_LABEL;
   if (v === "refused") return `${actor} refused`;
   if (v === "timeout") return `${actor} did not answer in time`;
   if (v === "invalid") return `${actor} replied in the wrong shape`;

@@ -401,11 +401,11 @@ export function PatientJourney(props: Props) {
     try {
       const result = await sendReadback(offer);
       if (result.state === "loaded" && offer.kind === "readback_started") {
-        window.location.assign("/"); // A fresh document removes the prior plan's HTML/RSC.
+        window.location.assign("/patient"); // A fresh document removes the prior plan's HTML/RSC.
         return;
       }
       if (result.state === "loaded" && offer.kind === "hide_plan" && initialServerAnswers.current) {
-        window.location.assign("/?focus=show-plan");
+        window.location.assign("/patient?focus=show-plan");
         return;
       }
       if (result.state !== "recovery" && (offer.kind === "show_plan" || offer.kind === "hide_plan")) {
@@ -471,7 +471,7 @@ export function PatientJourney(props: Props) {
           <p>{copy.reveal_fallback}</p>
         </>}
       </HintCard>
-      {recovery && <a className="control" href="/">{RECOVERY_COPY.retry}</a>}
+      {recovery && <a className="control" href="/patient">{RECOVERY_COPY.retry}</a>}
       {needsCheck && safety.phase === "start" && <button className="control primary" type="button"
         aria-disabled={busy(commandPending || formPending)}
         onClick={() => { if (!commandPending && !formPending) setSafety({ phase: "check", unchecked: [] }); }}>{ENTRY_COPY.start}</button>}

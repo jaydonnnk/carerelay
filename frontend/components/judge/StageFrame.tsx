@@ -28,7 +28,7 @@ export function StageFrame({ children }: { children: ReactNode }) {
     <div className="stage">
       <div className="phone-col">
         <div className="phone">
-          <iframe ref={frame} src="/" title="Patient screen" className="phone-frame" />
+          <iframe ref={frame} src="/patient" title="Patient screen" className="phone-frame" />
         </div>
         <p className="phone-caption">What Mei sees</p>
       </div>

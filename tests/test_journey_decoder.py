@@ -207,7 +207,7 @@ function find(node){if(!React.isValidElement(node))return null;
 const button=find(mod.exports.PatientJourney({state:"loaded",journey:plan}));
 if(!button)throw Error("missing start-readback control");await button.props.onClick();
 console.log(JSON.stringify(paths));''', [plan, redacted])
-    assert result == ["/"]
+    assert result == ["/patient"]
 
 
 def test_hide_response_keeps_focus_on_the_show_opener(plan, tmp_path):
