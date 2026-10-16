@@ -102,9 +102,9 @@ Lane and chip wording, APPROVED with two honesty corrections to the mockup:
   - Note: "Offline run: a test transport did the reading step. Tencent ADP was not contacted for this check."
 - Axis values: request sent "Not sent", "Sent", "Acknowledged" or "Failed"; proof of care "None" or "Simulated"; case "Still open", "Closed", "Handed to a human" or "Expired".
 
-### Judge copy for a send the guard refused: DRAFT 16 October 2026, needs Gate 1 approval
+### Judge copy for a send the guard refused: APPROVED 16 October 2026 with Gates 1 to 4
 
-[hypothesis] Drafted with Gate 2 section 15 and Gate 3 section 11.7 for Slice 24.
+[verified] Approved: "I approve all the gate changes". Drafted with Gate 2 section 15 and Gate 3 section 11.7 for Slice 24.
 Shown only on the judge stage when the stored extraction says `not_sent`. No patient string is added or changed: the patient keeps "We could not check that answer just now. Your plan has not changed."
 
 - Transport chip and ADP lane heading: "Not sent to Tencent ADP"

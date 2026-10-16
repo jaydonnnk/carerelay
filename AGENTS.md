@@ -1,5 +1,9 @@
 # CareRelay: project and execution instructions
 
+## Slice 24 hosted ADP guard: local Check ready, 16 October 2026
+
+[verified] Gates 1 to 4 re-approved ("I approve all the gate changes"); ceilings 5/100/300. Slice 24 is built uncommitted on `slice-24-hosted-adp-guard`, synced to main `34dc151`: 2,285 passed, 233 skips, one warning; 27 of 27 mutations RED; offline product run, leak scan and 375/1440 views pass. The Postgres guard path is unproven. `00-status.md` owns the receipt.
+
 ## Hosted ADP guard gates reopened: 16 October 2026
 
 [verified] Gates 2, 3 and 4 are reopened, and Gate 1 narrowly for judge copy, to design the durable reservation guard (draft `02-architecture.md` section 15, `03-program-design.md` section 11, `04-slices.md` Slice 24) on branch `hosted-adp-guard-gates`.
