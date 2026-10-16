@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
-import { Atkinson_Hyperlegible_Mono, Atkinson_Hyperlegible_Next } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 
-// Slice 22: Atkinson Hyperlegible, drawn for low-vision readers. `next/font` downloads it at
-// build time and serves it from this app, so the browser makes no third-party font request.
-const sans = Atkinson_Hyperlegible_Next({ subsets: ["latin"], weight: ["400", "600", "700", "800"], variable: "--font-sans", display: "swap", adjustFontFallback: false });
-const mono = Atkinson_Hyperlegible_Mono({ subsets: ["latin"], weight: ["400", "600"], variable: "--font-mono", display: "swap", adjustFontFallback: false });
+// Slice 22: Atkinson Hyperlegible, drawn for low-vision readers, served from this app so the
+// browser makes no third-party font request. The Latin variable files are committed in
+// `./fonts` (SIL Open Font License, texts alongside) instead of fetched from Google at build
+// time: that fetch intermittently broke builds, locally and on Vercel.
+const sans = localFont({ src: "./fonts/AtkinsonHyperlegibleNext-latin.woff2", weight: "400 800", variable: "--font-sans", display: "swap", adjustFontFallback: false });
+const mono = localFont({ src: "./fonts/AtkinsonHyperlegibleMono-latin.woff2", weight: "400 600", variable: "--font-mono", display: "swap", adjustFontFallback: false });
 
 export const metadata: Metadata = {
   title: "CareRelay",

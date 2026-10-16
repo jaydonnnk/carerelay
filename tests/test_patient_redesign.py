@@ -173,3 +173,14 @@ def test_s22_rendered_screens_match_the_approved_redesign(tmp_path):
 
     assert "We cannot load your plan" not in start_html and start_html.count("See the example") == 1
     assert "We cannot load your plan" in recovery_html and "See the example" not in recovery_html
+
+
+def test_fonts_are_self_hosted_and_never_fetched_at_build_time():
+    """The Google font download at build time intermittently broke builds; fonts ship in the repo."""
+    layout = (ROOT / "frontend/app/layout.tsx").read_text()
+    assert 'from "next/font/local"' in layout and "next/font/google" not in layout
+    for name in ("AtkinsonHyperlegibleNext-latin.woff2", "AtkinsonHyperlegibleMono-latin.woff2"):
+        assert f'"./fonts/{name}"' in layout
+        assert (ROOT / "frontend/app/fonts" / name).read_bytes()[:4] == b"wOF2"
+    for name in ("OFL-AtkinsonHyperlegibleNext.txt", "OFL-AtkinsonHyperlegibleMono.txt"):
+        assert "SIL OPEN FONT LICENSE" in (ROOT / "frontend/app/fonts" / name).read_text()
