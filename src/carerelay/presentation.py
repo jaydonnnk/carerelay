@@ -198,6 +198,13 @@ class LedgerSurface:
     simulated: bool
     fixture_label: str
     extractions: tuple[dict[str, object], ...] = ()
+    #: Slice 23 (Gate 3 section 10.2). The screen the patient read would select, from the
+    #: same pure derivation on this read-only bundle; `None` when it cannot be projected.
+    journey_step: str | None = None
+    interpretation: str | None = None
+    #: The stored plan's approved display values, present while the patient's copy is
+    #: folded away during read-back, so a judge can compare against it.
+    plan_reference: dict[str, object] | None = None
 
     def as_dict(self) -> dict[str, object]:
         """The serialised ledger. Order is stable so a test can pin it."""
@@ -221,6 +228,9 @@ class LedgerSurface:
             "fault_assertions": [a.as_dict() for a in self.fault_assertions],
             "simulated": self.simulated,
             "fixture_label": self.fixture_label,
+            "journey_step": self.journey_step,
+            "interpretation": self.interpretation,
+            "plan_reference": self.plan_reference,
         }
 
 def journey_surface(journey: JourneyProjection) -> dict[str, object]:

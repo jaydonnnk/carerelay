@@ -41,7 +41,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from datetime import tzinfo
 from typing import Protocol
 
@@ -1381,7 +1381,21 @@ class EpisodeService:
         episode. Each carries the values it was taken from.
         """
         from carerelay.adp_extraction import LIVE_PROFILE
+        from carerelay.state import InvalidJourneyRecord
         now_utc = self._clock.now_utc()
+        # Slice 23 (Gate 3 section 10.2): the step comes from the same pure derivation the
+        # patient read uses, on this read-only bundle. `project_journey` is never called here,
+        # because it may record expiry or a hint event. A record the patient reader cannot
+        # project gives nulls, which the judge panel treats as a failed read.
+        try:
+            journey = rules.derive_journey(bundle, now_utc=now_utc)
+            plan = rules.plan_view(bundle, now_utc=now_utc)
+        except (rules.DomainError, InvalidJourneyRecord):
+            journey = plan = None
+        # A fixed scenario clock stamps the claim and the completion with one instant, so
+        # their difference measures nothing. It is reported as unknown, never as 0 ms.
+        measured = not isinstance(self._clock, ScenarioClock)
+        claimed_at = {row["operation_id"]: row["recorded_at"] for row in bundle.commands if row["phase"] == "claimed"}
         located = {payload["operation_id"]: payload["span_locations"] for payload in
                    (json.loads(raw) for kind, raw, _ in bundle.events if kind == "extraction_located")}
         snapshot = bundle.snapshot
@@ -1473,8 +1487,9 @@ class EpisodeService:
                 "repair_round": r.repair_round,
                 "dwell_seconds": r.dwell_seconds,
                 "created_at": r.created_at.isoformat(),
+                "readback": _ledger_readback(r, bundle),
             }
-            for r in self._store.list_restatements(episode_id)
+            for r in bundle.restatements
         ]
         hint_events = [
             {
@@ -1569,9 +1584,19 @@ class EpisodeService:
                 "span_locations": located.get(row["operation_id"]),
                 "transport_provenance": "fake-offline" if row["transport_profile"] in {"fake-incremental-v1", "fake-complete-v1"}
                     else "https" if row["transport_profile"] == LIVE_PROFILE
-                    else "local-sim" if row["transport_profile"] == "offline" else "unknown"}
+                    else "local-sim" if row["transport_profile"] == "offline" else "unknown",
+                "elapsed_ms": _elapsed_ms(claimed_at.get(row["operation_id"]), row["recorded_at"]) if measured else None}
                 for row in bundle.commands if row["phase"] == "completed" and row["validation"] is not None)
-                + tuple(json.loads(payload) for kind, payload, _ in bundle.events if kind == "extraction_observed"),
+                + tuple({**json.loads(payload), "elapsed_ms": None} for kind, payload, _ in bundle.events if kind == "extraction_observed"),
+            journey_step=journey.step if journey is not None else None,
+            interpretation=journey.flow.interpretation if journey is not None else None,
+            plan_reference=None if plan is None else {
+                "disposition_version": plan.disposition_version,
+                "action_text": plan.action_text,
+                "deadline_display": plan.deadline_display,
+                "owner_display": plan.original_owner_display,
+                "fallback_display": plan.fallback_display,
+            },
         )
 
     def _fault_assertions(
@@ -2019,3 +2044,45 @@ __all__ = [
     "SystemClock",
     "UnconfirmedTranscript",
 ]
+
+
+def _ledger_readback(row, bundle) -> dict[str, object]:
+    """Read-back detail for one stored round, copied from stored records only.
+
+    The confirmed words come from the one `words_confirmed` event whose confirmation ID,
+    episode and plan version match this round's provenance. No match, or more than one,
+    gives `None`: another round's words are never shown in this round's place. Spans and
+    field results are the stored ones, never recomputed.
+    """
+    confirmation_id = (row.provenance or {}).get("confirmation_id")
+    matches = []
+    if isinstance(confirmation_id, str) and confirmation_id:
+        for kind, payload, _ in bundle.events:
+            if kind != "words_confirmed":
+                continue
+            try:
+                event = json.loads(payload)
+            except (ValueError, TypeError):
+                continue
+            if (isinstance(event, dict) and event.get("confirmation_id") == confirmation_id
+                    and event.get("episode_id") == row.episode_id
+                    and event.get("disposition_version") == row.disposition_version):
+                matches.append(event)
+    words = matches[0].get("text") if len(matches) == 1 else None
+    comparison = row.comparison
+    return {
+        "confirmed_words": words if isinstance(words, str) and 0 < len(words) <= 2048 else None,
+        "spans": {"action_id": row.extracted.action_span, "deadline_utc": row.extracted.deadline_span,
+                  "next_owner_id": row.extracted.next_owner_span},
+        "fields": {field: ("matched" if field in comparison.matched else
+                           "mismatched" if field in comparison.mismatched else "uncertain")
+                   for field in ("action_id", "deadline_utc", "next_owner_id")},
+    }
+
+
+def _elapsed_ms(claimed: str | None, completed: str | None) -> int | None:
+    """Server time from an operation's stored claim to its stored completion, whole ms."""
+    if not claimed or not completed:
+        return None
+    delta = datetime.fromisoformat(completed) - datetime.fromisoformat(claimed)
+    return delta // timedelta(milliseconds=1) if delta >= timedelta(0) else None

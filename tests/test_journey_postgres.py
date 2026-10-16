@@ -966,3 +966,28 @@ s.request_appointment(OperationBinding(**{asdict(binding)!r}))
         assert len(calls) == len(restarted._store.list_attempts(ep)) == 1
     finally:
         restarted._store.close()
+
+
+def test_postgres_ledger_readback_detail_matches_sqlite_shape(pg_readback, tmp_path):
+    """Slice 23 (Gate 2 D20): both engines return the same read-back detail, and the read writes nothing."""
+    import uuid
+    from test_field_repair import start_readback, confirm, score
+    def flow(service, episode):
+        start_readback(service, episode)
+        confirm(service, episode, "I will go to the clinic myself today before 8pm")
+        score(service, episode)
+        return service.project_ledger(episode).as_dict()
+    service, _ = pg_readback
+    ep = "fictional-pg23-" + uuid.uuid4().hex
+    engine = flow(service, ep)
+    events = len(service._store.list_events(ep))
+    assert service.project_ledger(ep).as_dict() == engine and len(service._store.list_events(ep)) == events
+    sqlite = make_sqlite_service(tmp_path / "shape.sqlite")
+    try:
+        local = flow(sqlite, ep)
+    finally:
+        sqlite._store.close()
+    for key in ("journey_step", "interpretation", "plan_reference"):
+        assert engine[key] == local[key], key
+    assert [r["readback"] for r in engine["restatements"]] == [r["readback"] for r in local["restatements"]]
+    assert [e["elapsed_ms"] for e in engine["extractions"]] == [e["elapsed_ms"] for e in local["extractions"]] == [None]

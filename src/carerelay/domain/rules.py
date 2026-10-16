@@ -1106,21 +1106,15 @@ class JourneyUnavailable(DomainError):
     """The current reader cannot safely project this stored journey."""
 
 
-def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjection:
-    """Select a screen from one stored snapshot; never perform or infer care."""
-    if not bundle.episode_id or type(bundle.revision) is not int or not 0 <= bundle.revision <= 9007199254740991:
-        raise JourneyUnavailable("invalid journey identity or revision")
-    base = JourneyProjection(
-        episode_id=bundle.episode_id, revision=bundle.revision,
-        as_of_utc=now_utc, flow=FlowView(), text={}, fixture_label="",
-    )
-    pending = _journey_pending(bundle.commands)
+def plan_view(bundle: JourneyBundle, *, now_utc: datetime) -> PlanView | None:
+    """The stored plan as approved display values, before any read-back redaction.
+
+    One builder for the patient journey and the judge ledger (Gate 3 section 10.2), so the
+    two cannot describe different plans. Pure: it reads the bundle and writes nothing.
+    """
+    if bundle.snapshot.disposition is None:
+        return None
     disposition = bundle.snapshot.disposition
-    if disposition is None:
-        created = any(r["phase"] == "completed" and r["kind"] == "create" and
-                      r["terminal_state"] == "applied" for r in bundle.commands)
-        return replace(base, flow=replace(base.flow, interpretation="pending" if pending else "idle"),
-                       commands=_journey_offers(("select_example",) if created else (), pending=pending))
     policy, text = bundle.policy, bundle.policy_text
     if policy is None or text is None or policy.version != disposition.policy_version or text.policy_version != disposition.policy_version:
         raise JourneyUnavailable("recorded policy unavailable")
@@ -1149,10 +1143,31 @@ def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjec
             raise JourneyUnavailable("current owner display unavailable")
     original_owner = "You" if disposition.next_owner_id == text.self_owner_id else original_owner
     current_owner = "You" if closure.action_owner_id == text.self_owner_id else current_owner
-    plan = PlanView(disposition.version, disposition.policy_version, disposition.action_id,
+    return PlanView(disposition.version, disposition.policy_version, disposition.action_id,
         action, disposition.clinical_deadline_utc, deadline, "Asia/Singapore",
         disposition.next_owner_id, original_owner, closure.action_owner_id, current_owner,
         disposition.fallback_route_id, fallback)
+
+
+def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjection:
+    """Select a screen from one stored snapshot; never perform or infer care."""
+    if not bundle.episode_id or type(bundle.revision) is not int or not 0 <= bundle.revision <= 9007199254740991:
+        raise JourneyUnavailable("invalid journey identity or revision")
+    base = JourneyProjection(
+        episode_id=bundle.episode_id, revision=bundle.revision,
+        as_of_utc=now_utc, flow=FlowView(), text={}, fixture_label="",
+    )
+    pending = _journey_pending(bundle.commands)
+    disposition = bundle.snapshot.disposition
+    if disposition is None:
+        created = any(r["phase"] == "completed" and r["kind"] == "create" and
+                      r["terminal_state"] == "applied" for r in bundle.commands)
+        return replace(base, flow=replace(base.flow, interpretation="pending" if pending else "idle"),
+                       commands=_journey_offers(("select_example",) if created else (), pending=pending))
+    plan = plan_view(bundle, now_utc=now_utc)
+    policy, text = bundle.policy, bundle.policy_text
+    display_tz = timezone(timedelta(hours=8))
+    closure = derive_closure(bundle.snapshot, now_utc)
     snapshot = bundle.snapshot
     outcome = OutcomeView(closure.execution, closure.evidence, closure.closure,
         closure.care_evidenced, snapshot.accepted_by, snapshot.accepted_scope,
@@ -1312,7 +1327,7 @@ def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjec
             screen_text["feedback"] = "We could not confirm that. Try different words, or show your plan."
         if repair_field is not None and hint in {HintLevel.H2, HintLevel.H3}:
             screen_text.update(repair_example_label="Example answer:", repair_answer=latest.extracted.deadline_span or "",
-                repair_plan_label="The plan says:", repair_deadline="before " + deadline)
+                repair_plan_label="The plan says:", repair_deadline="before " + plan.deadline_display)
         if confirmed is not None:
             screen_text["saved_words"] = confirmed["text"]
         if extraction_pending:
