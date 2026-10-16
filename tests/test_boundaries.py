@@ -467,7 +467,7 @@ class TestPatientSurfaceHasNoTimerAndNoDwell:
             deadline_display_by_version={1: "6:00 PM on 30 September"},
             self_owner_id="patient",
             owner_display_by_id={"patient": "you", "caregiver": "your daughter"},
-            route_display_by_id={"nurse_line": "the fictional nurse line"},
+            route_display_by_id={"nurse_line": "the nurse helpline"},
             simulated=True,
         )
         lines = rules.patient_lines(snapshot, closure, text)
@@ -1147,7 +1147,7 @@ def scan_no_plan_surface(serialized: str) -> list[str]:
 NO_PLAN_NEEDLES = {
     "arranged": "Help is arranged.", "nothing_needed": "Nothing more is needed from you.",
     "agreed": "Someone has agreed to help.", "no_action": "You do not need to act now.",
-    "passed": "We have passed this to the fictional nurse line.",
+    "passed": "We have passed this to the nurse helpline.",
     "facility": "Fixture " + "Hospital", "clinician": "Dr Fixture Needle",
     "credential": "authorization: bearer " + "synthetic-fixture-only",
     "private_path": "C:" + "\\fixture\\private-key.txt", "receipt": "provider_ref=fictional-unlabelled",

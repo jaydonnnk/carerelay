@@ -177,8 +177,8 @@ def test_l5_plan_reference_survives_readback_redaction(tmp_path, case):
         journey = service.project_journey(episode)
         assert journey.step == case and journey.plan is None, "the patient's plan is folded away"
         assert ledger["plan_reference"] == {"disposition_version": 1,
-            "action_text": "Go to the fictional provider's same-day review.", "deadline_display": "6pm today",
-            "owner_display": "You", "fallback_display": "the fictional nurse line"}
+            "action_text": "Go to the clinic for a same-day review.", "deadline_display": "6pm today",
+            "owner_display": "You", "fallback_display": "the nurse helpline"}
     finally:
         service._store.close()
 

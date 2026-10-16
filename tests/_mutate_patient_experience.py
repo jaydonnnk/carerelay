@@ -2482,11 +2482,11 @@ def add_slice20_mutations(add):
         add("Slice20 G23 pending focus " + name, journey, old, new, selector)
     card = D + "test_s20_revealed_card_carries_approved_label_and_fallback"
     for name, target, old, new in [
-        ("server label", RULES, 'reveal_notice="Fictional plan. No real care.",\n', ''),
+        ("server label", RULES, ' reveal_notice="Simulated demo. Not medical advice.",\n', '\n'),
         ("server fallback template", RULES, 'reveal_fallback=f"If that does not work, call {plan.fallback_display}.")',
             'reveal_fallback=plan.fallback_display)'),
-        ("visible only", RULES, 'if visible:\n        screen_text.update(revealed_heading="Your example plan", reveal_notice=',
-            'if True:\n        screen_text.update(revealed_heading="Your example plan", reveal_notice='),
+        ("visible only", RULES, 'if visible:\n        screen_text.update(revealed_heading="Your plan", reveal_notice=',
+            'if True:\n        screen_text.update(revealed_heading="Your plan", reveal_notice='),
         ("decoder label key", DECODER, '"revealed_heading", "reveal_notice", "reveal_action_label"', '"revealed_heading", "reveal_action_label"'),
         ("rendered label", journey, '<p className="demo-label">{copy.reveal_notice}</p>', '{null}'),
         ("rendered fallback", journey, '<p>{copy.reveal_fallback}</p>', '{null}'),

@@ -52,9 +52,17 @@ FIXTURE_LABEL = "SIMULATED — RESEARCH DEMONSTRATION. Not clinical advice."
 POLICY_VERSION = "fixture-provisional-0"
 DEMO_EPISODE_ID = "demo-episode-001"
 
-ACTION_TEXT = "Go to the fictional provider's same-day review."
+ACTION_TEXT = "Go to the clinic for a same-day review."
 DEADLINE_DISPLAY = "6pm today"
-FALLBACK_ROUTE_TEXT = "the fictional nurse line"
+FALLBACK_ROUTE_TEXT = "the nurse helpline"
+
+#: The wording the cut Gate B study froze into its pre-registered protocol and
+#: fixed card (`docs/study/`). The product wording changed on 16 October 2026
+#: (Gate 1); a frozen pre-registration is not rewritten, so the study instrument
+#: keeps quoting these.
+STUDY_V1_ACTION_TEXT = "Go to the fictional provider's same-day review."
+STUDY_V1_FALLBACK_ROUTE_TEXT = "the fictional nurse line"
+STUDY_V1_ROUTE_DISPLAY = {"fictional_provider": "the fictional provider", "nurse_line": STUDY_V1_FALLBACK_ROUTE_TEXT}
 
 #: Line 2, for a demo episode whose owner is the patient. `domain.rules.patient_lines`
 #: owns this rule and renders a third-party owner as "Please act now: you, or
@@ -234,7 +242,7 @@ def policy_text() -> PolicyText:
         self_owner_id=NEXT_OWNER_ID,
         owner_display_by_id={NEXT_OWNER_ID: "you", "caregiver": "your daughter"},
         route_display_by_id={
-            "fictional_provider": "the fictional provider",
+            "fictional_provider": "the clinic",
             FALLBACK_ROUTE_ID: FALLBACK_ROUTE_TEXT,
         },
         simulated=True,
@@ -267,10 +275,10 @@ def disposition(episode_id: str, now_utc: datetime) -> Disposition:
     )
 
 # Exact Gate 1 entry/recovery mirror; no guidance belongs to a no-plan record.
-JOURNEY_LABEL = "Demo only · fictional plan · no real care"
+JOURNEY_LABEL = "Simulated demo. Not medical advice."
 JOURNEY_COPY = {
-    "start": {"heading": "Try an example", "status": "No plan yet.",
-              "description": "See what happens when a request fails.", "start": "See the example"},
+    "start": {"heading": "Your care plan", "status": "No plan yet.",
+              "description": "See how CareRelay helps you act on it.", "start": "Start"},
     "recovery": {"heading": "We cannot load your plan",
                  "description": "Keep the instructions you already have.",
                  "retry": "Try again", "loading": "Loading. Nothing is confirmed yet."},

@@ -1,13 +1,14 @@
 /** Whole-response validation; clinical values and screen selection come from the server. */
 export const ENTRY_COPY = {
-  heading: "Try an example", status: "No plan yet.",
-  description: "See what happens when a request fails.", start: "See the example",
+  heading: "Your care plan", status: "No plan yet.",
+  description: "See how CareRelay helps you act on it.", start: "Start",
 } as const;
+export const RESTART_LABEL = "Start again";
 export const RECOVERY_COPY = {
   heading: "We cannot load your plan", description: "Keep the instructions you already have.",
   retry: "Try again", loading: "Loading. Nothing is confirmed yet.",
 } as const;
-export const JOURNEY_LABEL = "Demo only · fictional plan · no real care";
+export const JOURNEY_LABEL = "Simulated demo. Not medical advice.";
 export const MAX_JOURNEY_BYTES = 16384;
 export const READBACK_KINDS = ["readback_started", "confirm_words", "score_words", "repair_words",
   "show_plan", "hide_plan", "h3", "supersede_extraction"] as const;
@@ -315,9 +316,9 @@ export async function readPrepared(response: Response): Promise<string | null> {
     /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value.operation_token) ? value.operation_token : null;
 }
 
-/** Slice 22 approved Gate 1 strings (`patient-experience-copy.md`, 16 October 2026). */
+/** Approved Gate 1 strings (`patient-experience-copy.md`, Slice 22 and the 16 October 2026 wording change). */
 export const SLIP_COPY = {
-  heading: "Your example plan", notice: "Fictional plan. No real care.", short_notice: "Fictional",
+  heading: "Your plan",
   folded: "Your plan is folded away while you say it in your words.",
   action_label: "What to do", deadline_label: "Before", owner_label: "Who acts",
 } as const;

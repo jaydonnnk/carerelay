@@ -217,6 +217,8 @@ p.ledger-note {
 .journey :focus-visible { outline: 3px solid var(--act); outline-offset: 3px; }
 .journey-new-example { display: block; width: fit-content; color: var(--act); font-weight: 600; text-underline-offset: 3px; }
 .journey .screen > .journey-new-example { margin-top: 1.4rem; }
+.journey-footer { max-width: var(--column); margin: 0 auto; padding: 1rem 1rem 2rem; border-top: 1px solid var(--rule);
+  font-size: .78em; color: var(--muted); }
 .skip-link { position: absolute; left: -10000px; }
 .skip-link:focus { left: 1rem; top: 1rem; padding: .5rem; background: #fff; color: var(--act); }
 

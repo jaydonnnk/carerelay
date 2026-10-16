@@ -71,10 +71,10 @@ MUTATIONS = [
      'TestReadBackPolarity::test_partial_answer_does_not_invent_an_owner_from_a_substring[myselfish]'),
     ("fixture action recognition", "src/carerelay/demo/fixture.py",
      '    ACTION_TEXT.rstrip(".").casefold(): ACTION_ID,\n', '',
-     "TestReadBackPolarity::test_known_positive_answers_still_match[Go to the fictional provider's same-day review before 6pm today and you are the owner.]"),
+     "TestReadBackPolarity::test_known_positive_answers_still_match[Go to the clinic for a same-day review before 6pm today and you are the owner.]"),
     ("fixture deadline recognition", "src/carerelay/demo/fixture.py",
      '    "before 6pm today": (0, "18:00"),\n', '',
-     "TestReadBackPolarity::test_known_positive_answers_still_match[Go to the fictional provider's same-day review before 6pm today and you are the owner.]"),
+     "TestReadBackPolarity::test_known_positive_answers_still_match[Go to the clinic for a same-day review before 6pm today and you are the owner.]"),
 ]
 MUTATIONS += [('H3 response truth',
   'src/carerelay/service.py',

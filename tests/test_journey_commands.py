@@ -673,7 +673,7 @@ def s17_permission_projection(tmp_path):
     body["commands"] = [{"kind": k, "offer_id": k, "permitted_choice_ids": [],
         "operation_token": s17_frontend_token(k)} for k in ("grant_share", "decline_share", "request")]
     body["question"] = {"question_id": "permission", "text": "May we share your plan?", "choices": []}
-    body["text"] = dict(heading="May we share your plan?", description="With the fictional provider, to request an appointment.",
+    body["text"] = dict(heading="May we share your plan?", description="With the clinic, to request an appointment.",
         shared="Shared: the action and deadline. No caregiver message.", consent_label="I agree to share this plan.",
         consent_error="Agree above, or choose “Not now”.", request_label="Try the simulated request", decline_label="Not now")
     return body
@@ -867,10 +867,10 @@ def test_s20_pending_controls_stay_focusable_and_say_busy(s17_permission_project
     readback["step"] = "readback"
     readback["question"] = None
     readback["commands"] = [{"kind": k, "offer_id": k, "permitted_choice_ids": [], "operation_token": k} for k in ("confirm_words", "score_words", "show_plan")]
-    readback["text"] = dict(heading="What is your plan?", input_label="Your words", input_help="Demo: use made-up words only.",
+    readback["text"] = dict(heading="What is your plan?", input_label="Your words", input_help="Please don't enter personal details.",
         input_error="Add your words, or show your plan.", review_label="Review my answer", answer_label="Your answer",
         preview_label="Preview only. Not checked or saved.", confirmation_label="Save and check these words",
-        confirmation_help="This saves the words shown above and checks them against your example plan.",
+        confirmation_help="This saves the words shown above and checks them against your plan.",
         retry_label="Check these words again", retry_help="This ends any previous check of these saved words and starts a new check.",
         show_label="Show my plan", saved_words="go to the clinic")
     draft = copy.deepcopy(readback)
@@ -928,7 +928,7 @@ console.log(JSON.stringify({{pending:await render(pendingReact),rest:await rende
     # Start, read-back, show, review, confirm, retry, two radios, continue, checkbox, request, decline.
     assert commands >= 13
     labels = " ".join(result["pending"])
-    for label in ("See the example", "Say it in your words", "Show my plan", "Review my answer", "Save and check these words",
+    for label in ("Start", "Say it in your words", "Show my plan", "Review my answer", "Save and check these words",
                   "Check these words again", "Continue", "Try the simulated request", "Not now"):
         assert label in labels, label
     rest = [c for html in result["rest"] for c in controls(html)]
@@ -1194,7 +1194,7 @@ def test_s20_revealed_card_carries_approved_label_and_fallback(tmp_path):
     """Slice 20: the modal hides the page's simulation label from assistive technology.
 
     The approved card (`patient-experience-copy.md`, mockup 02-readback) therefore
-    carries "Fictional plan. No real care." and the plan's fallback sentence itself.
+    carries "Simulated demo. Not medical advice." and the plan's fallback sentence itself.
     The actual server projection after a recorded Show is decoded and rendered by the
     production component; the hidden projection after Hide carries neither string.
     """
@@ -1212,10 +1212,10 @@ def test_s20_revealed_card_carries_approved_label_and_fallback(tmp_path):
     finally:
         service._store.close()
     shown, hidden = json.loads(json.dumps(shown)), json.loads(json.dumps(hidden))
-    assert shown["text"].get("reveal_notice") == "Fictional plan. No real care."
-    assert shown["text"].get("reveal_fallback") == "If that does not work, call the fictional nurse line."
+    assert shown["text"].get("reveal_notice") == "Simulated demo. Not medical advice."
+    assert shown["text"].get("reveal_fallback") == "If that does not work, call the nurse helpline."
     assert not {"reveal_notice", "reveal_fallback"} & set(hidden["text"])
-    assert "Fictional plan. No real care." not in json.dumps(hidden) and "nurse line" not in json.dumps(hidden)
+    assert "reveal_notice" not in json.dumps(hidden) and "nurse helpline" not in json.dumps(hidden)
     react = (ROOT / "frontend/node_modules/react/index.js").as_uri()
     result = node(f'''import {{readFileSync}} from 'node:fs';
 import ts from {json.dumps((ROOT / "frontend/node_modules/typescript/lib/typescript.js").as_uri())};
@@ -1239,11 +1239,11 @@ console.log(JSON.stringify({{decoded:decoded.map(x=>x!==null),html:decoded.map(j
         [shown, hidden])
     assert result["decoded"] == [True, True]
     card = result["html"][0][result["html"][0].index("<dialog"):result["html"][0].index("</dialog>")]
-    order = ["Your example plan", "Fictional plan. No real care.", "What to do", "Before", "Who acts",
-             "If that does not work, call the fictional nurse line.", "Back to my answer"]
+    order = ["Your plan", "Simulated demo. Not medical advice.", "What to do", "Before", "Who acts",
+             "If that does not work, call the nurse helpline.", "Back to my answer"]
     positions = [card.find(text) for text in order]
     assert -1 not in positions and positions == sorted(positions), positions
-    assert "<dialog" not in result["html"][1] and "Fictional plan. No real care." not in result["html"][1]
+    assert "<dialog" not in result["html"][1]
 
 
 def test_s20_pending_command_speaks_in_the_one_status_region(s17_permission_projection):
@@ -1257,10 +1257,10 @@ def test_s20_pending_command_speaks_in_the_one_status_region(s17_permission_proj
     readback["step"] = "readback"
     readback["question"] = None
     readback["commands"] = [{"kind": "confirm_words", "offer_id": "confirm_words", "permitted_choice_ids": [], "operation_token": "confirm_words"}]
-    readback["text"] = dict(heading="What is your plan?", input_label="Your words", input_help="Demo: use made-up words only.",
+    readback["text"] = dict(heading="What is your plan?", input_label="Your words", input_help="Please don't enter personal details.",
         input_error="Add your words, or show your plan.", review_label="Review my answer", answer_label="Your answer",
         preview_label="Preview only. Not checked or saved.", confirmation_label="Save and check these words",
-        confirmation_help="This saves the words shown above and checks them against your example plan.")
+        confirmation_help="This saves the words shown above and checks them against your plan.")
     feedback = copy.deepcopy(readback)
     feedback["text"]["feedback"] = "Checking your saved words. Your plan has not changed."
     react = (ROOT / "frontend/node_modules/react/index.js").as_uri()

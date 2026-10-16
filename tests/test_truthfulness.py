@@ -96,7 +96,7 @@ def assert_unresolved(patient, ledger):
     assert patient["closure"] == "open"
     assert patient["lines"] == ["No one has agreed to help yet.", "Please act now.",
                                  "Please do it before 6pm today.",
-                                 "If that does not work, call the fictional nurse line."]
+                                 "If that does not work, call the nurse helpline."]
     assert patient["care_evidenced"] is False
     assert ledger["axes"]["closure"] == "open"
     assert ledger["axes"]["action_owner_id"] == "patient"
@@ -124,7 +124,7 @@ class TestFailedHandoff:
         assert client.post(BASE + "/escalations", json={"human_path": "nurse_line", "outcome": "handed_off"}).status_code == 200
         patient, ledger = surfaces(client)
         assert patient["closure"] == "escalated_to_human"
-        assert patient["lines"][0] == "We have passed this to the fictional nurse line."
+        assert patient["lines"][0] == "We have passed this to the nurse helpline."
         assert patient["lines"][1] == "You do not need to act now."
         assert ledger["axes"]["action_owner_id"] == "nurse_line"
         assert patient["care_evidenced"] is False
@@ -213,7 +213,7 @@ class TestAcceptanceAuthority:
         assert response.status_code == 200
         patient, ledger = surfaces(client)
         assert patient["lines"] == ["Someone has agreed to help.", "You do not need to act now.",
-                                    "It is set for 6pm today.", "If that does not happen, call the fictional nurse line."]
+                                    "It is set for 6pm today.", "If that does not happen, call the nurse helpline."]
         assert patient["closure"] == "closed_with_evidence"
         assert patient["care_evidenced"] is False
         assert ledger["axes"]["action_owner_id"] == "caregiver"
@@ -259,7 +259,7 @@ class TestReadBackPolarity:
 
     @pytest.mark.parametrize("text", [
         "I will see the doctor today before 6pm myself.",
-        "Go to the fictional provider's same-day review before 6pm today and you are the owner.",
+        "Go to the clinic for a same-day review before 6pm today and you are the owner.",
         "I will go to the clinic today before six myself.",
         "I will see the doctor today before 6pm myself. I am not worried.",
         "I should see the doctor today before 6pm myself.",

@@ -93,7 +93,7 @@ REDIRECT_ANSWER = "I cannot answer that. Please give me your own answer."
 #: rather than derived.
 DONT_KNOW_TEXT = "I don't know"
 ACTION_OPTION_TEXT: tuple[str, ...] = (
-    fixture.ACTION_TEXT,
+    fixture.STUDY_V1_ACTION_TEXT,
     "Call the fictional nurse line.",
     "Wait and monitor.",
     DONT_KNOW_TEXT,

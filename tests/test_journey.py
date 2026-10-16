@@ -79,7 +79,7 @@ def test_s17_permission_dispatch_and_callback_are_separate(tmp_path):
         failed = service.project_journey(ep)
         assert failed.step == "unresolved" and failed.text["heading"] == "The request did not work"
         assert failed.lines == ("No one has agreed to help yet.", "Please act now.",
-            "Please do it before 6pm today.", "If that does not work, call the fictional nurse line.")
+            "Please do it before 6pm today.", "If that does not work, call the nurse helpline.")
         assert failed.plan.current_owner_id == "patient"
         assert failed.plan.deadline_utc.isoformat() == "2026-09-30T10:00:00+00:00"
     finally:
@@ -94,7 +94,7 @@ def test_s17_unsupported_barrier_stops_without_request(tmp_path, choice):
         binding = s17_binding(service, ep, "select_barrier", choice)
         result = service.record_barrier_choice(binding, choice_id=choice)
         assert result.journey.step == "stopped" and result.journey.flow.stopped
-        assert result.journey.text["feedback"] == "This example cannot help with that."
+        assert result.journey.text["feedback"] == "We cannot help with that here."
         assert not service._store.list_attempts(ep)
         assert service.record_barrier_choice(binding, choice_id=choice).receipt.replayed
     finally:
@@ -904,11 +904,11 @@ MATRIX = {
     "pending": ("plan", None, "open", "patient", False),
 }
 OUTCOME_LINES = {
-    "open": ["No one has agreed to help yet.", "Please act now.", "Please do it before 6pm today.", "If that does not work, call the fictional nurse line."],
-    "accepted": ["Someone has agreed to help.", "You do not need to act now.", "It is set for 6pm today.", "If that does not happen, call the fictional nurse line."],
-    "handoff": ["We have passed this to the fictional nurse line.", "You do not need to act now.", "It is set for 6pm today.", "If that does not work, call the fictional nurse line."],
-    "expired": ["No one has agreed to help yet.", "You can still do this.", "It is past 6pm today. Please go now.", "Call the fictional nurse line. They can help from here."],
-    "documented": ["Help is arranged.", "Nothing more is needed from you.", "It is set for 6pm today.", "If that does not happen, call the fictional nurse line."],
+    "open": ["No one has agreed to help yet.", "Please act now.", "Please do it before 6pm today.", "If that does not work, call the nurse helpline."],
+    "accepted": ["Someone has agreed to help.", "You do not need to act now.", "It is set for 6pm today.", "If that does not happen, call the nurse helpline."],
+    "handoff": ["We have passed this to the nurse helpline.", "You do not need to act now.", "It is set for 6pm today.", "If that does not work, call the nurse helpline."],
+    "expired": ["No one has agreed to help yet.", "You can still do this.", "It is past 6pm today. Please go now.", "Call the nurse helpline. They can help from here."],
+    "documented": ["Help is arranged.", "Nothing more is needed from you.", "It is set for 6pm today.", "If that does not happen, call the nurse helpline."],
 }
 
 

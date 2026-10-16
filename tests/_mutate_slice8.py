@@ -222,8 +222,8 @@ MUTATIONS: list[tuple[str, str, bytes, bytes, list[str]]] = [
     (
         "B1a the scorer stops withdrawing the fixture's action vocabulary",
         SCORING_MODULE,
-        b"    sorted(set(FIXTURE_ACTION_FORMS) | {fixture.ACTION_TEXT})",
-        b"    sorted(set() | {fixture.ACTION_TEXT})",
+        b"    sorted(set(FIXTURE_ACTION_FORMS) | {fixture.STUDY_V1_ACTION_TEXT})",
+        b"    sorted(set() | {fixture.STUDY_V1_ACTION_TEXT})",
         [
             f"{SCORING}",
             "-k",

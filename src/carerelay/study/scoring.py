@@ -144,7 +144,7 @@ DIFFERENT_ACTION_FORMS: tuple[str, ...] = tuple(
 )
 
 ACCEPTED_ACTION_FORMS: tuple[str, ...] = tuple(
-    sorted(set(FIXTURE_ACTION_FORMS) | {fixture.ACTION_TEXT})
+    sorted(set(FIXTURE_ACTION_FORMS) | {fixture.STUDY_V1_ACTION_TEXT})
 )
 
 AFFIRMATIVE_ANSWERS: frozenset[str] = frozenset(

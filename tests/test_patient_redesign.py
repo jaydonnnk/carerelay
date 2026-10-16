@@ -152,8 +152,8 @@ def test_s22_rendered_screens_match_the_approved_redesign(tmp_path):
                    {"state": "recovery"}])
     plan_html, readback_html, failed_html, start_html, recovery_html = html
 
-    assert 'class="slip"' in plan_html and "Your example plan" in plan_html and "Step 1 of 4" in plan_html
-    for value in ("Go to the fictional provider", "6pm today", "You"):
+    assert 'class="slip"' in plan_html and "Your plan" in plan_html and "Step 1 of 4" in plan_html
+    for value in ("Go to the clinic for a same-day review.", "6pm today", "You"):
         assert value in plan_html
     assert 'type="checkbox"' not in plan_html and "Not now" not in plan_html
     assert "Show my plan" not in plan_html and "Say it in your words" in plan_html
@@ -163,16 +163,16 @@ def test_s22_rendered_screens_match_the_approved_redesign(tmp_path):
     assert "Show my plan" in folded[:folded.index("</section>")]
     assert "6pm" not in readback_html and "Step 2 of 4" in readback_html
 
-    assert failed_html.count('class="slip"') == 1 and ">Fictional<" in failed_html
+    assert failed_html.count('class="slip"') == 1 and "Fictional" not in failed_html
     lines = ["No one has agreed to help yet.", "Please act now.", "Please do it before 6pm today.",
-             "If that does not work, call the fictional nurse line."]
+             "If that does not work, call the nurse helpline."]
     positions = [failed_html.index(line) for line in lines]
     assert positions == sorted(positions)
     assert failed_html.index('class="slip"') < positions[3]
     assert "Step " not in failed_html and 'type="checkbox"' not in failed_html and "Not now" not in failed_html
 
-    assert "We cannot load your plan" not in start_html and start_html.count("See the example") == 1
-    assert "We cannot load your plan" in recovery_html and "See the example" not in recovery_html
+    assert "We cannot load your plan" not in start_html and start_html.count(">Start<") == 1
+    assert "We cannot load your plan" in recovery_html and ">Start<" not in recovery_html
 
 
 def test_fonts_are_self_hosted_and_never_fetched_at_build_time():

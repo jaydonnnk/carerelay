@@ -248,8 +248,8 @@ POLICY_TEXT = PolicyText(
     self_owner_id="patient",
     owner_display_by_id={"patient": "you", "caregiver": "your daughter"},
     route_display_by_id={
-        "nurse_line": "the fictional nurse line",
-        "fictional_provider": "the fictional provider",
+        "nurse_line": "the nurse helpline",
+        "fictional_provider": "the clinic",
     },
     simulated=True,
 )
@@ -1582,7 +1582,7 @@ class TestPatientLines:
         assert closure.closure is ClosureState.ESCALATED_TO_HUMAN
         assert closure.action_owner_id == "nurse_line"
         lines = rules.patient_lines(snapshot, closure, POLICY_TEXT)
-        assert lines[0] == "We have passed this to the fictional nurse line."
+        assert lines[0] == "We have passed this to the nurse helpline."
         assert lines[1] == "You do not need to act now."
         assert POLICY_TEXT.deadline_display_by_version[1] in lines[2]
         assert "does not work" in lines[3]

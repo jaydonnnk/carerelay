@@ -612,7 +612,7 @@ class TestTheClosedRecallInstrument:
         """Options B and C are renderings the amendment wrote under the five copy
         rules, so they are pinned here rather than derived from the fixture."""
         protocol = " ".join(PROTOCOL_PATH.read_text(encoding="utf-8").split())
-        assert f"A. {fixture.ACTION_TEXT}" in protocol
+        assert f"A. {fixture.STUDY_V1_ACTION_TEXT}" in protocol
         assert "B. Call the fictional nurse line." in protocol
         assert "C. Wait and monitor." in protocol
 

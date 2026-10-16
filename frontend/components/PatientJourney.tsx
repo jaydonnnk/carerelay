@@ -2,7 +2,7 @@
 import { useActionState, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { startExample, selectExample, prepareReadbackWords, submitReadback, prepareBarrierChoice, submitPermission, type ActionResult } from "@/app/actions";
-import { ENTRY_COPY, RECOVERY_COPY, JOURNEY_LABEL, SLIP_COPY, notifyParent, progressStep, progressLabel, reconcileJourney, startThenSelect,
+import { ENTRY_COPY, RECOVERY_COPY, JOURNEY_LABEL, RESTART_LABEL, SLIP_COPY, notifyParent, progressStep, progressLabel, reconcileJourney, startThenSelect,
   type Journey, type PlanView, type CommandOffer } from "@/lib/journey";
 import { HintCard } from "./HintCard";
 
@@ -32,9 +32,9 @@ function PlanRows({ plan, labels }: { plan: PlanView; labels: Record<string, str
   </dl>;
 }
 /** The plan as a yellow appointment slip (Gate 1, 16 October 2026). */
-function PlanSlip({ plan, labels, notice }: { plan: PlanView; labels: Record<string, string>; notice: string }) {
+function PlanSlip({ plan, labels }: { plan: PlanView; labels: Record<string, string> }) {
   return <section className="slip" aria-label={SLIP_COPY.heading}>
-    <p className="slip-head"><strong>{SLIP_COPY.heading}</strong><span>{notice}</span></p>
+    <p className="slip-head"><strong>{SLIP_COPY.heading}</strong></p>
     <PlanRows plan={plan} labels={labels} />
   </section>;
 }
@@ -375,14 +375,13 @@ export function PatientJourney(props: Props) {
     </header>
     {/* Focus lands here after a step change; its name says which step and status it is. */}
     <main id="main" className="screen" tabIndex={-1} ref={main} aria-labelledby="journey-heading journey-state">
-      <p className="demo-label">{journey?.fixture_label ?? JOURNEY_LABEL}</p>
       {progress !== null && <Progress step={progress} />}
       <h1 id="journey-heading" tabIndex={-1} ref={heading}>{recovery ? RECOVERY_COPY.heading : copy.heading}</h1>
       {!recovery && copy.status && <p id="journey-state" className="journey-status">{copy.status}</p>}
       {(recovery || copy.description && journey?.step !== "barrier") && <p>{recovery ? RECOVERY_COPY.description : copy.description}</p>}
-      {journey?.step === "plan" && slip && <PlanSlip plan={slip} labels={copy} notice={SLIP_COPY.notice} />}
+      {journey?.step === "plan" && slip && <PlanSlip plan={slip} labels={copy} />}
       {journey && <Lines lines={journey.lines} open={open}>
-        {journey.step === "unresolved" && slip && <PlanSlip plan={slip} labels={SLIP_COPY} notice={SLIP_COPY.short_notice} />}
+        {journey.step === "unresolved" && slip && <PlanSlip plan={slip} labels={SLIP_COPY} />}
       </Lines>}
       {journey?.question && journey.step !== "barrier" && journey.question.text !== copy.heading && <p className="journey-question">{journey.question.text}</p>}
       {folded && <section className="slip folded" aria-label={SLIP_COPY.folded}>
@@ -414,7 +413,8 @@ export function PatientJourney(props: Props) {
       {offer?.operation_token && <ExampleForm token={offer.operation_token} kind="select_example" onResult={onResult}
         onPending={reportPending} />}
       {current.state === "entry" && <a className="control primary" href="/example">{ENTRY_COPY.start}</a>}
-      {journey && <a className="journey-new-example" href="/example">{ENTRY_COPY.heading}</a>}
+      {journey && <a className="journey-new-example" href="/example">{RESTART_LABEL}</a>}
     </main>
+    <footer className="journey-footer">{journey?.fixture_label ?? JOURNEY_LABEL}</footer>
   </div>;
 }

@@ -90,8 +90,8 @@ POLICY_TEXT = PolicyText(
     self_owner_id=NEXT_OWNER_ID,
     owner_display_by_id={"patient": "you", "caregiver": "your daughter"},
     route_display_by_id={
-        "nurse_line": "the fictional nurse line",
-        "fictional_provider": "the fictional provider",
+        "nurse_line": "the nurse helpline",
+        "fictional_provider": "the clinic",
     },
     simulated=True,
 )
@@ -1475,7 +1475,7 @@ class TestSnapshotAndRestart:
         lines = patient_lines(seeded.store, AFTER_DEADLINE_UTC)
         assert lines[0] == "No one has agreed to help yet."
         assert "6:00 PM on 1 October" in lines[2]
-        assert lines[3].startswith("Call the fictional nurse line")
+        assert lines[3].startswith("Call the nurse helpline")
 
     def test_the_latest_attempt_is_the_one_projected(self, seeded: Seeded) -> None:
         first = open_attempt(seeded, purpose="booking")

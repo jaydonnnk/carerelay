@@ -1307,7 +1307,7 @@ def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjec
     # Approved dialog copy (`patient-experience-copy.md`): the modal hides the page's
     # simulation label, so the card carries its own, and the plan's fallback sentence.
     if visible:
-        screen_text.update(revealed_heading="Your example plan", reveal_notice="Fictional plan. No real care.",
+        screen_text.update(revealed_heading="Your plan", reveal_notice="Simulated demo. Not medical advice.",
                            reveal_action_label="What to do", reveal_deadline_label="Before", reveal_owner_label="Who acts",
                            reveal_fallback=f"If that does not work, call {plan.fallback_display}.")
     if not stopped and closure.closure is ClosureState.OPEN:
@@ -1318,11 +1318,11 @@ def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjec
         elif interpretation == "uncertain":
             screen_text["feedback"] = "We could not confirm that. Try different words, or show your plan."
     if step in {"readback", "repair"}:
-        screen_text.update(input_label="Your words", input_help="Demo: use made-up words only.",
+        screen_text.update(input_label="Your words", input_help="Please don't enter personal details.",
             input_error="Add your words, or show your plan.", review_label="Review my answer",
             preview_label="Preview only. Not checked or saved.", answer_label="Your answer",
             confirmation_label="Save and check these words",
-            confirmation_help="This saves the words shown above and checks them against your example plan.")
+            confirmation_help="This saves the words shown above and checks them against your plan.")
         if latest is not None and not latest.comparison.is_clean() and repair_field is None and interpretation not in {"pending", "unavailable"}:
             screen_text["feedback"] = "We could not confirm that. Try different words, or show your plan."
         if repair_field is not None and hint in {HintLevel.H2, HintLevel.H3}:
@@ -1346,7 +1346,7 @@ def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjec
             consent_error="Agree above, or choose “Not now”.",
             request_label="Try the simulated request", decline_label="Not now")
     if step == "stopped" and snapshot.flow_stop_reason == "barrier_stop":
-        screen_text["feedback"] = "This example cannot help with that."
+        screen_text["feedback"] = "We cannot help with that here."
     if "revoke_share" in allowed:
         screen_text["decline_label"] = "Not now"
     if "grant_share" in allowed:
@@ -1362,19 +1362,19 @@ def derive_journey(bundle: JourneyBundle, *, now_utc: datetime) -> JourneyProjec
 # Exact approved fixture wording, pinned to the recorded version. This is a
 # closed catalog, not a generated action or a configured-policy fallback.
 JOURNEY_ACTION_TEXT = {"fixture-provisional-0": {
-    "attend_same_day_review": "Go to the fictional provider's same-day review.",
+    "attend_same_day_review": "Go to the clinic for a same-day review.",
 }}
 JOURNEY_SCREEN_TEXT = {
     "plan": {"heading": "Your next step", "action_label": "What to do", "deadline_label": "Before", "owner_label": "Who acts"},
     "readback": {"heading": "What is your plan?"},
     "repair": {"heading": "Let’s check the time"},
     "barrier": {"heading": "What makes it difficult?", "description": "Choose one."},
-    "permission": {"heading": "May we share your plan?", "description": "With the fictional provider, to request an appointment.", "shared": "Shared: the action and deadline. No caregiver message."},
+    "permission": {"heading": "May we share your plan?", "description": "With the clinic, to request an appointment.", "shared": "Shared: the action and deadline. No caregiver message."},
     "unresolved": {"heading": "The request did not work"},
     "stopped": {"heading": "Let’s stop the questions"},
     "expired": {"heading": "Your plan still needs action"},
     "accepted": {"heading": "Your daughter agreed", "notice": "Simulated agreement. Care is not confirmed."},
-    "handoff": {"heading": "Handed to the nurse line", "notice": "Simulated handoff. Care is not confirmed."},
+    "handoff": {"heading": "Handed to the nurse helpline", "notice": "Simulated handoff. Care is not confirmed."},
     "documented": {"heading": "Help is arranged."},
 }
 IMPLEMENTED_JOURNEY_COMMANDS = frozenset({"select_example", "readback_started", "confirm_words", "score_words",

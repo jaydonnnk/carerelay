@@ -118,7 +118,7 @@ UNRESOLVED_LINES = (
     "No one has agreed to help yet.",
     "Please act now.",
     "Please do it before 6pm today.",
-    "If that does not work, call the fictional nurse line.",
+    "If that does not work, call the nurse helpline.",
 )
 
 #: The approved rendering after the deadline passed with nothing to show.
@@ -126,7 +126,7 @@ EXPIRED_LINES = (
     "No one has agreed to help yet.",
     "You can still do this.",
     "It is past 6pm today. Please go now.",
-    "Call the fictional nurse line. They can help from here.",
+    "Call the nurse helpline. They can help from here.",
 )
 
 #: Run in a child process, which is what a restart is. The patch dies inside

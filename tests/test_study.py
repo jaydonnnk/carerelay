@@ -427,18 +427,20 @@ class TestTheCardWordingMatchesTheFixture:
         rendered = re.findall(
             r'<li class="line"[^>]*>(.*?)</li>', _card_visible(), re.DOTALL
         )
-        assert [text.strip() for text in rendered] == list(fixture.demo_lines().as_tuple())
+        # The card froze the 30 September fallback wording (`fixture.STUDY_V1_*`).
+        assert [text.strip() for text in rendered] == [line.replace(fixture.FALLBACK_ROUTE_TEXT, fixture.STUDY_V1_FALLBACK_ROUTE_TEXT)
+            for line in fixture.demo_lines().as_tuple()]
 
     def test_the_card_carries_the_notice_verbatim(self) -> None:
         assert fixture.FIXTURE_LABEL in _card_visible()
 
     def test_the_card_carries_the_action_wording_verbatim(self) -> None:
-        assert fixture.ACTION_TEXT in _card_visible()
+        assert fixture.STUDY_V1_ACTION_TEXT in _card_visible()
 
     def test_the_card_carries_the_deadline_and_the_route_wording_verbatim(self) -> None:
         visible = _card_visible()
         assert fixture.DEADLINE_DISPLAY in visible
-        assert fixture.FALLBACK_ROUTE_TEXT in visible
+        assert fixture.STUDY_V1_FALLBACK_ROUTE_TEXT in visible
 
     def test_retired_api_page_is_not_used_as_a_study_comparator(self) -> None:
         from carerelay.api import app
@@ -469,7 +471,7 @@ class TestTheCardOffersExactlyThePermittedOptions:
         assert offered == set(fixture.policy().permitted_route_ids)
 
     def test_each_offered_route_is_named_with_its_policy_display_text(self) -> None:
-        display = fixture.policy_text().route_display_by_id
+        display = fixture.STUDY_V1_ROUTE_DISPLAY
         visible = _card_visible()
         for route_id in fixture.policy().permitted_route_ids:
             assert display[route_id] in visible, route_id
@@ -584,9 +586,9 @@ class TestTheProtocolIsAPreRegistration:
     def test_the_answer_key_is_the_fixture_and_is_stated(self) -> None:
         text = _protocol()
         for value in (
-            fixture.ACTION_TEXT,
+            fixture.STUDY_V1_ACTION_TEXT,
             fixture.DEADLINE_DISPLAY,
-            fixture.FALLBACK_ROUTE_TEXT,
+            fixture.STUDY_V1_FALLBACK_ROUTE_TEXT,
         ):
             assert value in text, value
 
@@ -644,7 +646,7 @@ class TestResponseScoring:
             score_false_completion("I think someone called them")
 
     def test_a_correct_action_is_scored_correct(self) -> None:
-        assert score_action_recall(fixture.ACTION_TEXT) is True
+        assert score_action_recall(fixture.STUDY_V1_ACTION_TEXT) is True
 
     @pytest.mark.parametrize("alias", FIXTURE_ACTION_FORMS)
     def test_every_action_alias_the_application_accepts_scores_correct(
