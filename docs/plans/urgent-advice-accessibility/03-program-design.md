@@ -1,5 +1,7 @@
 # Program design: CareRelay urgent-advice accessibility
 
+[verified] **Gate 3 REOPENED and RE-APPROVED 16 October 2026** for section 10 (judge view, ledger detail and patient redesign). The user answered "Approve Gates 2, 3 and 4 as drafted". Sections 1 to 9 are unchanged. `00-status.md` owns gate state.
+
 [verified user instruction] On 16 October 2026 the user answered "Sure i approve the experiment please finish up slice 21!" to the exact wording-only Gate 2/3/4 proposal and at most one ledger-reserved product call. The narrow amendment is RE-APPROVED. It preserves the v2 schema, published instruction v2, current model/settings, 15-second cap, all byte limits, no retry/fallback, default-off and code authority. Stop after that one live result. No shipping or additional live calls are authorised. `00-status.md` owns the receipt.
 
 [verified] Narrow Slice 21 span-text grounding amendment RE-APPROVED 15 October 2026.
@@ -1512,3 +1514,156 @@ are unchanged. Slice 14 implementation may resume after this explicit re-approva
 handoff remain prerequisites for Slice 15.
 
 **Re-approval recorded:** "approve", 13 October 2026.
+
+## 10. Judge view, ledger read-back detail and patient redesign: APPROVED 16 October 2026
+
+[verified] Gate 3 was REOPENED and RE-APPROVED 16 October 2026 for this section only.
+It designs Gate 2 section 14 (D19 to D21) against the Gate 1 redesign approved the same day.
+Sections 1 to 9, including 9.12, are unchanged. `00-status.md` owns gate state.
+Every behaviour and result below is planned, not observed.
+
+### 10.1 File ownership
+
+| File | Change | Owner of |
+|---|---|---|
+| `src/carerelay/domain/rules.py` | Narrow `derive_journey` offers; extract `plan_view(bundle, now_utc)` so the ledger and journey share one plan builder | Offers, plan view |
+| `src/carerelay/service.py` | `ledger` adds step, plan reference, read-back detail and `elapsed_ms`; still opens no write transaction | Ledger read |
+| `src/carerelay/presentation.py` | `LedgerSurface` gains `journey_step`, `interpretation`, `plan_reference`; `as_dict` order pinned | Ledger wire |
+| `frontend/middleware.ts` (new) | Node runtime, matcher `/` only; sets a locator when none is present | First-visit locator |
+| `frontend/app/page.tsx` | Not-found episode with a valid locator renders `start`, not `recovery` | Start state |
+| `frontend/components/PatientJourney.tsx` | Start press chains create then select; slip, fold, counter, icons; plan slip on `unresolved`; same-origin parent message | Patient presentation |
+| `frontend/components/icons.tsx` (new) | Inline SVG icons, `aria-hidden` | Icons |
+| `frontend/app/layout.tsx`, `frontend/app/globals.css` | `next/font` Atkinson Hyperlegible Next and Mono; token system from `design/mocks/redesign/redesign.css` | Visual system |
+| `frontend/app/demo/page.tsx` (new) | Judge start page, static | Judge start |
+| `frontend/app/demo/stage/page.tsx` (new) | Server component: locator, `getLedger`, strict decode, panel | Judge stage |
+| `frontend/components/judge/StageFrame.tsx` (new) | Client: phone frame, `iframe src="/"`, message listener, `router.refresh()`, Refresh control | Frame and refresh |
+| `frontend/components/judge/RelayTrack.tsx`, `ReadbackLanes.tsx`, `OutcomeLanes.tsx` (new) | Render panel parts from decoded values only | Panel markup |
+| `frontend/lib/judge.ts` (new) | `decodeLedgerDetail`, `panelState`, `trackLegs`, exact judge copy constants | Panel selection and copy |
+| `frontend/lib/api.ts` | `Ledger` type gains the new fields | Types only |
+| `frontend/next.config.mjs` | `headers()` adds `Content-Security-Policy: frame-ancestors 'self'` on every route | Framing policy |
+
+No route, table, migration, dependency, lockfile, CI or ADP setting changes.
+`/ledger` keeps its content; the stage links to it as "Open the full ledger".
+
+### 10.2 Ledger wire additions
+
+Exact additions; all other keys and their order are unchanged.
+
+```text
+journey_step:   null | "start" | "plan" | "readback" | "repair" | "barrier" | "permission"
+                | "unresolved" | "stopped" | "expired" | "accepted" | "handoff" | "documented"
+interpretation: null | "idle" | "pending" | "scored" | "unavailable" | "uncertain"
+plan_reference: null | { disposition_version: int, action_text: str, deadline_display: str,
+                         owner_display: str | null, fallback_display: str }
+restatements[i].readback: { confirmed_words: str | null,
+                            spans:  { action_id: str | null, deadline_utc: str | null, next_owner_id: str | null },
+                            fields: { action_id: R, deadline_utc: R, next_owner_id: R } }
+                where R = "matched" | "mismatched" | "uncertain"
+extractions[i].elapsed_ms: int >= 0 | null
+```
+
+Rules:
+
+- `journey_step` and `interpretation` come from one call to `rules.derive_journey(bundle, now_utc=self._clock.now_utc())` on the ledger's existing bundle. No `record_expiry_once`, `_event` or transaction write is reachable from `ledger`.
+- `plan_reference` comes from `rules.plan_view`, the same builder `derive_journey` uses before redaction.
+- `confirmed_words` joins `restatement.provenance["confirmation_id"]` to exactly one `words_confirmed` event with the same episode, disposition version and confirmation ID. Zero or several matches give `null`.
+- `spans` copy `RestatementRecord.extracted` and `fields` copy `RestatementRecord.comparison`; nothing is recomputed.
+- `elapsed_ms` is `completed.recorded_at - claimed.recorded_at` for the same operation ID, rounded down to whole milliseconds.
+- Every string stays within the existing 2,048-character bound.
+
+### 10.3 Strict panel decode
+
+`decodeLedgerDetail(value): LedgerDetail | null` checks only what the panel renders: enums above, bounded strings, `fields` with exactly the three keys, `elapsed_ms` a safe non-negative integer or null, and `simulated === true`.
+Any failure gives `null`, and the panel renders the "panel read failed" copy.
+It never fills a missing value with a default.
+
+### 10.4 Panel state selection
+
+`panelState(detail): PanelState` is a lookup over server-derived values, with no transitions or clocks.
+`latest` is the last restatement row; `lastExtraction` is the last extraction row.
+
+| Condition, first match wins | Panel state |
+|---|---|
+| `journey_step` null or `start` | start |
+| `plan` and `axes.execution` is `acknowledged` | request sent |
+| `plan` | plan |
+| `readback`/`repair` and `interpretation` is `pending` | pending |
+| `readback`/`repair` and `interpretation` is `unavailable` | check did not run |
+| `repair` | deadline mismatch |
+| `readback` and `latest` has any `uncertain` field | uncertain |
+| `readback` and `latest` has any `mismatched` field | other mismatch |
+| `readback` | readback |
+| `barrier` | match |
+| `permission` and `axes.execution` is `attempted` | request sent |
+| `permission` | permission |
+| `unresolved`, `stopped`, `expired`, `accepted`, `handoff`, `documented` | same name, with `unresolved` shown as request failed |
+
+Lanes per state:
+
+- Read-back lanes (Mei's words, Tencent ADP, CareRelay code, decision) show for pending, check did not run, deadline mismatch, uncertain, other mismatch and match.
+- Outcome lanes (simulated provider, the three axes, what CareRelay will not do, decision) show for request sent, request failed, stopped, expired, accepted, handoff and documented.
+- Start, plan, readback, barrier and permission show the track and copy only.
+- The ADP lane reads `lastExtraction`: transport chip from `transport_provenance`, "Checked in {s} s" from `elapsed_ms`, request ID truncated to eight characters, instruction and schema version, "1 call, no retry".
+- The comparison table reads `latest.readback` and `plan_reference`; it never reads the patient journey.
+
+### 10.5 Relay track
+
+`trackLegs(state)` returns, for Mei, Tencent ADP, CareRelay rules, Provider and Nurse line: a ring (`active`), a tick (`done`), a red ring (`failed`) or none, plus the approved small text.
+The "Must act" tag stays under Mei unless the step is `handoff`, where it moves under Nurse line.
+Mapping: pending makes ADP active; every read-back result makes ADP done and rules active; request sent makes rules done and provider active; request failed makes provider failed; stopped and expired leave only Mei's tag.
+
+### 10.6 Start and frame contracts
+
+Middleware (`runtime: "nodejs"`, `matcher: ["/"]`):
+
+1. If the request has a `carerelay_demo_locator` cookie, pass through unchanged, valid or not.
+2. Otherwise build `encodeLocator(newLocator(), CARERELAY_API_TOKEN)`, set it on the response with `locatorCookieOptions`, and forward it on the request so the page reads it in the same render.
+3. On any codec error, pass through without a cookie; the page shows the entry screen as today.
+
+Start press: `startExample(creationToken)` runs; if its result is `loaded` and offers `select_example` with a token, `selectExample(token)` runs once.
+A lost response replays both by their existing tokens and never creates a second episode.
+
+Parent message: after `accept` stores a newer journey, if `window.parent !== window` and `window.parent.location.origin` is readable and equal, post `{type: "carerelay-journey", revision}` with target `window.location.origin`.
+A cross-origin parent throws on that read and the message is skipped.
+`StageFrame` accepts only when `event.origin === window.location.origin`, `event.source === frame.contentWindow` and the data has exactly those two keys.
+
+### 10.7 Planned fail-capable checks (no results)
+
+Backend, both engines where the store is involved, seeded with `_journey_fixtures.seed_journey`:
+
+| ID | Check | Named mutation that must turn it RED |
+|---|---|---|
+| L1 | Ledger `journey_step` equals `project_journey(...).step` for every seeded case | step from a different derivation |
+| L2 | Ledger read writes nothing: equal row counts in every table, including past-deadline and repair-without-H2 cases | ledger calls `project_journey`; ledger records expiry |
+| L3 | `confirmed_words` returns the matching round's words; zero or two matches give null | join by latest event instead of `confirmation_id` |
+| L4 | `spans` and `fields` equal the stored record | spans recomputed from words; field result flipped |
+| L5 | `plan_reference` is present on `readback` and `repair` | plan reference follows redaction |
+| L6 | `elapsed_ms` equals stored completion minus claim; null without completion | uses wall clock at read |
+| O1 | Plan, stopped and unresolved offer no `grant_share`; a stale grant token on the plan step is refused | `grant_share` restored on plan |
+| O2 | `revoke_share` is offered only while consent is granted | revoke always offered |
+| S1 | Serialized ledger and stage HTML/RSC carry no AppKey, thought channel, raw stream or done sentinel; each planted needle is detected | scanner skips the new fields |
+
+Frontend, through the existing Node-from-pytest pattern in `tests/test_journey_decoder.py`:
+
+| ID | Check | Named mutation |
+|---|---|---|
+| F1 | `decodeLedgerDetail` rejects each malformed field | missing-key default accepted |
+| F2 | `panelState` gives the table row for each seeded ledger | `repair` mapped to uncertain |
+| F3 | `trackLegs` matches 10.5 for each state | tag moves on `accepted` |
+| F4 | Built `/` and `/demo/stage` send `frame-ancestors 'self'` | header removed |
+| F5 | Panel ignores a message from another source or with extra keys | origin check removed |
+| F6 | Patient page posts with exact target origin, never `"*"` | wildcard target |
+| F7 | Middleware leaves an existing invalid cookie unchanged | middleware overwrites any cookie |
+
+End to end, in the in-app browser against a local production build with disposable SQLite and scenario time:
+
+- First visit to `/` reaches the plan in one press; refresh keeps the same episode.
+- The full scripted path renders each approved screen at 1440px and 375px with no horizontal scroll.
+- `/demo` reaches `/demo/stage`; the panel follows every step through the local-sim interpreter.
+- At most two guarded live ADP submissions through the stage, each auto-reserved by the existing live guard within the manual-demo run plan, show the live chip and a real `elapsed_ms`.
+- The patient screen contains no ledger value at any step.
+
+### 10.8 Effort and approval boundary
+
+[hypothesis] Patient redesign and start fix: 4 to 7 hours. Judge view and ledger detail: 6 to 10 hours. Unmeasured.
+Approval of this section authorises no implementation by itself; Gate 4 sequences it.

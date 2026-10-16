@@ -1,5 +1,7 @@
 # Architecture: CareRelay urgent-advice accessibility
 
+[verified] **Gate 2 REOPENED and RE-APPROVED 16 October 2026** for section 14 (judge view and ledger read-back detail). The user answered "Approve Gates 2, 3 and 4 as drafted". Sections 1 to 13 are unchanged. `00-status.md` owns gate state.
+
 [verified user instruction] On 16 October 2026 the user answered "Sure i approve the experiment please finish up slice 21!" to the exact wording-only Gate 2/3/4 proposal and at most one ledger-reserved product call. The narrow amendment is RE-APPROVED. It preserves the v2 schema, published instruction v2, current model/settings, 15-second cap, all byte limits, no retry/fallback, default-off and code authority. Stop after that one live result. No shipping or additional live calls are authorised. `00-status.md` owns the receipt.
 
 [verified] Narrow Slice 21 span-text grounding amendment RE-APPROVED 15 October 2026.
@@ -809,3 +811,90 @@ commit, push and submit only with separate authority. Remaining sequence:
 **Gate 2 approval → Gate 3 program design → Gate 4 upgrade slices → journey and
 approved ADP implementation → accessibility/API/Postgres proof → corrected
 claims, demo, deployment and submission.** The cut study stays cut.
+
+## 14. Revision 5: judge view and ledger read-back detail, APPROVED 16 October 2026
+
+[verified] Gate 2 was REOPENED and RE-APPROVED 16 October 2026 for this section only.
+Gate 1 was re-approved the same day for the redesign and judge view in `design/mocks/redesign/`.
+Sections 1 to 13, including the section 5.2 durable-stop rule and D17's ADP boundary, are unchanged.
+`00-status.md` owns gate state.
+
+Decision summary (proposed design; behaviour stays [hypothesis] until proved):
+
+- **D19:** two judge surfaces, kept apart from the patient surface. The judge stage shows the unchanged patient route in a same-origin frame beside a panel that reads only the ledger.
+- **D20:** the ledger gains read-only read-back detail: confirmed words, code-located spans, per-field comparison, plan reference, current step and server check time.
+- **D21:** the Gate 1 patient changes: consent offered only on its own step, the plan visible on the request-failed screen, and a one-press start that closes F7.
+
+### 14.1 Fit and inspected gaps
+
+[verified] Sources inspected on branch `redesign-judge-view` at `be82690`:
+
+- `frontend/app/ledger/page.tsx` is unlinked and prints each extraction as one sentence. A judge sees no confirmed words, no copied phrases and no per-field result.
+- `service.ledger` already holds what the panel needs, unexposed: `RestatementRecord.extracted` (stored spans) and `.comparison` (matched, mismatched, uncertain); `words_confirmed` events hold the confirmed text keyed by `confirmation_id`, which restatement provenance carries; each `journey_commands` claim and completion row has `recorded_at`.
+- `rules.derive_journey(bundle, now_utc)` is pure. `service.project_journey` is not: it may record expiry and an H2 hint event. A judge panel must therefore never call the patient read.
+- `rules.py` offers `grant_share` and `revoke_share` on the plan step, and `grant_share` on the stopped and unresolved steps. That is why the shipped plan screen shows a consent checkbox and "Not now".
+- `frontend/app/page.tsx` renders recovery when a valid locator's episode is not found yet. That is the first-visit "We cannot load your plan" (F7), and the cause of the three-click start.
+- `frontend/next.config.mjs` sets no framing policy, so any site may frame the patient page today.
+
+### 14.2 D19: judge surfaces separate from the patient surface
+
+[hypothesis] Routes in the existing Next.js app:
+
+| Route | Reader | Reads | Writes |
+|---|---|---|---|
+| `/` | patient | journey projection (unchanged) | patient commands only |
+| `/demo` | judge | nothing; static start page | nothing |
+| `/demo/stage` | judge | ledger for the locator's episode | nothing |
+| `/ledger` | judge | ledger (unchanged) | nothing |
+
+The stage frames `/` in a same-origin `iframe` inside a phone frame.
+The frame keeps the patient document exactly the patient component: no ledger value enters it, and its own navigation keeps working.
+The panel is a server-rendered reader of the ledger only, so opening it can never record expiry, a hint event or any other row.
+
+The refresh signal crosses the frame as one message, `{type: "carerelay-journey", revision}`, posted by the patient page only when its parent is the same origin, with the exact origin as target.
+The panel accepts it only from its own frame and own origin, then re-renders on the server.
+The message carries no plan, words, step or identifier.
+A visible "Refresh" control is the fallback if a message is lost.
+
+All routes send `Content-Security-Policy: frame-ancestors 'self'`, which also stops other sites framing the patient page.
+The patient page never links to the stage or the ledger.
+The judge surfaces show only simulated, fictional data; they never show an AppKey, a raw model reply, a thought channel or a raw stream.
+
+### 14.3 D20: ledger read-back detail
+
+[hypothesis] `GET /api/episodes/{id}/ledger` stays read-only and gains:
+
+| Field | Source | Rule |
+|---|---|---|
+| `journey_step`, `interpretation` | `rules.derive_journey(bundle, now_utc)` | Same pure function as the patient read, with no writes; null without a plan |
+| `plan_reference` | current disposition and recorded policy text | Action, deadline display, owner display, fallback display and version; present during read-back, when the patient's plan is folded away |
+| `restatements[].readback.confirmed_words` | `words_confirmed` event matched by `confirmation_id` | Null for legacy rows without provenance; never another round's words |
+| `restatements[].readback.spans` | stored `ExtractedPlan` spans | Substrings code located in the confirmed words; not the model's reply text |
+| `restatements[].readback.fields` | stored `PlanComparison` | `matched`, `mismatched` or `uncertain` per comparison field |
+| `extractions[].elapsed_ms` | claim and completion `recorded_at` | Whole milliseconds on the server; null without both rows |
+
+No table, migration or write is added, and both engines return the same shape.
+Under schema v2 a located span equals the model's copied phrase exactly, because code accepts only an exact, word-bounded occurrence; a phrase code could not locate is shown as unclear, never as the model's text.
+The confirmed words are fictional demo input and already reach the same judge audience through `/ledger`'s restatement rows; serialized leak scans must cover the new fields.
+
+### 14.4 D21: patient changes approved at Gate 1
+
+[hypothesis] Narrow behaviour changes, each enforced in the layer that owns it:
+
+1. **Offers (domain).** The plan, stopped and unresolved steps stop offering `grant_share`. `revoke_share` is offered only while consent is granted. The permission step is unchanged. This narrows offers; it adds no route, consent or action.
+2. **Plan slip on request failure (frontend).** The unresolved step already carries the plan in the projection; the frontend renders it as the slip instead of behind "Show my plan". Redaction during read-back is unchanged.
+3. **Start (frontend).** A Node-runtime Next middleware on `/` sets a fresh signed locator only when none is present, using the `/example` codec and cookie options and making no backend call. A valid locator whose episode is not found renders the approved start screen, not recovery. One press runs `create`, then `select_example` with the token the create result offers; each keeps its replay guard. An invalid locator still renders recovery. Real read failures still render recovery.
+4. **Presentation (frontend).** Slip, fold, step counter, icons and colour tokens are markup and CSS. The step counter is computed from the server's `journey.step`; no clinical value or screen choice moves to the browser. Fonts are self-hosted by `next/font` at build time, so the browser makes no third-party font request and no dependency is added.
+
+### 14.5 Unchanged
+
+ADP stays interpretation only, default-off, schema v2, 15-second cap, one call, no retry or fallback, with code deciding.
+Plan, deadline, owner, urgency, closure, sticky expiry and durable-stop rules are unchanged.
+`/ledger` semantics are unchanged. No deployment, install, credential or new external service follows from this section.
+
+### 14.6 Least-confident decisions
+
+- **Frame accessibility.** The judge stage is not the patient accessibility surface; `/` remains it. A screen reader inside the frame is not claimed.
+- **Node middleware.** Next 15.5 supports Node-runtime middleware. If it fails in the build, the fallback keeps today's `/example` press and still fixes the not-found screen; that costs one extra press.
+- **Panel freshness.** It depends on one same-origin message; the Refresh control covers a lost message.
+- **Words on a judge surface.** Acceptable only because every input is fictional and labelled. A real-patient deployment would need a separate decision.

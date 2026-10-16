@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CareRelay | Judge view: read-back check</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700;800&family=Atkinson+Hyperlegible+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="redesign.css">
+</head>
+<body>
+<!-- Judge view. Left: the unchanged patient screen. Right: what the system did to
+     produce it. Values are from live call 20 (16 October 2026): valid, scored, all
+     three phrases located, code mismatch on time, 6,011 ms click to settled screen.
+     The exact copied phrases are illustrative; the store keeps code-located spans,
+     never the model's own text. -->
+<header class="stage-bar">
+  <span class="wordmark"><i></i>CareRelay</span>
+  <span class="sim-note">Fictional demo. No real care.</span>
+  <nav aria-label="View">
+    <a href="stage-check.html" aria-current="page">Judge view</a>
+    <a href="phone-readback.html">Patient only</a>
+  </nav>
+</header>
+
+<div class="stage">
+  <div>
+    <div class="phone" aria-label="Patient screen">
+      <div class="phone-scroll">
+        <div class="patient">
+          <div class="patient-bar">
+            <span class="wordmark"><i></i>CareRelay</span>
+            <button class="btn quiet small" type="button">Larger text</button>
+          </div>
+          <div class="patient-body">
+            <p class="demo-label">Demo only · fictional plan · no real care</p>
+            <div class="progress"><b class="done"></b><b class="done"></b><b></b><b></b><span>Step 2 of 4</span></div>
+            <h1>Let’s check the time</h1>
+            <p>Example answer: <q>today before 8pm</q>.</p>
+            <p class="status calm" style="font-weight:600">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              <span>The plan says: <strong>before 6pm today</strong>.</span>
+            </p>
+            <div>
+              <label class="field" for="w2">When will you go?</label>
+              <p class="hint">Demo: use made-up words only.</p>
+              <textarea class="words" id="w2" style="min-height:4.5em"></textarea>
+            </div>
+            <div class="push">
+              <button class="btn block" type="button">Review my answer</button>
+              <button class="btn quiet block" type="button">Show my plan</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="phone-caption">What Mei sees</p>
+  </div>
+
+  <div class="panel">
+    <nav class="steps" aria-label="Demo steps">
+      <a href="judge-intro.html">Start</a><a href="#">1 Plan</a><a href="#">2 Say it back</a>
+      <a href="stage-check.html" aria-current="step">3 Check</a><a href="#">4 Difficulty</a>
+      <a href="stage-failed.html">5 Request</a><a href="#">6 Outcome</a>
+    </nav>
+
+    <div class="step-head">
+      <h1>Mei said 8pm. Her plan says 6pm. CareRelay caught it.</h1>
+    </div>
+    <p class="lede">Tencent ADP read Mei's words and copied out three phrases. CareRelay's own code compared them with the stored plan and chose the next screen. The model never judges whether Mei understood.</p>
+
+    <section class="track-wrap" aria-labelledby="track-h">
+      <div class="track-title">
+        <h2 id="track-h">Who has the plan</h2>
+        <p>The yellow tag shows who must act. It moves only when someone agrees.</p>
+      </div>
+      <ol class="track" style="list-style:none;margin:0;padding:0">
+        <li class="leg person">
+          <span class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span>
+          <strong>Mei</strong><small>Says her plan back</small><span class="baton">Must act</span>
+        </li>
+        <li class="leg adp done">
+          <span class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4H4v16h3M17 4h3v16h-3"/><path d="M8 9h8M8 13h5"/></svg></span>
+          <strong>Tencent ADP</strong><small>Copies phrases from her words</small>
+        </li>
+        <li class="leg rules active" style="color:var(--act)">
+          <span class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M6 21h12M4 7h16"/><path d="M7 7l-3 7h6zM17 7l-3 7h6z"/></svg></span>
+          <strong style="color:var(--ink)">CareRelay rules</strong><small>Compare and decide</small>
+        </li>
+        <li class="leg sim">
+          <span class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V6l8-3 8 3v15"/><path d="M9 21v-5h6v5M9 9h1M14 9h1M9 12h1M14 12h1"/></svg></span>
+          <strong>Provider</strong><small>Simulated booking</small>
+        </li>
+        <li class="leg sim">
+          <span class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"/></svg></span>
+          <strong>Nurse line</strong><small>Fictional fallback</small>
+        </li>
+      </ol>
+      <div class="track-legend">
+        <span><i style="background:var(--adp)"></i>Tencent ADP reads words</span>
+        <span><i style="background:var(--act)"></i>CareRelay code decides</span>
+        <span><i style="background:var(--sim);border:1px solid var(--rule)"></i>Simulated service</span>
+        <span><i style="background:var(--slip);border:1px solid var(--slip-edge)"></i>The plan</span>
+      </div>
+    </section>
+
+    <section class="lane patient-lane" aria-labelledby="l1">
+      <div class="lane-head"><h3 id="l1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/></svg>
+        Mei saved these words</h3><span class="lane-note">Confirmed by Mei before any AI call</span></div>
+      <div class="lane-body"><p class="quote">I will go to the clinic myself today before 8pm</p></div>
+    </section>
+
+    <section class="lane adp" aria-labelledby="l2">
+      <div class="lane-head"><h3 id="l2">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4H4v16h3M17 4h3v16h-3"/><path d="M8 9h8M8 13h5"/></svg>
+        Tencent ADP copied three phrases</h3><span class="lane-note">Agent Development Platform</span></div>
+      <div class="lane-body">
+        <p class="quote">I will <span class="span">go to the clinic<sup>action</sup></span> <span class="span">myself<sup>who</sup></span> <span class="span">today before 8pm<sup>when</sup></span></p>
+        <pre class="json"><span class="key">"action_text"</span>: "go to the clinic",
+<span class="key">"deadline_text"</span>: "today before 8pm",
+<span class="key">"next_owner_text"</span>: "myself",
+<span class="key">"uncertain_fields"</span>: [],
+<span class="key">"refused"</span>: false</pre>
+        <div class="meta">
+          <span><b>Live</b> HTTPS call</span><span><b>6.0 s</b> click to screen</span>
+          <span>Request <b class="code">ebc3fad9…</b></span><span>Instruction <b>v2</b></span>
+          <span>Schema <b>v2</b></span><span><b>1</b> call, no retry</span>
+        </div>
+        <p style="margin-top:.9rem">ADP may only copy words that are really there. CareRelay checks every phrase against the saved text before using it.</p>
+      </div>
+    </section>
+
+    <section class="lane rules" aria-labelledby="l3">
+      <div class="lane-head"><h3 id="l3">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M6 21h12M4 7h16"/><path d="M7 7l-3 7h6zM17 7l-3 7h6z"/></svg>
+        CareRelay code compared them with the plan</h3><span class="lane-note">Fixed rules, no model</span></div>
+      <div class="lane-body">
+        <table class="compare">
+          <thead><tr><th scope="col">Field</th><th scope="col">Mei said</th><th scope="col">Plan says</th><th scope="col">Result</th></tr></thead>
+          <tbody>
+            <tr><td>What to do</td><td>go to the clinic</td><td>Same-day review</td>
+              <td><span class="verdict ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Same</span></td></tr>
+            <tr><td>Who acts</td><td>myself</td><td>You</td>
+              <td><span class="verdict ok"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg>Same</span></td></tr>
+            <tr><td>By when</td><td>today before 8pm</td><td>6pm today</td>
+              <td><span class="verdict no"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>Later than plan</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="decision">
+      <span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      <p><strong>Next screen: “Let’s check the time”</strong><small>Chosen by code. The plan, the 6pm deadline and who acts are unchanged.</small></p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

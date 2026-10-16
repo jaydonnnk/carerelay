@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CareRelay | What is your plan?</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700;800&family=Atkinson+Hyperlegible+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="redesign.css">
+</head>
+<body>
+<!-- Patient view, step 2. The plan slip is folded face down so the answer is recall,
+     not copying. New strings needing approval: "Step 2 of 4" and the fold sentence. -->
+<div class="patient patient-page">
+  <header class="patient-bar">
+    <span class="wordmark"><i></i>CareRelay</span>
+    <button class="btn quiet small" type="button">Larger text</button>
+  </header>
+  <main class="patient-body">
+    <p class="demo-label">Demo only · fictional plan · no real care</p>
+    <div class="progress" aria-label="Step 2 of 4"><b class="done"></b><b class="done"></b><b></b><b></b><span>Step 2 of 4</span></div>
+    <h1>What is your plan?</h1>
+    <p>What will you do, when, and who will act?</p>
+
+    <section class="slip folded" aria-label="Your plan is folded away">
+      <div class="fold-msg">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 3l18 18"/><path d="M10.6 6.1A10 10 0 0 1 12 6c5 0 9 6 9 6a17 17 0 0 1-2.7 3.3M6.5 7.5A17 17 0 0 0 3 12s4 6 9 6a9 9 0 0 0 4-1"/></svg>
+        <span>Your plan is folded away while you say it in your words.</span>
+      </div>
+      <p style="margin:.8rem 0 0"><button class="btn quiet small" type="button">Show my plan</button></p>
+    </section>
+
+    <div>
+      <label class="field" for="w">Your words</label>
+      <p class="hint" id="wh">Demo: use made-up words only.</p>
+      <textarea class="words" id="w" aria-describedby="wh">I will go to the clinic myself today before 8pm</textarea>
+    </div>
+
+    <div class="push">
+      <a class="btn block" href="stage-check.html">Review my answer</a>
+    </div>
+  </main>
+</div>
+</body>
+</html>

@@ -1,5 +1,13 @@
 # CareRelay: project and execution instructions
 
+## Redesign and judge view: 16 October 2026
+
+[verified user instruction] The user answered "Approve Gate 1 for the redesign mockups, the new judge view and copy. Proceed to the Gate 2/3/4 amendments for the judge view and ledger extension."
+**Gate 1 is RE-APPROVED 16 October 2026** for `design/mocks/redesign/`: the yellow plan slip, colour by actor (Tencent ADP blue, code green, unresolved red, simulated hatching), the judge start page and judge stage, and their copy.
+**Gates 2, 3 and 4 are RE-APPROVED 16 October 2026**: the user answered "Approve Gates 2, 3 and 4 as drafted (02-architecture section 14, 03-program-design section 10, 04-slices section 10), including the judge panel copy and the two honesty corrections. Start Slice 22."
+Slice 22 (patient redesign and one-press start) is built on `slice-22-patient-redesign` with its local Check run: 2,138 passed, 232 PostgreSQL skips, one warning; 16 of 16 new and 42 of 42 existing frontend mutations RED; one-press start, slip, fold, counter and consent placement verified in the browser. The user accepted the Check ("I accept, pls commit te working tree and push to main"), authorising scoped commits, a fast-forward of main and an origin/main push. Slice 23 (judge view and ledger detail) needs explicit continuation.
+No deployment, install or credential change is authorised. `00-status.md` owns the receipt.
+
 ## Slice 21 live-evidence follow-up result: 16 October 2026
 
 [verified] All seven remaining fictional categories ran once each, in fresh browser sessions and episodes, through the actual production Next server action, local FastAPI and HTTPS ADP adapter.

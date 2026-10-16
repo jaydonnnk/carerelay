@@ -1,5 +1,27 @@
 # Product: CareRelay urgent-advice accessibility
 
+## Redesign and judge view: RE-APPROVED 16 October 2026
+
+[verified] The user answered "Approve Gate 1 for the redesign mockups, the new judge view and copy." on 16 October 2026.
+The approved screens are `design/mocks/redesign/`; `00-status.md` owns the receipt.
+
+[verified problem] A designer walking the shipped build could not tell what CareRelay does, and a judge could not see where Tencent ADP is used.
+The first visit showed an error, the plan screen offered five competing controls, and ADP appeared only as one line in an unlinked ledger.
+
+Approved decisions:
+
+- **The plan is a yellow appointment slip.** It is the one bright object on each patient screen. During read-back it is folded face down, so the answer is recall, not copying; "Show my plan" unfolds it and is recorded as a hint, as before.
+- **Colour names the actor.** Blue is Tencent ADP and nothing else. Green is CareRelay code and the patient's one next action. Red is "no one has agreed to help yet". Hatching marks anything simulated.
+- **A separate judge view.** A judge start page explains Mei, the four steps and what ADP does and never does. A judge stage shows the unchanged patient screen in a phone frame beside a panel: who has the plan, what ADP copied from the confirmed words, what code compared, and which screen code chose.
+- **The patient screen never shows the ledger.** The judge panel is a separate reader of the same episode, as the ledger page is today.
+- **Patient flow changes.** A step counter ("Step N of 4") on the four action steps; consent controls only on the consent step; the plan slip stays visible on the request-failed screen; the approved icons are restored.
+
+[hypothesis] Success for this amendment: a first-time viewer can say, after one pass of the demo, who Mei is, what she must do by when, where ADP is used, and that the failed booking left her case open.
+This is unmeasured; no participant study is claimed.
+
+Clinical strings, the fixture, the deadline, the four approved outcome sentences and the ADP boundary are unchanged.
+Earlier approvals below are preserved.
+
 ## Slice 16 confirmation amendment: RE-APPROVED 14 October 2026
 
 [verified] The user answered "Approve these exact Gate 1 strings" for the

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CareRelay | Redesign proposal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700;800&family=Atkinson+Hyperlegible+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="redesign.css">
+<style>
+  .board { max-width: 920px; margin: 0 auto; padding: 2.5rem 1.6rem 4rem; }
+  .board h1 { font-size: 2.2em; letter-spacing: -.025em; margin: 0 0 .4rem; }
+  .board h2 { font-size: 1.25em; margin: 2.6rem 0 .8rem; }
+  .board > p { color: var(--muted); max-width: 64ch; }
+  .screens { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--rule); }
+  .screens li { display: grid; grid-template-columns: 13rem 1fr; gap: .3rem 1.4rem; padding: .9rem 0; border-bottom: 1px solid var(--rule); }
+  .screens a { font-weight: 700; }
+  .screens span { color: var(--muted); }
+  .rules { list-style: none; margin: 0; padding: 0; display: grid; gap: .6rem; }
+  .rules li { display: grid; grid-template-columns: 2.4rem 1fr; gap: .9rem; align-items: center; }
+  .rules i { width: 2.4rem; height: 1.6rem; border-radius: 5px; display: block; }
+  @media (max-width: 600px) { .board { padding: 1.6rem 16px 3rem; } .screens li { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<header class="stage-bar"><span class="wordmark"><i></i>CareRelay</span><span class="sim-note">Gate 1 approved 16 October 2026</span></header>
+<main class="board">
+  <h1>One plan, passed hand to hand</h1>
+  <p>The plan is a yellow appointment slip. It is the only bright object on every screen. Colour says who is acting, so a judge can see where Tencent ADP works and where code decides without reading a ledger.</p>
+
+  <h2>Colour rules</h2>
+  <ul class="rules">
+    <li><i style="background:var(--slip);border:1px solid var(--slip-edge)"></i><span>The plan. Folded away while Mei says it back, so her answer is recall, not copying.</span></li>
+    <li><i style="background:var(--adp)"></i><span>Tencent ADP reading words. Used for nothing else.</span></li>
+    <li><i style="background:var(--act)"></i><span>CareRelay code deciding, and the patient's single next action.</span></li>
+    <li><i style="background:var(--alert)"></i><span>Nobody has agreed to help yet.</span></li>
+    <li><i style="background:var(--sim);border:1px solid var(--rule)"></i><span>Anything simulated. Hatched, so it cannot pass for real.</span></li>
+  </ul>
+
+  <h2>Screens</h2>
+  <ul class="screens">
+    <li><a href="judge-intro.html">Judge start</a><span>Replaces “Try an example”. Who Mei is, the four steps, and where ADP is and is not used.</span></li>
+    <li><a href="phone-plan.html">Patient: your next step</a><span>Approved copy, icons restored, one primary button. Consent controls move to their own step.</span></li>
+    <li><a href="phone-readback.html">Patient: say it back</a><span>Plan slip folded face down. “Show my plan” unfolds it and is recorded as a hint.</span></li>
+    <li><a href="stage-check.html">Judge view: the check</a><span>Live call 20: Mei says 8pm, ADP copies three phrases, code catches the time.</span></li>
+    <li><a href="stage-failed.html">Judge view: request failed</a><span>The simulated booking fails. The deadline stays, the case stays open, Mei still acts.</span></li>
+  </ul>
+
+  <h2>Type</h2>
+  <p>Atkinson Hyperlegible Next, drawn by the Braille Institute for low-vision readers. One family for everything; its mono cut only for the raw ADP reply.</p>
+</main>
+</body>
+</html>

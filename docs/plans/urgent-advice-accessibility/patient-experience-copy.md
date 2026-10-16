@@ -1,4 +1,70 @@
-# Patient experience copy inventory: APPROVED with Slice 16 amendment
+# Patient experience copy inventory: APPROVED with Slice 16 and redesign amendments
+
+## Redesign and judge view amendment: APPROVED 16 October 2026
+
+[verified] The user answered "Approve Gate 1 for the redesign mockups, the new judge view and copy." on 16 October 2026.
+`00-status.md` owns the receipt.
+
+### New patient strings (approved)
+
+- Step counter: "Step 1 of 4" (plan), "Step 2 of 4" (read-back and repair), "Step 3 of 4" (barrier), "Step 4 of 4" (consent). No counter on outcome, stop, recovery or start screens.
+- Folded plan: "Your plan is folded away while you say it in your words."
+- Plan slip label on the request-failed screen: "Fictional".
+
+Every other patient string in the redesign is from the inventory below, unchanged.
+On the request-failed screen, "No one has agreed to help yet." and "Please act now." share one status box.
+
+### Judge copy pinned by file (approved)
+
+The approved judge copy is the visible text of these files, pinned by SHA-256 at approval.
+Call-specific values in them (phrases, timings, request IDs) are examples; the build reads them from the ledger.
+
+| File | SHA-256 |
+|---|---|
+| `design/mocks/redesign/judge-intro.html` | `14e06b3d025bd9904cd6c526526029f195f22b6e0efea068c26e8650a854d78f` |
+| `design/mocks/redesign/stage-check.html` | `65af1da8436f57f44c8dd7a8c906489a904c6895ec1499b892bf77e4c315edcd` |
+| `design/mocks/redesign/stage-failed.html` | `3bf9008e0ad5fa6a543627dfd0e14a7566dbf6e39f5965885d042269350d3500` |
+| `design/mocks/redesign/phone-plan.html` | `6f336fe01bd87d226fc239d1d9d3a365837b43c5d24f5409767ab325b6d14180` |
+| `design/mocks/redesign/phone-readback.html` | `19758b19720f161b1cebef3f1117758ed7f9a8d52487cdb94b7334aa8b7230e9` |
+| `design/mocks/redesign/redesign.css` | `680b8e6def0cfcd2607950cd84fc23ac46b18cb07b4fa18360938cf96e7e28dd` |
+
+### Judge panel copy for unmocked states: APPROVED 16 October 2026 with Gates 2 to 4
+
+[verified] Approved with Gates 2 to 4: "including the judge panel copy and the two honesty corrections". The judge stage needs one headline and one short paragraph for every state, not only the two mocked ones.
+These are drafted in the approved voice. Braces are values read from the ledger or journey, never written by a model.
+Nothing here reaches the patient screen.
+
+| State | Headline | Paragraph |
+|---|---|---|
+| start | Mei is about to get her plan. | Press the button on the phone. CareRelay loads one fictional plan: an action, a deadline and who must act. |
+| plan | Mei has her plan. | The plan comes from a fixed fictional script, not from a model. Next, Mei says it back in her own words. |
+| readback | Mei says her plan back from memory. | Her plan is folded away, so her answer is recall, not copying. Nothing goes to Tencent ADP until she saves her words. |
+| pending | Tencent ADP is reading Mei's words. | One call, capped at 15 seconds, with no retry. Her plan cannot change while it runs. |
+| match | Mei got all three right. | Tencent ADP copied out three phrases. CareRelay's code matched each one to the plan. |
+| deadline mismatch | Mei said “{said}”. Her plan says “{plan}”. CareRelay caught it. | (approved `stage-check.html` paragraph) |
+| other mismatch | Mei's answer does not match her plan. | Code found a different {field}. Mei is asked to try other words or show her plan. |
+| uncertain | CareRelay could not confirm Mei's answer. | Tencent ADP marked part of it as unclear, such as a “won't”, an “or” or a changed mind. Code does not guess, so Mei is asked again. |
+| check did not run | The check did not run, so nothing changed. | Tencent ADP refused, ran out of time or replied in the wrong shape. Mei sees one safe sentence and her plan stays as it was. |
+| barrier | Mei says what makes it hard. | Knowing the plan is not the same as being able to do it. Her answer decides which help CareRelay can offer. |
+| permission | Mei decides whether to share her plan. | Nothing is shared without her agreement. Only the action and the deadline would go to the simulated provider. |
+| request sent | The simulated request is out. No reply yet. | A sent request is not care. Mei's case stays open until someone agrees. |
+| request failed | The booking failed. CareRelay says so, and keeps the {deadline} deadline. | (approved `stage-failed.html` paragraph) |
+| stopped | CareRelay stopped asking questions. | When the example cannot help, it stops instead of guessing. The deadline and the nurse line stay on Mei's screen. |
+| expired | The deadline has passed. CareRelay still tells Mei to act. | An expired plan is never hidden or marked done. |
+| accepted | Someone agreed to help. Care is still not confirmed. | The agreement is simulated and labelled as simulated. |
+| handoff | Handed to the fictional nurse line. | A human route now holds the plan. CareRelay does not claim care happened. |
+| documented | Simulated proof of care is recorded. | This is the only state that counts care as evidenced, and here the proof is simulated. |
+| panel read failed | The judge panel cannot read this episode right now. | Nothing on this panel is a record until the read succeeds. |
+
+Lane and chip wording, APPROVED with two honesty corrections to the mockup:
+
+- ADP lane heading: "Tencent ADP copied {n} phrases" (n is 1 to 3), "Tencent ADP found nothing it could copy" (n is 0), "Tencent ADP refused" (refusal), "Tencent ADP did not answer in time" (timeout), "Tencent ADP replied in the wrong shape" (invalid).
+- Transport chip: "Live HTTPS call", "Offline test transport" or "Local simulation", from the stored provenance.
+- **Correction 1:** the timing chip reads "Checked in {s} s", not "{s} s click to screen". The stored time runs from claim to completion on the server, not from the click.
+- **Correction 2:** a different value reads "Different from plan", not "Later than plan". The ledger does not record which way a time differs.
+- Comparison results: "Same", "Different from plan", "Unclear".
+- Simulated lane heading: "The simulated provider replied: {failed | accepted}", or "The simulated provider has not replied".
+- Axis values: request sent "Not sent", "Sent", "Acknowledged" or "Failed"; proof of care "None" or "Simulated"; case "Still open", "Closed", "Handed to a human" or "Expired".
 
 ## Slice 16 confirmation amendment: APPROVED 14 October 2026
 

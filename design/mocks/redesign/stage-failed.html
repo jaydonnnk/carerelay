@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CareRelay | Judge view: request failed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700;800&family=Atkinson+Hyperlegible+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="redesign.css">
+</head>
+<body>
+<!-- Judge view, step 5. The scripted simulated request fails. Patient strings are the
+     approved 06-unresolved inventory; the plan slip is shown open instead of behind
+     "Show my plan", which is a proposed behaviour change. -->
+<header class="stage-bar">
+  <span class="wordmark"><i></i>CareRelay</span>
+  <span class="sim-note">Fictional demo. No real care.</span>
+  <nav aria-label="View">
+    <a href="stage-failed.html" aria-current="page">Judge view</a>
+    <a href="phone-plan.html">Patient only</a>
+  </nav>
+</header>
+
+<div class="stage">
+  <div>
+    <div class="phone" aria-label="Patient screen">
+      <div class="phone-scroll">
+        <div class="patient">
+          <div class="patient-bar">
+            <span class="wordmark"><i></i>CareRelay</span>
+            <button class="btn quiet small" type="button">Larger text</button>
+          </div>
+          <div class="patient-body">
+            <p class="demo-label">Demo only · fictional plan · no real care</p>
+                        <h1>The request did not work</h1>
+            <p class="status open">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg>
+              <span>No one has agreed to help yet. Please act now.</span>
+            </p>
+            <section class="slip" aria-label="Your example plan">
+              <div class="slip-head"><strong>Your example plan</strong><span>Fictional</span></div>
+              <div class="slip-row">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M8 14h3M8 17h6"/></svg>
+                <span class="k">What to do</span><span class="v">Go to the fictional provider's same-day review.</span>
+              </div>
+              <div class="slip-row">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                <span class="k">Before</span><span class="v">6pm today</span>
+              </div>
+              <div class="slip-row">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
+                <span class="k">Who acts</span><span class="v">You</span>
+              </div>
+            </section>
+            <p class="fallback">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"/></svg>
+              <span>If that does not work, call the fictional nurse line.</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="phone-caption">What Mei sees</p>
+  </div>
+
+  <div class="panel">
+    <nav class="steps" aria-label="Demo steps">
+      <a href="judge-intro.html">Start</a><a href="#">1 Plan</a><a href="#">2 Say it back</a>
+      <a href="stage-check.html">3 Check</a><a href="#">4 Difficulty</a>
+      <a href="stage-failed.html" aria-current="step">5 Request</a><a href="#">6 Outcome</a>
+    </nav>
+
+    <div class="step-head">
+      <h1>The booking failed. CareRelay says so, and keeps the 6pm deadline.</h1>
+    </div>
+    <p class="lede">Mei agreed to share her plan so the simulated provider could book her in. The provider rejected the request. Nothing in the plan changed, and nobody is shown as helping.</p>
+
+    <section class="track-wrap" aria-labelledby="track-h">
+      <div class="track-title">
+        <h2 id="track-h">Who has the plan</h2>
+        <p>The yellow tag shows who must act. It moves only when someone agrees.</p>
+      </div>
+      <ol class="track" style="list-style:none;margin:0;padding:0">
+        <li class="leg person">
+          <span class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg></span>
+          <strong>Mei</strong><small>Still has to act</small><span class="baton">Must act</span>
+        </li>
+        <li class="leg adp done">
+          <span class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4H4v16h3M17 4h3v16h-3"/><path d="M8 9h8M8 13h5"/></svg></span>
+          <strong>Tencent ADP</strong><small>Read her words</small>
+        </li>
+        <li class="leg rules done">
+          <span class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M6 21h12M4 7h16"/><path d="M7 7l-3 7h6zM17 7l-3 7h6z"/></svg></span>
+          <strong>CareRelay rules</strong><small>Checked her answer</small>
+        </li>
+        <li class="leg sim failed active" style="color:var(--alert)">
+          <span class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V6l8-3 8 3v15"/><path d="M9 21v-5h6v5M9 9h1M14 9h1M9 12h1M14 12h1"/></svg></span>
+          <strong style="color:var(--ink)">Provider</strong><small>Simulated booking failed</small>
+        </li>
+        <li class="leg sim">
+          <span class="node"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 3h4l2 5-2.5 1.5a11 11 0 0 0 6 6L16 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 5a2 2 0 0 1 2-2z"/></svg></span>
+          <strong>Nurse line</strong><small>Her fallback now</small>
+        </li>
+      </ol>
+      <div class="track-legend">
+        <span><i style="background:var(--adp)"></i>Tencent ADP reads words</span>
+        <span><i style="background:var(--act)"></i>CareRelay code decides</span>
+        <span><i style="background:var(--sim);border:1px solid var(--rule)"></i>Simulated service</span>
+        <span><i style="background:var(--slip);border:1px solid var(--slip-edge)"></i>The plan</span>
+      </div>
+    </section>
+
+    <section class="lane sim" aria-labelledby="s1">
+      <div class="lane-head"><h3 id="s1">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 21V6l8-3 8 3v15"/><path d="M9 21v-5h6v5M9 9h1M14 9h1M9 12h1M14 12h1"/></svg>
+        The simulated provider replied: failed</h3><span class="lane-note">Simulated, labelled everywhere</span></div>
+      <div class="lane-body">
+        <p>Shared with consent: the action and the deadline. No caregiver message was sent.</p>
+        <div class="meta"><span>Origin <b>local-sim</b></span><span>Attempt <b>1</b></span></div>
+      </div>
+    </section>
+
+    <section class="lane rules" aria-labelledby="s2">
+      <div class="lane-head"><h3 id="s2">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M6 21h12M4 7h16"/><path d="M7 7l-3 7h6zM17 7l-3 7h6z"/></svg>
+        CareRelay recorded what is true, separately</h3><span class="lane-note">Fixed rules, no model</span></div>
+      <div class="lane-body">
+        <div class="axes">
+          <div class="axis bad"><small>Request sent</small><b>Failed</b></div>
+          <div class="axis bad"><small>Proof of care</small><b>None</b></div>
+          <div class="axis bad"><small>Case</small><b>Still open</b></div>
+        </div>
+        <p style="margin-top:.9rem">Sending a request and getting care are tracked apart, so a sent request can never be read as care arranged.</p>
+      </div>
+    </section>
+
+    <section class="lane" aria-labelledby="s3">
+      <div class="lane-head"><h3 id="s3">What CareRelay will not do here</h3></div>
+      <div class="lane-body">
+        <ul class="refuse">
+          <li>Show “booked” or “done”.</li>
+          <li>Move or drop the 6pm deadline.</li>
+          <li>Let a model decide anything about her care.</li>
+          <li>Stop telling Mei she must act.</li>
+        </ul>
+      </div>
+    </section>
+
+    <div class="decision">
+      <span class="arrow"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+      <p><strong>Next screen: “The request did not work”</strong><small>Mei still must act before 6pm. The fictional nurse line is her fallback.</small></p>
+    </div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CareRelay | Start the demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;600;700;800&family=Atkinson+Hyperlegible+Mono:wght@400;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="redesign.css">
+<style>
+  .intro { max-width: 1180px; margin: 0 auto; padding: 3.2rem 1.6rem 4rem; }
+  .hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 3.5rem; align-items: center; }
+  .hero h1 { font-size: clamp(2.6rem, 6vw, 4.6rem); line-height: 1; letter-spacing: -.035em; margin: 0 0 1.3rem; font-weight: 800; }
+  .hero p { font-size: 1.2em; max-width: 36ch; margin: 0 0 1.8rem; }
+  .hero .actions { display: flex; flex-wrap: wrap; gap: 1rem 1.6rem; align-items: center; }
+  .hero .slip { transform: rotate(-2.5deg); font-size: 1.12em; }
+  .hero-slip { position: relative; }
+  .hero-slip .stamp { position: absolute; right: -6px; bottom: -22px; transform: rotate(3deg); background: var(--alert); color: #fff;
+    font-weight: 800; padding: .5rem .9rem; border-radius: 6px; font-size: .95em; box-shadow: 0 8px 16px -10px rgb(27 34 48 / 60%); }
+  .section { margin-top: 5rem; }
+  .section h2 { font-size: 1.8em; letter-spacing: -.02em; margin: 0 0 .5rem; }
+  .section > p { color: var(--muted); max-width: 62ch; margin: 0 0 2rem; }
+  ol.journey-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; counter-reset: s; }
+  ol.journey-steps li { counter-increment: s; padding: 0 1.4rem 0 0; position: relative; }
+  ol.journey-steps li::before { content: counter(s); display: grid; place-items: center; width: 2.6rem; height: 2.6rem; border-radius: 50%;
+    font-weight: 800; margin-bottom: 1rem; background: var(--c-bg); color: var(--c-fg); border: 3px solid var(--c-line); position: relative; z-index: 1; }
+  ol.journey-steps li::after { content: ""; position: absolute; top: 1.2rem; left: 2.6rem; right: 0; height: 3px; background: var(--rule); }
+  ol.journey-steps li:last-child::after { display: none; }
+  ol.journey-steps h3 { margin: 0 0 .35rem; font-size: 1.08em; }
+  ol.journey-steps p { margin: 0; color: var(--muted); font-size: .95em; }
+  .who { display: inline-block; font-size: .78em; font-weight: 700; padding: .12rem .5rem; border-radius: 4px; margin-bottom: .55rem; background: var(--c-bg); color: var(--c-fg); }
+  .s-mei { --c-bg: var(--slip); --c-fg: var(--ink); --c-line: var(--slip-edge); }
+  .s-adp { --c-bg: var(--adp-soft); --c-fg: var(--adp); --c-line: var(--adp); }
+  .s-code { --c-bg: var(--act-soft); --c-fg: var(--act); --c-line: var(--act); }
+  .s-sim { --c-bg: #eceeea; --c-fg: var(--ink); --c-line: #b9bfba; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 0; border-radius: 14px; overflow: hidden; border: 1px solid var(--rule); background: var(--surface); }
+  .split > div { padding: 1.5rem 1.6rem; }
+  .split > div:first-child { background: var(--adp-soft); border-right: 1px solid #c6d6f6; }
+  .split h3 { margin: 0 0 .9rem; font-size: 1.1em; display: flex; gap: .6rem; align-items: center; }
+  .split h3 svg { width: 24px; height: 24px; }
+  .split ul { list-style: none; margin: 0; padding: 0; }
+  .split li { display: grid; grid-template-columns: 1.4rem 1fr; gap: .6rem; padding: .45rem 0; }
+  .split li svg { width: 1.2rem; height: 1.2rem; margin-top: .2rem; }
+  .split .yes { color: var(--adp); }
+  .split .no-list svg { color: var(--alert); }
+  .evidence { margin-top: 1.2rem; display: flex; flex-wrap: wrap; gap: .5rem 2.5rem; align-items: baseline; padding: 1.1rem 1.4rem;
+    border-radius: 12px; background: var(--ink); color: #fff; }
+  .evidence b { font-size: 1.6em; letter-spacing: -.02em; }
+  .evidence span { color: #c9d0db; font-size: .9em; }
+  .evidence a { color: #fff; margin-left: auto; font-weight: 600; }
+  @media (max-width: 900px) {
+    .hero { grid-template-columns: 1fr; gap: 2.5rem; }
+    ol.journey-steps { grid-template-columns: 1fr 1fr; row-gap: 2rem; }
+    ol.journey-steps li:nth-child(2)::after { display: none; }
+  }
+  @media (max-width: 600px) {
+    .intro { padding: 2rem 16px 3rem; }
+    ol.journey-steps { grid-template-columns: 1fr; }
+    ol.journey-steps li::after { display: none; }
+    .split { grid-template-columns: 1fr; }
+    .split > div:first-child { border-right: 0; border-bottom: 1px solid #c6d6f6; }
+    .evidence a { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<!-- Judge-facing entry. Replaces "Try an example / No plan yet / See what happens when
+     a request fails". All copy here is new and needs Gate 1 approval. -->
+<header class="stage-bar">
+  <span class="wordmark"><i></i>CareRelay</span>
+  <span class="sim-note">Fictional demo. No real care.</span>
+</header>
+
+<main class="intro">
+  <section class="hero">
+    <div>
+      <h1>Mei has until 6pm.</h1>
+      <p>Mei is 72 and fictional. Her plan says to get a same-day review before 6pm. CareRelay checks she understood it, helps her act on it, and never pretends help is arranged when it is not.</p>
+      <div class="actions">
+        <a class="btn" href="stage-check.html">Start the demo</a>
+        <a class="textlink" href="#adp">See where Tencent ADP is used</a>
+      </div>
+    </div>
+    <div class="hero-slip">
+      <section class="slip" aria-label="Mei's example plan">
+        <div class="slip-head"><strong>Mei's plan</strong><span>Fictional plan. No real care.</span></div>
+        <div class="slip-row">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M8 14h3M8 17h6"/></svg>
+          <span class="k">What to do</span><span class="v">Go to the fictional provider's same-day review.</span>
+        </div>
+        <div class="slip-row">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+          <span class="k">Before</span><span class="v">6pm today</span>
+        </div>
+        <div class="slip-row">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/></svg>
+          <span class="k">Who acts</span><span class="v">Mei</span>
+        </div>
+      </section>
+      <span class="stamp">No one has agreed to help yet</span>
+    </div>
+  </section>
+
+  <section class="section">
+    <h2>What happens in the demo</h2>
+    <p>Four steps, about three minutes. Colour shows who is acting at each step.</p>
+    <ol class="journey-steps">
+      <li class="s-mei"><span class="who">Mei</span><h3>She reads her plan</h3><p>What to do, by when, and who acts. Large text, one action at a time.</p></li>
+      <li class="s-adp"><span class="who">Tencent ADP</span><h3>She says it back</h3><p>In her own words. ADP copies out what she said about the action, the time and who acts.</p></li>
+      <li class="s-code"><span class="who">CareRelay code</span><h3>Code checks it</h3><p>Fixed rules compare her phrases with the plan. If she said 8pm, it asks about the time.</p></li>
+      <li class="s-sim"><span class="who">Simulated provider</span><h3>The booking fails</h3><p>CareRelay keeps the 6pm deadline, says help is not arranged, and points to the nurse line.</p></li>
+    </ol>
+  </section>
+
+  <section class="section" id="adp">
+    <h2>Where Tencent ADP is used</h2>
+    <p>ADP reads language. CareRelay's code makes every decision about the plan. That split is the safety design.</p>
+    <div class="split">
+      <div>
+        <h3 class="yes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4H4v16h3M17 4h3v16h-3"/><path d="M8 9h8M8 13h5"/></svg>Tencent ADP does</h3>
+        <ul>
+          <li><svg class="yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg><span>Read the words Mei confirmed</span></li>
+          <li><svg class="yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg><span>Copy out her action, time and who acts</span></li>
+          <li><svg class="yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg><span>Flag doubt, “won't”, “or” and changed minds</span></li>
+          <li><svg class="yes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg><span>Refuse medical questions and injected instructions</span></li>
+        </ul>
+      </div>
+      <div class="no-list">
+        <h3>Tencent ADP never</h3>
+        <ul>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Sets the plan, the deadline or how urgent it is</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Grades whether Mei understood</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Books, sends or closes anything</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg><span>Gets a second try if its reply is wrong</span></li>
+        </ul>
+      </div>
+    </div>
+    <div class="evidence">
+      <b>8 of 8</b><span>recent live ADP calls gave the expected result</span>
+      <b>5.1 to 6.2 s</b><span>click to settled screen</span>
+      <a href="#">Open the evidence ledger</a>
+    </div>
+  </section>
+</main>
+</body>
+</html>

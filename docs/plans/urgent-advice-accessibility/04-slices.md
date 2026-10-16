@@ -1,5 +1,7 @@
 # Slice plan: CareRelay urgent-advice accessibility
 
+[verified] **Gate 4 REOPENED and RE-APPROVED 16 October 2026** for section 10 (Slices 22 and 23). The user answered "Approve Gates 2, 3 and 4 as drafted". Sections 1 to 9 are unchanged. `00-status.md` owns gate state.
+
 [verified user instruction] On 16 October 2026 the user answered "Sure i approve the experiment please finish up slice 21!" to the exact wording-only Gate 2/3/4 proposal and at most one ledger-reserved product call. The narrow amendment is RE-APPROVED. It preserves the v2 schema, published instruction v2, current model/settings, 15-second cap, all byte limits, no retry/fallback, default-off and code authority. Stop after that one live result. No shipping or additional live calls are authorised. `00-status.md` owns the receipt.
 
 [verified] Narrow Slice 21 span-text grounding amendment RE-APPROVED 15 October 2026.
@@ -1167,3 +1169,39 @@ deployment/submission. Each slice stops for continue or re-steer.
 The user requested an implementation handoff for Slice 14 followed by Slice 15,
 with the approved per-slice checkpoint preserved. Neither slice is started here;
 Git shipping and later external/manual dependencies still need separate authority.
+
+## 10. Redesign and judge view slices: APPROVED 16 October 2026
+
+[verified] Gate 4 was REOPENED and RE-APPROVED 16 October 2026 for this section only.
+It sequences Gate 3 section 10 against Gate 2 section 14 and the Gate 1 redesign approved the same day.
+Sections 1 to 9 are unchanged. `00-status.md` owns slice state.
+Each slice gets its own branch from current main, ends in a visible Check, and stops for "continue, or re-steer?".
+Commits, merges, pushes and deployment each need separate explicit authority.
+
+Order: the patient redesign comes first because the judge stage frames the patient screen.
+
+### Slice 22: patient redesign and one-press start
+
+**Proposed branch:** `slice-22-patient-redesign`. **Effort:** [hypothesis] 4 to 7 hours, unmeasured.
+
+- **Goal/visible result:** the patient journey at `/` looks and reads like `design/mocks/redesign/phone-plan.html` and `phone-readback.html`. A first visit reaches the plan in one press.
+- **Entry:** Gates 2, 3 and 4 re-approved for section 14, section 10 and this section.
+- **Exact files:** `src/carerelay/domain/rules.py` (offers only); `frontend/middleware.ts`, `frontend/app/page.tsx`, `frontend/app/layout.tsx`, `frontend/app/globals.css`, `frontend/components/PatientJourney.tsx`, `frontend/components/HintCard.tsx` (styling only), `frontend/components/icons.tsx`, `frontend/next.config.mjs`; tests in `tests/test_journey.py`, `tests/test_journey_commands.py`, `tests/test_journey_decoder.py`, `tests/test_boundaries.py` and the named-mutation harness.
+- **Exit/proof:** checks O1, O2, F4, F6 and F7 from Gate 3 section 10.7, each RED under its named mutation with exact restore. Full offline suite against the 2,118-pass baseline; frontend typecheck and production build. In the in-app browser: first visit to plan in one press; refresh keeps the episode; consent appears only on its step; the request-failed screen shows the slip; every approved screen at 1440px and 375px with no horizontal scroll; keyboard focus visible on every control; larger text still reflows.
+- **Exclusions/stop:** no judge view, ledger change, copy beyond the Gate 1 inventory, clinical change or ADP change. If Node middleware fails in the production build, use the Gate 2 section 14.6 fallback and record it.
+
+### Slice 23: judge view and ledger read-back detail
+
+**Proposed branch:** `slice-23-judge-view`. **Effort:** [hypothesis] 6 to 10 hours, unmeasured.
+
+- **Goal/visible result:** `/demo` opens the judge start page; `/demo/stage` shows the patient phone beside a panel that follows every step. At the read-back check it shows Mei's confirmed words, what Tencent ADP copied, what code compared and the screen code chose.
+- **Entry:** Slice 22 accepted; explicit continuation to Slice 23; the judge panel copy in `patient-experience-copy.md` approved.
+- **Exact files:** `src/carerelay/domain/rules.py` (`plan_view` extraction only), `src/carerelay/service.py` (`ledger` only), `src/carerelay/presentation.py`; `frontend/app/demo/page.tsx`, `frontend/app/demo/stage/page.tsx`, `frontend/components/judge/StageFrame.tsx`, `RelayTrack.tsx`, `ReadbackLanes.tsx`, `OutcomeLanes.tsx`, `frontend/lib/judge.ts`, `frontend/lib/api.ts` (types), `frontend/components/PatientJourney.tsx` (parent message only); tests in `tests/test_ledger.py`, `tests/test_journey_postgres.py`, a new `tests/test_judge_view.py`, `tests/test_boundaries.py` and the named-mutation harness.
+- **Exit/proof:** checks L1 to L6, S1, F1 to F3 and F5 from Gate 3 section 10.7, each RED under its named mutation with exact restore. Full offline suite; PostgreSQL ledger shape check when the disposable engine is available, otherwise recorded as skipped, not passed. In the in-app browser: the full scripted path through the stage with the local-sim interpreter; the panel matches each approved state; at most two guarded live ADP submissions through the stage, auto-reserved by the existing live guard within the manual-demo run plan; serialized scans of stage HTML, RSC and DOM with planted controls; 1440px and 375px views.
+- **Exclusions/stop:** no change to ADP schema, instruction, cap, retry rule or default-off setting; no deployment; no new table or route on the API. Stop at the first unexpected live result, as the live guard already enforces.
+
+### 10.1 Approval boundary
+
+Re-approval of Gates 2, 3 and 4 authorises Slice 22 to start.
+Slice 23 starts only after Slice 22's Check and the user's explicit continuation.
+Neither authorises Git publication, deployment, install or credential change.
