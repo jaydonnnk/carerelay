@@ -178,6 +178,12 @@ OWNER_ALIASES = {
     "you": NEXT_OWNER_ID,
     "me": NEXT_OWNER_ID,
     "myself": NEXT_OWNER_ID,
+    # Gate 1, 16 October 2026: first-person commitments, not a bare "I", so an
+    # aside such as "I like tea." is not read as naming who acts.
+    "i will": NEXT_OWNER_ID,
+    "i'll": NEXT_OWNER_ID,
+    "i am going": NEXT_OWNER_ID,
+    "i'm going": NEXT_OWNER_ID,
     "the patient": NEXT_OWNER_ID,
     "我自己": NEXT_OWNER_ID,
 }

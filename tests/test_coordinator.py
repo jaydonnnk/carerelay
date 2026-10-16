@@ -414,6 +414,32 @@ class TestTheExtractionBoundarySaysWhatItHides:
         assert extracted.deadline_span is not None
         assert extracted.next_owner_span is not None
 
+    @pytest.mark.parametrize("text,owner", [
+        ("I will go to the clinic today before 6pm", "i will"),
+        ("I'll go to the clinic today before 6pm", "i'll"),
+        ("I’m going to the clinic today before 6pm", "i'm going"),
+        ("I am going to the clinic today before 6pm", "i am going"),
+    ])
+    def test_a_first_person_commitment_names_the_patient(self, store, text, owner) -> None:
+        """Gate 1, 16 October 2026: "I will ..." says who acts, so it is not missing."""
+        _seed(store)
+        policy = fixture.policy()
+        allowed = AllowedPlanValues(action_forms=frozenset(policy.action_aliases) | policy.permitted_action_ids,
+            owner_forms=frozenset(policy.owner_aliases) | policy.permitted_owner_ids,
+            deadline_forms=frozenset(policy.deadline_forms))
+        extracted = LocalSimulationCoordinator(_tools(store)).extract_plan(text, allowed)
+        assert extracted.next_owner_span == owner
+        assert policy.owner_aliases[owner] == fixture.NEXT_OWNER_ID
+        assert not extracted.uncertain_fields
+
+    def test_a_bare_i_in_an_aside_names_no_one(self, store) -> None:
+        _seed(store)
+        policy = fixture.policy()
+        allowed = AllowedPlanValues(action_forms=frozenset(policy.action_aliases) | policy.permitted_action_ids,
+            owner_forms=frozenset(policy.owner_aliases) | policy.permitted_owner_ids,
+            deadline_forms=frozenset(policy.deadline_forms))
+        assert LocalSimulationCoordinator(_tools(store)).extract_plan("today before six. I like tea.", allowed).next_owner_span is None
+
 
 def test_the_deadline_is_untouched_by_a_failed_dispatch(store) -> None:
     """I1. A failed booking is not new clinical information."""
