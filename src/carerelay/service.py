@@ -40,7 +40,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import asdict, dataclass, replace
+import hashlib
 import json
+import logging
 from datetime import datetime, timedelta, timezone
 from datetime import tzinfo
 from typing import Protocol
@@ -414,8 +416,12 @@ class EpisodeService:
         key_namespace: str = DEFAULT_KEY_NAMESPACE,
         operation_signing_key: Callable[[], bytes] | None = None,
         readback_extractor=None,
+        scripted_provider_reply: bool = False,
     ) -> None:
         self._store = store
+        # Slice 24 (demo B): the local simulated provider delivers its scripted
+        # failed reply as a separate, keyed callback right after the dispatch.
+        self._scripted_provider_reply = scripted_provider_reply
         self._coordinator = coordinator
         self._clock = clock
         self._policy = policy
@@ -1034,6 +1040,8 @@ class EpisodeService:
             raise CommandInvalid("unpermitted request purpose")
         if binding.body_sha256 != request_digest("request", {}):
             raise CommandConflict("request body changed")
+        route = "fictional_provider"
+        key = derive_attempt_key(binding.episode_id, route, binding.purpose, namespace=self._key_namespace)
         permit = None
         with self._store.journey_transaction(binding.episode_id, write=True, outermost=True) as tx:
             receipt = tx.find(binding)
@@ -1041,8 +1049,6 @@ class EpisodeService:
                 now = self._clock.now_utc()
                 bundle = tx.load_bundle(binding.episode_id)
                 self._require_permission_offer(binding, bundle, now)
-                route = "fictional_provider"
-                key = derive_attempt_key(binding.episode_id, route, binding.purpose, namespace=self._key_namespace)
                 if self._store.get_attempt_by_key(key) is not None:
                     raise CommandConflict("request purpose already has an attempt")
                 claim = tx.claim_once(binding, now_utc=now)
@@ -1062,7 +1068,27 @@ class EpisodeService:
                 if receipt is None:
                     raise StateError("owned dispatch lost its durable claim")
                 receipt = replace(receipt, replayed=False)
+        if self._scripted_provider_reply and receipt.state != "refused" and self._store.get_attempt_by_key(key) is not None:
+            try:
+                self._deliver_scripted_reply(binding.episode_id, route=route, attempt_key=key)
+            except Exception:
+                # The attempt honestly stays in flight; the request itself is already durable.
+                logging.getLogger("carerelay.service").error("scripted provider reply not recorded")
         return CommandResponse(receipt, self.project_journey(binding.episode_id))
+
+    #: Slice 24: the only reply the scripted provider ever sends by itself.
+    SCRIPTED_REPLY_TRANSITION = ExecutionStatus.FAILED
+
+    def _deliver_scripted_reply(self, episode_id: str, *, route: str, attempt_key: str) -> None:
+        """One keyed `failed` callback, origin local-sim, no evidence, no payload.
+
+        The key is derived from the attempt key, so a replayed request records a
+        duplicate instead of a second outcome. Nothing here can carry evidence or
+        another transition, and the deadline, owner and closure rules are untouched.
+        """
+        callback_key = "scripted-reply:" + hashlib.sha256(attempt_key.encode("utf-8")).hexdigest()[:32]
+        self.receive_callback(episode_id, route, callback_key,
+                              CallbackResult(transition=self.SCRIPTED_REPLY_TRANSITION), Origin.LOCAL_SIM)
 
     def _require_readback_offer(self, binding, bundle, now_utc):
         from carerelay.journey_commands import CommandConflict
