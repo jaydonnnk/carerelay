@@ -4,6 +4,9 @@
 
 **Blurb (8 words):** Understand care advice. Find a feasible next step.
 
+**Positioning.** CareRelay addresses the care-navigation part of Challenge 1, helping older adults understand a supplied care plan, identify barriers and see whether help has actually been arranged.
+It does not add clinical triage, and it has no integration with HealthHub, Health Buddy or any other healthcare service.
+
 **Status of this document.** Every claim below is traceable to a file in this
 repository, a test, a live transcript, or is labelled as a hypothesis. Nothing here
 is a clinical claim. The companion statement `honest-claims.md` lists what this
@@ -119,7 +122,7 @@ reachable through projection bugs, which is why the fault harness exists.
 | API | FastAPI, the authorisation boundary | `src/carerelay/api.py` |
 | Domain | Pure decision logic: no network, no LLM client, no wall clock, enforced by a scanner | `src/carerelay/domain/` |
 | Record | Postgres on Supabase, 14 tables and 42 triggers; SQLite for tests | `src/carerelay/postgres_store.py`, `src/carerelay/state.py` |
-| Patient and judge surfaces | Next.js on Vercel: four-line patient screen, judge ledger | `frontend/app/` |
+| Patient and judge surfaces | Next.js on Vercel: patient screen at `/`, judge start page at `/demo`, judge stage at `/demo/stage`, full ledger at `/ledger` | `frontend/app/` |
 | Tool surface | Three MCP tools with three rechecks each | `src/carerelay/tools.py` |
 | Development substrate | WorkBuddy and CodeBuddy, which is also the mandatory usage proof | `submission/usage-proof.md` |
 
@@ -164,7 +167,35 @@ reachable through projection bugs, which is why the fault harness exists.
 
 [verified local artifacts] Development-history records, redacted screenshots and the protected WorkBuddy usage video are retained in the repository. Their presence is evidence of the submitted development process, not an organiser acceptance or scoring result.
 
-### 3.6 Key design trade-offs, as the project records them
+### 3.6 The judge view: where Tencent ADP reads words and where code decides
+
+[verified local, Slice 23, 16 October 2026] `/demo/stage` shows the unchanged patient route in a same-origin phone frame beside a read-only panel.
+The panel reads only the ledger, which never writes: opening or refreshing it records nothing, consumes no hint and starts no check.
+At the read-back check it shows the words the patient confirmed, the phrases the reader copied, the comparison code made with the stored plan, and the screen code chose.
+Every value comes from stored records; nothing is recomputed in the browser.
+
+The path of one fictional episode, as built (`submission/architecture.html`):
+
+1. A fixed fictional plan supplies the action, deadline, who acts and fallback.
+2. The plan is folded away; the patient says it back and confirms the exact words.
+3. Tencent ADP copies the phrases for action, time and who acts, or marks them unclear, or refuses. One call, 15-second cap, no retry, schema v2.
+4. CareRelay code validates the reply, locates each phrase in the saved words and compares it with the stored plan.
+5. Code chooses the next screen: repair the time, ask what makes it hard, or stop.
+6. The patient grants or declines permission on its own step.
+7. A scripted local provider receives one simulated request; its reply arrives separately.
+8. Code records request sent, proof of care and case state as separate axes.
+
+The model does not diagnose, choose urgency, prescribe, change deadlines, grant permission or declare care complete.
+ADP is off by default. Offline, step 3 is done by a labelled local stand-in, and the panel says Tencent ADP was not contacted for that check.
+Through the guarded local product, two live calls on 16 October 2026 (ledger entries 29 and 30) showed a wrong time caught and then repaired, with the plan and deadline unchanged.
+
+**Clinical functions this build does not have:** clinical symptom assessment, warning-sign detection, validated self-care guidance, dynamic clinical reassessment and fairness validation across patient subgroups.
+Refusing a clinical request is a scope guard, not evidence of calibrated clinical triage.
+A stopped conversation or a failed request does not mean anyone has taken over.
+Working alongside HealthHub or Health Buddy, for example taking a real clinician-issued plan and booking route from them, is a possible future role only; no connection exists.
+Patient benefit, clinical safety and superiority over existing apps are unmeasured.
+
+### 3.7 Key design trade-offs, as the project records them
 
 | Decision | What it buys | What it costs |
 |---|---|---|

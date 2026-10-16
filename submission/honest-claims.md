@@ -40,14 +40,22 @@ evidence and is not a deliverable (`src/carerelay/study/`).
 CareRelay targets is **[unknown]** (`docs/PLAN.md:108`). "Users fail to act after
 correct advice" is a **[hypothesis]** (`AGENTS.md:169-174`).
 
-**No claim that AI triages anything at runtime.** The shipped build makes no model
-call. The interpretation step is occupied by a deterministic scanner labelled
-`simulated = True`, and every execution result carries `origin = local-sim`
-(`src/carerelay/coordinator.py:143-223`; `00-status.md:497`). What was proven about
-ADP is **transport only** (`00-status.md:263-291`). ADP tool-calling is a **vendor
-claim**; MCP tool execution, platform-originated failure events and session resume are
-**[unknown]** and undocumented in the ADP guide (`02-architecture.md:364`). The ADP
-interpretation surface is a conditional slice that was **not run**.
+**No claim that AI triages anything at runtime.** Current state, 16 October 2026: Tencent ADP is off by default.
+When it is explicitly configured, its only job is to copy phrases for the action, time and who acts out of words the patient confirmed, or to mark them unclear, or to refuse.
+CareRelay code validates that reply, locates the phrases and compares them with the stored plan; the model does not diagnose, choose urgency, prescribe, change a deadline, grant permission, send a request or declare care complete.
+Offline, a labelled local stand-in does that step, and the judge view says Tencent ADP was not contacted.
+Every execution result still carries `origin = local-sim`. ADP tool execution, platform-originated failure events and session resume remain **[unknown]** (`02-architecture.md` sections 13.6 and 14).
+Live evidence is a small fictional sample through the guarded local product, not general reliability (`00-status.md`).
+
+**No clinical triage functions.** This build has no clinical symptom assessment, no warning-sign detection, no validated self-care guidance, no dynamic clinical reassessment and no fairness validation across patient subgroups.
+Refusing a clinical question is a scope guard, not evidence of calibrated clinical triage.
+A stopped conversation or a failed request does not mean anyone has taken over.
+
+**No integration with any healthcare service.** Working alongside HealthHub or Health Buddy is a possible future role only. No connection, data exchange, agreement or endorsement exists.
+
+**No measured benefit.** Patient benefit, clinical safety and superiority over existing apps are unmeasured.
+
+**Judge-view timing is not click-to-screen.** The stage's "Checked in" chip reads server time from a check's stored claim to its stored completion. Under the fixed demo clock that time is not measured, so the chip is not shown. The 5.1 to 6.2 second figures on `/demo` are dated measurements from the 16 October live runs, not live readings.
 
 **No claim that the platform carries the mechanism.** PlanBack and the Closure
 Contract are application logic and do not require WorkBuddy
@@ -81,6 +89,7 @@ repository was produced, which is separately evidenced.
 | **Log redaction (NF6) is unimplemented** | There is no logging to verify it against yet (`tasks/todo.md:120`) |
 | **The secret scanner does not catch the credential form that actually leaked** | A bare value in prose is invisible to it. The operative control is that no value is written in a document (`tasks/todo.md:144`) |
 | **A rotated database credential remains in the repository's git history** | Committed on 5 October 2026 and rotated the same day. The working tree carries no credential; the history is disclosed rather than rewritten, because rewriting it would falsify the record (`AGENTS.md:487-498`) |
+| **Credential-bearing `.env.example` values remain in git history** | [verified 16 October 2026] Commits before `abd2c3f` carried non-empty `CARERELAY_API_TOKEN`, `ADP_APPKEY` and `ADP_API_SECRET` values, and that history is on the public `origin/main`. `abd2c3f` cleared them in the working tree. A hash comparison found the historical token and API secret equal to current local configuration values, so they need rotation; no rotation or history rewrite was done in Slice 23. The repository is not claimed to be credential-free. |
 | **The Supabase free tier pauses after inactivity** | Accepted as handled: the project is kept warm until the submission deadline |
 | **Deployment region and processor arrangements under PDPA** | **[unknown]** (`AGENTS.md:480-481`) |
 

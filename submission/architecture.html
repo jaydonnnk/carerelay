@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CareRelay architecture</title>
+<style>
+  /* Standalone, no framework, no build step, no external requests. Colour says who acts:
+     blue = Tencent ADP reads words, green = CareRelay code decides, hatching = simulated,
+     yellow = the plan, dashed grey = proposed future work that does not exist. */
+  :root {
+    --ink: #1b2230; --paper: #f3f5f2; --surface: #ffffff; --muted: #4f5866; --rule: #d3d9d4;
+    --slip: #fff0a3; --slip-edge: #e8d46a; --act: #0d5e4f; --act-soft: #dcefe9;
+    --adp: #0052d9; --adp-soft: #e3ecfc; --alert: #b3261e; --alert-soft: #fbe5e3;
+    --sim: repeating-linear-gradient(135deg, #e3e6e2 0 6px, #f3f5f2 6px 12px);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 17px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1120px; margin: 0 auto; padding: 2.4rem 1.4rem 4rem; }
+  h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); line-height: 1.1; margin: 0 0 .6rem; letter-spacing: -.02em; }
+  h2 { font-size: 1.35rem; margin: 2.6rem 0 .8rem; }
+  p { margin: 0 0 .8rem; max-width: 70ch; }
+  .lede { color: var(--muted); font-size: 1.05em; }
+  .label { display: inline-block; font-size: .78em; padding: .2rem .55rem; border-radius: 4px; background: var(--sim); }
+  ol.flow { list-style: none; margin: 1.2rem 0 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .8rem; counter-reset: s; }
+  ol.flow li { counter-increment: s; border-radius: 12px; padding: .9rem 1rem 1rem; border: 2px solid var(--rule); background: var(--surface); position: relative; }
+  ol.flow li::before { content: counter(s); position: absolute; top: -.7rem; left: .8rem; background: var(--ink); color: #fff; font-weight: 800;
+    width: 1.5rem; height: 1.5rem; border-radius: 50%; display: grid; place-items: center; font-size: .8em; }
+  ol.flow h3 { margin: .2rem 0 .3rem; font-size: 1em; }
+  ol.flow p { margin: 0; font-size: .9em; color: var(--muted); }
+  .who { font-size: .72em; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .plan { background: var(--slip) !important; border-color: var(--slip-edge) !important; }
+  .adp { background: var(--adp-soft) !important; border-color: var(--adp) !important; } .adp .who { color: var(--adp); }
+  .code { background: var(--act-soft) !important; border-color: var(--act) !important; } .code .who { color: var(--act); }
+  .sim { background: var(--sim) !important; }
+  .patient { border-color: var(--ink) !important; }
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .card { background: var(--surface); border: 1px solid var(--rule); border-radius: 12px; padding: 1rem 1.2rem; }
+  .card h3 { margin: 0 0 .5rem; font-size: 1.02em; }
+  .card ul { margin: 0; padding-left: 1.2rem; }
+  .card li { margin: .2rem 0; }
+  .card.yes { border-color: var(--adp); } .card.yes h3 { color: var(--adp); }
+  .card.no h3 { color: var(--alert); }
+  .card.absent { border: 2px solid var(--alert); }
+  .future { border: 2px dashed #8a9290; border-radius: 12px; padding: 1rem 1.2rem; background: transparent; }
+  .future h3 { margin: 0 0 .4rem; }
+  .tag { display: inline-block; font-size: .75em; font-weight: 700; padding: .1rem .5rem; border-radius: 4px; border: 1px dashed #8a9290; color: var(--muted); margin-left: .4rem; }
+  table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; }
+  th, td { text-align: left; padding: .6rem .8rem; border-bottom: 1px solid var(--rule); vertical-align: top; font-size: .92em; }
+  th { color: var(--muted); font-size: .8em; }
+  footer { margin-top: 2.4rem; font-size: .85em; color: var(--muted); }
+  code { font-family: ui-monospace, Menlo, monospace; font-size: .85em; }
+  @media (max-width: 860px) { ol.flow { grid-template-columns: 1fr 1fr; } .split { grid-template-columns: 1fr; } }
+  @media (max-width: 520px) { main { padding: 1.6rem 16px 3rem; } ol.flow { grid-template-columns: 1fr; } table { font-size: .9em; } }
+</style>
+</head>
+<body>
+<main>
+  <span class="label">Fictional research demonstration. Not clinical advice. Not a medical device.</span>
+  <h1>CareRelay: where the model reads words, and where code decides</h1>
+  <p class="lede">CareRelay addresses the care-navigation part of Challenge 1, helping older adults understand a supplied care plan, identify barriers and see whether help has actually been arranged.
+  It does not assess symptoms or choose care.</p>
+
+  <h2>The path of one fictional episode, as built</h2>
+  <ol class="flow">
+    <li class="plan"><span class="who">Fixed script</span><h3>Fictional supplied plan</h3><p>Action, deadline, who acts and fallback come from a fixed fixture. No model writes them.</p></li>
+    <li class="patient"><span class="who">Patient</span><h3>Confirmed patient words</h3><p>The plan is folded away. The patient says it back, reviews the words and confirms them before any check.</p></li>
+    <li class="adp"><span class="who">Tencent ADP</span><h3>Phrase extraction</h3><p>One call, 15-second cap, no retry, schema v2. It copies the phrases for action, time and who acts, or marks them unclear, or refuses.</p></li>
+    <li class="code"><span class="who">CareRelay code</span><h3>Validation and comparison</h3><p>Code rejects a malformed reply, locates each phrase in the saved words and compares it with the stored plan.</p></li>
+    <li class="code"><span class="who">CareRelay code</span><h3>Patient next step</h3><p>Code picks the next screen: repair the time, ask what makes it hard, or stop. The plan and deadline never change here.</p></li>
+    <li class="patient"><span class="who">Patient</span><h3>Permission</h3><p>Nothing is shared unless the patient agrees on its own step. Only the action and deadline would be shared.</p></li>
+    <li class="sim"><span class="who">Simulated provider</span><h3>Simulated action</h3><p>A scripted local provider receives one request. Its reply arrives separately and is labelled simulated.</p></li>
+    <li class="code"><span class="who">CareRelay code</span><h3>Recorded outcome</h3><p>Request sent, proof of care and case state are separate axes. A failed request keeps the deadline and the fallback, and the case stays open.</p></li>
+  </ol>
+  <p style="margin-top:1rem"><strong>Offline mode.</strong> ADP is off by default. Without explicit local configuration, step 3 is done by a labelled local stand-in, and the judge view says Tencent ADP was not contacted.</p>
+
+  <h2>What Tencent ADP does and never does</h2>
+  <div class="split">
+    <div class="card yes"><h3>ADP does</h3><ul>
+      <li>Read the words the patient confirmed.</li>
+      <li>Copy out the action, time and who acts, exactly as written.</li>
+      <li>Mark doubt, negation, alternatives and changed minds as unclear.</li>
+      <li>Refuse medical questions and injected instructions.</li>
+    </ul></div>
+    <div class="card no"><h3>The model never</h3><ul>
+      <li>Diagnoses, chooses urgency or prescribes.</li>
+      <li>Sets or changes the plan, the deadline or who acts.</li>
+      <li>Grades whether the patient understood.</li>
+      <li>Grants permission, sends a request or declares care complete.</li>
+      <li>Gets a second try when its reply is wrong.</li>
+    </ul></div>
+  </div>
+
+  <h2>Clinical functions this build does not have</h2>
+  <div class="card absent"><ul>
+    <li>Clinical symptom assessment.</li>
+    <li>Warning-sign (red-flag) detection.</li>
+    <li>Validated self-care guidance.</li>
+    <li>Dynamic clinical reassessment over time.</li>
+    <li>Fairness validation across patient subgroups.</li>
+  </ul>
+  <p style="margin-top:.8rem">Refusing a clinical request is a scope guard, not evidence of calibrated clinical triage.
+  A stopped conversation or a failed request does not mean anyone has taken over.
+  Patient benefit, clinical safety and superiority over existing apps are unmeasured.</p></div>
+
+  <h2>Possible future role, not built</h2>
+  <div class="future">
+    <h3>Alongside HealthHub or Health Buddy <span class="tag">Proposed. No connection exists.</span></h3>
+    <p>A national app could supply a real, clinician-issued plan and a real booking route. CareRelay could then sit beside it as the read-back and follow-through layer: check the plan was understood, ask what stands in the way, and show plainly whether help has been arranged.
+    No integration, data exchange, agreement or endorsement exists today.</p>
+  </div>
+
+  <h2>Where each part lives</h2>
+  <table>
+    <thead><tr><th scope="col">Part</th><th scope="col">Who acts</th><th scope="col">Where</th></tr></thead>
+    <tbody>
+      <tr><td>Fixed fictional plan</td><td>Fixture</td><td><code>src/carerelay/demo/fixture.py</code></td></tr>
+      <tr><td>Phrase extraction adapter</td><td>Tencent ADP, or local stand-in offline</td><td><code>src/carerelay/adp_extraction.py</code></td></tr>
+      <tr><td>Validation, comparison, next screen, closure</td><td>CareRelay code</td><td><code>src/carerelay/domain/rules.py</code></td></tr>
+      <tr><td>Append-only record and read-only judge ledger</td><td>CareRelay code</td><td><code>src/carerelay/state.py</code>, <code>src/carerelay/service.py</code></td></tr>
+      <tr><td>Patient screen</td><td>Patient</td><td><code>frontend/app/page.tsx</code></td></tr>
+      <tr><td>Judge stage: patient phone beside a read-only panel</td><td>Judge</td><td><code>frontend/app/demo/stage/page.tsx</code></td></tr>
+      <tr><td>Simulated provider</td><td>Simulated</td><td><code>src/carerelay/simulated_provider.py</code></td></tr>
+    </tbody>
+  </table>
+
+  <footer>CareRelay architecture, Slice 23, 16 October 2026. Every element shown as built is in the repository; the dashed box is a proposal only.</footer>
+</main>
+</body>
+</html>

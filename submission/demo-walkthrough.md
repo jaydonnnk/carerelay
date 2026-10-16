@@ -1,5 +1,24 @@
 # Demo walkthrough
 
+## Judge stage walkthrough: Slice 23, 16 October 2026
+
+[verified local] Open `/demo`, then "Start the demo". `/demo/stage` shows the patient phone on the left and a read-only judge panel on the right.
+The panel reads only the ledger. It follows each step through a same-origin refresh signal; "Refresh" re-reads it if a signal is missed, for example after an out-of-band callback.
+State the mode first: offline (labelled local stand-in, Tencent ADP not contacted) or guarded live (every submission reserved in the live ledger before sending).
+
+1. Press "See the example" on the phone. The panel reads "Mei has her plan."
+2. Press "Say it in your words". The plan folds away on the phone; the panel reads "Mei says her plan back from memory."
+3. Type `I will go to the clinic myself today before 8pm`, review, then "Save and check these words".
+4. The panel shows the saved words, the three copied phrases, and code's comparison: "By when" is "Different from plan". The phone shows "Let’s check the time".
+5. Type `today before 6pm`, review and save. The panel shows one copied phrase and all three fields "Same"; the plan reference still reads "6pm today".
+6. Choose "Finding an appointment", then "Continue".
+7. Tick "I agree to share this plan." and press "Try the simulated request". Both sides show "No reply yet." / "The simulated request is out. No reply yet."
+8. Deliver the scripted failure through the existing callback route (see `setup-runbook.md` Part C), then press "Refresh" on the panel and reload the page.
+9. Both sides show the failure: the phone shows "The request did not work" with the plan slip; the panel shows "Request sent: Failed", "Proof of care: None", "Case: Still open", and Mei still holds the "Must act" tag.
+
+A sent request is not care, a failed request does not hand Mei to anyone, and the 6pm deadline never moves.
+The patient page never receives ledger data; the frame is the unchanged patient route.
+
 ## Current review scope: 16 October 2026
 
 [verified] Slice 21 is accepted as a bounded fictional demo with seven live cases unrun. The real ADP read-back path is implemented and produced one valid, scored local-product result in call 18 at 5,305 ms. Code performs comparison and owns the plan, permissions, actions and closure. Actions remain simulated.

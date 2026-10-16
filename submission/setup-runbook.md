@@ -126,6 +126,19 @@ the browser. Warm the service before a judge opens the link.
 
 ---
 
+## Part C: run the judge stage locally (Slice 23, 16 October 2026)
+
+Offline mode makes no ADP request. It needs the existing Python and Node runtimes and installed frontend dependencies; install nothing new.
+
+1. Start the API on loopback with disposable SQLite, scenario time and ADP off: `APP_DATABASE_URL=<new file>.sqlite APP_CLOCK=scenario APP_ENV=local ADP_EXTRACTION_ENABLED=false CARERELAY_API_TOKEN=<synthetic local value> python -m uvicorn carerelay.api:app --host 127.0.0.1 --port 8551` with `PYTHONPATH=src`.
+2. Build the frontend once (`npm --prefix frontend run build`) and start it with `CARERELAY_API_URL=http://127.0.0.1:8551`, the same synthetic token and `CARERELAY_LOOPBACK_TEST=1`: `next start --hostname 127.0.0.1 --port 8550`.
+3. Open `http://127.0.0.1:8550/demo`.
+4. To deliver the scripted failure after the simulated request: `POST /api/episodes/{episode_id}/callbacks/fictional_provider` with body `{"callback_key": "<new key>", "transition": "failed", "origin": "local-sim"}` and the synthetic bearer token. The episode ID is in the disposable SQLite `episodes` table.
+
+Never point the stage at a hosted database, and never copy a credential value into a command line that is logged or shared.
+A guarded live stage uses the existing live-call guard: the backend starts through the guarded launcher, which reserves every HTTPS submission in the live ledger before sending and halts after any unexpected result.
+Slice 23's two live stage submissions (ledger entries 29 and 30) are spent; any further live use follows the current run plan in `00-status.md`.
+
 ## Part B: accepted Slice 21 ADP scope, 16 October 2026
 
 [verified follow-up authority] The user subsequently stated "I give full approval for all live calls" for the remaining fictional ADP cases and live local-demo assessment. The earlier 24 total is superseded; no new numeric ceiling was specified. Reserve and count each request before transmission, preserve all existing runtime limits/no-retry/stop-on-failure rules, and update the stale helper/authority guard with offline proof. This adds no hosted deployment or future implementation shipping authority. The accepted baseline below remains dated history; `00-status.md` owns current authority.
