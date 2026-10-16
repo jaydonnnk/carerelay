@@ -33,12 +33,17 @@ function SafetyCheck({ onClear }: { onClear: (unchecked: string[]) => void }) {
   const [answers, setAnswers] = useState<SafetyAnswers>({});
   const [index, setIndex] = useState(0);
   const [emergency, setEmergency] = useState<string[] | null>(null);
-  const heading = useRef<HTMLHeadingElement>(null);
-  useEffect(() => { heading.current?.focus(); }, [index, emergency]);
+  const title = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { title.current?.focus(); }, [index, emergency]);
+  // One heading for every screen of the check; it names <main> through the shared id.
+  const titled = (text: string, body: React.ReactNode) => <>
+    <h1 id="journey-heading" ref={title} tabIndex={-1}>{text}</h1>
+    {body}
+    <p className="safety-source">{SAFETY_COPY.source}</p>
+  </>;
 
   if (emergency) {
-    return <>
-      <h1 id="journey-heading" tabIndex={-1} ref={heading}>{SAFETY_COPY.emergency_heading}</h1>
+    return titled(SAFETY_COPY.emergency_heading, <>
       <div className="journey-status-box open safety-emergency" role="alert">
         <Icon name="alert" />
         <div>
@@ -48,8 +53,7 @@ function SafetyCheck({ onClear }: { onClear: (unchecked: string[]) => void }) {
         </div>
       </div>
       <button className="control" type="button" onClick={() => { setEmergency(null); setIndex(0); }}>{SAFETY_COPY.emergency_change}</button>
-      <p className="safety-source">{SAFETY_COPY.source}</p>
-    </>;
+    </>);
   }
 
   const id = QUESTION_ORDER[index];
@@ -62,8 +66,7 @@ function SafetyCheck({ onClear }: { onClear: (unchecked: string[]) => void }) {
     if (outcome.result === "emergency") setEmergency(outcome.reasons);
     else if (outcome.result === "clear") onClear(outcome.unchecked);
   }
-  return <>
-    <h1 id="journey-heading" tabIndex={-1} ref={heading}>{SAFETY_COPY.heading}</h1>
+  return titled(SAFETY_COPY.heading, <>
     <p>{SAFETY_COPY.intro}</p>
     <form onSubmit={event => { event.preventDefault(); next(); }}>
       <fieldset className="journey-choices">
@@ -77,8 +80,7 @@ function SafetyCheck({ onClear }: { onClear: (unchecked: string[]) => void }) {
       <button className="control primary" type="submit" aria-disabled={chosen ? undefined : true}>{SAFETY_COPY.next}</button>
       {index > 0 && <button className="control" type="button" onClick={() => setIndex(index - 1)}>{SAFETY_COPY.back}</button>}
     </form>
-    <p className="safety-source">{SAFETY_COPY.source}</p>
-  </>;
+  </>);
 }
 
 type Props = { state: "entry" | "recovery" | "start"; creationToken?: string } | { state: "loaded"; journey: Journey };
