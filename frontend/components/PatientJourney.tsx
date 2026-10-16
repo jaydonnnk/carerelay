@@ -3,7 +3,8 @@ import { useActionState, useEffect, useLayoutEffect, useRef, useState } from "re
 import { useRouter } from "next/navigation";
 import { startExample, selectExample, prepareReadbackWords, submitReadback, prepareBarrierChoice, submitPermission, type ActionResult } from "@/app/actions";
 import { ENTRY_COPY, RECOVERY_COPY, JOURNEY_LABEL, RESTART_LABEL, SLIP_COPY, notifyParent, progressStep, progressLabel, reconcileJourney, startThenSelect,
-  type Journey, type PlanView, type CommandOffer } from "@/lib/journey";
+  QUESTION_ORDER, QUESTIONS, SAFETY_COPY, assessSafety, emergencyLine, uncheckedLine,
+  type Journey, type PlanView, type CommandOffer, type SafetyAnswers } from "@/lib/journey";
 import { HintCard } from "./HintCard";
 
 /** Slice 22: icons accompany text and never replace it (`patient-experience-copy.md`). */
@@ -21,6 +22,63 @@ type IconName = keyof typeof PATHS;
 function Icon({ name }: { name: IconName }) {
   return <svg className="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2}
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" focusable="false">{PATHS[name]}</svg>;
+}
+
+/**
+ * The guided safety check: one question per screen, then either the emergency
+ * screen or `onClear` with what could not be checked. Answers stay in this
+ * component; nothing is sent or stored (Gate 2 trade-off, `00-status.md`).
+ */
+function SafetyCheck({ onClear }: { onClear: (unchecked: string[]) => void }) {
+  const [answers, setAnswers] = useState<SafetyAnswers>({});
+  const [index, setIndex] = useState(0);
+  const [emergency, setEmergency] = useState<string[] | null>(null);
+  const heading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => { heading.current?.focus(); }, [index, emergency]);
+
+  if (emergency) {
+    return <>
+      <h1 id="journey-heading" tabIndex={-1} ref={heading}>{SAFETY_COPY.emergency_heading}</h1>
+      <div className="journey-status-box open safety-emergency" role="alert">
+        <Icon name="alert" />
+        <div>
+          <p className="journey-line"><strong>{SAFETY_COPY.emergency_call}</strong></p>
+          <p className="journey-line">{SAFETY_COPY.emergency_wait}</p>
+          <p className="journey-line">{emergencyLine(emergency)}</p>
+        </div>
+      </div>
+      <button className="control" type="button" onClick={() => { setEmergency(null); setIndex(0); }}>{SAFETY_COPY.emergency_change}</button>
+      <p className="safety-source">{SAFETY_COPY.source}</p>
+    </>;
+  }
+
+  const id = QUESTION_ORDER[index];
+  const question = QUESTIONS[id];
+  const chosen = answers[id];
+  function next() {
+    if (!chosen) return;
+    if (index < QUESTION_ORDER.length - 1) { setIndex(index + 1); return; }
+    const outcome = assessSafety(answers);
+    if (outcome.result === "emergency") setEmergency(outcome.reasons);
+    else if (outcome.result === "clear") onClear(outcome.unchecked);
+  }
+  return <>
+    <h1 id="journey-heading" tabIndex={-1} ref={heading}>{SAFETY_COPY.heading}</h1>
+    <p>{SAFETY_COPY.intro}</p>
+    <form onSubmit={event => { event.preventDefault(); next(); }}>
+      <fieldset className="journey-choices">
+        <legend className="journey-question">{question.text}</legend>
+        {question.options.map(([value, label]) => <label key={value} className="journey-choice">
+          <input type="radio" name={id} value={value} checked={chosen === value}
+            onChange={() => setAnswers({ ...answers, [id]: value })} />
+          <span>{label}</span>
+        </label>)}
+      </fieldset>
+      <button className="control primary" type="submit" aria-disabled={chosen ? undefined : true}>{SAFETY_COPY.next}</button>
+      {index > 0 && <button className="control" type="button" onClick={() => setIndex(index - 1)}>{SAFETY_COPY.back}</button>}
+    </form>
+    <p className="safety-source">{SAFETY_COPY.source}</p>
+  </>;
 }
 
 type Props = { state: "entry" | "recovery" | "start"; creationToken?: string } | { state: "loaded"; journey: Journey };
@@ -333,6 +391,10 @@ export function PatientJourney(props: Props) {
     : copy.feedback ?? "";
   const offer = journey?.commands.find(o => o.kind === "select_example" && o.operation_token);
   const creation = current.state !== "loaded" ? current.creationToken : undefined;
+  // Quick safety check (Gate 1 to 4, 16 October 2026): it runs before any plan is created.
+  const [safety, setSafety] = useState<{ phase: "start" | "check" | "clear"; unchecked: string[] }>({ phase: "start", unchecked: [] });
+  const needsCheck = Boolean(creation || offer?.operation_token);
+  const checking = needsCheck && safety.phase === "check";
   async function run(offer: CommandOffer) {
     if (commandPending) return;
     setCommandPending(true);
@@ -375,6 +437,7 @@ export function PatientJourney(props: Props) {
     </header>
     {/* Focus lands here after a step change; its name says which step and status it is. */}
     <main id="main" className="screen" tabIndex={-1} ref={main} aria-labelledby="journey-heading journey-state">
+      {checking ? <SafetyCheck onClear={unchecked => setSafety({ phase: "clear", unchecked })} /> : <>
       {progress !== null && <Progress step={progress} />}
       <h1 id="journey-heading" tabIndex={-1} ref={heading}>{recovery ? RECOVERY_COPY.heading : copy.heading}</h1>
       {!recovery && copy.status && <p id="journey-state" className="journey-status">{copy.status}</p>}
@@ -409,11 +472,19 @@ export function PatientJourney(props: Props) {
         </>}
       </HintCard>
       {recovery && <a className="control" href="/">{RECOVERY_COPY.retry}</a>}
-      {creation && <ExampleForm token={creation} kind="create" onResult={onResult} onPending={reportPending} />}
-      {offer?.operation_token && <ExampleForm token={offer.operation_token} kind="select_example" onResult={onResult}
+      {needsCheck && safety.phase === "start" && <button className="control primary" type="button"
+        aria-disabled={busy(commandPending || formPending)}
+        onClick={() => { if (!commandPending && !formPending) setSafety({ phase: "check", unchecked: [] }); }}>{ENTRY_COPY.start}</button>}
+      {needsCheck && safety.phase === "clear" && <div className="journey-status-box calm"><Icon name="check" /><div>
+        <p className="journey-line">{SAFETY_COPY.clear}</p>
+        {safety.unchecked.length > 0 && <p className="journey-line">{uncheckedLine(safety.unchecked)}</p>}
+      </div></div>}
+      {safety.phase === "clear" && creation && <ExampleForm token={creation} kind="create" onResult={onResult} onPending={reportPending} />}
+      {safety.phase === "clear" && offer?.operation_token && <ExampleForm token={offer.operation_token} kind="select_example" onResult={onResult}
         onPending={reportPending} />}
       {current.state === "entry" && <a className="control primary" href="/example">{ENTRY_COPY.start}</a>}
       {journey && <a className="journey-new-example" href="/example">{RESTART_LABEL}</a>}
+      </>}
     </main>
     <footer className="journey-footer">{journey?.fixture_label ?? JOURNEY_LABEL}</footer>
   </div>;

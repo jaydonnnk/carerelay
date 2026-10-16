@@ -362,3 +362,86 @@ export function notifyParent(win: Window, revision: number): boolean {
   win.parent.postMessage({ type: "carerelay-journey", revision }, win.location.origin);
   return true;
 }
+
+/**
+ * Quick safety check (Gate 1 to 4 approval, 16 October 2026, `00-status.md`).
+ *
+ * Four guided questions before the plan. The emergency rule is the challenge's
+ * Scenario 2 emergency tier, used verbatim and labelled as such: SpO2 below 90% at
+ * rest, a respiratory rate of 30 or more, new chest pain, or confusion. Code decides;
+ * no model and no network call sit on this path, so urgent guidance never waits.
+ * "Not sure" or "I cannot measure it" is never read as clear: it is reported back.
+ */
+export type Oxygen = "below_90" | "90_93" | "94_plus" | "unknown";
+export type YesNo = "yes" | "no" | "unsure";
+export type SafetyAnswers = { oxygen?: Oxygen; breathing?: YesNo; chest_pain?: YesNo; confusion?: YesNo };
+export type QuestionId = keyof SafetyAnswers;
+export type SafetyOutcome =
+  | { result: "incomplete" }
+  | { result: "emergency"; reasons: string[] }
+  | { result: "clear"; unchecked: string[] };
+
+export const QUESTION_ORDER: readonly QuestionId[] = ["oxygen", "breathing", "chest_pain", "confusion"];
+
+const YES_NO_OPTIONS = [["yes", "Yes"], ["no", "No"], ["unsure", "Not sure"]] as const;
+
+/** Approved Gate 1 strings, verbatim. */
+export const SAFETY_COPY = {
+  heading: "Quick safety check",
+  intro: "Answer for right now.",
+  source: "Uses the challenge's example warning signs (Scenario 2). Not clinical guidance.",
+  next: "Next",
+  back: "Back",
+  emergency_heading: "Get emergency help now",
+  emergency_call: "Call 995 for an ambulance.",
+  emergency_wait: "Do not wait for this app.",
+  emergency_change: "Change my answers",
+  clear: "No warning signs from these four questions.",
+} as const;
+
+export const QUESTIONS: Record<QuestionId, { text: string; options: readonly (readonly [string, string])[] }> = {
+  oxygen: { text: "What is your oxygen reading right now?", options: [["below_90", "Below 90%"], ["90_93", "90% to 93%"],
+    ["94_plus", "94% or higher"], ["unknown", "I cannot measure it"]] },
+  breathing: { text: "Are you breathing very fast, 30 or more breaths a minute?", options: YES_NO_OPTIONS },
+  chest_pain: { text: "Do you have new chest pain?", options: YES_NO_OPTIONS },
+  confusion: { text: "Are you confused, or has someone said you seem confused?", options: YES_NO_OPTIONS },
+};
+
+const REASONS: Record<QuestionId, string> = {
+  oxygen: "oxygen below 90%", breathing: "breathing 30 or more times a minute",
+  chest_pain: "new chest pain", confusion: "confusion",
+};
+const UNCHECKED: Record<QuestionId, string> = {
+  oxygen: "your oxygen", breathing: "your breathing rate", chest_pain: "chest pain", confusion: "confusion",
+};
+
+const VALID: Record<QuestionId, readonly string[]> = {
+  oxygen: ["below_90", "90_93", "94_plus", "unknown"], breathing: ["yes", "no", "unsure"],
+  chest_pain: ["yes", "no", "unsure"], confusion: ["yes", "no", "unsure"],
+};
+
+export function assessSafety(answers: SafetyAnswers): SafetyOutcome {
+  for (const id of QUESTION_ORDER) {
+    if (!VALID[id].includes(answers[id] as string)) return { result: "incomplete" };
+  }
+  const reasons: string[] = [];
+  if (answers.oxygen === "below_90") reasons.push(REASONS.oxygen);
+  if (answers.breathing === "yes") reasons.push(REASONS.breathing);
+  if (answers.chest_pain === "yes") reasons.push(REASONS.chest_pain);
+  if (answers.confusion === "yes") reasons.push(REASONS.confusion);
+  if (reasons.length > 0) return { result: "emergency", reasons };
+  const unchecked: string[] = [];
+  if (answers.oxygen === "unknown") unchecked.push(UNCHECKED.oxygen);
+  if (answers.breathing === "unsure") unchecked.push(UNCHECKED.breathing);
+  if (answers.chest_pain === "unsure") unchecked.push(UNCHECKED.chest_pain);
+  if (answers.confusion === "unsure") unchecked.push(UNCHECKED.confusion);
+  return { result: "clear", unchecked };
+}
+
+export function emergencyLine(reasons: readonly string[]): string {
+  return `You said: ${reasons.join(", ")}.`;
+}
+
+export function uncheckedLine(unchecked: readonly string[]): string {
+  return `We could not check: ${unchecked.join(", ")}. If you get worse, call 995.`;
+}

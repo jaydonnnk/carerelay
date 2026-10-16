@@ -172,6 +172,8 @@ def test_s22_rendered_screens_match_the_approved_redesign(tmp_path):
     assert "Step " not in failed_html and 'type="checkbox"' not in failed_html and "Not now" not in failed_html
 
     assert "We cannot load your plan" not in start_html and start_html.count(">Start<") == 1
+    # Quick safety check (16 October 2026): no plan-creating form exists until the check is clear.
+    assert 'name="operation_token"' not in start_html and 'type="button"' in start_html
     assert "We cannot load your plan" in recovery_html and ">Start<" not in recovery_html
 
 
