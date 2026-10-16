@@ -1197,6 +1197,8 @@ class EpisodeService:
                 result = unvalidated_adp_result(request)
             raw = (eligible_adp_output(result, confirmed_text=context.confirmed_text, correlation_id=binding.operation_id) if result.mode == "adp"
                    else eligible_offline_output(result, confirmed_text=context.confirmed_text))
+            if raw is not None:
+                raw = replace(raw, next_owner_span=rules.first_person_owner_span(raw.next_owner_span, context.confirmed_text))
             if raw is None and result.validation == "valid":
                 failure = "refused" if result.raw is not None and result.raw.refused else "invalid"
                 result = replace(result, validation=failure, failure_category=failure)

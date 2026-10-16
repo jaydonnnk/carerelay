@@ -1181,3 +1181,54 @@ def test_full_width_question_never_becomes_a_clean_timing_repair(tmp_path):
         assert row.outcome is models.RecallOutcome.NOT_RECALLED
         assert result.journey.step=='readback' and result.journey.flow.completed_repairs==1
     finally:service._store.close()
+
+
+@pytest.mark.parametrize("text,owner", [
+    ("I will go to the clinic today before 6pm", "I will"),
+    ("I'll go to the clinic today before 6pm", "I'll"),
+    ("I’ll go to the clinic today before 6pm", "I’ll"),
+    ("I am going to the clinic today before 6pm", "I am going"),
+    ("I’m going to the clinic today before 6pm", "I’m going"),
+])
+def test_a_bare_first_person_owner_span_widens_to_its_commitment(text, owner):
+    """Live ADP may copy only "I" from "I will ..."; the commitment is in the saved words."""
+    widened = rules.first_person_owner_span(models.SourceSpan(text[0], 0, 1), text)
+    assert widened == models.SourceSpan(owner, 0, len(owner)) and text[widened.start:widened.end] == owner
+    assert rules._resolve_id(widened.text, fixture.policy().owner_aliases, fixture.policy().permitted_owner_ids) == "patient"
+
+
+@pytest.mark.parametrize("text,span", [
+    ("today before six. I like tea.", models.SourceSpan("I", 18, 19)),
+    ("I willow the clinic", models.SourceSpan("I", 0, 1)),
+    ("me will go", models.SourceSpan("me", 0, 2)),
+    ("x will go", models.SourceSpan("I", 0, 1)),
+    ("I will go", None),
+])
+def test_anything_else_is_left_as_it_was(text, span):
+    assert rules.first_person_owner_span(span, text) is span
+
+
+def test_live_style_bare_i_scores_and_survives_a_timing_repair(tmp_path):
+    """The 16 October production read-back: ADP copied "I" and code said Unclear."""
+    first, second = "I will go to the clinic tomorrow before 6pm", "today before six"
+    good = offline(first)
+    owner = models.SourceSpan("I", 0, 1)
+    class BareIExtractor:
+        def __init__(self): self.calls = 0
+        def extract(self, request, *, budget_seconds):
+            self.calls += 1
+            result = offline(first if self.calls == 1 else second)
+            raw = replace(result.raw, next_owner_span=owner) if self.calls == 1 else result.raw
+            return replace(result, raw=raw, request_id=request.correlation_id)
+    service = make_service(tmp_path / "bare-i.sqlite"); service._readback_extractor = BareIExtractor()
+    try:
+        ep = start_readback(service); confirm(service, ep, first); _, result = score(service, ep)
+        row = service._store.list_restatements(ep)[-1]
+        assert row.extracted.next_owner_span == "I will"
+        assert "next_owner_id" in row.comparison.matched and row.comparison.mismatched == frozenset({"deadline_utc"})
+        confirm(service, ep, second); _, result = score(service, ep)
+        row = service._store.list_restatements(ep)[-1]
+        assert row.comparison.matched == frozenset({"action_id", "deadline_utc", "next_owner_id"})
+        assert result.journey.step == "barrier"
+    finally:
+        service._store.close()

@@ -184,6 +184,8 @@ OWNER_ALIASES = {
     "i'll": NEXT_OWNER_ID,
     "i am going": NEXT_OWNER_ID,
     "i'm going": NEXT_OWNER_ID,
+    "i\u2019ll": NEXT_OWNER_ID,
+    "i\u2019m going": NEXT_OWNER_ID,
     "the patient": NEXT_OWNER_ID,
     "我自己": NEXT_OWNER_ID,
 }

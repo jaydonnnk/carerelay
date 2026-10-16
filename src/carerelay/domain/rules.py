@@ -252,6 +252,25 @@ def normalise(text: str) -> str:
     return " ".join(text.strip().casefold().split())
 
 
+#: A bare "I" names the patient only when the saved words go on to commit:
+#: "I will", "I'll", "I am going" or "I'm going" (Gate 1, 16 October 2026).
+_FIRST_PERSON_COMMITMENT = re.compile(r"(?:\s+will|['\u2019]ll|\s+am\s+going|['\u2019]m\s+going)(?!\w)", re.IGNORECASE)
+
+
+def first_person_owner_span(span: SourceSpan | None, confirmed_text: str) -> SourceSpan | None:
+    """Widen a grounded bare "I" to its commitment, so it resolves like the offline forms.
+
+    The widened span is still an exact slice of the confirmed words; anything else
+    is returned unchanged, so an aside such as "I like tea." still names no one.
+    """
+    if span is None or span.text.strip().casefold() != "i" or confirmed_text[span.start:span.end] != span.text:
+        return span
+    match = _FIRST_PERSON_COMMITMENT.match(confirmed_text, span.end)
+    if match is None:
+        return span
+    return SourceSpan(confirmed_text[span.start:match.end()], span.start, match.end())
+
+
 def _resolve_id(
     span: str | None, aliases: Mapping[str, str], allowed: frozenset[str]
 ) -> str | None:
