@@ -1,5 +1,9 @@
 # Slice 21 remaining live proof proposal: 16 October 2026
 
+[verified executed, 16 October 2026] Under the follow-up authority, all seven inputs below ran once each through the guarded local product as calls 20 to 26, with no stop triggered and every outcome as expected.
+The total allowance of 25 was never applied; a new authority record replaced it.
+Results and limits are in `00-status.md`.
+
 [verified current authority, 16 October 2026] The user now authorises all fictional live calls needed for this follow-up. The seven inputs remain the useful case definitions. The old proposed total of 25 and old lack of call authority below are historical; no new numeric ceiling was specified. The 15-second response cap and all schema/safety/ledger/stop rules remain. This document does not authorise an undocumented contract change. Current authority is in `00-status.md`.
 
 DEFERRED BY USER ACCEPTANCE, 16 October 2026. Optional future evidence plan only. NOT APPROVED OR EXECUTED. The user accepted the bounded Slice 21 demo with these seven cases unrun. This proposal is no longer a mandatory completion step. It authorises no request or increase from 24 to 25. `00-status.md` owns state.

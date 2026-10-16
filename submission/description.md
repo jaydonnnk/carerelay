@@ -158,6 +158,8 @@ reachable through projection bugs, which is why the fault harness exists.
 
 [verified accepted scope] The user accepted this bounded fictional demo with seven further live cases unrun. One positive result does not establish general model reliability, clinical safety or full accessibility. ADP is default-off. An offline review uses the explicitly labelled local-sim extractor and must not be presented as a fresh live ADP call. Slice 21 is published on main and the retained slice branch; `00-status.md` owns its receipt. This local proof is not evidence of the hosted site's behavior.
 
+[verified follow-up, 16 October 2026] Under the later "full approval for all live calls" authority, the seven remaining fictional categories each ran once through the guarded local product (calls 20 to 26), all as expected: wrong-time repair, missing-value uncertainty, two structured refusals and three preserved uncertainties. A guarded manual live preview now reserves every submission before sending. This is a small fictional sample, not general reliability. Details are in `00-status.md`.
+
 [verified boundary] Real ADP extraction does not make simulated booking or caregiver actions into platform-originated execution. Action origin stays `local-sim`. ADP tool execution is outside this integration; the earlier transport spike supplies no clinical or action-execution claim.
 
 [verified local artifacts] Development-history records, redacted screenshots and the protected WorkBuddy usage video are retained in the repository. Their presence is evidence of the submitted development process, not an organiser acceptance or scoring result.

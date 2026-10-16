@@ -22,6 +22,17 @@ Operational memory only. `00-status.md` owns approval/state.
 - [x] Main full suite repeats 2,118 passed/232 skips/one warning. Publication record sweep prepared for final receipt publication to both refs; final remote/clean-tree audit follows that push and is reported externally.
 - [x] Offline preview restarted on main at http://127.0.0.1:8520/example, preserving the review DB; no ADP credentials loaded. Final publication result follows receipt push.
 
+## Slice 21 live-evidence follow-up: 16 October 2026
+
+Operational memory only. `00-status.md` owns approval/state.
+
+- [x] Fresh start verified: main, origin/main and slice-21-adp-enablement at c0dea89; work on the retained slice branch; repository source unchanged.
+- [x] Ledger helper replaced by transport-level `live_guard` with pinned history and a per-phase run plan (corpus 7, manual demo 20). Spurious entry 19 voided, no transmission.
+- [x] Offline: 16 guard tests, 14/14 named mutations RED, end-to-end no-network guarded product proof (reserve-before-send, halt, unfinished, phase limit).
+- [x] Live corpus calls 20 to 26 all as expected; invariants, refresh and 76-file/760-control leak scan clean.
+- [x] Guarded manual live preview at http://127.0.0.1:8520/example (API 8521, phase s21-manual-live-demo); check call 27 valid. Harness: /tmp/carerelay-s21-product-20261015/harness/.
+- [ ] User review. Stop owned preview with `safe_stop.py live-demo-20261016-backend live-demo-20261016-frontend` when done.
+
 ## Earlier accepted cleanup: history
 
 Operational memory only. `00-status.md` owns approval/state.

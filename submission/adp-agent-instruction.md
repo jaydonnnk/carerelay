@@ -2,6 +2,8 @@
 
 [verified, 16 October 2026] Slice 21 is accepted as a bounded fictional demo with seven further live cases unrun. Call 18 produced the first valid, scored HTTPS extraction through the actual local product in 5,305 ms. The published v2 instruction text below is unchanged; no republishing or new call is requested by this cleanup. ADP remains default-off. `00-status.md` owns scope.
 
+[verified follow-up, 16 October 2026] Under the later "full approval for all live calls" authority, the seven remaining fictional categories each ran once through the guarded local product (calls 20 to 26), all as expected: wrong-time repair, missing-value uncertainty, two structured refusals and three preserved uncertainties. A guarded manual live preview now reserves every submission before sending. This is a small fictional sample, not general reliability. Details are in `00-status.md`.
+
 [verified] Prepared on 15 October 2026 under explicit operator-revision,
 publication and activation authority. Target: CareRelay, account 200053387891,
 Experience GkTbUc. `00-status.md` owns implementation/live scope. No credential
