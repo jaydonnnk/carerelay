@@ -1,5 +1,19 @@
 # Patient experience copy inventory: APPROVED with Slice 16 and redesign amendments
 
+
+## Quick safety check: APPROVED 16 October 2026
+
+The user answered "I approve Gates 1 to 4 for the safety check as drafted. Start the buildout". Source of truth: `SAFETY_COPY` and `QUESTIONS` in `frontend/lib/journey.ts`.
+
+- Quick safety check / Answer for right now. / Uses the challenge's example warning signs (Scenario 2). Not clinical guidance.
+- What is your oxygen reading right now? Below 90% / 90% to 93% / 94% or higher / I cannot measure it
+- Are you breathing very fast, 30 or more breaths a minute? Yes / No / Not sure
+- Do you have new chest pain? Yes / No / Not sure
+- Are you confused, or has someone said you seem confused? Yes / No / Not sure
+- Next / Back
+- Get emergency help now / Call 995 for an ambulance. / Do not wait for this app. / You said: ... / Change my answers
+- No warning signs from these four questions. / We could not check: ... If you get worse, call 995.
+
 ## Patient wording change: APPROVED 16 October 2026
 
 The user answered "yea approve the gate 1 strings commit and push" to the drafted table below.
